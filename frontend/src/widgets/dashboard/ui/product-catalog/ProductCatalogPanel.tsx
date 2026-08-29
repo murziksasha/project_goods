@@ -41,7 +41,9 @@ import {
   catalogTabStorageKey,
   catalogActiveFiltersStorageKey,
   catalogSavedFiltersStorageKey,
+  catalogSearchStorageKey,
   emptyCatalogFilters,
+  readCatalogSearch,
   getActiveCatalogFiltersCount,
   isDateInCatalogRange,
   normalizeCatalogFilters,
@@ -167,6 +169,9 @@ export const ProductCatalogPanel = ({
   void onProductCancelEdit;
   void onArchiveProduct;
   void onActivateProduct;
+  void searchQuery;
+  void currentSearchValue;
+  void onSearchChange;
 
   const { t } = useTranslation();
 
@@ -202,6 +207,7 @@ export const ProductCatalogPanel = ({
   >([]);
   const [newFilterName, setNewFilterName] = useState('');
   const [newFilterIcon, setNewFilterIcon] = useState(filterIconOptions[0]);
+  const [searchByTab, setSearchByTab] = useState(readCatalogSearch);
   const [isCreateDeviceModalOpen, setIsCreateDeviceModalOpen] = useState(false);
   const [isCreateSupplierModalOpen, setIsCreateSupplierModalOpen] = useState(false);
   const [isCreateCatalogProductModalOpen, setIsCreateCatalogProductModalOpen] = useState(false);
@@ -433,7 +439,7 @@ export const ProductCatalogPanel = ({
       uniqueByName.set(key, device);
     });
     const uniqueDevices = Array.from(uniqueByName.values());
-    const query = searchQuery.trim().toLowerCase();
+    const query = searchByTab.products.trim().toLowerCase();
     const filters = appliedFiltersByTab.products;
     const filterQuery = filters.query.trim().toLowerCase();
     return uniqueDevices.filter((device) => {
@@ -453,13 +459,13 @@ export const ProductCatalogPanel = ({
       }
       return true;
     });
-  }, [appliedFiltersByTab.products, clientDevices, searchQuery]);
+  }, [appliedFiltersByTab.products, clientDevices, searchByTab.products]);
   const paginatedProducts = useMemo(() => {
     const start = (productsPage - 1) * productsPageSize;
     return filteredClientDevices.slice(start, start + productsPageSize);
   }, [filteredClientDevices, productsPage, productsPageSize]);
   const filteredCatalogProducts = useMemo(() => {
-    const normalizedQuery = searchQuery.trim().toLowerCase();
+    const normalizedQuery = searchByTab.catalogProducts.trim().toLowerCase();
     const filters = appliedFiltersByTab.catalogProducts;
     const filterQuery = filters.query.trim().toLowerCase();
     const noteQuery = filters.note.trim().toLowerCase();
@@ -483,7 +489,7 @@ export const ProductCatalogPanel = ({
       }
       return true;
     });
-  }, [appliedFiltersByTab.catalogProducts, catalogProducts, searchQuery]);
+  }, [appliedFiltersByTab.catalogProducts, catalogProducts, searchByTab.catalogProducts]);
   const paginatedCatalogProducts = useMemo(() => {
     const start = (catalogProductsPage - 1) * catalogProductsPageSize;
     return filteredCatalogProducts.slice(
@@ -531,7 +537,7 @@ export const ProductCatalogPanel = ({
     return filteredServices.slice(start, start + servicesPageSize);
   }, [filteredServices, servicesPage, servicesPageSize]);
   const filteredSuppliers = useMemo(() => {
-    const normalizedQuery = searchQuery.trim().toLowerCase();
+    const normalizedQuery = searchByTab.suppliers.trim().toLowerCase();
     const filters = appliedFiltersByTab.suppliers;
     const filterQuery = filters.query.trim().toLowerCase();
     const noteQuery = filters.note.trim().toLowerCase();
@@ -563,7 +569,7 @@ export const ProductCatalogPanel = ({
       }
       return true;
     });
-  }, [appliedFiltersByTab.suppliers, searchQuery, suppliers]);
+  }, [appliedFiltersByTab.suppliers, searchByTab.suppliers, suppliers]);
   const paginatedSuppliers = useMemo(() => {
     const start = (suppliersPage - 1) * suppliersPageSize;
     return filteredSuppliers.slice(start, start + suppliersPageSize);
@@ -651,6 +657,13 @@ export const ProductCatalogPanel = ({
   }, [appliedFiltersByTab]);
 
   useEffect(() => {
+    window.localStorage.setItem(
+      catalogSearchStorageKey,
+      JSON.stringify(searchByTab),
+    );
+  }, [searchByTab]);
+
+  useEffect(() => {
     if (!selectedService) return;
     const updatedSelectedService = services.find((service) => service.id === selectedService.id);
     setSelectedService(updatedSelectedService ?? null);
@@ -676,6 +689,7 @@ export const ProductCatalogPanel = ({
           <button
             key={tab.key}
             type="button"
+            aria-selected={tab.key === activeTab}
             className={
               tab.key === activeTab
                 ? 'catalog-tab catalog-tab-active'
@@ -731,7 +745,11 @@ export const ProductCatalogPanel = ({
         </button>
         <div className="orders-search-group orders-search-group-clearable catalog-search-group">
           <input
-            value={isProductsTab || isCatalogProductsTab || isSuppliersTab ? currentSearchValue : currentServiceSearchValue}
+            value={
+              activeTab === 'services'
+                ? currentServiceSearchValue
+                : searchByTab[activeTab]
+            }
             placeholder={
               isProductsTab
                 ? t('catalog.toolbar.searchDeviceName')
@@ -741,49 +759,53 @@ export const ProductCatalogPanel = ({
                   ? t('catalog.toolbar.searchSupplierNameOrPhone')
                   : t('catalog.toolbar.searchServiceNameOrNote')
             }
-            onChange={(event) =>
-              isProductsTab || isCatalogProductsTab || isSuppliersTab
-                ? (onSearchChange(event.target.value),
-                  isSuppliersTab
-                    ? setSuppliersPage(1)
-                    : isCatalogProductsTab
-                      ? setCatalogProductsPage(1)
-                      : setProductsPage(1))
-                : (onServiceSearchChange(event.target.value), setServicesPage(1))
-            }
+            onChange={(event) => {
+              const value = event.target.value;
+              if (activeTab === 'services') {
+                onServiceSearchChange(value);
+                setServicesPage(1);
+                return;
+              }
+              setSearchByTab((current) => ({
+                ...current,
+                [activeTab]: value,
+              }));
+              resetActivePage();
+            }}
           />
-          {(isProductsTab || isCatalogProductsTab || isSuppliersTab ? currentSearchValue : currentServiceSearchValue) ? (
+          {(activeTab === 'services'
+            ? currentServiceSearchValue
+            : searchByTab[activeTab]) ? (
             <span
               role='button'
               tabIndex={0}
               className='orders-search-clear'
               aria-label={t('catalog.toolbar.clearSearchAriaLabel')}
-              onClick={() =>
-                isProductsTab || isCatalogProductsTab || isSuppliersTab
-                  ? (onSearchChange(''),
-                    isSuppliersTab
-                      ? setSuppliersPage(1)
-                      : isCatalogProductsTab
-                        ? setCatalogProductsPage(1)
-                        : setProductsPage(1))
-                  : (onServiceSearchChange(''), setServicesPage(1))
-              }
+              onClick={() => {
+                if (activeTab === 'services') {
+                  onServiceSearchChange('');
+                  setServicesPage(1);
+                  return;
+                }
+                setSearchByTab((current) => ({
+                  ...current,
+                  [activeTab]: '',
+                }));
+                resetActivePage();
+              }}
               onKeyDown={(event) => {
                 if (event.key === 'Enter' || event.key === ' ') {
                   event.preventDefault();
-                  if (isProductsTab || isCatalogProductsTab || isSuppliersTab) {
-                    onSearchChange('');
-                    if (isSuppliersTab) {
-                      setSuppliersPage(1);
-                    } else if (isCatalogProductsTab) {
-                      setCatalogProductsPage(1);
-                    } else {
-                      setProductsPage(1);
-                    }
-                  } else {
+                  if (activeTab === 'services') {
                     onServiceSearchChange('');
                     setServicesPage(1);
+                    return;
                   }
+                  setSearchByTab((current) => ({
+                    ...current,
+                    [activeTab]: '',
+                  }));
+                  resetActivePage();
                 }
               }}
             >
@@ -838,17 +860,49 @@ export const ProductCatalogPanel = ({
         onUpdate={updateDraftFilter}
       />
 
-      {!isProductsTab && !isSuppliersTab && !isCatalogProductsTab && isServiceFormOpen ? (
-        <div className="catalog-inline-form">
+      {isServiceFormOpen && !isProductsTab && !isSuppliersTab && !isCatalogProductsTab ? (
+        <Modal
+          isOpen
+          title={
+            isServiceEditing
+              ? t('catalog.serviceForm.editService')
+              : t('catalog.serviceForm.addService')
+          }
+          onClose={closeServiceForm}
+          closeLabel={t('catalog.modals.close')}
+          closeOnBackdrop={!isServiceSaving}
+          closeOnEscape={!isServiceSaving}
+          footer={
+            <footer className="catalog-edit-footer">
+              <Button variant="secondary" onClick={closeServiceForm}>
+                {t('catalog.modals.cancel')}
+              </Button>
+              <Button
+                variant="primary"
+                disabled={
+                  isServiceSaving ||
+                  !serviceForm.name.trim() ||
+                  !serviceForm.price.trim()
+                }
+                onClick={() => void onServiceSubmit()}
+              >
+                {isServiceSaving
+                  ? t('catalog.modals.saving')
+                  : t('catalog.modals.save')}
+              </Button>
+            </footer>
+          }
+        >
           <ServiceCatalogForm
             form={serviceForm}
             isSaving={isServiceSaving}
             isEditing={isServiceEditing}
+            hideChrome
             onChange={onServiceChange}
             onSubmit={onServiceSubmit}
             onCancelEdit={closeServiceForm}
           />
-        </div>
+        </Modal>
       ) : null}
 
       {isProductsTab ? (
@@ -856,7 +910,7 @@ export const ProductCatalogPanel = ({
           <ProductsTable
             products={paginatedProducts}
             isLoading={isLoading}
-            searchQuery={searchQuery}
+            searchQuery={searchByTab.products}
             rowStartIndex={(productsPage - 1) * productsPageSize}
             onSelectDevice={setSelectedClientDevice}
           />
@@ -876,7 +930,7 @@ export const ProductCatalogPanel = ({
           <CatalogProductsTable
             products={paginatedCatalogProducts}
             isLoading={isCatalogProductsLoading}
-            searchQuery={searchQuery}
+            searchQuery={searchByTab.catalogProducts}
             rowStartIndex={
               (catalogProductsPage - 1) * catalogProductsPageSize
             }
@@ -895,7 +949,12 @@ export const ProductCatalogPanel = ({
         </>
       ) : isSuppliersTab ? (
         <>
-          <SuppliersTable suppliers={paginatedSuppliers} searchQuery={searchQuery} onSelectSupplier={setSelectedSupplier} />
+          <SuppliersTable
+            suppliers={paginatedSuppliers}
+            searchQuery={searchByTab.suppliers}
+            rowStartIndex={(suppliersPage - 1) * suppliersPageSize}
+            onSelectSupplier={setSelectedSupplier}
+          />
           <PaginationPanel
             totalItems={filteredSuppliers.length}
             page={suppliersPage}

@@ -10,6 +10,7 @@ type ServiceCatalogFormProps = {
   form: ServiceCatalogFormValues;
   isSaving: boolean;
   isEditing: boolean;
+  hideChrome?: boolean;
   onChange: <K extends keyof ServiceCatalogFormValues>(
     field: K,
     value: ServiceCatalogFormValues[K],
@@ -25,11 +26,51 @@ export const ServiceCatalogForm = ({
   form,
   isSaving,
   isEditing,
+  hideChrome = false,
   onChange,
   onSubmit,
   onCancelEdit,
 }: ServiceCatalogFormProps) => {
   const { t } = useTranslation();
+
+  const fields = (
+    <div className="form-grid">
+      <label className="field">
+        <span>{t('common.name')}</span>
+        <input
+          value={form.name}
+          placeholder={t('catalog.serviceForm.namePlaceholder')}
+          onChange={(event) => onChange('name', event.target.value)}
+        />
+      </label>
+
+      <label className="field">
+        <span>{t('common.price')}</span>
+        <NumberStepper
+          min={0}
+          step={PRICE_STEPPER_STEP}
+          precision={PRICE_STEPPER_PRECISION}
+          value={form.price}
+          placeholder={t('catalog.serviceForm.pricePlaceholder')}
+          onChange={(value) => onChange('price', value)}
+        />
+      </label>
+
+      <label className="field field-wide">
+        <span>{t('common.note')}</span>
+        <textarea
+          rows={3}
+          value={form.note}
+          placeholder={t('catalog.serviceForm.notePlaceholder')}
+          onChange={(event) => onChange('note', event.target.value)}
+        />
+      </label>
+    </div>
+  );
+
+  if (hideChrome) {
+    return fields;
+  }
 
   return (
     <section className="panel">
@@ -60,38 +101,7 @@ export const ServiceCatalogForm = ({
         )}
       </div>
 
-      <div className="form-grid">
-        <label className="field">
-          <span>{t('common.name')}</span>
-          <input
-            value={form.name}
-            placeholder={t('catalog.serviceForm.namePlaceholder')}
-            onChange={(event) => onChange('name', event.target.value)}
-          />
-        </label>
-
-        <label className="field">
-          <span>{t('common.price')}</span>
-          <NumberStepper
-            min={0}
-            step={PRICE_STEPPER_STEP}
-            precision={PRICE_STEPPER_PRECISION}
-            value={form.price}
-            placeholder={t('catalog.serviceForm.pricePlaceholder')}
-            onChange={(value) => onChange('price', value)}
-          />
-        </label>
-
-        <label className="field field-wide">
-          <span>{t('common.note')}</span>
-          <textarea
-            rows={3}
-            value={form.note}
-            placeholder={t('catalog.serviceForm.notePlaceholder')}
-            onChange={(event) => onChange('note', event.target.value)}
-          />
-        </label>
-      </div>
+      {fields}
 
       <button
         className="primary-button"

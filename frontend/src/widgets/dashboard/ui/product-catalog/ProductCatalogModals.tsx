@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { ClientDevice, ClientDeviceFormValues } from '../../../../entities/client-device/model/types';
 import type { CatalogProduct, CatalogProductFormValues } from '../../../../entities/catalog-product/model/types';
@@ -12,6 +12,7 @@ import {
   PRICE_STEPPER_STEP,
 } from '../../../../shared/lib/price-stepper';
 import { NumberStepper } from '../../../../shared/ui/NumberStepper';
+import { isValidUkrainianPhone } from '../../../../shared/lib/phoneFormatter';
 import { Modal } from '../../../../shared/ui/Modal';
 import { Button } from '../../../../shared/ui/Button';
 import {
@@ -32,11 +33,32 @@ export const SupplierModal = ({
   onCreate: (payload: SupplierFormValues) => Promise<boolean>;
 }) => {
   const { t } = useTranslation();
+  const phoneInputRef = useRef<HTMLInputElement>(null);
+  const copySuffix = t('catalog.modals.supplierCopySuffix');
   const [name, setName] = useState(supplier.name);
   const [phone, setPhone] = useState(supplier.phone);
   const [note, setNote] = useState(supplier.note ?? '');
   const [isActive, setIsActive] = useState(supplier.isActive);
   const [isSaving, setIsSaving] = useState(false);
+  const [isCreateCopy, setIsCreateCopy] = useState(false);
+
+  const phoneDigits = (value: string) => value.replace(/\D/g, '');
+  const isSamePhone =
+    phoneDigits(phone) === phoneDigits(supplier.phone);
+  const withCopyName = (value: string) => {
+    const trimmed = value.trim();
+    return trimmed.endsWith(copySuffix.trim())
+      ? trimmed
+      : `${trimmed}${copySuffix}`;
+  };
+  const canSubmitCreate =
+    Boolean(name.trim()) && isValidUkrainianPhone(phone) && !isSamePhone;
+
+  useEffect(() => {
+    if (!isCreateCopy) return;
+    phoneInputRef.current?.focus();
+    phoneInputRef.current?.select();
+  }, [isCreateCopy]);
 
   const save = async () => {
     setIsSaving(true);
@@ -50,10 +72,10 @@ export const SupplierModal = ({
   };
 
   const createCopy = async () => {
-    if (!name.trim() || !phone.trim()) return;
+    if (!name.trim() || !canSubmitCreate) return;
     setIsSaving(true);
     const ok = await onCreate({
-      name: `${name.trim()}${t('catalog.modals.supplierCopySuffix')}`,
+      name: withCopyName(name),
       phone: phone.trim(),
       note: note.trim(),
       isActive,
@@ -62,32 +84,78 @@ export const SupplierModal = ({
     if (ok) onClose();
   };
 
+  const startCreateCopy = () => {
+    if (isSaving || !name.trim()) return;
+    setName(withCopyName(name));
+    if (canSubmitCreate) {
+      void createCopy();
+      return;
+    }
+    if (isSamePhone) {
+      setPhone('+380');
+    }
+    setIsCreateCopy(true);
+  };
+
   return (
     <Modal
       isOpen
-      title={t('catalog.modals.supplier')}
-      subtitle={t('catalog.modals.supplierId', { id: supplier.id.slice(-6) })}
+      title={
+        isCreateCopy
+          ? t('catalog.modals.createSupplier')
+          : t('catalog.modals.supplier')
+      }
+      subtitle={
+        isCreateCopy
+          ? undefined
+          : t('catalog.modals.supplierId', { id: supplier.id.slice(-6) })
+      }
       onClose={onClose}
       closeLabel={t('catalog.modals.close')}
       closeOnBackdrop={!isSaving}
       closeOnEscape={!isSaving}
       footer={
         <footer className="catalog-edit-footer">
-          <Button variant="secondary" onClick={createCopy} disabled={isSaving}>
-            {t('catalog.modals.addNew')}
-          </Button>
+          {isCreateCopy ? null : (
+            <Button
+              variant="secondary"
+              onClick={startCreateCopy}
+              disabled={isSaving || !name.trim()}
+              title={t('catalog.modals.addNewHint')}
+            >
+              {t('catalog.modals.addNew')}
+            </Button>
+          )}
           <Button
             variant="primary"
-            onClick={() => void save()}
-            disabled={isSaving || !name.trim() || !phone.trim()}
+            onClick={() => void (isCreateCopy ? createCopy() : save())}
+            disabled={
+              isSaving ||
+              !name.trim() ||
+              (isCreateCopy ? !canSubmitCreate : !phone.trim())
+            }
           >
-            {isSaving ? t('catalog.modals.saving') : t('common.save')}
+            {isSaving
+              ? t('catalog.modals.saving')
+              : isCreateCopy
+                ? t('catalog.modals.create')
+                : t('common.save')}
           </Button>
         </footer>
       }
     >
       <label className="field"><span>{t('catalog.modals.name')}</span><input value={name} onChange={(e) => setName(e.target.value)} /></label>
-      <label className="field"><span>{t('catalog.modals.phone')}</span><input value={phone} onChange={(e) => setPhone(e.target.value)} /></label>
+      <label className="field">
+        <span>{t('catalog.modals.phone')}</span>
+        <input
+          ref={phoneInputRef}
+          value={phone}
+          onChange={(e) => setPhone(e.target.value)}
+        />
+      </label>
+      {isCreateCopy ? (
+        <p className="muted-copy">{t('catalog.modals.addNewPhoneHint')}</p>
+      ) : null}
       <label className="field field-wide"><span>{t('catalog.modals.note')}</span><textarea rows={3} value={note} onChange={(e) => setNote(e.target.value)} /></label>
       <label className="field"><span>{t('catalog.modals.status')}</span><select value={isActive ? 'active' : 'inactive'} onChange={(e) => setIsActive(e.target.value === 'active')}><option value="active">{t('catalog.modals.active')}</option><option value="inactive">{t('catalog.modals.inactive')}</option></select></label>
     </Modal>
@@ -321,11 +389,6 @@ export const CatalogServiceModal = ({
           <span>{t('catalog.modals.name')}</span>
           <input value={form.name} onChange={(event) => onChange('name', event.target.value)} />
         </label>
-        <fieldset className="catalog-type-field">
-          <legend>{t('catalog.modals.itemType')}</legend>
-          <label><input type="radio" disabled /> {t('catalog.modals.itemTypeProduct')}</label>
-          <label><input type="radio" checked readOnly /> {t('catalog.modals.itemTypeService')}</label>
-        </fieldset>
         <label className="field">
           <span>{t('catalog.modals.retailPrice')}</span>
           <NumberStepper min={0} step={PRICE_STEPPER_STEP} precision={PRICE_STEPPER_PRECISION} value={form.price} onChange={(value) => onChange('price', value)} />
