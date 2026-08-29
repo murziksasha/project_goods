@@ -149,7 +149,6 @@
       "backups": "Backups",
       "database": "Database"
     },
-
     "dashboard": {
       "marketWeatherEnabled": "Show market & weather widget",
       "exchangeRatesEnabled": "Show exchange rates",
@@ -1014,7 +1013,7 @@
         "action": "Action",
         "noProductsAdded": "No products added.",
         "noServicesAdded": "No services added.",
-        "groupedCount": "\u00d7{{quantity}}",
+        "groupedCount": "×{{quantity}}",
         "toggleGroup": "Toggle {{name}} group ({{quantity}})",
         "return": "Return",
         "remove": "Remove",
@@ -2539,10 +2538,7 @@
       },
       "selectAllServices": "Select all services",
       "selectService": "Select {{name}}",
-      "inactiveBadge": "Inactive",
-      "copyName": "Copy name",
-      "copied": "Copied",
-      "copyFailed": "Copy failed"
+      "inactiveBadge": "Inactive"
     },
     "modals": {
       "close": "Close",
@@ -2604,10 +2600,6 @@
       "copyFailed": "Copy failed",
       "printSerialNumber": "Print serial number",
       "printSerialTitle": "Warehouse serial number",
-      "printSelectedCount": "Print {{count}} selected serial numbers",
-      "selectSerialsToPrint": "Select serial numbers to print",
-      "selectAllSerials": "Select all serial numbers for print",
-      "selectSerialRow": "Select serial {{serial}} for print",
       "noStockRows": "No stock rows exist for this exact product name.",
       "sections": {
         "main": "MAIN INFORMATION",
@@ -2646,9 +2638,7 @@
       "pricePlaceholder": "700",
       "notePlaceholder": "Default description or internal note",
       "updateService": "Update service"
-    },
-    "pageTitle": "Products & services",
-    "pageSubtitle": "{{count}} records"
+    }
   },
   "employees": {
     "tabs": {
@@ -2672,7 +2662,80 @@
       "delete": "Delete",
       "cannotDeleteSelf": "You cannot delete your own account.",
       "deleteEmployee": "Delete employee",
-      "noPermission": "Only owners can create, edit, or delete employees."
+      "noPermission": "Only owners can create, edit, or delete employees.",
+      "addEmployee": "Add employee",
+      "searchPlaceholder": "Name, login, email, phone...",
+      "filterRole": "Role",
+      "filterStatus": "Status",
+      "allRoles": "All roles",
+      "allStatuses": "All statuses",
+      "activeCount": "{{active}} active · {{inactive}} inactive",
+      "noMatches": "No employees match the filters.",
+      "metaLogin": "Login",
+      "metaEmail": "Email",
+      "metaPhone": "Phone"
+    },
+    "roles": {
+      "owner": "Owner",
+      "manager": "Manager",
+      "master": "Master",
+      "accountant": "Accountant",
+      "warehouse": "Warehouse",
+      "sales": "Sales",
+      "support": "Support"
+    },
+    "permissions": {
+      "orders": {
+        "view": "View orders",
+        "manage": "Manage orders",
+        "chat": "Order chat"
+      },
+      "supplierOrders": {
+        "view": "View supplier orders",
+        "manage": "Manage supplier orders"
+      },
+      "repairs": {
+        "execute": "Execute repairs"
+      },
+      "sales": {
+        "manage": "Manage sales"
+      },
+      "kanban": {
+        "use": "Use Kanban"
+      },
+      "clients": {
+        "manage": "Manage clients"
+      },
+      "inventory": {
+        "manage": "Manage inventory"
+      },
+      "finance": {
+        "view": "View finance",
+        "cashboxes": {
+          "view": "View cashboxes",
+          "manage": "Manage cashboxes"
+        },
+        "transactions": {
+          "deposit": "Cash deposits",
+          "withdraw": "Cash withdrawals",
+          "transfer": "Cash transfers"
+        },
+        "supplierOrders": {
+          "pay": "Pay supplier orders",
+          "issueWithoutPayment": "Issue supplier orders without payment"
+        }
+      },
+      "employees": {
+        "manage": "Manage employees"
+      },
+      "printForms": {
+        "manage": "Manage print forms"
+      },
+      "system": {
+        "backups": {
+          "manage": "Manage backups"
+        }
+      }
     },
     "information": {
       "sectionLabel": "Employee analytics",

@@ -94,12 +94,15 @@ const getLatestDate = (current: string | null, candidate: string | null) => {
     : current;
 };
 
+const getSalePeriodDateKey = (sale: Sale) =>
+  (sale.saleDate || sale.createdAt || '').slice(0, 10);
+
 const isSaleInDateRange = (
   sale: Sale,
   dateFrom: string,
   dateTo: string,
 ) => {
-  const saleDate = sale.createdAt?.slice(0, 10) ?? '';
+  const saleDate = getSalePeriodDateKey(sale);
   if (!saleDate) return false;
   if (dateFrom && saleDate < dateFrom) return false;
   if (dateTo && saleDate > dateTo) return false;
@@ -197,7 +200,7 @@ const buildAchievementsMap = (
   });
 
   sales.forEach((sale) => {
-    const saleDate = sale.createdAt ?? null;
+    const saleDate = sale.saleDate || sale.createdAt || null;
     const revenue = getSaleTotal(sale);
     const managerId = sale.manager?.id;
 
