@@ -1461,7 +1461,8 @@
       "information": "Інформація",
       "clientsAndSuppliers": "Клієнти та постачальники",
       "clients": "Клієнти",
-      "suppliers": "Постачальники"
+      "suppliers": "Постачальники",
+      "withCount": "{{label}} ({{count}})"
     },
     "toolbar": {
       "filter": "Фільтр",
@@ -1473,7 +1474,9 @@
       "exportXls": "Експорт XLS",
       "exporting": "Експорт...",
       "merge": "Обʼєднати",
-      "createClient": "Створити клієнта"
+      "createClient": "Створити клієнта",
+      "totalCount_one": "{{count}} запис",
+      "totalCount_other": "{{count}} записів"
     },
     "table": {
       "title": "Список клієнтів",
@@ -1588,6 +1591,7 @@
       "removePhoneAriaLabel": "Видалити телефон",
       "saveClient": "Зберегти клієнта",
       "saving": "Збереження...",
+      "statusAutoHint": "Авто: {{status}}",
       "history": {
         "columns": {
           "number": "№",
@@ -1644,6 +1648,7 @@
       "toolbar": {
         "filter": "Фільтр",
         "searchPlaceholder": "Пошук за імʼям, телефоном або замовленням постачальника",
+        "searchAriaLabel": "Пошук постачальника",
         "clearSearchAriaLabel": "Очистити пошук",
         "merge": "Обʼєднати",
         "createSupplier": "Створити постачальника"
@@ -1684,7 +1689,7 @@
         "fields": {
           "name": "Імʼя",
           "phone": "Телефон",
-          "supplierOrder": "Замовлення постачальника",
+          "supplierOrder": "Типове ЗП / номер замовлення",
           "note": "Примітка",
           "status": "Статус"
         },
@@ -2695,7 +2700,9 @@
       "pricePlaceholder": "700",
       "notePlaceholder": "Типовий опис або внутрішня примітка",
       "updateService": "Оновити послугу"
-    }
+    },
+    "pageTitle": "Товари та послуги",
+    "pageSubtitle": "{{count}} записів"
   },
   "employees": {
     "tabs": {

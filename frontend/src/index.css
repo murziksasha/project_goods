@@ -5,6 +5,7 @@
 @import './shared/styles/domains/warehouse.css';
 @import './shared/styles/domains/accounting.css';
 @import './shared/styles/domains/employees.css';
+@import './shared/styles/domains/clients.css';
 @import './shared/styles/domains/settings.css';
 @import './shared/styles/forms.css';
 @import './shared/styles/lists.css';

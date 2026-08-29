@@ -165,5 +165,7 @@
     "pricePlaceholder": "700",
     "notePlaceholder": "Типовий опис або внутрішня примітка",
     "updateService": "Оновити послугу"
-  }
+  },
+  "pageTitle": "Товари та послуги",
+  "pageSubtitle": "{{count}} записів"
 }

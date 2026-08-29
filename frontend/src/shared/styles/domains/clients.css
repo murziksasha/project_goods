@@ -1,0 +1,429 @@
+.clients-workspace {
+  display: grid;
+  gap: 12px;
+}
+
+.clients-toolbar {
+  margin-bottom: 0;
+}
+
+.clients-toolbar-actions .toolbar-filter-button {
+  min-width: 130px;
+  justify-content: center;
+}
+
+.clients-import-input {
+  display: none;
+}
+
+.clients-search-group {
+  grid-template-columns: minmax(280px, 420px) 82px;
+}
+
+.clients-table tbody tr {
+  cursor: pointer;
+}
+
+.clients-table a {
+  color: var(--color-primary);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.suppliers-table th:nth-child(1),
+.suppliers-table td:nth-child(1) {
+  width: 32%;
+}
+
+.suppliers-table th:nth-child(2),
+.suppliers-table td:nth-child(2) {
+  width: 12%;
+}
+
+.suppliers-table th:nth-child(3),
+.suppliers-table td:nth-child(3) {
+  width: 24%;
+}
+
+.suppliers-table th:nth-child(4),
+.suppliers-table td:nth-child(4) {
+  width: 32%;
+}
+
+.clients-table-row-active {
+  background: var(--bg-soft-primary);
+}
+
+.clients-table-row-blacklist {
+  background: var(--bg-soft-danger);
+  box-shadow: inset 4px 0 0 var(--color-danger);
+}
+
+.clients-table-row-blacklist.clients-table-row-active {
+  background: var(--bg-soft-danger);
+}
+
+.clients-table-row-blacklist .status-blacklist {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-danger) 14%, transparent);
+  font-weight: 800;
+}
+
+.clients-delete-button {
+  min-width: 0;
+  padding: 4px 8px;
+  color: var(--color-danger);
+  font-weight: 800;
+}
+
+.clients-delete-button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.clients-modal {
+  width: min(640px, calc(100vw - 28px));
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  overflow: hidden;
+  max-height: min(calc(100dvh - 16px), calc(100vh - 32px));
+}
+
+.clients-modal-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--color-line-panel);
+}
+
+.clients-modal-tabs .catalog-tab {
+  flex: 1;
+  border-right: 0;
+}
+
+.clients-modal-body {
+  max-height: none;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.clients-modal-footer {
+  justify-content: flex-end;
+}
+
+.clients-card-modal {
+  width: min(940px, calc(100vw - 28px));
+  max-width: calc(100vw - 16px);
+  height: min(760px, calc(100vh - 32px));
+  max-height: calc(100vh - 16px);
+  border-radius: 8px;
+  background: var(--bg-card);
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  box-shadow: 0 24px 70px rgba(25, 36, 50, 0.28);
+  overflow: hidden;
+  min-width: 0;
+}
+
+.clients-card-header {
+  border-bottom: 1px solid var(--color-line-strong);
+  padding: 0;
+  min-width: 0;
+}
+
+.clients-card-header .catalog-edit-header-main {
+  padding: 14px 16px;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+.clients-card-header .catalog-edit-title {
+  flex: 1 1 160px;
+  min-width: 0;
+}
+
+.clients-card-header h2 {
+  margin: 0;
+  color: var(--color-text-label);
+  overflow-wrap: anywhere;
+}
+
+.clients-card-header .client-status-badge {
+  flex: 0 0 auto;
+}
+
+.clients-card-tabs {
+  display: flex;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid var(--color-line-section);
+  background: var(--bg-panel-elevated);
+  overflow-x: auto;
+  overflow-y: hidden;
+  flex-wrap: nowrap;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  overscroll-behavior-x: contain;
+}
+
+.clients-card-tabs .clients-card-tab {
+  border: 0;
+  border-right: 1px solid var(--color-line-section);
+  background: transparent;
+  color: var(--color-text-body);
+  padding: 12px 16px;
+  font: inherit;
+  font-weight: 800;
+  white-space: nowrap;
+  cursor: pointer;
+  flex: 0 0 auto;
+  max-width: 100%;
+}
+
+.clients-card-tabs .clients-card-tab-active {
+  background: var(--bg-card);
+  color: var(--color-primary);
+}
+
+.clients-card-body {
+  padding: 14px 16px 16px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  min-height: 0;
+  min-width: 0;
+  align-content: start;
+  gap: 8px;
+}
+
+.clients-card-meta-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px 16px;
+  flex-wrap: wrap;
+  margin: 0;
+  min-width: 0;
+}
+
+.clients-card-meta-row .clients-card-phone {
+  margin: 0;
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow-wrap: anywhere;
+}
+
+.clients-card-phone-link {
+  color: var(--color-primary);
+  text-decoration: none;
+  font-weight: 700;
+}
+
+.clients-card-total-inline {
+  margin: 0;
+  margin-left: auto;
+  color: var(--color-text-body);
+  font-size: 0.92rem;
+  font-weight: 600;
+  white-space: nowrap;
+  text-align: right;
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.clients-card-total-inline strong {
+  color: var(--text-main);
+  font-weight: 800;
+}
+
+.clients-card-list {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  align-content: start;
+}
+
+.clients-card-list-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.clients-card-list-search {
+  flex: 1 1 160px;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.clients-card-list-search.orders-search-group-clearable {
+  display: block;
+}
+
+.clients-card-list-search input {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.clients-card-list-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--color-line-section);
+  border-radius: 8px;
+  background: var(--bg-panel-elevated);
+}
+
+.clients-card-list-filter-field {
+  display: grid;
+  gap: 4px;
+  flex: 1 1 140px;
+  min-width: 0;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--color-text-body);
+}
+
+.clients-card-list-filter-field span {
+  line-height: 1.2;
+}
+
+.clients-card-list-filter-field input,
+.clients-card-list-filter-field select {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  border: 1px solid var(--color-line-input);
+  border-radius: 6px;
+  background: var(--bg-card);
+  color: var(--text-main);
+  font: inherit;
+  font-weight: 600;
+  padding: 7px 10px;
+}
+
+.clients-card-body > .orders-table-wrap {
+  margin-top: 2px;
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.clients-card-info-list {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  min-width: 0;
+}
+
+.clients-card-info-list > div {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--color-line-panel);
+  border-radius: 8px;
+  background: var(--bg-soft-muted);
+  min-width: 0;
+}
+
+.clients-card-info-list dt {
+  margin: 0;
+  color: var(--color-text-label);
+  font-weight: 600;
+  min-width: 0;
+}
+
+.clients-card-info-list dd {
+  margin: 0;
+  font-weight: 800;
+  color: var(--text-main);
+  text-align: right;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.clients-card-devices-table .clients-device-unbind {
+  white-space: nowrap;
+}
+
+.clients-card-table {
+  width: 100%;
+  min-width: 0;
+}
+
+.clients-card-table th,
+.clients-card-table td {
+  white-space: nowrap;
+}
+
+.clients-card-table td:nth-child(3) {
+  white-space: normal;
+  max-width: 28ch;
+  overflow-wrap: anywhere;
+}
+
+.clients-card-body .form-grid {
+  min-width: 0;
+  margin-bottom: 0;
+}
+
+.clients-card-body .field,
+.clients-card-body .field input,
+.clients-card-body .field select,
+.clients-card-body .field textarea {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.clients-history-row {
+  cursor: pointer;
+}
+
+.clients-status-hint {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.phones-field .phone-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 6px;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.phones-field .phone-row input {
+  min-width: 0;
+  width: 100%;
+}
+
+.phones-field .phone-row-label {
+  width: auto;
+  max-width: 12ch;
+  color: var(--color-muted);
+  flex-shrink: 0;
+  font-size: 0.75rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.phones-field .phone-row-actions {
+  display: flex;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.phones-field .phone-primary-action {
+  color: var(--color-warning-strong);
+  font-size: 14px;
+  line-height: 1;
+  padding: 2px 6px;
+}

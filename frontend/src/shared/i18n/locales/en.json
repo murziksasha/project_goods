@@ -1461,7 +1461,8 @@
       "information": "Information",
       "clientsAndSuppliers": "Clients and suppliers",
       "clients": "Clients",
-      "suppliers": "Suppliers"
+      "suppliers": "Suppliers",
+      "withCount": "{{label}} ({{count}})"
     },
     "toolbar": {
       "filter": "Filter",
@@ -1473,7 +1474,9 @@
       "exportXls": "Export XLS",
       "exporting": "Exporting...",
       "merge": "Merge",
-      "createClient": "Create client"
+      "createClient": "Create client",
+      "totalCount_one": "{{count}} record",
+      "totalCount_other": "{{count}} records"
     },
     "table": {
       "title": "Client list",
@@ -1588,6 +1591,7 @@
       "removePhoneAriaLabel": "Remove phone",
       "saveClient": "Save client",
       "saving": "Saving...",
+      "statusAutoHint": "Auto: {{status}}",
       "history": {
         "columns": {
           "number": "No.",
@@ -1644,6 +1648,7 @@
       "toolbar": {
         "filter": "Filter",
         "searchPlaceholder": "Search by name, phone or supplier order",
+        "searchAriaLabel": "Search supplier",
         "clearSearchAriaLabel": "Clear search text",
         "merge": "Merge",
         "createSupplier": "Create supplier"
@@ -1684,7 +1689,7 @@
         "fields": {
           "name": "Name",
           "phone": "Phone",
-          "supplierOrder": "Supplier order",
+          "supplierOrder": "Default PO / order ref",
           "note": "Note",
           "status": "Status"
         },
@@ -2695,7 +2700,9 @@
       "pricePlaceholder": "700",
       "notePlaceholder": "Default description or internal note",
       "updateService": "Update service"
-    }
+    },
+    "pageTitle": "Products & services",
+    "pageSubtitle": "{{count}} records"
   },
   "employees": {
     "tabs": {

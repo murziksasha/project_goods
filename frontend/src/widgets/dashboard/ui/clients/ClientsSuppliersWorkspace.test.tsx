@@ -107,7 +107,7 @@ describe('ClientsSuppliersWorkspace suppliers filters', () => {
   it('does not show supplier order in the suppliers table', () => {
     renderWorkspace([supplier()]);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Suppliers' }));
+    fireEvent.click(screen.getByRole('tab', { name: /Suppliers/ }));
 
     expect(screen.queryByRole('columnheader', { name: 'Supplier order' })).not.toBeInTheDocument();
     expect(screen.queryByText('SO-1')).not.toBeInTheDocument();
@@ -129,7 +129,7 @@ describe('ClientsSuppliersWorkspace suppliers filters', () => {
       }),
     ]);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Suppliers' }));
+    fireEvent.click(screen.getByRole('tab', { name: /Suppliers/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Filter' }));
     fireEvent.change(screen.getByLabelText('Status'), {
       target: { value: 'active' },
@@ -150,7 +150,7 @@ describe('ClientsSuppliersWorkspace suppliers filters', () => {
       }),
     ]);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Suppliers' }));
+    fireEvent.click(screen.getByRole('tab', { name: /Suppliers/ }));
     fireEvent.click(screen.getByText('Main Parts'));
 
     const phoneInputs = screen.getAllByRole('textbox');
@@ -168,7 +168,7 @@ describe('ClientsSuppliersWorkspace suppliers filters', () => {
       }),
     ]);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Suppliers' }));
+    fireEvent.click(screen.getByRole('tab', { name: /Suppliers/ }));
     fireEvent.click(screen.getByText('Main Parts'));
 
     const phonesField = screen.getByText('Phones').parentElement as HTMLElement;
@@ -184,7 +184,7 @@ describe('ClientsSuppliersWorkspace suppliers filters', () => {
   it('allows adding additional phones in supplier editor modal', () => {
     renderWorkspace([supplier()]);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Suppliers' }));
+    fireEvent.click(screen.getByRole('tab', { name: /Suppliers/ }));
     fireEvent.click(screen.getByText('Main Parts'));
     fireEvent.click(screen.getByRole('button', { name: '+ Add phone' }));
 
@@ -199,7 +199,7 @@ describe('ClientsSuppliersWorkspace suppliers filters', () => {
       supplier({ id: 'supplier-alt', name: 'Alt Parts' }),
     ]);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Suppliers' }));
+    fireEvent.click(screen.getByRole('tab', { name: /Suppliers/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Filter' }));
     fireEvent.change(screen.getByPlaceholderText('Supplier name or phone'), {
       target: { value: 'Alt' },
@@ -219,7 +219,7 @@ describe('ClientsSuppliersWorkspace suppliers filters', () => {
       ).toBe(true);
     });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Clients' }));
+    fireEvent.click(screen.getByRole('tab', { name: /Clients/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Filter' }));
 
     expect(

@@ -22,11 +22,13 @@ import type {
 import type { Sale } from '../../../../entities/sale/model/types';
 import {
   clientStatusOptions,
-  getClientStatusClass,
-  getClientStatusColor,
   getClientStatusLabelKey,
   getEffectiveClientStatusLogic,
+  isAutoManagedClientStatus,
 } from '../../../../entities/client/model/constants';
+import { StatusBadge } from '../../../../shared/ui/StatusBadge';
+import { Button } from '../../../../shared/ui/Button';
+import { PhoneNumber } from '../shared/PhoneNumber';
 import { formatDateTime } from '../../../../shared/lib/format';
 import {
   formatClientIncome,
@@ -337,6 +339,22 @@ export const ClientCardModal = ({
     </div>
   );
 
+  const canSaveMain =
+    !isSaving &&
+    Boolean(mainTabForm.name.trim()) &&
+    Boolean((mainTabForm.phone || '').trim()) &&
+    (mainTabForm.phones || []).some((phone) => (phone || '').trim()) &&
+    !(mainTabForm.phones || [mainTabForm.phone]).some(
+      (phone) =>
+        (phone || '').trim() && !isValidUkrainianPhone(phone || ''),
+    ) &&
+    !hasDuplicatePhones(
+      mainTabForm.phones || (mainTabForm.phone ? [mainTabForm.phone] : []),
+    ) &&
+    isOptionalAddressValid(mainTabForm.address) &&
+    isOptionalRegistrationIdValid(mainTabForm.registrationId) &&
+    isOptionalIbanValid(mainTabForm.iban);
+
   return (
     <Modal
       isOpen
@@ -344,30 +362,54 @@ export const ClientCardModal = ({
       subtitle={t('clients.card.sectionLabel')}
       onClose={onClose}
       closeLabel={t('common.close')}
+      closeOnBackdrop={!isSaving}
+      closeOnEscape={!isSaving}
       shellClassName="clients-card-modal modal-dialog"
       headerClassName="clients-card-header"
       bodyClassName="clients-card-body"
       headerExtra={tablist}
       headerActions={
         effectiveStatus ? (
-          <span
-            className={`client-status-badge ${getClientStatusClass(effectiveStatus)}`}
-            style={{
-              backgroundColor: getClientStatusColor(effectiveStatus),
-              color: 'white',
-              fontSize: '0.75rem',
-              padding: '1px 6px',
-            }}
-          >
-            {t(getClientStatusLabelKey(effectiveStatus))}
-          </span>
+          <StatusBadge
+            clientStatus={effectiveStatus}
+            label={t(getClientStatusLabelKey(effectiveStatus))}
+          />
+        ) : null
+      }
+      footer={
+        clientCardTab === 'main' && selectedClientId ? (
+          <footer className="catalog-edit-footer clients-modal-footer">
+            <Button
+              variant="secondary"
+              onClick={onClose}
+              disabled={isSaving}
+            >
+              {t('common.cancel')}
+            </Button>
+            <Button
+              variant="primary"
+              onClick={onSaveMainTab}
+              disabled={!canSaveMain}
+            >
+              {isSaving
+                ? t('clients.card.saving')
+                : t('clients.card.saveClient')}
+            </Button>
+          </footer>
         ) : null
       }
     >
       {clientPhone || isHistoryListTab ? (
         <div className="clients-card-meta-row">
           {clientPhone ? (
-            <p className="panel-subtitle clients-card-phone">{clientPhone}</p>
+            <p className="panel-subtitle clients-card-phone">
+              <a
+                className="clients-card-phone-link"
+                href={`tel:${clientPhone}`}
+              >
+                <PhoneNumber value={clientPhone} />
+              </a>
+            </p>
           ) : (
             <span className="clients-card-phone" />
           )}
@@ -425,13 +467,11 @@ export const ClientCardModal = ({
       ) : clientCardTab === 'main' ? (
         <ClientMainFormFields
           form={mainTabForm}
-          isSaving={isSaving}
           phoneError={mainTabPhoneError}
           clientVisitCount={clientVisitCount ?? historySales.length}
           onChange={updateForm}
           onFormChange={onMainTabFormChange}
           onClearPhoneError={onClearPhoneError}
-          onSave={onSaveMainTab}
           onValidatePhone={onValidatePhone}
         />
       ) : clientCardTab === 'information' ? (
@@ -704,19 +744,20 @@ const ClientInformationPanel = ({
   );
 };
 
+const pinnedClientStatusOptions = clientStatusOptions.filter(
+  (option) => option.value !== 'new',
+);
+
 const ClientMainFormFields = ({
   form,
-  isSaving,
   phoneError,
   clientVisitCount,
   onChange,
   onFormChange,
   onClearPhoneError,
-  onSave,
   onValidatePhone,
 }: {
   form: ClientMainForm;
-  isSaving: boolean;
   phoneError: string | null;
   clientVisitCount: number;
   onChange: <K extends keyof ClientMainForm>(
@@ -725,32 +766,84 @@ const ClientMainFormFields = ({
   ) => void;
   onFormChange: Dispatch<SetStateAction<ClientMainForm>>;
   onClearPhoneError: () => void;
-  onSave: () => void;
   onValidatePhone: (phone: string) => boolean;
 }) => {
   const { t } = useTranslation();
+  const storedStatus = form.status || '';
+  const isAutoStatus = isAutoManagedClientStatus(storedStatus);
   const effectiveStatus = getEffectiveClientStatusLogic(
-    form.status || '',
+    storedStatus,
     clientVisitCount,
   );
 
   return (
     <div className='form-grid compact-form-grid'>
-      <label className='field field-wide'>
+      <label className='field'>
         <span>{t('clients.card.fields.name')}</span>
         <input
           value={form.name}
           onChange={(event) => onChange('name', event.target.value)}
         />
       </label>
-      <label className='field field-wide'>
+      <label className='field'>
+        <span>{t('clients.card.fields.status')}</span>
+        <select
+          value={isAutoStatus ? '' : storedStatus}
+          onChange={(event) =>
+            onChange('status', event.target.value as ClientStatus | '')
+          }
+        >
+          <option value=''>{t('clients.statusValues.empty')}</option>
+          {pinnedClientStatusOptions.map((option) => (
+            <option key={option.value} value={option.value}>
+              {t(option.labelKey)}
+            </option>
+          ))}
+        </select>
+        {isAutoStatus && effectiveStatus ? (
+          <span className='clients-status-hint'>
+            {t('clients.card.statusAutoHint', {
+              status: t(getClientStatusLabelKey(effectiveStatus)),
+            })}
+          </span>
+        ) : null}
+      </label>
+      <label className='field'>
         <span>{t('clients.card.fields.email')}</span>
         <input
           value={form.email}
           onChange={(event) => onChange('email', event.target.value)}
         />
       </label>
-      <label className='field field-wide'>
+      <label className='field'>
+        <span>{t('clients.card.fields.companyIdOrTaxId')}</span>
+        <input
+          value={form.registrationId}
+          aria-invalid={!isOptionalRegistrationIdValid(form.registrationId)}
+          onChange={(event) =>
+            onChange('registrationId', event.target.value)
+          }
+        />
+        {!isOptionalRegistrationIdValid(form.registrationId) ? (
+          <small>
+            {t('clients.messages.errors.registrationIdFormat')}
+          </small>
+        ) : null}
+      </label>
+      <label className='field'>
+        <span>{t('clients.card.fields.iban')}</span>
+        <input
+          value={form.iban}
+          aria-invalid={!isOptionalIbanValid(form.iban)}
+          onChange={(event) => onChange('iban', event.target.value)}
+        />
+        {!isOptionalIbanValid(form.iban) ? (
+          <small>
+            {t('clients.messages.errors.ibanFormat')}
+          </small>
+        ) : null}
+      </label>
+      <label className='field'>
         <span>{t('clients.card.fields.address')}</span>
         <input
           value={form.address}
@@ -776,55 +869,6 @@ const ClientMainFormFields = ({
         onValidatePhone={onValidatePhone}
       />
       <label className='field field-wide'>
-        <span>{t('clients.card.fields.status')}</span>
-        <select
-          value={effectiveStatus}
-          onChange={(event) =>
-            onChange('status', event.target.value as ClientStatus)
-          }
-        >
-          {clientStatusOptions.map((option) => (
-            <option
-              key={option.value}
-              value={option.value}
-              style={{
-                color: getClientStatusColor(option.value),
-              }}
-            >
-              {t(option.labelKey)}
-            </option>
-          ))}
-        </select>
-      </label>
-      <label className='field field-wide'>
-        <span>{t('clients.card.fields.companyIdOrTaxId')}</span>
-        <input
-          value={form.registrationId}
-          aria-invalid={!isOptionalRegistrationIdValid(form.registrationId)}
-          onChange={(event) =>
-            onChange('registrationId', event.target.value)
-          }
-        />
-        {!isOptionalRegistrationIdValid(form.registrationId) ? (
-          <small>
-            {t('clients.messages.errors.registrationIdFormat')}
-          </small>
-        ) : null}
-      </label>
-      <label className='field field-wide'>
-        <span>{t('clients.card.fields.iban')}</span>
-        <input
-          value={form.iban}
-          aria-invalid={!isOptionalIbanValid(form.iban)}
-          onChange={(event) => onChange('iban', event.target.value)}
-        />
-        {!isOptionalIbanValid(form.iban) ? (
-          <small>
-            {t('clients.messages.errors.ibanFormat')}
-          </small>
-        ) : null}
-      </label>
-      <label className='field field-wide'>
         <span>{t('clients.card.fields.note')}</span>
         <textarea
           rows={4}
@@ -832,28 +876,6 @@ const ClientMainFormFields = ({
           onChange={(event) => onChange('note', event.target.value)}
         />
       </label>
-      <div className='field field-wide'>
-        <button
-          type='button'
-          className='primary-button clients-main-save'
-          disabled={
-            isSaving ||
-            !form.name.trim() ||
-            !(form.phone || '').trim() ||
-            !(form.phones || []).some((p) => (p || '').trim()) ||
-            (form.phones || [form.phone]).some((p) => (p || '').trim() && !isValidUkrainianPhone(p || '')) ||
-            hasDuplicatePhones(form.phones || (form.phone ? [form.phone] : [])) ||
-            !isOptionalAddressValid(form.address) ||
-            !isOptionalRegistrationIdValid(form.registrationId) ||
-            !isOptionalIbanValid(form.iban)
-          }
-          onClick={onSave}
-        >
-          {isSaving
-            ? t('clients.card.saving')
-            : t('clients.card.saveClient')}
-        </button>
-      </div>
     </div>
   );
 };

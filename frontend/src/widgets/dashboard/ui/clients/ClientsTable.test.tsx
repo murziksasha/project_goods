@@ -23,7 +23,7 @@ const client: Client = {
 };
 
 describe('ClientsTable', () => {
-  it('opens the client card from the name cell only', () => {
+  it('opens the client card from the row, but not from the phone link', () => {
     const onOpenClientCard = vi.fn();
 
     render(
@@ -38,7 +38,7 @@ describe('ClientsTable', () => {
       />,
     );
 
-    fireEvent.click(screen.getByText('+380501111111'));
+    fireEvent.click(screen.getByRole('link'));
     expect(onOpenClientCard).not.toHaveBeenCalled();
 
     fireEvent.click(screen.getByText('Ivan Petrenko'));

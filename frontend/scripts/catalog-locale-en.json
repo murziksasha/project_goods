@@ -165,5 +165,7 @@
     "pricePlaceholder": "700",
     "notePlaceholder": "Default description or internal note",
     "updateService": "Update service"
-  }
+  },
+  "pageTitle": "Products & services",
+  "pageSubtitle": "{{count}} records"
 }
