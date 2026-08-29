@@ -14,17 +14,15 @@ const renderToolbar = (props?: {
   selectedSerialCount?: number;
   onPrintSelectedSerials?: () => void;
   onClearSelection?: () => void;
+  activeTab?: 'stock' | 'receipts';
 }) => {
   const onPrintSelectedSerials = props?.onPrintSelectedSerials ?? vi.fn();
   const onClearSelection = props?.onClearSelection ?? vi.fn();
 
   render(
     <WarehouseToolbar
-      activeTab='stock'
-      currentPage={1}
-      pageSize={30}
+      activeTab={props?.activeTab ?? 'stock'}
       stockSummaryText='2 stock rows'
-      totalItems={2}
       selectedProductCount={props?.selectedProductCount ?? 0}
       selectedSerialCount={props?.selectedSerialCount ?? 0}
       activeColumnsTab='stock'
@@ -36,12 +34,19 @@ const renderToolbar = (props?: {
       query=''
       searchMode='serial'
       searchPlaceholder='Search by serial number'
+      stockView='models'
+      receiptsView='orders'
+      appliedReceiptStatuses={[]}
+      showReceiptStatusChips={props?.activeTab === 'receipts'}
       onPrintSelectedSerials={onPrintSelectedSerials}
       onClearSelection={onClearSelection}
       onToggleColumnsMenu={vi.fn()}
       onToggleColumnVisibility={vi.fn()}
       onToggleFilters={vi.fn()}
       onToggleFavoritesOnly={vi.fn()}
+      onStockViewChange={vi.fn()}
+      onReceiptsViewChange={vi.fn()}
+      onReceiptStatusChip={vi.fn()}
       setQuery={vi.fn()}
       setSearchMode={vi.fn()}
       setCurrentPage={vi.fn()}
@@ -91,13 +96,24 @@ describe('WarehouseToolbar serial printing', () => {
     expect(onPrintSelectedSerials).not.toHaveBeenCalled();
   });
 
+  it('hides print until rows are selected', () => {
+    renderToolbar();
+
+    expect(
+      screen.queryByRole('button', { name: 'Print selected serial numbers' }),
+    ).not.toBeInTheDocument();
+  });
+
   it('renders translated warehouse toolbar labels', () => {
     renderToolbar();
 
     expect(
       screen.getByRole('button', { name: 'Filter' }),
     ).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'By name' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('combobox', { name: 'Search by' }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'By name' })).toBeInTheDocument();
     expect(
       screen.getByPlaceholderText('Search by serial number'),
     ).toBeInTheDocument();
@@ -112,7 +128,7 @@ describe('WarehouseToolbar serial printing', () => {
       screen.getByRole('button', { name: 'Фільтр' }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole('button', { name: 'За назвою' }),
+      screen.getByRole('option', { name: 'За назвою' }),
     ).toBeInTheDocument();
 
     await i18n.changeLanguage('en');
@@ -129,5 +145,15 @@ describe('WarehouseToolbar serial printing', () => {
     fireEvent.click(screen.getByRole('button', { name: '2 selected' }));
 
     expect(onClearSelection).toHaveBeenCalledTimes(1);
+  });
+
+  it('hides search modes on receipts and shows status chips', () => {
+    renderToolbar({ activeTab: 'receipts' });
+
+    expect(
+      screen.queryByRole('combobox', { name: 'Search by' }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'All' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'New' })).toBeInTheDocument();
   });
 });

@@ -2032,7 +2032,6 @@
 
   .orders-toolbar-actions,
   .catalog-toolbar-actions,
-  .warehouse-toolbar,
   .finance-toolbar,
   .payment-modal-actions,
   .catalog-edit-footer,
@@ -2042,7 +2041,6 @@
 
   .orders-toolbar-actions button,
   .catalog-toolbar-actions button,
-  .warehouse-toolbar button,
   .finance-toolbar button,
   .catalog-edit-footer button,
   .rapid-sale-footer button {
@@ -2150,7 +2148,8 @@
   .supplier-orders-table td,
   .finance-transactions-table td,
   .finance-orders-table td,
-  .catalog-card-table td {
+  .catalog-card-table td,
+  .table-card-stack td {
     grid-template-columns: minmax(0, 1fr);
     gap: 4px;
     align-items: start;
@@ -2162,7 +2161,8 @@
   .supplier-orders-table td::before,
   .finance-transactions-table td::before,
   .finance-orders-table td::before,
-  .catalog-card-table td::before {
+  .catalog-card-table td::before,
+  .table-card-stack td::before {
     font-size: 0.72rem;
   }
 

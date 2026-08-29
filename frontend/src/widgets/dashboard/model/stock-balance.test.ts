@@ -9,6 +9,7 @@ import {
   filterStockProducts,
   getIssuedSaleProductIds,
   getStockSupplierLabel,
+  groupStockProductsByModel,
   isSaleLineItemLinkedToStockProduct,
   type StockSupplierOrderLink,
 } from './stock-balance';
@@ -429,5 +430,24 @@ describe('stock balance', () => {
         ],
       }).map((item) => item.id),
     ).toEqual(['p-1']);
+  });
+});
+
+describe('groupStockProductsByModel', () => {
+  it('groups units that share name and article', () => {
+    const groups = groupStockProductsByModel([
+      product({ id: 'p-1', serialNumber: 'S-1' }),
+      product({ id: 'p-2', serialNumber: 'S-2' }),
+      product({
+        id: 'p-3',
+        name: 'Other',
+        article: 'B-1',
+        serialNumber: 'S-3',
+      }),
+    ]);
+
+    expect(groups).toHaveLength(2);
+    expect(groups[0]?.products.map((item) => item.id)).toEqual(['p-1', 'p-2']);
+    expect(groups[1]?.products.map((item) => item.id)).toEqual(['p-3']);
   });
 });

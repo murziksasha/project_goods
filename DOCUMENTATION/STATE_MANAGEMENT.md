@@ -157,4 +157,5 @@ For any mutation that can affect shared screens (orders, sales, stock, client de
 - Same employee sees their filters on any browser/device after login; other employees never see them.
 - Scopes: `orders` | `warehouse` | `clients` | `catalog`; `tab` selects list sub-tab.
 - **Active/draft** filter form state (what is currently applied in the panel) may still use `localStorage` per browser; only the **saved presets list** is server-backed.
+- Warehouse workspace layout on this device (not synced): `project-goods.warehouse-filters` (tab, search, pagination, `stockView`, `receiptsView`), `project-goods.warehouse-columns` (column visibility), `project-goods.warehouse-stock-name-width` (stock `Name` column width, 180–720px).
 - One-time client migration: if the server list is empty, legacy `localStorage` presets for that employee are POSTed and the old storage key is cleared.

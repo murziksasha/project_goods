@@ -1750,19 +1750,24 @@
         "quantityPcs": "{{count}} pcs",
         "removeStarAriaLabel": "Remove star from {{number}}",
         "starAriaLabel": "Star {{number}}",
+        "expandOrder": "Show lines for {{number}}",
+        "collapseOrder": "Hide lines for {{number}}",
+        "moreProducts": "+{{count}}",
         "columns": {
           "number": "#",
           "product": "Product",
           "quantity": "Quantity",
           "price": "Price",
-          "amount": "Amount",
+          "amount": "Total",
           "paid": "Paid",
           "supplier": "Supplier",
           "receiptDate": "Receipt Date",
           "acceptedBy": "Accepted By",
           "approvedBy": "Approved By",
           "status": "Status",
-          "payment": "Payment"
+          "payment": "Payment",
+          "money": "Paid / Amount",
+          "by": "By"
         },
         "status": {
           "cancelled": "Cancelled",
@@ -1783,6 +1788,10 @@
         "emptyHint": "Adjust search or filters to see available stock.",
         "selectAllAriaLabel": "Select all stock rows",
         "selectRowAriaLabel": "Select {{name}}",
+        "selectModelAriaLabel": "Select all units of {{name}}",
+        "expandModel": "Show serials for {{name}}",
+        "collapseModel": "Hide serials for {{name}}",
+        "resizeNameColumn": "Resize name column",
         "columns": {
           "select": "Select",
           "name": "Name",
@@ -1801,18 +1810,31 @@
       }
     },
     "settings": {
+      "title": "Warehouse settings",
+      "subtitle": "Service centers, warehouses, locations, and administrator access.",
       "tabsAriaLabel": "Warehouse settings sections",
       "tabs": {
         "serviceCenters": "Service Centers",
         "warehouses": "Warehouses",
         "administrators": "Administrators"
       },
+      "kpi": {
+        "serviceCenters": "Service centers",
+        "warehouses": "Warehouses",
+        "locations": "Locations",
+        "administrators": "Administrators"
+      },
+      "warehousesActiveTotal": "{{active}} / {{total}}",
+      "empty": {
+        "serviceCenters": "No service centers yet.",
+        "warehouses": "No warehouses match this filter.",
+        "administrators": "No administrators to configure."
+      },
       "serviceCenters": {
         "create": "Create",
         "editAriaLabel": "Edit {{name}}",
         "columns": {
           "name": "Name",
-          "color": "color",
           "address": "Address",
           "phone": "Phone",
           "warehouses": "Warehouses"
@@ -1820,12 +1842,12 @@
       },
       "warehouses": {
         "statusFilter": "Status",
-        "createWarehouse": "Create Warehouse",
+        "createWarehouse": "Create warehouse",
         "columns": {
-          "id": "Id",
+          "id": "ID",
           "name": "Name",
           "status": "Status",
-          "location": "Location",
+          "location": "Service center",
           "address": "Address",
           "phone": "Phone",
           "locations": "Locations",
@@ -1835,44 +1857,44 @@
       },
       "administrators": {
         "administrator": "Administrator",
-        "viewWarehouses": "View Warehouses, to which the administrator has access",
-        "viewDefaultLocation": "View Warehouse and Location, to which the administrator has access",
+        "viewWarehouses": "Accessible warehouses",
+        "viewDefaultLocation": "Default warehouse and location",
         "allSelected": "All ({{count}})",
-        "selectWarehouses": "Select Warehouses",
+        "selectWarehouses": "Select warehouses",
         "searchPlaceholder": "Search",
-        "selectAll": "Select All",
-        "selectLocation": "Select Location"
+        "selectAll": "Select all",
+        "selectLocation": "Select location"
       }
     },
     "modals": {
       "serviceCenter": {
-        "createTitle": "create service center",
-        "editTitle": "edit service center",
-        "nameLabel": "name:",
-        "namePlaceholder": "name",
-        "colorLabel": "color (#000000):",
+        "createTitle": "Create service center",
+        "editTitle": "Edit service center",
+        "nameLabel": "Name",
+        "namePlaceholder": "Name",
+        "colorLabel": "Color",
         "colorPlaceholder": "#000000",
-        "colorAriaLabel": "color",
-        "addressLabel": "address:",
-        "addressPlaceholder": "address",
-        "phoneLabel": "phone:",
+        "colorAriaLabel": "Color",
+        "addressLabel": "Address",
+        "addressPlaceholder": "Address",
+        "phoneLabel": "Phone",
         "phonePlaceholder": "+380"
       },
       "warehouse": {
-        "createTitle": "create warehouse",
-        "editTitle": "edit warehouse",
-        "nameLabel": "name:",
-        "namePlaceholder": "name",
-        "active": "active",
-        "serviceCenterLabel": "Location to Service Center:",
-        "selectServiceCenter": "select service center",
-        "receiptAddressLabel": "address for suppliers:",
-        "receiptPhoneLabel": "phone for suppliers:",
-        "locationsLabel": "locations:",
-        "locationNamePlaceholder": "enter location name",
+        "createTitle": "Create warehouse",
+        "editTitle": "Edit warehouse",
+        "nameLabel": "Name",
+        "namePlaceholder": "Name",
+        "active": "Active",
+        "serviceCenterLabel": "Service center",
+        "selectServiceCenter": "Select service center",
+        "receiptAddressLabel": "Address for suppliers",
+        "receiptPhoneLabel": "Phone for suppliers",
+        "locationsLabel": "Locations",
+        "locationNamePlaceholder": "Enter location name",
         "locationUsageTitle": "Products referencing this location",
         "duplicateLocationsError": "Location names must be unique inside a warehouse.",
-        "addLocation": "location"
+        "addLocation": "Add location"
       },
       "createReceiptOrder": "Create receipt order",
       "create": "Create",
@@ -2027,6 +2049,8 @@
       }
     },
     "transfer": {
+      "title": "Stock transfers",
+      "subtitle": "Move a unit from its current location to another warehouse or bin.",
       "product": "Product",
       "selectStockItem": "Select stock item",
       "currentLocation": "Current location",
@@ -2039,7 +2063,22 @@
       "notePlaceholder": "Reason or document number",
       "transferring": "Transferring...",
       "transferStock": "Transfer stock",
+      "kpi": {
+        "movable": "Movable items",
+        "session": "This session",
+        "destinations": "Destinations"
+      },
+      "route": {
+        "from": "From",
+        "to": "To",
+        "empty": "Not selected"
+      },
+      "warnings": {
+        "selectProduct": "Select a stock item to transfer."
+      },
+      "destinationsTitle": "Session destinations",
       "stockTable": {
+        "title": "Stock to move",
         "columns": {
           "product": "Product",
           "serial": "Serial #",
@@ -2050,6 +2089,7 @@
         "empty": "No stock rows found."
       },
       "historyTable": {
+        "title": "Session history",
         "columns": {
           "date": "Date",
           "product": "Product",
@@ -2113,7 +2153,16 @@
     "summary": {
       "stockRows": "{{count}} stock rows",
       "movableRows": "{{count}} movable rows",
-      "receiptRows": "{{count}} receipt rows"
+      "receiptRows": "{{count}} receipt rows",
+      "unitsModelsValue": "{{units}} units · {{models}} models · {{value}}",
+      "linesOrdersUnpaid": "{{lines}} lines · {{orders}} orders · {{unpaid}} unpaid"
+    },
+    "view": {
+      "units": "Units",
+      "models": "Models",
+      "orders": "Orders",
+      "lines": "Lines",
+      "ariaLabel": "Warehouse table view"
     },
     "filters": {
       "byName": "By name",
@@ -2141,7 +2190,14 @@
       "showStarredReceiptOrders": "Show starred receipt orders only",
       "filter": "Filter",
       "filterWithCount": "Filter ({{count}})",
-      "clearSearch": "Clear search"
+      "clearSearch": "Clear search",
+      "searchModeAria": "Search by",
+      "statusAll": "All"
+    },
+    "actions": {
+      "more": "More actions",
+      "delete": "Delete",
+      "transfer": "Transfer"
     },
     "messages": {
       "errors": {

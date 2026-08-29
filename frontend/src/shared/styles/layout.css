@@ -466,6 +466,12 @@
   white-space: nowrap;
 }
 
+.receipt-payment-status-pill {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--bg-soft-warning);
+}
+
 .receipt-payment-status-pending {
   color: var(--color-warning-strong);
 }

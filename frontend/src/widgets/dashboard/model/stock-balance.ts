@@ -385,3 +385,39 @@ export const filterStockProducts = ({
       return true;
     });
 };
+
+export type StockModelGroup = {
+  id: string;
+  name: string;
+  article: string;
+  products: Product[];
+};
+
+export const getStockModelGroupId = (
+  product: Pick<Product, 'name' | 'article'>,
+) => `${normalizeText(product.name)}::${normalizeText(product.article)}`;
+
+export const groupStockProductsByModel = (
+  products: Product[],
+): StockModelGroup[] => {
+  const order: string[] = [];
+  const groups = new Map<string, StockModelGroup>();
+
+  products.forEach((product) => {
+    const id = getStockModelGroupId(product);
+    const existing = groups.get(id);
+    if (existing) {
+      existing.products.push(product);
+      return;
+    }
+    groups.set(id, {
+      id,
+      name: product.name,
+      article: product.article,
+      products: [product],
+    });
+    order.push(id);
+  });
+
+  return order.map((id) => groups.get(id)!);
+};
