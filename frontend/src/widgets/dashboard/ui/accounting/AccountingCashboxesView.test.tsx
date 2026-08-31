@@ -160,9 +160,11 @@ describe('AccountingCashboxesView', () => {
       'deposit',
       props.cashboxes[0],
     );
-    expect(screen.getByRole('button', { name: 'Save operation' })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Save operation' }));
+    expect(screen.getByRole('button', { name: 'Confirm' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Confirm and close' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm' }));
     expect(props.onCreateTransaction).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole('button', { name: 'Confirm' })).toBeInTheDocument();
   });
 
   it('hides unauthorized controls and renders empty balances', () => {
@@ -182,7 +184,7 @@ describe('AccountingCashboxesView', () => {
     expect(screen.queryByText('Operation')).not.toBeInTheDocument();
     expect(screen.getByText('No active currency balances')).toBeInTheDocument();
     fireEvent.click(document.querySelectorAll('.finance-cashbox-card')[0]);
-    expect(screen.queryByRole('button', { name: 'Save operation' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Confirm' })).not.toBeInTheDocument();
   });
 
   it('treats cashboxes with no currency rows as empty', () => {
@@ -291,7 +293,8 @@ describe('AccountingCashboxesView', () => {
       target: { value: 'cash movement' },
     });
     expect(props.onTransactionFormChange).toHaveBeenCalled();
-    expect(screen.getByRole('button', { name: 'Save operation' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Confirm' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Confirm and close' })).toBeDisabled();
   });
 
   it('updates transaction note', () => {
@@ -329,7 +332,8 @@ describe('AccountingCashboxesView', () => {
     expect(screen.getByLabelText('Currency')).toBeDisabled();
     expect(screen.getByText('No available currencies')).toBeInTheDocument();
     expect(screen.queryByLabelText('From cashbox')).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Saving...' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Confirm' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Confirm and close' })).toBeDisabled();
   });
 
   it('uses zero when the source cashbox has no balance for the currency', () => {
@@ -457,7 +461,7 @@ describe('AccountingCashboxesView', () => {
     expect(onSetDraggedCashboxId).toHaveBeenCalledWith(null);
   });
 
-  it('blocks withdraw above available balance and confirms large amounts', () => {
+  it('blocks withdraw above available balance', () => {
     const onCreateTransaction = vi.fn();
     const { rerender, props } = renderView({
       onCreateTransaction,
@@ -469,7 +473,8 @@ describe('AccountingCashboxesView', () => {
     });
     openOperation();
     expect(screen.getByText('Amount exceeds the available balance.')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Save operation' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Confirm' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Confirm and close' })).toBeDisabled();
 
     rerender(
       <AccountingCashboxesView
@@ -482,16 +487,12 @@ describe('AccountingCashboxesView', () => {
         })}
       />,
     );
-    fireEvent.click(screen.getByRole('button', { name: 'Save operation' }));
-    expect(onCreateTransaction).not.toHaveBeenCalled();
-    expect(
-      screen.getByText('This is a large amount. Click confirm to save.'),
-    ).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Confirm operation' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm' }));
     expect(onCreateTransaction).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole('button', { name: 'Confirm' })).toBeInTheDocument();
   });
 
-  it('confirms large deposits without a source balance check', () => {
+  it('saves a deposit immediately without a large-amount confirm', () => {
     const onCreateTransaction = vi.fn();
     renderView({
       onCreateTransaction,
@@ -502,10 +503,29 @@ describe('AccountingCashboxesView', () => {
       }),
     });
     openOperation();
-    fireEvent.click(screen.getByRole('button', { name: 'Save operation' }));
-    expect(onCreateTransaction).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole('button', { name: 'Confirm operation' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm' }));
     expect(onCreateTransaction).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole('button', { name: 'Confirm' })).toBeInTheDocument();
+  });
+
+  it('closes the operation modal after confirm-and-close succeeds', async () => {
+    const onCreateTransaction = vi.fn().mockResolvedValue(true);
+    renderView({ onCreateTransaction });
+    openOperation();
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm and close' }));
+    expect(onCreateTransaction).toHaveBeenCalledTimes(1);
+    await vi.waitFor(() => {
+      expect(screen.queryByRole('button', { name: 'Confirm' })).not.toBeInTheDocument();
+    });
+  });
+
+  it('keeps the operation modal open when confirm-and-close does not save', async () => {
+    const onCreateTransaction = vi.fn().mockResolvedValue(false);
+    renderView({ onCreateTransaction });
+    openOperation();
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm and close' }));
+    expect(onCreateTransaction).toHaveBeenCalledTimes(1);
+    expect(await screen.findByRole('button', { name: 'Confirm' })).toBeInTheDocument();
   });
 
   it('swaps transfer cashboxes when the same box is selected twice', () => {
@@ -553,13 +573,14 @@ describe('AccountingCashboxesView', () => {
     renderView();
     openOperation();
     fireEvent.click(screen.getByRole('button', { name: 'Close' }));
-    expect(screen.queryByRole('button', { name: 'Save operation' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Confirm' })).not.toBeInTheDocument();
   });
 
   it('keeps the operation modal open while saving', () => {
     renderView({ isSaving: true });
     openOperation();
     fireEvent.click(screen.getByRole('button', { name: 'Close' }));
-    expect(screen.getByRole('button', { name: 'Saving...' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Confirm' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Confirm and close' })).toBeDisabled();
   });
 });

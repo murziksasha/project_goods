@@ -152,27 +152,27 @@ export const useTransactionForm = ({
   };
 
   const handleCreateTransaction = async () => {
-    if (isSaving) return;
+    if (isSaving) return false;
     const { type, amount, currency, fromCashboxId, toCashboxId } = transactionForm;
     if (!permittedTransactionTypes.includes(type)) {
       onError(i18n.t('accounting.messages.errors.noPermissionFinanceOperation'));
-      return;
+      return false;
     }
     if (
       type === 'transfer' &&
       !canPerformTransferBetweenCashboxes(fromCashboxId, toCashboxId)
     ) {
       onError(i18n.t('accounting.messages.errors.transferCashboxesMustDiffer'));
-      return;
+      return false;
     }
     const normalizedAmount = parseDecimal(amount);
     if (!allowedTransactionCurrencies.includes(currency)) {
       onError(i18n.t('accounting.messages.errors.currencyNotAvailable'));
-      return;
+      return false;
     }
     if (!Number.isFinite(normalizedAmount) || normalizedAmount <= 0) {
       onError(i18n.t('accounting.messages.errors.amountMustBePositive'));
-      return;
+      return false;
     }
 
     const payload = {
@@ -181,7 +181,7 @@ export const useTransactionForm = ({
       idempotencyKey: createRuntimeId(),
     };
 
-    await runFinanceAction(
+    const result = await runFinanceAction(
       () => createFinanceTransaction(payload),
       i18n.t('accounting.messages.success.financeTransactionSaved'),
       {
@@ -203,6 +203,7 @@ export const useTransactionForm = ({
         errorFallback: i18n.t('accounting.messages.errors.failedSaveTransaction'),
       },
     );
+    return result !== undefined;
   };
 
   return {

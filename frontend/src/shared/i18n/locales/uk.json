@@ -2320,8 +2320,8 @@
       "comment": "Коментар",
       "emptyOption": "-",
       "saving": "Збереження...",
-      "saveOperation": "Зберегти операцію",
-      "confirmSaveOperation": "Підтвердити операцію",
+      "confirmOperation": "Підтвердити",
+      "confirmAndClose": "Підтвердити і закрити",
       "searchPlaceholder": "Пошук кас",
       "hideEmpty": "Приховати порожні",
       "empty": "Кас ще немає. Створіть касу в налаштуваннях бухгалтерії.",
@@ -2329,7 +2329,6 @@
       "cashboxCount": "{{count}} кас",
       "remainingBalance": "Доступно: {{amount}}",
       "insufficientBalance": "Сума перевищує доступний залишок.",
-      "confirmLargeAmount": "Велика сума. Натисніть ще раз, щоб підтвердити.",
       "reorderHint": "Перетягніть, щоб змінити порядок"
     },
     "transactions": {

@@ -530,7 +530,7 @@ const setTransactionType = async (type: FinanceTransactionType) => {
 
 const saveTransaction = async () => {
   await act(async () => {
-    fireEvent.click(screen.getByRole('button', { name: 'Save operation' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm' }));
   });
 };
 

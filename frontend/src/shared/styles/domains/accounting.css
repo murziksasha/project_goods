@@ -496,6 +496,41 @@
   margin-bottom: 10px;
 }
 
+.finance-operation-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 4px;
+}
+
+.finance-operation-actions button {
+  min-width: 0;
+}
+
+.finance-operation-confirm-stay {
+  background: transparent;
+  color: var(--color-primary);
+  border: 1px solid var(--color-primary);
+  border-radius: 7px;
+  padding: 12px 18px;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+.finance-operation-confirm-stay:hover {
+  transform: translateY(-1px);
+}
+
+.finance-operation-confirm-stay:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+}
+
 .finance-cashbox-actions button {
   border: 1px solid #cfd7e2;
   border-radius: 5px;

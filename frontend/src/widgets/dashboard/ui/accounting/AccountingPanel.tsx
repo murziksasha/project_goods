@@ -512,7 +512,8 @@ export const AccountingPanel = ({
   };
 
   const handleCreateTransaction = async () => {
-    await handleCreateTransactionFromHook();
+    const result = await handleCreateTransactionFromHook();
+    return Boolean(result);
   };
 
   const canCancelTransaction = (transaction: FinanceTransaction) =>

@@ -6,7 +6,6 @@ import type {
   CreateFinanceTransactionPayload,
   FinanceTransactionType,
 } from '../../../../entities/finance/model/types';
-import { parseDecimal } from '../../../../shared/lib/decimal';
 import { Modal } from '../../../../shared/ui/Modal';
 import {
   accountingHideEmptyCashboxesStorageKey,
@@ -15,10 +14,7 @@ import {
   reorderCashboxes,
   type CashboxCurrencyRow,
 } from '../../model/accounting';
-import {
-  AccountingOperationForm,
-  LARGE_OPERATION_AMOUNT,
-} from './AccountingOperationForm';
+import { AccountingOperationForm } from './AccountingOperationForm';
 
 type AccountingCashboxesViewProps = {
   allowedTransactionCurrencies: string[];
@@ -38,7 +34,7 @@ type AccountingCashboxesViewProps = {
     name: string,
     enabledCurrencies?: Record<string, boolean>,
   ) => void | Promise<unknown>;
-  onCreateTransaction: () => void | Promise<void>;
+  onCreateTransaction: () => boolean | void | Promise<boolean | void>;
   onOpenCashboxTransactions: (cashbox: Cashbox) => void;
   onSetCashboxes: Dispatch<SetStateAction<Cashbox[]>>;
   onSetDraggedCashboxId: (cashboxId: string | null) => void;
@@ -90,7 +86,6 @@ export const AccountingCashboxesView = ({
   const [createEnabledCurrencies, setCreateEnabledCurrencies] = useState<
     Record<string, boolean>
   >({ UAH: true });
-  const [awaitingLargeConfirm, setAwaitingLargeConfirm] = useState(false);
 
   useEffect(() => {
     try {
@@ -138,7 +133,6 @@ export const AccountingCashboxesView = ({
   const openOperation = useCallback(
     (type: FinanceTransactionType, cashbox: Cashbox) => {
       onStartTransaction(type, cashbox);
-      setAwaitingLargeConfirm(false);
       setIsOperationOpen(true);
     },
     [onStartTransaction],
@@ -147,29 +141,17 @@ export const AccountingCashboxesView = ({
   const closeOperation = useCallback(() => {
     if (isSaving) return;
     setIsOperationOpen(false);
-    setAwaitingLargeConfirm(false);
   }, [isSaving]);
 
-  const handleSave = useCallback(() => {
-    const amount = parseDecimal(transactionForm.amount);
-    const needsConfirm =
-      Number.isFinite(amount) &&
-      amount > 0 &&
-      (amount >= LARGE_OPERATION_AMOUNT ||
-        (availableBalance !== null &&
-          availableBalance > 0 &&
-          amount >= availableBalance * 0.5));
-    if (needsConfirm && !awaitingLargeConfirm) {
-      setAwaitingLargeConfirm(true);
-      return;
-    }
-    void onCreateTransaction();
-  }, [
-    awaitingLargeConfirm,
-    availableBalance,
-    onCreateTransaction,
-    transactionForm.amount,
-  ]);
+  const handleSave = useCallback(
+    async (closeAfter: boolean) => {
+      const saved = await onCreateTransaction();
+      if (closeAfter && saved) {
+        setIsOperationOpen(false);
+      }
+    },
+    [onCreateTransaction],
+  );
 
   const handleCardDrop = (target: Cashbox) => {
     if (!canManageCashboxes) {
@@ -462,7 +444,6 @@ export const AccountingCashboxesView = ({
           <AccountingOperationForm
             allowedTransactionCurrencies={allowedTransactionCurrencies}
             availableBalance={availableBalance}
-            awaitingLargeConfirm={awaitingLargeConfirm}
             canCreateDeposit={canCreateDeposit}
             canCreateTransfer={canCreateTransfer}
             canCreateWithdraw={canCreateWithdraw}
@@ -474,8 +455,9 @@ export const AccountingCashboxesView = ({
               allowedTransactionCurrencies.length === 0
             }
             transactionForm={transactionForm}
-            onAwaitingLargeConfirmChange={setAwaitingLargeConfirm}
-            onCreateTransaction={handleSave}
+            onCreateTransaction={(closeAfter) => {
+              void handleSave(closeAfter);
+            }}
             onTransactionFormChange={onTransactionFormChange}
             onTransactionTypeChange={onTransactionTypeChange}
           />

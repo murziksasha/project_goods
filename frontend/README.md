@@ -28,6 +28,7 @@ src/
 npm run dev       # Vite dev server (proxy /api -> localhost:5000)
 npm run build
 npm run test      # Vitest
+npm run test:e2e  # Playwright (starts Vite on :5174)
 npm run lint
 ```
 
