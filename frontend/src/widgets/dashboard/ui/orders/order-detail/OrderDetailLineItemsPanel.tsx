@@ -48,6 +48,7 @@ import { ProductSalePriceField } from '../../../../../shared/ui/ProductSalePrice
 import { ProductSalePriceTierToggle } from '../../../../../shared/ui/ProductSalePriceTierToggle';
 import { parseDecimal } from '../../../../../shared/lib/decimal';
 import { formatCurrency } from '../../../../../shared/lib/format';
+import { useDismissibleSuggestions } from '../../../../../shared/lib/useDismissibleSuggestions';
 import type { PrintForm } from '../../../../../entities/settings/model/types';
 import {
   SupplierOrderModal,
@@ -225,6 +226,18 @@ export const OrderDetailLineItemsPanel = ({
     useState(false);
   const [isProductLookupLoading, setIsProductLookupLoading] =
     useState(false);
+  const {
+    rootRef: lineItemSuggestionsRootRef,
+    panelRef: lineItemSuggestionsPanelRef,
+    isVisible: isLineItemSuggestionsVisible,
+  } = useDismissibleSuggestions({
+    query: name,
+    isActive:
+      !isReadOnly &&
+      (kind === 'product'
+        ? productSuggestions.length > 0 || isProductLookupLoading
+        : serviceSuggestions.length > 0 || isServiceLookupLoading),
+  });
   const [selectedService, setSelectedService] =
     useState<ServiceCatalogItem | null>(null);
   const [serviceForm, setServiceForm] = useState(
@@ -1758,6 +1771,7 @@ export const OrderDetailLineItemsPanel = ({
           <div
             className='order-line-item-name-entry order-detail-table-entry-cell'
             data-label={t('orders.detail.lineItems.name')}
+            ref={lineItemSuggestionsRootRef}
           >
             <input
               className='line-item-inline-input'
@@ -1868,9 +1882,11 @@ export const OrderDetailLineItemsPanel = ({
         )}
       </div>
       <div className='order-line-items-form'>
-        {kind === 'product' &&
-        (productSuggestions.length > 0 || isProductLookupLoading) ? (
-          <div className='create-suggestions line-item-suggestions'>
+        {kind === 'product' && isLineItemSuggestionsVisible ? (
+          <div
+            ref={lineItemSuggestionsPanelRef}
+            className='create-suggestions line-item-suggestions'
+          >
             {isProductLookupLoading ? (
               <p>{t('orders.detail.lineItems.searchingProducts')}</p>
             ) : null}
@@ -1934,9 +1950,11 @@ export const OrderDetailLineItemsPanel = ({
             })}
           </div>
         ) : null}
-        {kind === 'service' &&
-        (serviceSuggestions.length > 0 || isServiceLookupLoading) ? (
-          <div className='create-suggestions line-item-suggestions'>
+        {kind === 'service' && isLineItemSuggestionsVisible ? (
+          <div
+            ref={lineItemSuggestionsPanelRef}
+            className='create-suggestions line-item-suggestions'
+          >
             {isServiceLookupLoading ? (
               <p>{t('orders.detail.lineItems.searchingServices')}</p>
             ) : null}

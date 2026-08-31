@@ -17,12 +17,9 @@ import {
   formatMoney,
 } from '../../model/accounting';
 
-export const LARGE_OPERATION_AMOUNT = 10_000;
-
 type AccountingOperationFormProps = {
   allowedTransactionCurrencies: string[];
   availableBalance: number | null;
-  awaitingLargeConfirm: boolean;
   canCreateDeposit: boolean;
   canCreateTransfer: boolean;
   canCreateWithdraw: boolean;
@@ -30,8 +27,7 @@ type AccountingOperationFormProps = {
   isSaving: boolean;
   saveDisabled: boolean;
   transactionForm: CreateFinanceTransactionPayload;
-  onAwaitingLargeConfirmChange: (value: boolean) => void;
-  onCreateTransaction: () => void;
+  onCreateTransaction: (closeAfter: boolean) => void;
   onTransactionFormChange: (
     updater: SetStateAction<CreateFinanceTransactionPayload>,
   ) => void;
@@ -41,7 +37,6 @@ type AccountingOperationFormProps = {
 export const AccountingOperationForm = ({
   allowedTransactionCurrencies,
   availableBalance,
-  awaitingLargeConfirm,
   canCreateDeposit,
   canCreateTransfer,
   canCreateWithdraw,
@@ -49,7 +44,6 @@ export const AccountingOperationForm = ({
   isSaving,
   saveDisabled,
   transactionForm,
-  onAwaitingLargeConfirmChange,
   onCreateTransaction,
   onTransactionFormChange,
   onTransactionTypeChange,
@@ -63,6 +57,20 @@ export const AccountingOperationForm = ({
     Number.isFinite(availableBalance) &&
     Number.isFinite(parsedAmount) &&
     parsedAmount > availableBalance;
+  const confirmDisabled =
+    saveDisabled ||
+    insufficient ||
+    (transactionForm.type === 'transfer' &&
+      !canPerformTransferBetweenCashboxes(
+        transactionForm.fromCashboxId,
+        transactionForm.toCashboxId,
+      ));
+  const confirmLabel = isSaving
+    ? t('accounting.cashboxes.saving')
+    : t('accounting.cashboxes.confirmOperation');
+  const confirmAndCloseLabel = isSaving
+    ? t('accounting.cashboxes.saving')
+    : t('accounting.cashboxes.confirmAndClose');
 
   return (
     <>
@@ -72,7 +80,6 @@ export const AccountingOperationForm = ({
           <select
             value={transactionForm.type}
             onChange={(event) => {
-              onAwaitingLargeConfirmChange(false);
               onTransactionTypeChange(
                 event.target.value as FinanceTransactionType,
               );
@@ -103,7 +110,6 @@ export const AccountingOperationForm = ({
             precision={PRICE_STEPPER_PRECISION}
             value={transactionForm.amount}
             onChange={(value) => {
-              onAwaitingLargeConfirmChange(false);
               onTransactionFormChange((current) => ({
                 ...current,
                 amount: value,
@@ -120,7 +126,6 @@ export const AccountingOperationForm = ({
                 : ''
             }
             onChange={(event) => {
-              onAwaitingLargeConfirmChange(false);
               onTransactionFormChange((current) => ({
                 ...current,
                 currency: event.target.value as FinanceCurrency,
@@ -147,7 +152,6 @@ export const AccountingOperationForm = ({
             <select
               value={transactionForm.fromCashboxId}
               onChange={(event) => {
-                onAwaitingLargeConfirmChange(false);
                 onTransactionFormChange((current) => {
                   const newFrom = event.target.value;
                   if (current.type !== 'transfer') {
@@ -180,7 +184,6 @@ export const AccountingOperationForm = ({
             <select
               value={transactionForm.toCashboxId}
               onChange={(event) => {
-                onAwaitingLargeConfirmChange(false);
                 onTransactionFormChange((current) => {
                   const newTo = event.target.value;
                   if (current.type !== 'transfer') {
@@ -240,31 +243,26 @@ export const AccountingOperationForm = ({
           {t('accounting.cashboxes.insufficientBalance')}
         </p>
       ) : null}
-      {awaitingLargeConfirm ? (
-        <p className='finance-operation-warning'>
-          {t('accounting.cashboxes.confirmLargeAmount')}
-        </p>
-      ) : null}
-      <button
-        type='button'
-        className='primary-button'
-        onClick={onCreateTransaction}
-        disabled={
-          saveDisabled ||
-          insufficient ||
-          (transactionForm.type === 'transfer' &&
-            !canPerformTransferBetweenCashboxes(
-              transactionForm.fromCashboxId,
-              transactionForm.toCashboxId,
-            ))
-        }
-      >
-        {isSaving
-          ? t('accounting.cashboxes.saving')
-          : awaitingLargeConfirm
-            ? t('accounting.cashboxes.confirmSaveOperation')
-            : t('accounting.cashboxes.saveOperation')}
-      </button>
+      <div className='finance-operation-actions'>
+        <button
+          type='button'
+          className='finance-operation-confirm-stay'
+          aria-label={t('accounting.cashboxes.confirmOperation')}
+          onClick={() => onCreateTransaction(false)}
+          disabled={confirmDisabled}
+        >
+          {confirmLabel}
+        </button>
+        <button
+          type='button'
+          className='primary-button'
+          aria-label={t('accounting.cashboxes.confirmAndClose')}
+          onClick={() => onCreateTransaction(true)}
+          disabled={confirmDisabled}
+        >
+          {confirmAndCloseLabel}
+        </button>
+      </div>
     </>
   );
 };

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useDismissibleSuggestions } from '../../../shared/lib/useDismissibleSuggestions';
 import {
   clientStatusOptions,
   getClientStatusColor,
@@ -46,6 +47,11 @@ export const ClientForm = ({
   const [recommendations, setRecommendations] = useState<Client[]>([]);
   const [showRecommendations, setShowRecommendations] = useState(false);
   const [phoneError, setPhoneError] = useState<string | null>(null);
+  const { rootRef: recommendationsRootRef, isVisible: isRecommendationsVisible } =
+    useDismissibleSuggestions({
+      query: `${form.phone}\n${form.name}`,
+      isActive: showRecommendations && recommendations.length > 0,
+    });
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
@@ -116,14 +122,13 @@ export const ClientForm = ({
       </div>
 
       <div className='form-grid'>
+        <div ref={recommendationsRootRef} className='field field-wide modal-suggestions-anchor'>
         <label className='field'>
           <span>{t('clients.modal.fields.phone')}</span>
           <input
             value={form.phone}
             placeholder='+38 067 111 22 33'
-            onFocus={() => setShowRecommendations(true)}
             onBlur={() => {
-              window.setTimeout(() => setShowRecommendations(false), 120);
               validatePhone(form.phone);
             }}
             onChange={(event) => {
@@ -135,6 +140,7 @@ export const ClientForm = ({
               onChange('phone', val);
               onChange('phones', nextPhones);
               setPhoneError(null);
+              setShowRecommendations(true);
             }}
           />
           {phoneError ? (
@@ -147,15 +153,14 @@ export const ClientForm = ({
           <input
             value={form.name}
             placeholder={t('legacy.clientForm.namePlaceholder')}
-            onFocus={() => setShowRecommendations(true)}
-            onBlur={() =>
-              window.setTimeout(() => setShowRecommendations(false), 120)
-            }
-            onChange={(event) => onChange('name', event.target.value)}
+            onChange={(event) => {
+              onChange('name', event.target.value);
+              setShowRecommendations(true);
+            }}
           />
         </label>
 
-        {showRecommendations && recommendations.length > 0 ? (
+        {isRecommendationsVisible ? (
           <div className='field field-wide'>
             <span>{t('legacy.clientForm.similarClients')}</span>
             <div className='suggestions-panel'>
@@ -179,6 +184,7 @@ export const ClientForm = ({
             </div>
           </div>
         ) : null}
+        </div>
 
         <label className='field field-wide'>
           <span>{t('clients.modal.fields.status')}</span>

@@ -1,6 +1,6 @@
 # Order Card Rules
 
-Related: [ORDER_FLOW.md](./ORDER_FLOW.md) · [SALE_CARD.md](./SALE_CARD.md) · [WAREHOUSE_FLOW.md](./WAREHOUSE_FLOW.md) · [index](./README.md)
+Related: [ORDER_FLOW.md](./ORDER_FLOW.md) · [SALE_CARD.md](./SALE_CARD.md) · [WAREHOUSE_FLOW.md](./WAREHOUSE_FLOW.md) · [SPEC_SUGGESTIONS_BEHAVIOR.md](./SPEC_SUGGESTIONS_BEHAVIOR.md) · [index](./README.md)
 
 ## Header
 
@@ -76,7 +76,7 @@ Related: [ORDER_FLOW.md](./ORDER_FLOW.md) · [SALE_CARD.md](./SALE_CARD.md) · [
 - **Section header summary (`Products` and `Services`):** when the section has line items, the collapse header shows collapsed quantity (`×N` = sum of `quantity`) and the pre-discount line total (`sum(price × qty)`, `formatCurrency`). Empty sections keep title + chevron only. Amounts are **not** reduced by order discount; they sum to Payment `Repair cost` (`getOrderBaseTotal`). Discount stays only in Payment.
 - Sale cards keep Products open by default (see [SALE_CARD.md](./SALE_CARD.md)).
 - Add-row product input placeholder: `Name, serial or article` (`orders.detail.lineItems.addProductPlaceholder`).
-- Product search in the add-row input uses `buildOrderDetailProductSuggestions` (card-specific rules; see [SPEC_SUGGESTIONS_BEHAVIOR.md](./SPEC_SUGGESTIONS_BEHAVIOR.md)).
+- Product search in the add-row input uses `buildOrderDetailProductSuggestions` (card-specific rules; see [SPEC_SUGGESTIONS_BEHAVIOR.md](./SPEC_SUGGESTIONS_BEHAVIOR.md)). Dismiss without select applies to product and service add-row lists.
 - Lookup must **never** match `note` on stock or catalog rows.
 - Serial/article query (exact or partial) shows warehouse stock suggestions only (`serialNumber`, `article`); all other queries show `catalog-products` by `name` only.
 - Stock suggestion rows show **warehouse name in bold**, then `price / article / serial / availability`; catalog rows show `price / Product List`.

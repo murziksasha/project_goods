@@ -31,6 +31,7 @@ import {
   type SupplierFormState,
 } from '../../../../entities/supplier/model/forms';
 import type { Employee } from '../../../../entities/employee/model/types';
+import { useDismissibleSuggestions } from '../../../../shared/lib/useDismissibleSuggestions';
 import { Button } from '../../../../shared/ui/Button';
 import { Modal } from '../../../../shared/ui/Modal';
 import { PageHeader } from '../../../../shared/ui/PageHeader';
@@ -1329,24 +1330,29 @@ const SupplierMergeField = ({
   onSelectSupplier: (supplier: Supplier) => void;
 }) => {
   const { t } = useTranslation();
+  const { rootRef, isVisible } = useDismissibleSuggestions({
+    query,
+    isActive: showSuggestions && options.length > 0,
+  });
 
   return (
-    <>
-      <label className='field field-wide modal-suggestions-anchor'>
-        <span>{label}</span>
-        <input
-          value={query}
-          placeholder={t('clients.suppliers.merge.searchPlaceholder')}
-          onChange={(event) => onQueryChange(event.target.value)}
-        />
-      </label>
-      {showSuggestions && options.length > 0 ? (
+    <label
+      ref={rootRef}
+      className='field field-wide modal-suggestions-anchor'
+    >
+      <span>{label}</span>
+      <input
+        value={query}
+        placeholder={t('clients.suppliers.merge.searchPlaceholder')}
+        onChange={(event) => onQueryChange(event.target.value)}
+      />
+      {isVisible ? (
         <SupplierSuggestions
           options={options}
           onSelectSupplier={onSelectSupplier}
         />
       ) : null}
-    </>
+    </label>
   );
 };
 

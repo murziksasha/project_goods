@@ -9,9 +9,32 @@ Related: [DEVELOPMENT.md](./DEVELOPMENT.md) · [index](./README.md)
 | Frontend unit/UI | `cd frontend && npm test` | Vitest + Testing Library |
 | Frontend watch | `cd frontend && npm run test:watch` | |
 | Frontend coverage | `cd frontend && npm run test:coverage` | |
+| Frontend e2e (Playwright) | `npm run test:e2e` | Starts Vite on `:5174`. See **Playwright e2e**. |
 | Backend unit + integration | `cd backend && npm test` | Vitest, no live MongoDB required |
 | Backend coverage | `cd backend && npm run test:coverage` | Strict 100% on listed modules only |
 | Lint | `npm run lint` (per package) | |
+
+## Playwright e2e
+
+In-repo Chromium checks (`@playwright/test` in `frontend`). Not an MCP server.
+
+```bash
+npm run test:e2e:install --prefix frontend   # once per machine
+npm run test:e2e                             # from repo root, or cd frontend && npm run test:e2e
+cd frontend && npm run test:e2e:ui           # Playwright UI mode
+```
+
+- Config: `frontend/playwright.config.ts`. Specs: `frontend/e2e/`.
+- Playwright **starts Vite on `127.0.0.1:5174`** (not Docker `:5173`). Override with `PLAYWRIGHT_PORT` / `PLAYWRIGHT_BASE_URL`.
+- Skip the auto server with `PLAYWRIGHT_SKIP_WEBSERVER=1` if you already have that URL up.
+- Authenticated specs mock `/api/**` and inject `project-goods.auth-token` — no real Mongo login.
+- English UI via `project-goods.lang`.
+- Not on CI. `npm test` / `npm run verify` stay unit + lint + typecheck + build.
+
+Specs:
+
+- `e2e/login-page.spec.ts` — logged-out Login / Sign in.
+- `e2e/accounting-operation-modal.spec.ts` — **Confirm** (outline, stay open) and **Confirm and close** (filled); no large-amount warning.
 
 ## Frontend structure
 

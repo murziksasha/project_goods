@@ -2320,8 +2320,8 @@
       "comment": "Comment",
       "emptyOption": "-",
       "saving": "Saving...",
-      "saveOperation": "Save operation",
-      "confirmSaveOperation": "Confirm operation",
+      "confirmOperation": "Confirm",
+      "confirmAndClose": "Confirm and close",
       "searchPlaceholder": "Search cashboxes",
       "hideEmpty": "Hide empty",
       "empty": "No cashboxes yet. Create one in Accounting settings.",
@@ -2329,7 +2329,6 @@
       "cashboxCount": "{{count}} cashboxes",
       "remainingBalance": "Available: {{amount}}",
       "insufficientBalance": "Amount exceeds the available balance.",
-      "confirmLargeAmount": "This is a large amount. Click confirm to save.",
       "reorderHint": "Drag to reorder"
     },
     "transactions": {

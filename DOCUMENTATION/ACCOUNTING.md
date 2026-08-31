@@ -180,6 +180,15 @@ This document defines financial behavior in the `Accounting` workspace (cashboxe
   - `deposit` -> anchor = `toCashboxId`
   - `withdraw` / `transfer` -> anchor = `fromCashboxId`
 
+## Operation modal submit (2026-08-31)
+- There is **no** extra confirm for large amounts (no `>= 10_000` threshold and no 50% of available-balance gate).
+- The operation modal has two submits:
+  - **Confirm** (outline, left) — saves the transaction, clears `amount` and `note`, keeps type/cashboxes/currency, and **leaves the modal open** for the next entry.
+  - **Confirm and close** (filled primary, right) — saves the transaction and **closes** the modal on success only.
+- Validation or API failure never closes the modal (either button).
+- Insufficient source balance still blocks both buttons and shows the existing warning.
+- Modal **X**, backdrop click, and Escape close without saving; they stay blocked while a save is in progress.
+
 ## Accounting Settings Access
 - In `Accounting`, a gear button is shown on the right side of the tabs row.
 - Clicking gear opens `Accounting settings` panel without leaving the page.

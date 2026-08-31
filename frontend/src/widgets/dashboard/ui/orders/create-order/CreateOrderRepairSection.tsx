@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import type { ClientDevice } from '../../../../../entities/client-device/model/types';
+import { useDismissibleSuggestions } from '../../../../../shared/lib/useDismissibleSuggestions';
 
 type CreateOrderRepairSectionProps = {
   deviceName: string;
@@ -55,14 +56,21 @@ export const CreateOrderRepairSection = ({
   onApplyDevice,
 }: CreateOrderRepairSectionProps) => {
   const { t } = useTranslation();
-  const showDeviceSuggestions =
-    visibleDeviceSuggestions.length > 0 || isDeviceLookupLoading;
+  const { rootRef: deviceSuggestionsRootRef, isVisible: showDeviceSuggestions } =
+    useDismissibleSuggestions({
+      query: deviceName,
+      isActive:
+        visibleDeviceSuggestions.length > 0 || isDeviceLookupLoading,
+    });
 
   return (
     <>
       <h3 className="create-section-title">{t('orders.create.device')}</h3>
       <div className="create-device-search">
-        <div className="create-device-search-field modal-suggestions-anchor">
+        <div
+          ref={deviceSuggestionsRootRef}
+          className="create-device-search-field modal-suggestions-anchor"
+        >
           <label className="field">
             <span>{t('orders.create.deviceNumber', { number: 1 })}</span>
             <input

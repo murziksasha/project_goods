@@ -47,8 +47,6 @@ export const SaleForm = ({
   const [productInput, setProductInput] = useState('');
   const [clientSuggestions, setClientSuggestions] = useState<Client[]>([]);
   const [productSuggestions, setProductSuggestions] = useState<Product[]>([]);
-  const [showClientSuggestions, setShowClientSuggestions] = useState(false);
-  const [showProductSuggestions, setShowProductSuggestions] = useState(false);
   const [priceTier, setPriceTier] = useState<ProductSalePriceTier | null>(null);
   const previousProductIdRef = useRef(form.productId);
 
@@ -111,7 +109,6 @@ export const SaleForm = ({
     onChange('clientId', client.id);
     setClientNameInput(client.name);
     setClientPhoneInput(client.phone);
-    setShowClientSuggestions(false);
   };
 
   const handleProductPick = (product: Product) => {
@@ -120,7 +117,6 @@ export const SaleForm = ({
     onChange('note', product.note);
     setProductInput(getProductLabel(product));
     setPriceTier('retail');
-    setShowProductSuggestions(false);
   };
 
   useEffect(() => {
@@ -171,35 +167,28 @@ export const SaleForm = ({
           clientNameInput={displayedClientNameInput}
           clientPhoneInput={displayedClientPhoneInput}
           clientSuggestions={clientSuggestions}
-          showClientSuggestions={showClientSuggestions}
+          isBound={Boolean(form.clientId)}
           onNameChange={(value) => {
             onChange('clientId', '');
             setClientNameInput(value);
-            setShowClientSuggestions(true);
           }}
           onPhoneChange={(value) => {
             onChange('clientId', '');
             setClientPhoneInput(value);
-            setShowClientSuggestions(true);
           }}
           onPickClient={handleClientPick}
-          onShowSuggestions={() => setShowClientSuggestions(true)}
-          onHideSuggestions={() => setShowClientSuggestions(false)}
         />
 
         <ProductLookupField
           productInput={displayedProductInput}
           productSuggestions={productSuggestions}
-          showProductSuggestions={showProductSuggestions}
+          isBound={Boolean(form.productId)}
           onProductChange={(value) => {
             onChange('productId', '');
             setProductInput(value);
             setPriceTier(null);
-            setShowProductSuggestions(true);
           }}
           onPickProduct={handleProductPick}
-          onShowSuggestions={() => setShowProductSuggestions(true)}
-          onHideSuggestions={() => setShowProductSuggestions(false)}
         />
 
         <ProductSalePriceField

@@ -9,6 +9,9 @@ export default defineConfig([
   globalIgnores([
     'dist',
     'coverage',
+    'playwright-report',
+    'test-results',
+    'blob-report',
   ]),
   {
     files: ['**/*.{ts,tsx}'],
@@ -43,6 +46,12 @@ export default defineConfig([
     files: ['**/*.{test,spec}.{ts,tsx}', 'src/test/**/*.{ts,tsx}'],
     rules: {
       '@typescript-eslint/no-explicit-any': 'off',
+    },
+  },
+  {
+    files: ['e2e/**/*.ts', 'playwright.config.ts'],
+    rules: {
+      'react-refresh/only-export-components': 'off',
     },
   },
 ])

@@ -118,6 +118,8 @@ npm run dev --prefix frontend
 npm run build --prefix frontend
 npm run lint --prefix frontend
 npm run preview --prefix frontend
+npm run test:e2e --prefix frontend
+npm run test:e2e:install --prefix frontend
 ```
 
 ## Рекомендуемый рабочий цикл
