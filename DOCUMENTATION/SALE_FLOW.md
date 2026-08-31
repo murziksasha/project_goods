@@ -46,7 +46,7 @@ Compact counter-sale flow for walk-in customers: no client form, warehouse stock
   - **`<=1024px`:** two columns; search and add action span full width
   - **`<=480px`:** single column stack; footer buttons full width
 - Price grid column: `minmax(120px, 1.15fr)` so the stepper stays readable on desktop/tablet.
-- Product suggestion lists (`.rapid-sale-suggestions`) keep fixed max height with internal scroll (no layout jump in the entry panel).
+- Product suggestion lists (`.rapid-sale-suggestions`) keep fixed max height with internal scroll (no layout jump in the entry panel). Dismiss without select still applies (click outside the list / Escape; re-open on edit): [SPEC_SUGGESTIONS_BEHAVIOR.md](./SPEC_SUGGESTIONS_BEHAVIOR.md#dismiss-without-select-rule).
 
 ### Product Entry (Stock Only)
 
@@ -198,7 +198,7 @@ Related: [BROWSER_NAVIGATION.md](./BROWSER_NAVIGATION.md) (URL behavior), [API.m
   - `Warranty`
   - `Add product`
 - `Shipping status` control is removed from `Create order -> Sales order`.
-- Search suggestions are rendered in a separate block below the entry row.
+- Search suggestions are rendered in a separate block below the entry row. Click outside the list / Escape hides them without applying a row; they return only after the operator edits the field ([SPEC_SUGGESTIONS_BEHAVIOR.md](./SPEC_SUGGESTIONS_BEHAVIOR.md#dismiss-without-select-rule)).
 - Suggestions must not push controls inside the entry row (no layout jump).
 - Suggestions list has internal scroll with fixed max height.
 - In `Sales order`, `Product search` uses the same split lookup rules as opened sale/repair cards (see [SPEC_SUGGESTIONS_BEHAVIOR.md](./SPEC_SUGGESTIONS_BEHAVIOR.md)):

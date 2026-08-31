@@ -18,6 +18,7 @@ import { ProductSalePriceField } from '../../../../../shared/ui/ProductSalePrice
 import { Modal } from '../../../../../shared/ui/Modal';
 import { Button } from '../../../../../shared/ui/Button';
 import { createRuntimeId } from '../../../../../shared/lib/runtime-id';
+import { useDismissibleSuggestions } from '../../../../../shared/lib/useDismissibleSuggestions';
 import {
   buildMissingServicePayload,
   shouldCreateMissingServiceOnSubmit,
@@ -119,6 +120,30 @@ export const RapidSaleModal = ({
     productQuery.trim().length >= 2 && !selectedProductId ? productSuggestions : [];
   const visibleServiceSuggestions =
     serviceQuery.trim().length >= 2 && !selectedServiceId ? serviceSuggestions : [];
+  const {
+    rootRef: productSuggestionsRootRef,
+    panelRef: productSuggestionsPanelRef,
+    isVisible: isProductSuggestionsVisible,
+  } = useDismissibleSuggestions({
+    query: productQuery,
+    isActive:
+      visibleProductSuggestions.length > 0 || isProductLookupLoading,
+  });
+  const {
+    rootRef: serviceSuggestionsRootRef,
+    panelRef: serviceSuggestionsPanelRef,
+    isVisible: isServiceSuggestionsVisible,
+  } = useDismissibleSuggestions({
+    query: serviceQuery,
+    isActive:
+      visibleServiceSuggestions.length > 0 || isServiceLookupLoading,
+  });
+  const displayedProductSuggestions = isProductSuggestionsVisible
+    ? visibleProductSuggestions
+    : [];
+  const displayedServiceSuggestions = isServiceSuggestionsVisible
+    ? visibleServiceSuggestions
+    : [];
 
   useEffect(() => {
     if (productQuery.trim().length < 2 || selectedProductId) {
@@ -499,7 +524,10 @@ export const RapidSaleModal = ({
               className="rapid-sale-warehouse-field"
             />
             <div className="rapid-sale-entry-row">
-              <label className="field rapid-sale-field-search">
+              <label
+                className="field rapid-sale-field-search"
+                ref={productSuggestionsRootRef}
+              >
                 <span>{t('orders.create.productSearchPlaceholder')}</span>
                 <input
                   ref={productSearchInputRef}
@@ -517,7 +545,7 @@ export const RapidSaleModal = ({
                       handleAddProduct();
                       return;
                     }
-                    const firstSelectable = visibleProductSuggestions.find(
+                    const firstSelectable = displayedProductSuggestions.find(
                       (suggestion) => suggestion.selectable,
                     );
                     if (firstSelectable) {
@@ -577,12 +605,15 @@ export const RapidSaleModal = ({
                 </button>
               </div>
             </div>
-            {visibleProductSuggestions.length > 0 || isProductLookupLoading ? (
-              <div className="create-suggestions rapid-sale-suggestions">
+            {isProductSuggestionsVisible ? (
+              <div
+                ref={productSuggestionsPanelRef}
+                className="create-suggestions rapid-sale-suggestions"
+              >
                 {isProductLookupLoading ? (
                   <p>{t('orders.create.searchingProducts')}</p>
                 ) : null}
-                {visibleProductSuggestions.map((suggestion) => (
+                {displayedProductSuggestions.map((suggestion) => (
                   <button
                     key={suggestion.id}
                     type="button"
@@ -605,7 +636,10 @@ export const RapidSaleModal = ({
           <section className="rapid-sale-section">
             <h3>{t('orders.rapidSale.services')}</h3>
             <div className="rapid-sale-entry-row">
-              <label className="field rapid-sale-field-search">
+              <label
+                className="field rapid-sale-field-search"
+                ref={serviceSuggestionsRootRef}
+              >
                 <span>{t('orders.rapidSale.serviceSearch')}</span>
                 <input
                   ref={serviceSearchInputRef}
@@ -621,8 +655,8 @@ export const RapidSaleModal = ({
                       void handleAddService();
                       return;
                     }
-                    if (visibleServiceSuggestions[0]) {
-                      applyServiceSuggestion(visibleServiceSuggestions[0]);
+                    if (displayedServiceSuggestions[0]) {
+                      applyServiceSuggestion(displayedServiceSuggestions[0]);
                     }
                   }}
                   placeholder={t('orders.rapidSale.serviceSearch')}
@@ -668,12 +702,15 @@ export const RapidSaleModal = ({
                 </button>
               </div>
             </div>
-            {visibleServiceSuggestions.length > 0 || isServiceLookupLoading ? (
-              <div className="create-suggestions rapid-sale-suggestions">
+            {isServiceSuggestionsVisible ? (
+              <div
+                ref={serviceSuggestionsPanelRef}
+                className="create-suggestions rapid-sale-suggestions"
+              >
                 {isServiceLookupLoading ? (
                   <p>{t('orders.rapidSale.searchingServices')}</p>
                 ) : null}
-                {visibleServiceSuggestions.map((service) => (
+                {displayedServiceSuggestions.map((service) => (
                   <button
                     key={service.id}
                     type="button"

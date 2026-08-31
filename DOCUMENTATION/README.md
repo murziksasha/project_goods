@@ -11,7 +11,7 @@ One topic → one source of truth. Other files **link**, they do not copy the ru
 | Sales / Rapid sale | [SALE_FLOW.md](./SALE_FLOW.md) | [SALE_CARD.md](./SALE_CARD.md) |
 | Warehouse / serials | [WAREHOUSE_FLOW.md](./WAREHOUSE_FLOW.md) | [SERIAL_NUMBER_SEQUENCE_SPEC.md](./SERIAL_NUMBER_SEQUENCE_SPEC.md) |
 | Bind serial occupancy | [WAREHOUSE_FLOW.md §4.3.0](./WAREHOUSE_FLOW.md#430-bind-modal-occupancy-opened-repair-and-sale-cards) | API: `GET /sales/occupied-serials` in [API.md](./API.md) |
-| Product lookup suggestions | [SPEC_SUGGESTIONS_BEHAVIOR.md](./SPEC_SUGGESTIONS_BEHAVIOR.md) | create-order / cards / Rapid Sale |
+| Lookup / autocomplete | [SPEC_SUGGESTIONS_BEHAVIOR.md](./SPEC_SUGGESTIONS_BEHAVIOR.md) | select, dismiss-without-select, create-order / cards / Rapid Sale / supplier / merge |
 | Print | [PRINT_FORMS_SPEC.md](./PRINT_FORMS_SPEC.md) | warehouse serial labels in WAREHOUSE_FLOW §4.5 |
 | Finance | [ACCOUNTING.md](./ACCOUNTING.md) | — |
 | Supplier orders | [SUPPLIER_ORDER_FLOW.md](./SUPPLIER_ORDER_FLOW.md) | — |
@@ -47,7 +47,7 @@ One topic → one source of truth. Other files **link**, they do not copy the ru
 - [REPAIR_KANBAN_SPEC.md](./REPAIR_KANBAN_SPEC.md) — Kanban tab
 - [SALE_FLOW.md](./SALE_FLOW.md) — create sale, Rapid sale
 - [SALE_CARD.md](./SALE_CARD.md) — opened sale card UI
-- [SPEC_SUGGESTIONS_BEHAVIOR.md](./SPEC_SUGGESTIONS_BEHAVIOR.md) — lookup/autocomplete
+- [SPEC_SUGGESTIONS_BEHAVIOR.md](./SPEC_SUGGESTIONS_BEHAVIOR.md) — lookup/autocomplete, dismiss-without-select
 
 ## 4. Warehouse, serials, print
 

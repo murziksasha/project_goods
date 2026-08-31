@@ -1,6 +1,6 @@
 # Order Creation Rules
 
-Related: [ORDER_CARD.md](./ORDER_CARD.md) · [SALE_FLOW.md](./SALE_FLOW.md) · [WAREHOUSE_FLOW.md](./WAREHOUSE_FLOW.md) · [index](./README.md)
+Related: [ORDER_CARD.md](./ORDER_CARD.md) · [SALE_FLOW.md](./SALE_FLOW.md) · [WAREHOUSE_FLOW.md](./WAREHOUSE_FLOW.md) · [SPEC_SUGGESTIONS_BEHAVIOR.md](./SPEC_SUGGESTIONS_BEHAVIOR.md) · [index](./README.md)
 
 ## Create Order Modal
 
@@ -8,7 +8,7 @@ Related: [ORDER_CARD.md](./ORDER_CARD.md) · [SALE_FLOW.md](./SALE_FLOW.md) · [
 - Entry points:
   - Orders/Sales toolbar `Create order`;
   - Order/sale detail card header `Create order` (after status dropdown, before close).
-- `Client phone` + `Client name` perform lookup in clients.
+- `Client phone` + `Client name` perform lookup in clients. Suggestion dismiss/re-open: [SPEC_SUGGESTIONS_BEHAVIOR.md](./SPEC_SUGGESTIONS_BEHAVIOR.md#dismiss-without-select-rule).
 - On blur, client phone is masked (`+380 …`). For a **new** client draft (not found in DB), if digit length is not a full UA mobile (`+380` + 9 digits), the phone field shows a soft red border and hint. **Phone length alone does not block Save** (soft only).
 - **Hard Save validation** (order is not created; error toast):
   - **Client required:** non-empty phone (not bare country code) + name ≥ 2 characters.
@@ -53,11 +53,13 @@ Related: [ORDER_CARD.md](./ORDER_CARD.md) · [SALE_FLOW.md](./SALE_FLOW.md) · [
 - Search returns only active client devices.
 - Device suggestions in `Create order` are deduplicated by canonical device name (case-insensitive).
 - If current `Device #1` value already exactly matches a suggested device name, that suggestion is hidden (no repeated selected item in dropdown).
+- Prefix matches stay in the list (example: typed `Телевізор Samsung` still lists `Телевізор Samsung 32`). Operator may keep the typed prefix: click outside the list or Escape hides suggestions without changing the field; lookup returns only after an edit. Rule: [SPEC_SUGGESTIONS_BEHAVIOR.md](./SPEC_SUGGESTIONS_BEHAVIOR.md#dismiss-without-select-rule).
 - `Create new` button is visible but disabled until:
   - tab is `Repair order`
   - a client is selected from suggestions (required only for creating a new device card)
   - device name has at least 2 chars
   - no active matches are found
+- Dismissing the suggestion list does **not** enable `Create new`. Active catalog matches still block it. Save still accepts the typed device name.
 - New device is created in `client-devices` collection, not in warehouse products.
 
 ## Urgent Term

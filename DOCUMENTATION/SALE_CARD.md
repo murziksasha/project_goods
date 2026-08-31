@@ -1,6 +1,6 @@
 # Sale Card Rules
 
-Related: [SALE_FLOW.md](./SALE_FLOW.md) · [ORDER_CARD.md](./ORDER_CARD.md) · [WAREHOUSE_FLOW.md](./WAREHOUSE_FLOW.md) · [index](./README.md)
+Related: [SALE_FLOW.md](./SALE_FLOW.md) · [ORDER_CARD.md](./ORDER_CARD.md) · [WAREHOUSE_FLOW.md](./WAREHOUSE_FLOW.md) · [SPEC_SUGGESTIONS_BEHAVIOR.md](./SPEC_SUGGESTIONS_BEHAVIOR.md) · [index](./README.md)
 
 ## Rapid Sale Display
 
@@ -47,7 +47,7 @@ Related: [SALE_FLOW.md](./SALE_FLOW.md) · [ORDER_CARD.md](./ORDER_CARD.md) · [
 ## Add Line Item UX
 
 - Entry controls stay in one fixed row.
-- Search suggestions are always shown below the row.
+- Search suggestions are shown below the row while the add-row lookup is active. Click outside the list / Escape hides them without applying a row; they return only after the operator edits the field ([SPEC_SUGGESTIONS_BEHAVIOR.md](./SPEC_SUGGESTIONS_BEHAVIOR.md#dismiss-without-select-rule)).
 - Suggestion list has fixed max height and internal vertical scroll.
 - Long suggestion result sets must not shift `Price/Qty/Warranty/Add` controls.
 

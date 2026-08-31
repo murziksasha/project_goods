@@ -348,6 +348,37 @@ describe('ClientsWorkspace', () => {
     expect(mergeButton).not.toBeDisabled();
   });
 
+  it('dismisses merge suggestions on outside click and keeps the typed query', () => {
+    const ivan = createClient({ id: 'client-ivan', name: 'Ivan Petrenko' });
+    const olena = createClient({ id: 'client-olena', name: 'Olena Kovalenko' });
+    renderWorkspace({ clients: [ivan, olena] });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Merge' }));
+
+    const clientOne = screen.getByLabelText('Client 1');
+    fireEvent.change(clientOne, { target: { value: 'Ivan' } });
+    expect(
+      screen
+        .getAllByRole('button', { name: /Ivan Petrenko/ })
+        .some((button) => button.className === 'suggestion-item'),
+    ).toBe(true);
+
+    fireEvent.pointerDown(screen.getByLabelText('Client 2'));
+    expect(
+      screen.queryAllByRole('button', { name: /Ivan Petrenko/ }).some(
+        (button) => button.className === 'suggestion-item',
+      ),
+    ).toBe(false);
+    expect(clientOne).toHaveValue('Ivan');
+
+    fireEvent.change(clientOne, { target: { value: 'Ivan ' } });
+    expect(
+      screen
+        .getAllByRole('button', { name: /Ivan Petrenko/ })
+        .some((button) => button.className === 'suggestion-item'),
+    ).toBe(true);
+  });
+
   it('keeps primary phone edits in the client card modal', () => {
     const client = createClient({
       id: 'client-ivan',

@@ -33,6 +33,7 @@ import {
   resolveSupplierOrderModalLocks,
 } from '../../../model/supplier-order-utils';
 import { useModalBackgroundScrollLock } from '../../../../../shared/lib/useModalBackgroundScrollLock';
+import { useDismissibleSuggestions } from '../../../../../shared/lib/useDismissibleSuggestions';
 import { SupplierChooseModal } from './SupplierChooseModal';
 import { shouldAdvanceAfterSerialBulkInput } from './serial-input-auto-advance';
 
@@ -361,6 +362,22 @@ export const SupplierOrderModal = ({
       debouncedSupplierSearch,
     );
   }, [debouncedSupplierSearch, suppliers]);
+  const {
+    rootRef: supplierSuggestionsRootRef,
+    isVisible: isSupplierSuggestionsVisible,
+  } = useDismissibleSuggestions({
+    query: supplierSearch,
+    isActive: showSupplierSuggestions && supplierOptions.length > 0,
+  });
+  const {
+    rootRef: productSuggestionsRootRef,
+    isVisible: isProductSuggestionsVisible,
+  } = useDismissibleSuggestions({
+    query: productSearch,
+    isActive:
+      showProductSuggestions &&
+      (productSuggestions.length > 0 || isProductLookupLoading),
+  });
 
   const selectedSupplier = useMemo(() => {
     if (!supplierSearch.trim()) return null;
@@ -593,7 +610,10 @@ export const SupplierOrderModal = ({
           </button>
         </header>
         <div className='catalog-edit-body supplier-order-modal-body'>
-          <div className='create-device-search supplier-order-supplier-field modal-suggestions-anchor'>
+          <div
+            ref={supplierSuggestionsRootRef}
+            className='create-device-search supplier-order-supplier-field modal-suggestions-anchor'
+          >
             <label className='field supplier-search-field'>
               <span>{t('common.supplier')}</span>
               <span className='supplier-search-input-wrap supplier-search-input-wrap-with-actions'>
@@ -601,10 +621,8 @@ export const SupplierOrderModal = ({
                   className={supplierInvalid ? 'supplier-order-invalid-input' : ''}
                   value={supplierSearch}
                   disabled={isFormDisabled}
-                  onFocus={() => setShowSupplierSuggestions(true)}
                   onBlur={() => {
                     setSupplierTouched(true);
-                    window.setTimeout(() => setShowSupplierSuggestions(false), 120);
                   }}
                   onChange={(event) => {
                     setSupplierSearch(event.target.value);
@@ -639,7 +657,7 @@ export const SupplierOrderModal = ({
                 </button>
               </span>
             </label>
-            {showSupplierSuggestions && supplierOptions.length > 0 ? (
+            {isSupplierSuggestionsVisible ? (
               <div className='create-suggestions field-wide'>
                 {supplierOptions.map((supplier) => (
                   <button
@@ -686,21 +704,23 @@ export const SupplierOrderModal = ({
 
           <div className='supplier-order-product-row field-wide'>
             <div className='supplier-order-product-index'>{basketItems.length + 1}</div>
-            <label className='field supplier-order-product-name modal-suggestions-anchor'>
+            <label
+              ref={productSuggestionsRootRef}
+              className='field supplier-order-product-name modal-suggestions-anchor'
+            >
               <span>{t('orders.supplier.modal.product')}</span>
               <span className='supplier-search-input-wrap'>
                 <input
                   className={productInvalid ? 'supplier-order-invalid-input' : ''}
                   value={productSearch}
                   disabled={isFormDisabled}
-                  onFocus={() => setShowProductSuggestions(true)}
                   onBlur={() => {
                     setProductTouched(true);
-                    window.setTimeout(() => setShowProductSuggestions(false), 120);
                   }}
                   onChange={(event) => {
                     setProductSearch(event.target.value);
                     setSelectedCatalogProductId('');
+                    setShowProductSuggestions(true);
                   }}
                   placeholder={t('orders.supplier.modal.productPlaceholder')}
                 />
@@ -718,7 +738,7 @@ export const SupplierOrderModal = ({
                   +
                 </button>
               </span>
-              {showProductSuggestions && (productSuggestions.length > 0 || isProductLookupLoading) ? (
+              {isProductSuggestionsVisible ? (
                 <div className='create-suggestions field-wide'>
                   {isProductLookupLoading ? <p>{t('orders.supplier.modal.searchingProducts')}</p> : null}
                   {productSuggestions.map((product) => (

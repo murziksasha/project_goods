@@ -1,4 +1,5 @@
 import {
+  act,
   cleanup,
   fireEvent,
   render,
@@ -108,6 +109,7 @@ describe('SupplierOrderModal price/qty steppers', () => {
     cleanup();
     document.body.style.overflow = '';
     vi.clearAllMocks();
+    vi.useRealTimers();
   });
 
   it('renders NumberStepper controls for active row price and qty', () => {
@@ -130,6 +132,30 @@ describe('SupplierOrderModal price/qty steppers', () => {
 
     expect(priceInput).toHaveValue('1');
     expect(qtyInput).toHaveValue('2');
+  });
+
+  it('dismisses supplier suggestions on outside click and keeps the typed name', async () => {
+    vi.useFakeTimers();
+    renderModal(<SupplierOrderModal {...baseProps()} />);
+
+    const supplierInput = screen.getByPlaceholderText('Search');
+    fireEvent.change(supplierInput, { target: { value: 'Al' } });
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(350);
+    });
+
+    expect(
+      screen.getByRole('button', { name: /Aliexpress/i }),
+    ).toBeInTheDocument();
+
+    fireEvent.pointerDown(screen.getByText('Delivery date'));
+    expect(
+      screen.queryByRole('button', { name: /Aliexpress/i }),
+    ).not.toBeInTheDocument();
+    expect(supplierInput).toHaveValue('Al');
+
+    vi.useRealTimers();
   });
 
   it('disables active row steppers when modal is read-only', () => {

@@ -7,6 +7,7 @@ Extracted from [ORDER_FLOW.md](./ORDER_FLOW.md) for focused maintenance. Covers 
 - [ORDER_FLOW.md](./ORDER_FLOW.md) — repair/sales orders, serial linking to supplier orders
 - [WAREHOUSE_FLOW.md](./WAREHOUSE_FLOW.md) — receipt / stock after take-on-charge
 - [SERIAL_NUMBER_SEQUENCE_SPEC.md](./SERIAL_NUMBER_SEQUENCE_SPEC.md) — serials assigned on take-on-charge
+- [SPEC_SUGGESTIONS_BEHAVIOR.md](./SPEC_SUGGESTIONS_BEHAVIOR.md) — supplier/product lookup dismiss
 - [index](./README.md)
 - [ACCOUNTING.md](./ACCOUNTING.md) — supplier-order payment queue
 - [Permission_Flow.md](./Permission_Flow.md) — `supplierOrders.view` / `supplierOrders.manage`
@@ -46,7 +47,7 @@ Canonical order (keys): `number`, `product`, `quantity`, `price`, `total`, `paid
 
 ## Modal and picker
 
-- `SupplierOrderModal`: price/qty steppers (1 UAH / qty 1), supplier `Choose` nested picker (300ms debounce, 10/page).
+- `SupplierOrderModal`: price/qty steppers (1 UAH / qty 1), supplier `Choose` nested picker (300ms debounce, 10/page). Supplier and catalog-product typeahead lists follow [SPEC_SUGGESTIONS_BEHAVIOR.md](./SPEC_SUGGESTIONS_BEHAVIOR.md#dismiss-without-select-rule).
 - Content locked after receipt/final status or paid/`without_payment` (take-on-charge remains when allowed).
 - Paid orders cannot be cancelled (`POST .../cancel` rejected).
 - Full-order modal: **Cancel order** (confirm) cancels the unpaid order. **Cancel item** cancels one unreceived line (`new` / `approved` receipt), including on `approved` + paid/`without_payment` orders. There is no hard-delete.
