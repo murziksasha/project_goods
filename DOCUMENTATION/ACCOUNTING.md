@@ -160,14 +160,15 @@ This document defines financial behavior in the `Accounting` workspace (cashboxe
 ## Cashboxes tab (compact cards)
 
 - Cards show name (ellipsis) + balances. Actions are **Operation** and **Transactions** (not four stacked type buttons).
-- Clicking a card or **Operation** opens the operation **modal** (prefill rules below still apply).
+- Clicking a card or **Operation** opens the operation **modal** with Type **Withdraw** by default (prefill rules below still apply).
 - Search and **Hide empty** filter the grid. **Hide empty** is stored in `localStorage` (`project-goods.accounting-hide-empty-cashboxes`) and restored on reload.
 - **Add cashbox** on the cashboxes toolbar (and empty state) opens a create modal. The tab-row gear still opens full Accounting settings (rename/archive/currencies).
 - Settings open is URL `accountingSettings=1` (not sticky `localStorage`).
 
 ## Cashbox Card Action Prefill Rules
-- Clicking a cashbox card action opens the operation form for that cashbox.
-- If the browser has a remembered last operation for `(cashboxId, operationType)` in `project-goods.accounting-last-operation-by-cashbox`, restore `type`, `from`, `to`, and `currency` from that memory; `amount` and `note` start empty.
+- Clicking a cashbox card or **Operation** opens the operation form for that cashbox.
+- Default Type on open is **Withdraw** when the user has `finance.transactions.withdraw`. Otherwise the first remaining permitted type (`deposit`, then `transfer`).
+- If the browser has a remembered last operation for `(cashboxId, operationType)` in `project-goods.accounting-last-operation-by-cashbox`, restore `from`, `to`, and `currency` for that type; `amount` and `note` start empty. Memory does not override the open default Type.
 - If no remembered operation exists, apply type-specific defaults:
   - `Deposit`: `To cashbox` is preselected as the clicked cashbox.
   - `Withdraw`: `From cashbox` is preselected as the clicked cashbox and `To cashbox` stays empty.

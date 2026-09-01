@@ -26,6 +26,12 @@ test.describe('Cashbox operation modal', () => {
     await expect(confirmAndClose).toBeVisible();
     await expect(confirm).toHaveClass(/finance-operation-confirm-stay/);
     await expect(confirmAndClose).toHaveClass(/primary-button/);
+    await expect(dialog.getByRole('heading', { name: 'Withdraw' })).toBeVisible();
+    await expect(dialog.getByRole('combobox', { name: 'Type' })).toHaveValue(
+      'withdraw',
+    );
+    await expect(dialog.getByRole('combobox', { name: 'From cashbox' })).toBeVisible();
+    await expect(dialog.getByRole('combobox', { name: 'To cashbox' })).toHaveCount(0);
     await expect(
       dialog.getByText(/this is a large amount|велика сума/i),
     ).toHaveCount(0);
