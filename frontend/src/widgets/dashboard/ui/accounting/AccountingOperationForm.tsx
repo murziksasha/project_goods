@@ -12,6 +12,7 @@ import {
   PRICE_STEPPER_STEP,
 } from '../../../../shared/lib/price-stepper';
 import { NumberStepper } from '../../../../shared/ui/NumberStepper';
+import { TruncatedTextTooltip } from '../../../../shared/ui/TruncatedTextTooltip';
 import {
   canPerformTransferBetweenCashboxes,
   formatMoney,
@@ -71,6 +72,8 @@ export const AccountingOperationForm = ({
   const confirmAndCloseLabel = isSaving
     ? t('accounting.cashboxes.saving')
     : t('accounting.cashboxes.confirmAndClose');
+  const cashboxName = (id?: string) =>
+    cashboxes.find((cashbox) => cashbox.id === id)?.name ?? '';
 
   return (
     <>
@@ -149,73 +152,85 @@ export const AccountingOperationForm = ({
         {showFrom ? (
           <label className='field'>
             <span>{t('accounting.cashboxes.fromCashbox')}</span>
-            <select
-              value={transactionForm.fromCashboxId}
-              onChange={(event) => {
-                onTransactionFormChange((current) => {
-                  const newFrom = event.target.value;
-                  if (current.type !== 'transfer') {
-                    return { ...current, fromCashboxId: newFrom };
-                  }
-                  let nextTo = current.toCashboxId;
-                  if (newFrom && newFrom === nextTo) {
-                    nextTo = cashboxes.find((c) => c.id !== newFrom)?.id ?? '';
-                  }
-                  return {
-                    ...current,
-                    fromCashboxId: newFrom,
-                    toCashboxId: nextTo,
-                  };
-                });
-              }}
+            <TruncatedTextTooltip
+              mode='select'
+              text={cashboxName(transactionForm.fromCashboxId)}
+              className='select-overflow-tooltip'
             >
-              <option value=''>{t('accounting.cashboxes.emptyOption')}</option>
-              {cashboxes.map((cashbox) => (
-                <option key={cashbox.id} value={cashbox.id}>
-                  {cashbox.name}
-                </option>
-              ))}
-            </select>
+              <select
+                value={transactionForm.fromCashboxId}
+                onChange={(event) => {
+                  onTransactionFormChange((current) => {
+                    const newFrom = event.target.value;
+                    if (current.type !== 'transfer') {
+                      return { ...current, fromCashboxId: newFrom };
+                    }
+                    let nextTo = current.toCashboxId;
+                    if (newFrom && newFrom === nextTo) {
+                      nextTo = cashboxes.find((c) => c.id !== newFrom)?.id ?? '';
+                    }
+                    return {
+                      ...current,
+                      fromCashboxId: newFrom,
+                      toCashboxId: nextTo,
+                    };
+                  });
+                }}
+              >
+                <option value=''>{t('accounting.cashboxes.emptyOption')}</option>
+                {cashboxes.map((cashbox) => (
+                  <option key={cashbox.id} value={cashbox.id}>
+                    {cashbox.name}
+                  </option>
+                ))}
+              </select>
+            </TruncatedTextTooltip>
           </label>
         ) : null}
         {showTo ? (
           <label className='field'>
             <span>{t('accounting.cashboxes.toCashbox')}</span>
-            <select
-              value={transactionForm.toCashboxId}
-              onChange={(event) => {
-                onTransactionFormChange((current) => {
-                  const newTo = event.target.value;
-                  if (current.type !== 'transfer') {
-                    return { ...current, toCashboxId: newTo };
-                  }
-                  let nextFrom = current.fromCashboxId;
-                  if (newTo && newTo === nextFrom) {
-                    nextFrom = cashboxes.find((c) => c.id !== newTo)?.id ?? '';
-                  }
-                  return {
-                    ...current,
-                    toCashboxId: newTo,
-                    fromCashboxId: nextFrom,
-                  };
-                });
-              }}
+            <TruncatedTextTooltip
+              mode='select'
+              text={cashboxName(transactionForm.toCashboxId)}
+              className='select-overflow-tooltip'
             >
-              <option value=''>{t('accounting.cashboxes.emptyOption')}</option>
-              {cashboxes
-                .filter(
-                  (cashbox) =>
-                    !(
-                      transactionForm.type === 'transfer' &&
-                      cashbox.id === transactionForm.fromCashboxId
-                    ),
-                )
-                .map((cashbox) => (
-                  <option key={cashbox.id} value={cashbox.id}>
-                    {cashbox.name}
-                  </option>
-                ))}
-            </select>
+              <select
+                value={transactionForm.toCashboxId}
+                onChange={(event) => {
+                  onTransactionFormChange((current) => {
+                    const newTo = event.target.value;
+                    if (current.type !== 'transfer') {
+                      return { ...current, toCashboxId: newTo };
+                    }
+                    let nextFrom = current.fromCashboxId;
+                    if (newTo && newTo === nextFrom) {
+                      nextFrom = cashboxes.find((c) => c.id !== newTo)?.id ?? '';
+                    }
+                    return {
+                      ...current,
+                      toCashboxId: newTo,
+                      fromCashboxId: nextFrom,
+                    };
+                  });
+                }}
+              >
+                <option value=''>{t('accounting.cashboxes.emptyOption')}</option>
+                {cashboxes
+                  .filter(
+                    (cashbox) =>
+                      !(
+                        transactionForm.type === 'transfer' &&
+                        cashbox.id === transactionForm.fromCashboxId
+                      ),
+                  )
+                  .map((cashbox) => (
+                    <option key={cashbox.id} value={cashbox.id}>
+                      {cashbox.name}
+                    </option>
+                  ))}
+              </select>
+            </TruncatedTextTooltip>
           </label>
         ) : null}
         <label className='field'>

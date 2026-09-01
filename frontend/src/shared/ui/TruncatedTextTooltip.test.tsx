@@ -72,3 +72,67 @@ describe('TruncatedTextTooltip', () => {
     expect(screen.getAllByText(long).length).toBeGreaterThanOrEqual(2);
   });
 });
+
+const OFFSET_WIDTH_DESCRIPTOR = Object.getOwnPropertyDescriptor(
+  HTMLElement.prototype,
+  'offsetWidth',
+);
+
+const mockSelectLabelWidth = (textWidth: number) => {
+  Object.defineProperty(HTMLElement.prototype, 'offsetWidth', {
+    configurable: true,
+    get() {
+      if ((this as HTMLElement).dataset.overflowProbe === 'select') {
+        return textWidth;
+      }
+      return OFFSET_WIDTH_DESCRIPTOR?.get?.call(this) ?? 0;
+    },
+  });
+};
+
+const restoreOffsetWidth = () => {
+  if (OFFSET_WIDTH_DESCRIPTOR) {
+    Object.defineProperty(HTMLElement.prototype, 'offsetWidth', OFFSET_WIDTH_DESCRIPTOR);
+  }
+};
+
+describe('TruncatedTextTooltip select mode', () => {
+  afterEach(() => {
+    cleanup();
+    restoreOffsetWidth();
+  });
+
+  const renderSelectTooltip = (label: string) =>
+    render(
+      <TruncatedTextTooltip mode="select" text={label} className="select-overflow-tooltip">
+        <select>
+          <option value="1">{label}</option>
+        </select>
+      </TruncatedTextTooltip>,
+    );
+
+  it('does not render a portal when the selected label fits', () => {
+    mockSelectLabelWidth(20);
+    const { container } = renderSelectTooltip('Коротко');
+    const select = container.querySelector('select') as HTMLSelectElement;
+    Object.defineProperty(select, 'clientWidth', { configurable: true, value: 200 });
+
+    fireEvent.mouseEnter(container.querySelector('.truncated-text-tooltip') as HTMLElement);
+
+    expect(screen.queryAllByText('Коротко').length).toBe(1);
+  });
+
+  it('renders the project tooltip when the selected label is clipped', async () => {
+    mockSelectLabelWidth(240);
+    const label = 'Банк Ремонт Сервис';
+    const { container } = renderSelectTooltip(label);
+    const select = container.querySelector('select') as HTMLSelectElement;
+    Object.defineProperty(select, 'clientWidth', { configurable: true, value: 80 });
+
+    fireEvent.mouseEnter(container.querySelector('.truncated-text-tooltip') as HTMLElement);
+
+    await waitFor(() => {
+      expect(screen.getAllByText(label).length).toBeGreaterThanOrEqual(2);
+    });
+  });
+});
