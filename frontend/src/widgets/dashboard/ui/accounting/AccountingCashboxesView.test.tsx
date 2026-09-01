@@ -101,7 +101,7 @@ describe('AccountingCashboxesView', () => {
 
     fireEvent.click(screen.getAllByRole('button', { name: 'Operation' })[0]);
     expect(props.onStartTransaction).toHaveBeenCalledWith(
-      'deposit',
+      'withdraw',
       props.cashboxes[0],
     );
     fireEvent.click(screen.getAllByRole('button', { name: 'Transactions' })[0]);
@@ -157,7 +157,7 @@ describe('AccountingCashboxesView', () => {
     const { props } = renderView();
     fireEvent.click(document.querySelectorAll('.finance-cashbox-card')[0]);
     expect(props.onStartTransaction).toHaveBeenCalledWith(
-      'deposit',
+      'withdraw',
       props.cashboxes[0],
     );
     expect(screen.getByRole('button', { name: 'Confirm' })).toBeInTheDocument();
@@ -365,7 +365,7 @@ describe('AccountingCashboxesView', () => {
   });
 
   it('limits operation type options to granted permissions', () => {
-    const { unmount } = renderView({
+    const transferOnly = renderView({
       canCreateDeposit: false,
       canCreateTransfer: true,
       canCreateWithdraw: false,
@@ -374,23 +374,44 @@ describe('AccountingCashboxesView', () => {
     });
 
     openOperation();
+    expect(transferOnly.props.onStartTransaction).toHaveBeenCalledWith(
+      'transfer',
+      transferOnly.props.cashboxes[0],
+    );
     const typeSelect = screen.getByLabelText('Type', { selector: 'select' });
     expect(typeSelect).not.toHaveTextContent('Deposit');
     expect(typeSelect).not.toHaveTextContent('Withdraw');
     expect(typeSelect).toHaveTextContent('Transfer');
 
-    unmount();
-    renderView({
+    transferOnly.unmount();
+    const depositAndWithdraw = renderView({
       canCreateDeposit: true,
       canCreateTransfer: false,
       canCreateWithdraw: true,
       permittedTransactionTypes: ['deposit', 'withdraw'],
     });
     openOperation();
+    expect(depositAndWithdraw.props.onStartTransaction).toHaveBeenCalledWith(
+      'withdraw',
+      depositAndWithdraw.props.cashboxes[0],
+    );
     const limitedTypeSelect = screen.getByLabelText('Type', { selector: 'select' });
     expect(limitedTypeSelect).toHaveTextContent('Deposit');
     expect(limitedTypeSelect).toHaveTextContent('Withdraw');
     expect(limitedTypeSelect).not.toHaveTextContent('Transfer');
+
+    depositAndWithdraw.unmount();
+    const depositOnly = renderView({
+      canCreateDeposit: true,
+      canCreateTransfer: false,
+      canCreateWithdraw: false,
+      permittedTransactionTypes: ['deposit'],
+    });
+    openOperation();
+    expect(depositOnly.props.onStartTransaction).toHaveBeenCalledWith(
+      'deposit',
+      depositOnly.props.cashboxes[0],
+    );
   });
 
   it('reorders cashboxes through drag and drop and handles ignored drops', () => {

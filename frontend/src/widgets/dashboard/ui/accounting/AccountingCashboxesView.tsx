@@ -98,7 +98,9 @@ export const AccountingCashboxesView = ({
     }
   }, [hideEmpty]);
 
-  const defaultOperationType = permittedTransactionTypes[0];
+  const defaultOperationType = permittedTransactionTypes.includes('withdraw')
+    ? 'withdraw'
+    : permittedTransactionTypes[0];
   const transactionTypeLabel = (type: FinanceTransactionType) =>
     t(`accounting.cashboxes.${type}`);
 

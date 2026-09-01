@@ -334,7 +334,7 @@ export const formatTransactionDayLabel = (value: string) => {
 };
 
 export const initialTransactionForm: CreateFinanceTransactionPayload = {
-  type: 'deposit',
+  type: 'withdraw',
   amount: '',
   currency: 'UAH',
   fromCashboxId: '',
