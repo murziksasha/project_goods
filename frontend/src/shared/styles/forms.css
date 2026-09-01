@@ -118,6 +118,12 @@
   grid-column: 1 / -1;
 }
 
+.select-overflow-tooltip {
+  display: block;
+  width: 100%;
+  min-width: 0;
+}
+
 .compact-form-grid {
   margin-bottom: 0;
 }
