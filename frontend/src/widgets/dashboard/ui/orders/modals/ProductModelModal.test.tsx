@@ -1,10 +1,18 @@
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Product } from '../../../../../entities/product/model/types';
+import type { Sale } from '../../../../../entities/sale/model/types';
+import { getOccupiedSerialNumbers } from '../../../../../entities/sale/api/saleApi';
 import { defaultPrintForms } from '../../../../../entities/settings/model/printForms';
 import i18n from '../../../../../shared/i18n/config';
 import * as ordersWorkspaceShared from '../workspace/orders-workspace-shared';
 import { ProductModelModal } from './ProductModelModal';
+
+vi.mock('../../../../../entities/sale/api/saleApi', () => ({
+  getOccupiedSerialNumbers: vi.fn(async () => ({ occupied: [] as string[] })),
+}));
+
+const getOccupiedSerialNumbersMock = vi.mocked(getOccupiedSerialNumbers);
 
 const createProduct = (patch: Partial<Product>): Product => ({
   id: 'product-1',
@@ -56,8 +64,32 @@ const getPrintButton = () =>
     name: /print|друк|select serial|оберіть серійні/i,
   });
 
+const saleBindingProduct = (
+  saleId: string,
+  product: Product,
+  status = 'new',
+): Sale =>
+  ({
+    id: saleId,
+    status,
+    product: { id: '', article: '', name: '', serialNumber: '' },
+    lineItems: [
+      {
+        id: `${saleId}-line`,
+        kind: 'product',
+        productId: product.id,
+        name: product.name,
+        price: product.price,
+        quantity: 1,
+        warrantyPeriod: 0,
+        serialNumbers: [product.serialNumber],
+      },
+    ],
+  }) as Sale;
+
 afterEach(async () => {
   vi.clearAllMocks();
+  getOccupiedSerialNumbersMock.mockResolvedValue({ occupied: [] });
   await i18n.changeLanguage('en');
 });
 
@@ -358,5 +390,120 @@ describe('ProductModelModal serial printing', () => {
         name: /print|друк|select serial|оберіть серійні/i,
       }),
     ).not.toBeInTheDocument();
+  });
+
+  it('marks serials bound on other orders as reserved', () => {
+    const { clickedProduct, products } = serialPurchaseProducts();
+    const reservedProduct = products[0];
+
+    render(
+      <ProductModelModal
+        name='БЖ Meanwell 9V 1.66A'
+        products={products}
+        sales={[saleBindingProduct('sale-other', reservedProduct)]}
+        currentSaleId='sale-current'
+        warehouses={[]}
+        printForms={defaultPrintForms}
+        printProduct={clickedProduct}
+        onClose={vi.fn()}
+        onSave={vi.fn(async () => true)}
+      />,
+    );
+
+    expect(
+      screen.getByText(i18n.t('catalog.productModel.reservedBadge')),
+    ).toBeInTheDocument();
+    expect(
+      document.querySelector('.product-model-serial-row-reserved'),
+    ).not.toBeNull();
+    expect(
+      document.querySelector('.product-model-serial-row-reserved'),
+    ).toHaveTextContent('R0000001');
+  });
+
+  it('does not mark serials bound only on the opened order as reserved', () => {
+    const { clickedProduct, products } = serialPurchaseProducts();
+
+    render(
+      <ProductModelModal
+        name='БЖ Meanwell 9V 1.66A'
+        products={products}
+        sales={[saleBindingProduct('sale-current', clickedProduct)]}
+        currentSaleId='sale-current'
+        warehouses={[]}
+        printForms={defaultPrintForms}
+        printProduct={clickedProduct}
+        onClose={vi.fn()}
+        onSave={vi.fn(async () => true)}
+      />,
+    );
+
+    expect(
+      screen.queryByText(i18n.t('catalog.productModel.reservedBadge')),
+    ).not.toBeInTheDocument();
+    expect(
+      document.querySelector('.product-model-serial-row-reserved'),
+    ).toBeNull();
+  });
+
+  it('marks occupied serials from the occupancy api as reserved', async () => {
+    const { clickedProduct, products } = serialPurchaseProducts();
+    getOccupiedSerialNumbersMock.mockResolvedValue({
+      occupied: ['R0000001'],
+    });
+
+    render(
+      <ProductModelModal
+        name='БЖ Meanwell 9V 1.66A'
+        products={products}
+        warehouses={[]}
+        printForms={defaultPrintForms}
+        printProduct={clickedProduct}
+        onClose={vi.fn()}
+        onSave={vi.fn(async () => true)}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(i18n.t('catalog.productModel.reservedBadge')),
+      ).toBeInTheDocument();
+    });
+    expect(
+      document.querySelector('.product-model-serial-row-reserved'),
+    ).toHaveTextContent('R0000001');
+    expect(getOccupiedSerialNumbersMock).toHaveBeenCalledWith({
+      excludeSaleId: undefined,
+      serials: expect.arrayContaining(['R0000001', 'R0000002']),
+    });
+  });
+
+  it('shows latest and reserved badges on the same serial', () => {
+    const { products } = serialPurchaseProducts();
+    const latestProduct = products[1];
+
+    render(
+      <ProductModelModal
+        name='БЖ Meanwell 9V 1.66A'
+        products={products}
+        sales={[saleBindingProduct('sale-other', latestProduct)]}
+        warehouses={[]}
+        printForms={defaultPrintForms}
+        onClose={vi.fn()}
+        onSave={vi.fn(async () => true)}
+      />,
+    );
+
+    const reservedRow = document.querySelector(
+      '.product-model-serial-row-reserved',
+    );
+    expect(reservedRow).not.toBeNull();
+    expect(reservedRow).toHaveTextContent('R0000002');
+    expect(reservedRow).toHaveTextContent(
+      i18n.t('catalog.productModel.latestBatchBadge'),
+    );
+    expect(reservedRow).toHaveTextContent(
+      i18n.t('catalog.productModel.reservedBadge'),
+    );
   });
 });

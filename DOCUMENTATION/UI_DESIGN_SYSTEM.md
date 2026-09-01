@@ -83,6 +83,14 @@ CRM client palette (aligned with [`entities/client/model/constants.ts`](../front
 
 React: `StatusBadge` with `clientStatus` or `tone` prop.
 
+Product model serial table (`ProductModelModal`, `layout.css`):
+
+| Class | Role |
+|-------|------|
+| `.product-model-latest-batch-badge` | Newest receipt batch (`--bg-soft-primary-strong`) |
+| `.product-model-reserved-badge` | Bound on another order (`--bg-soft-danger`, `--color-danger-soft`) |
+| `.product-model-serial-row-reserved` | Reserved row wash; wins over latest/selected row background |
+
 ## Tables
 
 Shared table primitives: `.catalog-table`, `.catalog-table-wrap`, zebra rows, compact variants in [`lists.css`](../frontend/src/shared/styles/lists.css).

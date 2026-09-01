@@ -9,6 +9,9 @@ import {
   getActiveStockProductsByExactModelName,
   getLatestBatchProduct,
   getProductsByExactModelName,
+  getReservedProductIdsFromOccupiedSerials,
+  getReservedProductIdsOnOtherSales,
+  type ProductModelSaleLink,
 } from './product-model';
 
 const baseProduct: Product = {
@@ -189,6 +192,7 @@ describe('product model aggregation', () => {
         price: 1200,
         purchaseDate: '2026-03-15',
         isLatestBatch: true,
+        isReserved: false,
       },
       {
         productId: 'p-new-2',
@@ -196,6 +200,7 @@ describe('product model aggregation', () => {
         price: 1200,
         purchaseDate: '2026-03-15',
         isLatestBatch: true,
+        isReserved: false,
       },
       {
         productId: 'p-old-1',
@@ -203,6 +208,7 @@ describe('product model aggregation', () => {
         price: 1000,
         purchaseDate: '2026-01-10',
         isLatestBatch: false,
+        isReserved: false,
       },
       {
         productId: 'p-old-2',
@@ -210,8 +216,110 @@ describe('product model aggregation', () => {
         price: 1000,
         purchaseDate: '2026-01-10',
         isLatestBatch: false,
+        isReserved: false,
       },
     ]);
+  });
+
+  it('marks units bound on other sales as reserved and skips the current sale', () => {
+    const products = [
+      { ...baseProduct, id: 'p-free', serialNumber: 'S-free' },
+      { ...baseProduct, id: 'p-here', serialNumber: 'S-here' },
+      { ...baseProduct, id: 'p-other', serialNumber: 'S-other' },
+    ];
+    const emptyProduct = {
+      id: '',
+      article: '',
+      name: '',
+      serialNumber: '',
+    };
+    const sales: ProductModelSaleLink[] = [
+      {
+        id: 'sale-current',
+        status: 'new',
+        product: emptyProduct,
+        lineItems: [
+          {
+            id: 'line-here',
+            kind: 'product',
+            productId: 'p-here',
+            name: 'Mi Box S Gen 3',
+            price: 100,
+            quantity: 1,
+            warrantyPeriod: 0,
+            serialNumbers: ['S-here'],
+          },
+        ],
+      },
+      {
+        id: 'sale-other',
+        status: 'reserved',
+        product: emptyProduct,
+        lineItems: [
+          {
+            id: 'line-other',
+            kind: 'product',
+            productId: 'p-other',
+            name: 'Mi Box S Gen 3',
+            price: 100,
+            quantity: 1,
+            warrantyPeriod: 0,
+            serialNumbers: ['S-other'],
+          },
+        ],
+      },
+      {
+        id: 'sale-issued',
+        status: 'issued',
+        product: emptyProduct,
+        lineItems: [
+          {
+            id: 'line-issued',
+            kind: 'product',
+            productId: 'p-free',
+            name: 'Mi Box S Gen 3',
+            price: 100,
+            quantity: 1,
+            warrantyPeriod: 0,
+            serialNumbers: ['S-free'],
+          },
+        ],
+      },
+    ];
+
+    expect(
+      [...getReservedProductIdsOnOtherSales(products, sales, 'sale-current')],
+    ).toEqual(['p-other']);
+    expect([...getReservedProductIdsOnOtherSales(products, sales)].sort()).toEqual(
+      ['p-here', 'p-other'],
+    );
+    expect(
+      buildProductModelSerialPurchases(
+        products,
+        getReservedProductIdsOnOtherSales(products, sales, 'sale-current'),
+      ).map((row) => ({
+        productId: row.productId,
+        isReserved: row.isReserved,
+      })),
+    ).toEqual([
+      { productId: 'p-free', isReserved: false },
+      { productId: 'p-here', isReserved: false },
+      { productId: 'p-other', isReserved: true },
+    ]);
+  });
+
+  it('maps occupied serials onto matching product ids', () => {
+    const products = [
+      { ...baseProduct, id: 'p-free', serialNumber: 'S-free' },
+      { ...baseProduct, id: 'p-bound', serialNumber: 's-bound' },
+    ];
+
+    expect([
+      ...getReservedProductIdsFromOccupiedSerials(products, [
+        'S-BOUND',
+        'missing',
+      ]),
+    ]).toEqual(['p-bound']);
   });
 
   it('maps modal price fields to the model update payload without purchase price', () => {

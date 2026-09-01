@@ -188,6 +188,12 @@ This document defines current warehouse requirements for stock balances, receipt
    - compact scrollable table (`max-height: 220px`) keeps modal layout stable on mobile
    - header summary `Latest batch: <price> · <date>` uses the newest receipt batch among **remaining active rows**
    - badge `Latest` marks every active row that belongs to that newest batch (same receipt date + purchase price)
+   - badge `Reserved` (red) marks an active row already bound on another sale/order
+   - occupancy source of truth is `GET /sales/occupied-serials` (same helper as §4.3.0); in-memory `sales` is only a fallback
+   - from an opened repair/sale card, `excludeSaleId` is the opened card so serials bound only on **that** card are not `Reserved`
+   - warehouse (no current sale) treats any occupancy hit as reserved
+   - `Latest` and `Reserved` can appear on the same row; reserved row background wins over latest
+   - print/select in this table stays enabled for reserved rows
    - when a serialized unit is sold/issued, its row disappears from this table after products/sales data refresh
    - when the last serial from a purchase batch is sold, that batch no longer appears in the table and `Latest batch` summary moves to the next newest active batch automatically
    - when modal is opened from a stock serial click, that serial's row is visually highlighted
@@ -276,7 +282,8 @@ Implementation references:
 
 - `orders-workspace-shared.test.tsx`: batch HTML classes and one `print-form-label` section per item.
 - `printForms.test.ts`: `warehouse-barcode` migration copies settings from `barcode`.
-- `ProductModelModal.test.tsx`: single-item print calls `printWarehouseSerialLabels` with one payload row.
+- `ProductModelModal.test.tsx`: single-item print calls `printWarehouseSerialLabels` with one payload row; reserved serials show the red `Reserved` badge from occupancy API and from in-memory sales fallback.
+- `product-model.test.ts`: `getReservedProductIdsOnOtherSales` skips the current sale and issued sales; `getReservedProductIdsFromOccupiedSerials` maps occupied serials; serial purchase rows carry `isReserved`.
 
 ## Receipts Requirements
 

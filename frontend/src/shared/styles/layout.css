@@ -738,14 +738,23 @@
   gap: 6px;
 }
 
-.product-model-latest-batch-badge {
+.product-model-latest-batch-badge,
+.product-model-reserved-badge {
   border-radius: 999px;
-  background: var(--bg-soft-primary-strong);
-  color: var(--color-primary-strong);
   padding: 2px 8px;
   font-size: 0.72rem;
   font-weight: 800;
   line-height: 1.2;
+}
+
+.product-model-latest-batch-badge {
+  background: var(--bg-soft-primary-strong);
+  color: var(--color-primary-strong);
+}
+
+.product-model-reserved-badge {
+  background: var(--bg-soft-danger);
+  color: var(--color-danger-soft);
 }
 
 .product-model-serial-row-latest {
@@ -754,6 +763,11 @@
 
 .product-model-serial-row-selected {
   background: var(--bg-soft-primary);
+}
+
+.product-model-serial-row-reserved,
+.product-model-serial-row-reserved.product-model-serial-row-selected {
+  background: var(--bg-soft-danger);
 }
 
 .product-model-serial-row-selected td {

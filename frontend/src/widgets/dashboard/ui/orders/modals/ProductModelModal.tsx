@@ -7,6 +7,7 @@ import { defaultPrintForms } from '../../../../../entities/settings/model/printF
 import type { WarehouseItem } from '../../../../../entities/warehouse-settings/model/types';
 import { formatCurrency, formatDate } from '../../../../../shared/lib/format';
 import { normalizeDecimalInput } from '../../../../../shared/lib/decimal';
+import { getOccupiedSerialNumbers } from '../../../../../entities/sale/api/saleApi';
 import { printWarehouseSerialLabels } from '../workspace/orders-workspace-shared';
 import { Modal } from '../../../../../shared/ui/Modal';
 import { Button } from '../../../../../shared/ui/Button';
@@ -18,6 +19,8 @@ import {
   getLatestBatchProduct,
   getActiveStockProductsByExactModelName,
   getProductModelInitialForm,
+  getReservedProductIdsFromOccupiedSerials,
+  getReservedProductIdsOnOtherSales,
 } from '../../../model/product-model';
 
 type ProductModelSection = 'main' | 'prices' | 'stock';
@@ -28,6 +31,7 @@ type ProductModelModalProps = {
   name: string;
   products: Product[];
   sales?: Sale[];
+  currentSaleId?: string;
   warehouses: WarehouseItem[];
   printForms?: PrintForm[];
   printProduct?: Product | null;
@@ -55,6 +59,7 @@ export const ProductModelModal = ({
   name,
   products,
   sales = EMPTY_SALES,
+  currentSaleId,
   warehouses,
   printForms = defaultPrintForms,
   printProduct = null,
@@ -78,10 +83,58 @@ export const ProductModelModal = ({
     () => aggregateProductModelStock(matchingProducts, warehouses),
     [matchingProducts, warehouses],
   );
-  const serialPurchases = useMemo(
-    () => buildProductModelSerialPurchases(matchingProducts),
-    [matchingProducts],
+  const [occupiedProductIds, setOccupiedProductIds] = useState(
+    () => new Set<string>(),
   );
+  const reservedProductIds = useMemo(() => {
+    const merged = new Set(
+      getReservedProductIdsOnOtherSales(
+        matchingProducts,
+        sales,
+        currentSaleId,
+      ),
+    );
+    occupiedProductIds.forEach((productId) => merged.add(productId));
+    return merged;
+  }, [currentSaleId, matchingProducts, occupiedProductIds, sales]);
+  const serialPurchases = useMemo(
+    () =>
+      buildProductModelSerialPurchases(matchingProducts, reservedProductIds),
+    [matchingProducts, reservedProductIds],
+  );
+
+  useEffect(() => {
+    const serials = matchingProducts
+      .map((product) => product.serialNumber)
+      .filter((serial) => serial.trim());
+    if (serials.length === 0) {
+      setOccupiedProductIds(new Set());
+      return;
+    }
+
+    let isActive = true;
+    void getOccupiedSerialNumbers({
+      excludeSaleId: currentSaleId,
+      serials,
+    })
+      .then((response) => {
+        if (!isActive) return;
+        setOccupiedProductIds(
+          getReservedProductIdsFromOccupiedSerials(
+            matchingProducts,
+            response.occupied,
+          ),
+        );
+      })
+      .catch(() => {
+        if (!isActive) return;
+        setOccupiedProductIds(new Set());
+      });
+
+    return () => {
+      isActive = false;
+    };
+  }, [currentSaleId, matchingProducts]);
   const printableSerialRows = useMemo(
     () => serialPurchases.filter((row) => row.serialNumber.trim()),
     [serialPurchases],
@@ -429,9 +482,11 @@ export const ProductModelModal = ({
                           const isOpenedSerial =
                             printProduct?.id === row.productId;
                           const rowClassName = [
-                            row.isLatestBatch
-                              ? 'product-model-serial-row-latest'
-                              : '',
+                            row.isReserved
+                              ? 'product-model-serial-row-reserved'
+                              : row.isLatestBatch
+                                ? 'product-model-serial-row-latest'
+                                : '',
                             isChecked || isOpenedSerial
                               ? 'product-model-serial-row-selected'
                               : '',
@@ -469,6 +524,11 @@ export const ProductModelModal = ({
                                   {row.isLatestBatch ? (
                                     <span className='product-model-latest-batch-badge'>
                                       {t('catalog.productModel.latestBatchBadge')}
+                                    </span>
+                                  ) : null}
+                                  {row.isReserved ? (
+                                    <span className='product-model-reserved-badge'>
+                                      {t('catalog.productModel.reservedBadge')}
                                     </span>
                                   ) : null}
                                 </span>

@@ -2004,6 +2004,7 @@ export const OrderDetailLineItemsPanel = ({
           name={productModelContext.name}
           products={products}
           sales={sales}
+          currentSaleId={currentSaleId}
           warehouses={productModelWarehouses}
           printForms={printForms}
           printProduct={productModelContext.printProduct}
