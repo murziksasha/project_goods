@@ -25,5 +25,7 @@ execSync('docker compose up -d --build', {
   env: {
     ...process.env,
     GIT_SHA: gitSha,
+    DOCKER_BUILDKIT: '1',
+    COMPOSE_DOCKER_CLI_BUILD: '1',
   },
 });

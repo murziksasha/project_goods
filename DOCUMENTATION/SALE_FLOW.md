@@ -391,6 +391,10 @@ Suggestion rows may show the resolved retail price before click when matching st
 - Backend validation mirrors this rule: sale cannot be persisted in `issued`/`paid` with unpaid product amount.
 - Exception for **workspace/line-item edits** on an already-`paid` sale: if the new total leaves product lines underpaid, status is auto-reopened to **`new`** instead of rejecting the edit (see Rapid Sale → **Opened Rapid Sale Card** / `resolveEditableSaleStatus`). Explicit issue paths and `issued` status still reject unpaid products.
 
+## Sales list copy
+
+- In `Orders -> Sales`, hover on the sale number and client phone shows a copy icon. Only the icon copies; number click still opens the sale card. Spec: [UI_DESIGN_SYSTEM.md — Hover copy icon](./UI_DESIGN_SYSTEM.md#hover-copy-icon).
+
 ## Status Dropdown UX
 
 - Status dropdown in list is closed when user clicks outside the dropdown menu area.

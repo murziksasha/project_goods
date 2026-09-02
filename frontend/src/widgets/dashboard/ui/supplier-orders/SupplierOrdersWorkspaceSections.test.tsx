@@ -1,5 +1,6 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import * as clipboard from '../../../../shared/lib/clipboard';
 import type { SupplierOrder } from '../../../../entities/supplier-order/model/types';
 import { SupplierOrdersTable } from './SupplierOrdersWorkspaceSections';
 
@@ -325,7 +326,7 @@ describe('SupplierOrdersTable', () => {
     expect(screen.getAllByText('—').length).toBeGreaterThan(0);
   });
 
-  it('opens full-order modal from parent row and item modal from child row', () => {
+  it('opens full-order modal from parent row and item modal from child row', async () => {
     const order = makeOrder({
       id: 'so-multi',
       number: 'SO-MULTI',
@@ -356,6 +357,16 @@ describe('SupplierOrdersTable', () => {
 
     fireEvent.click(screen.getByText('SO-MULTI'));
     expect(onEditOrder).toHaveBeenCalledWith(order, order, null);
+
+    onEditOrder.mockClear();
+    const copySpy = vi
+      .spyOn(clipboard, 'copyTextToClipboard')
+      .mockResolvedValue(true);
+    fireEvent.click(screen.getAllByRole('button', { name: 'Copy' })[0]);
+    await waitFor(() => {
+      expect(copySpy).toHaveBeenCalledWith('SO-MULTI');
+    });
+    expect(onEditOrder).not.toHaveBeenCalled();
 
     fireEvent.click(
       document.querySelector(

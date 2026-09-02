@@ -95,6 +95,40 @@ Product model serial table (`ProductModelModal`, `layout.css`):
 
 Shared table primitives: `.catalog-table`, `.catalog-table-wrap`, zebra rows, compact variants in [`lists.css`](../frontend/src/shared/styles/lists.css).
 
+## Hover copy icon
+
+Shared control: [`frontend/src/shared/ui/CopyableValue.tsx`](../frontend/src/shared/ui/CopyableValue.tsx). Clipboard helper: [`frontend/src/shared/lib/clipboard.ts`](../frontend/src/shared/lib/clipboard.ts). Catalog names reuse it via `CatalogCopyableName`.
+
+### Interaction
+
+- Hover or `:focus-within` on the **value wrapper** (not the whole row) shows a copy icon as an inline sibling after the text.
+- Only the icon copies. Clicking the value keeps the current flow: open order/sale/client/model, `tel:`, or row click.
+- Icon click uses `preventDefault` + `stopPropagation` so star, expand, delete, and row handlers do not run.
+- Empty / whitespace-only values have no icon.
+- The icon is **not** `position: absolute` and must not cover the star, expand chevron, status badge, delete `×`, next column, or modal close.
+- Hidden until hover by collapsing width (`width: 0`). On `@media (hover: none)` the icon stays visible.
+- Success state (~1.4s) uses `--color-success` on the icon button.
+- Labels: `common.copy` / `common.copied` / `common.copyFailed` (catalog still uses `catalog.tables.copyName` for the idle label). Keep those catalog keys in `frontend/scripts/catalog-locale-*.json` so locale merge does not drop them again.
+
+### Clipboard payload
+
+| Value | Copied text |
+| --- | --- |
+| Name, serial, order number | Visible string |
+| Phone | Stored canonical value (`+380…`), not the grouped display |
+
+### Surfaces
+
+| Place | Hover targets |
+| --- | --- |
+| `Orders` / `Sales` tables | Order number, client phone |
+| `Supplier Order` table | Order number (parent and child) |
+| Warehouse `Receipts` | Order number |
+| Warehouse `Stock balances` | Name, Serial # (not Article) |
+| `Clients` / `Suppliers` tables | Name, phone |
+| Client card header | Blue `tel:` phone |
+| Products & Services catalog | Name (all tabs); **Suppliers** phone (`tel:` stays on the number) |
+
 ## Breakpoints
 
 From [`responsive.css`](../frontend/src/shared/styles/responsive.css):
@@ -137,6 +171,7 @@ From [`responsive.css`](../frontend/src/shared/styles/responsive.css):
 | `NumberStepper` | `NumberStepper.tsx` |
 | `PhonesField` | `PhonesField.tsx` |
 | `LanguageSwitcher` | `LanguageSwitcher.tsx` |
+| `CopyableValue` | `CopyableValue.tsx` — hover copy icon; see [Hover copy icon](#hover-copy-icon) |
 
 ### Feedback states
 

@@ -173,6 +173,7 @@ This document defines current warehouse requirements for stock balances, receipt
 
 ### 4.4) Product Model Detail Modal
 - In `Warehouse -> Stock balances`, clicking `Name`, `Serial #`, `Article`, or `Note` opens the shared product model modal for the row's exact product name.
+- Hover on `Name` and `Serial #` shows a copy icon. Only the icon copies; name/serial clicks still open the model/serial card. `Article` has no copy icon. Spec: [UI_DESIGN_SYSTEM.md — Hover copy icon](./UI_DESIGN_SYSTEM.md#hover-copy-icon).
 - `Note` click opens the same modal so the operator can view or edit the full note in `MAIN INFORMATION -> Note`.
 - The modal aggregates only `Product` rows whose normalized name exactly equals the opened name (trim + lowercase); similar names such as `Mi Box S Gen 3` and `Mi Box S Gen 3 Pro` must stay separate.
 - The modal shows:
@@ -307,6 +308,7 @@ Implementation references:
 - Legacy saved filters that still store a single `status` value are migrated to `statuses` on load.
 
 ### 5.2) Receipts View Modes (`Orders` / `Lines`)
+- Hover on the receipt/order number shows a copy icon. Only the icon copies; number click still opens the supplier order. Spec: [UI_DESIGN_SYSTEM.md — Hover copy icon](./UI_DESIGN_SYSTEM.md#hover-copy-icon).
 - `Lines` lists one row per receipt line (supplier-order item or manual receipt).
 - `Orders` groups lines by supplier-order number (`groupReceiptRowsByOrder`):
   1. parent row shows the order number, first product + extra-product count, summed qty/amount/paid, and rolled-up status

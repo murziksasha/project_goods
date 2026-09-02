@@ -1,5 +1,6 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import * as clipboard from '../../../../shared/lib/clipboard';
 import type { Product } from '../../../../entities/product/model/types';
 import {
   getWarehouseStockTableMinWidth,
@@ -125,6 +126,32 @@ describe('ReceiptsTable favorites', () => {
 
     expect(screen.queryByRole('button', { name: 'Star R-1' })).not.toBeInTheDocument();
   });
+
+  it('copies the receipt number without opening the order', async () => {
+    const onOpenOrder = vi.fn();
+    const copySpy = vi
+      .spyOn(clipboard, 'copyTextToClipboard')
+      .mockResolvedValue(true);
+
+    render(
+      <ReceiptsTable
+        receipts={[receipt]}
+        view='lines'
+        visibleColumns={['number', 'product']}
+        canManageSupplierOrders={true}
+        onToggleFavorite={vi.fn()}
+        onOpenOrder={onOpenOrder}
+        onOpenProduct={vi.fn()}
+        onOpenSupplier={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Copy' }));
+    await waitFor(() => {
+      expect(copySpy).toHaveBeenCalledWith('SO-1');
+    });
+    expect(onOpenOrder).not.toHaveBeenCalled();
+  });
 });
 
 describe('StockTable selectable links', () => {
@@ -178,6 +205,37 @@ describe('StockTable selectable links', () => {
     fireEvent.click(screen.getByText('SN-12345'));
     fireEvent.click(screen.getByText('ART-001'));
 
+    expect(onOpenModel).not.toHaveBeenCalled();
+    expect(onOpenSerial).not.toHaveBeenCalled();
+  });
+
+  it('copies name and serial from the hover icon without opening cards', async () => {
+    const onOpenModel = vi.fn();
+    const onOpenSerial = vi.fn();
+    const copySpy = vi
+      .spyOn(clipboard, 'copyTextToClipboard')
+      .mockResolvedValue(true);
+
+    render(
+      <StockTable
+        {...stockTableProps}
+        onOpenModel={onOpenModel}
+        onOpenSerial={onOpenSerial}
+      />,
+    );
+
+    const copyButtons = screen.getAllByRole('button', { name: 'Copy' });
+    expect(copyButtons).toHaveLength(2);
+
+    fireEvent.click(copyButtons[0]);
+    await waitFor(() => {
+      expect(copySpy).toHaveBeenCalledWith('iPhone 15');
+    });
+
+    fireEvent.click(copyButtons[1]);
+    await waitFor(() => {
+      expect(copySpy).toHaveBeenCalledWith('SN-12345');
+    });
     expect(onOpenModel).not.toHaveBeenCalled();
     expect(onOpenSerial).not.toHaveBeenCalled();
   });

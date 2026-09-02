@@ -12,6 +12,7 @@ import {
   CompactPaginationPanel,
   PaginationPanel,
 } from '../../../../shared/ui/PaginationPanel';
+import { CopyableValue } from '../../../../shared/ui/CopyableValue';
 import { TruncatedTextTooltip } from '../../../../shared/ui/TruncatedTextTooltip';
 import { OrdersWorkspaceTabList } from '../orders/workspace/OrdersWorkspaceTabList';
 import { buildSupplierOrderItemNumber } from '../../model/supplier-order-utils';
@@ -502,13 +503,19 @@ export const SupplierOrdersTable = ({
                             aria-hidden='true'
                           />
                         )}
-                        <button
-                          type='button'
-                          className='supplier-order-number-button'
-                          onClick={openOrderModal}
+                        <CopyableValue
+                          value={
+                            row.kind === 'child' ? row.label : row.id
+                          }
                         >
-                          {row.kind === 'child' ? row.label : row.id}
-                        </button>
+                          <button
+                            type='button'
+                            className='supplier-order-number-button'
+                            onClick={openOrderModal}
+                          >
+                            {row.kind === 'child' ? row.label : row.id}
+                          </button>
+                        </CopyableValue>
                       </div>
                     </td>
                   ) : null}

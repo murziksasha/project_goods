@@ -57,6 +57,9 @@
     "saving": "Saving...",
     "export": "Export",
     "exporting": "Exporting...",
+    "copy": "Copy",
+    "copied": "Copied",
+    "copyFailed": "Copy failed",
     "pagination": {
       "previousPage": "Previous page",
       "nextPage": "Next page",
@@ -2604,7 +2607,10 @@
       },
       "selectAllServices": "Select all services",
       "selectService": "Select {{name}}",
-      "inactiveBadge": "Inactive"
+      "inactiveBadge": "Inactive",
+      "copyName": "Copy name",
+      "copied": "Copied",
+      "copyFailed": "Copy failed"
     },
     "modals": {
       "close": "Close",

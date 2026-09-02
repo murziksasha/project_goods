@@ -482,10 +482,20 @@
   min-width: 0;
 }
 
+.warehouse-name-with-qty > .copyable-value,
 .warehouse-name-with-qty > .settings-link-button,
 .warehouse-name-with-qty .warehouse-cell-truncate {
   min-width: 0;
   flex: 1 1 auto;
+}
+
+.warehouse-name-with-qty > .copyable-value {
+  overflow: visible;
+}
+
+.warehouse-name-with-qty > .settings-link-button,
+.warehouse-name-with-qty .warehouse-cell-truncate,
+.warehouse-name-with-qty .copyable-value-content {
   overflow: hidden;
 }
 

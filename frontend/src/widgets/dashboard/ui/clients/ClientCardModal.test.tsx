@@ -1,11 +1,13 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import * as clipboard from '../../../../shared/lib/clipboard';
 import type { Client } from '../../../../entities/client/model/types';
 import type { ClientMainForm } from '../../model/clients-workspace';
 import { ClientCardModal } from './ClientCardModal';
 
 afterEach(() => {
   cleanup();
+  vi.restoreAllMocks();
 });
 
 const client: Client = {
@@ -87,5 +89,23 @@ describe('ClientCardModal', () => {
       current: ClientMainForm,
     ) => ClientMainForm;
     expect(updater(mainTabForm).status).toBe('ok');
+  });
+
+  it('copies the header phone from the hover icon and keeps the tel link', async () => {
+    const copySpy = vi
+      .spyOn(clipboard, 'copyTextToClipboard')
+      .mockResolvedValue(true);
+    renderCard();
+
+    expect(screen.getByRole('link')).toHaveAttribute(
+      'href',
+      'tel:+380501111111',
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Copy' }));
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Copied' })).toBeInTheDocument();
+    });
+    expect(copySpy).toHaveBeenCalledWith('+380501111111');
   });
 });

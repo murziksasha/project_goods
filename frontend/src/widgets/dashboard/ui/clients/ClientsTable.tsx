@@ -8,6 +8,7 @@ import { formatDateTime } from '../../../../shared/lib/format';
 import { Button } from '../../../../shared/ui/Button';
 import { StatusBadge } from '../../../../shared/ui/StatusBadge';
 import { TableSkeleton } from '../../../../shared/ui/TableSkeleton';
+import { CopyableValue } from '../../../../shared/ui/CopyableValue';
 import { PhoneNumber } from '../shared/PhoneNumber';
 import {
   defaultClientStats,
@@ -104,7 +105,9 @@ export const ClientsTable = ({
                   onClick={() => onOpenClientCard(client.id)}
                 >
                   <td data-label={t('clients.table.columns.name')}>
-                    {client.name}
+                    <CopyableValue value={client.name}>
+                      {client.name}
+                    </CopyableValue>
                   </td>
                   <td data-label={t('clients.table.columns.tag')}>
                     <StatusBadge
@@ -118,12 +121,14 @@ export const ClientsTable = ({
                     />
                   </td>
                   <td data-label={t('clients.table.columns.phone')}>
-                    <a
-                      href={`tel:${client.phone}`}
-                      onClick={(event) => event.stopPropagation()}
-                    >
-                      <PhoneNumber value={client.phone} />
-                    </a>
+                    <CopyableValue value={client.phone}>
+                      <a
+                        href={`tel:${client.phone}`}
+                        onClick={(event) => event.stopPropagation()}
+                      >
+                        <PhoneNumber value={client.phone} />
+                      </a>
+                    </CopyableValue>
                   </td>
                   <td data-label={t('clients.table.columns.registrationDate')}>
                     {formatDateTime(client.createdAt)}

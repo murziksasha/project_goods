@@ -31,6 +31,7 @@ Canonical order (keys): `number`, `product`, `quantity`, `price`, `total`, `paid
 - **`createdAt` / Order date** — order creation timestamp (`SupplierOrder.createdAt` from API); shown left of **Created by** / **Delivery date**.
 - Labels: EN `Order date`, UK `Дата замовлення` (`orders.supplier.columns.createdAt`). `createdBy`: EN `Created by`, UK `Створив`.
 - Locked column: `number` only.
+- Hover on the order number shows a copy icon. Only the icon copies; number click still opens the order. Spec: [UI_DESIGN_SYSTEM.md — Hover copy icon](./UI_DESIGN_SYSTEM.md#hover-copy-icon).
 - Default visible: `number`, `product`, `quantity`, `price`, `total`, `paid`, `supplier`, `createdAt`, `status`, `paymentStatus`. `deliveryDate` and `createdBy` are extras in the gear.
 - Existing saved column prefs omit new keys until the user enables them; empty/invalid prefs restore the default set (`Reset columns` too).
 - `Paid` uses unpaid (amber) styling when `paymentStatus = pending` and `total - paid > 0`.

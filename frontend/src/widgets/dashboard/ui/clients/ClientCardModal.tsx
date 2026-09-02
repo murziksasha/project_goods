@@ -28,6 +28,7 @@ import {
 } from '../../../../entities/client/model/constants';
 import { StatusBadge } from '../../../../shared/ui/StatusBadge';
 import { Button } from '../../../../shared/ui/Button';
+import { CopyableValue } from '../../../../shared/ui/CopyableValue';
 import { PhoneNumber } from '../shared/PhoneNumber';
 import { formatDateTime } from '../../../../shared/lib/format';
 import {
@@ -403,12 +404,14 @@ export const ClientCardModal = ({
         <div className="clients-card-meta-row">
           {clientPhone ? (
             <p className="panel-subtitle clients-card-phone">
-              <a
-                className="clients-card-phone-link"
-                href={`tel:${clientPhone}`}
-              >
-                <PhoneNumber value={clientPhone} />
-              </a>
+              <CopyableValue value={clientPhone}>
+                <a
+                  className="clients-card-phone-link"
+                  href={`tel:${clientPhone}`}
+                >
+                  <PhoneNumber value={clientPhone} />
+                </a>
+              </CopyableValue>
             </p>
           ) : (
             <span className="clients-card-phone" />

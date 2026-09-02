@@ -57,6 +57,9 @@
     "saving": "Збереження...",
     "export": "Експорт",
     "exporting": "Експорт...",
+    "copy": "Копіювати",
+    "copied": "Скопійовано",
+    "copyFailed": "Не вдалося скопіювати",
     "pagination": {
       "previousPage": "Попередня сторінка",
       "nextPage": "Наступна сторінка",
@@ -2604,7 +2607,10 @@
       },
       "selectAllServices": "Вибрати всі послуги",
       "selectService": "Вибрати {{name}}",
-      "inactiveBadge": "Неактивний"
+      "inactiveBadge": "Неактивний",
+      "copyName": "Копіювати назву",
+      "copied": "Скопійовано",
+      "copyFailed": "Не вдалося скопіювати"
     },
     "modals": {
       "close": "Закрити",
