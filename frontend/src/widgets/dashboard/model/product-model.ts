@@ -6,6 +6,7 @@ import {
   getStockProductIdsLinkedToSale,
   isIssuedSaleStatus,
   type StockSaleLink,
+  type StockSupplierOrderLink,
 } from './stock-balance';
 
 export type ProductModelPriceForm = {
@@ -22,6 +23,9 @@ export type ProductModelSerialPurchaseRow = {
   purchaseDate: string | null;
   isLatestBatch: boolean;
   isReserved: boolean;
+  supplierOrderId?: string;
+  supplierOrderItemIndex?: number;
+  supplierOrderNumber: string;
 };
 
 export type ProductModelSaleLink = StockSaleLink & { id?: string };
@@ -88,6 +92,10 @@ export const getReservedProductIdsFromOccupiedSerials = (
 export const buildProductModelSerialPurchases = (
   products: Product[],
   reservedProductIds: ReadonlySet<string> = new Set(),
+  supplierOrdersByProductId: Record<
+    string,
+    StockSupplierOrderLink[]
+  > = {},
 ): ProductModelSerialPurchaseRow[] => {
   const latestBatchProduct = getLatestBatchProduct(products);
   const latestBatchKey = latestBatchProduct
@@ -106,14 +114,24 @@ export const buildProductModelSerialPurchases = (
       if (serialDiff !== 0) return serialDiff;
       return first.createdAt.localeCompare(second.createdAt);
     })
-    .map((product) => ({
-      productId: product.id,
-      serialNumber: product.serialNumber.trim(),
-      price: product.price,
-      purchaseDate: product.purchaseDate ?? product.createdAt ?? null,
-      isLatestBatch: getBatchKey(product) === latestBatchKey,
-      isReserved: reservedProductIds.has(product.id),
-    }));
+    .map((product) => {
+      const link = supplierOrdersByProductId[product.id]?.[0];
+      return {
+        productId: product.id,
+        serialNumber: product.serialNumber.trim(),
+        price: product.price,
+        purchaseDate: product.purchaseDate ?? product.createdAt ?? null,
+        isLatestBatch: getBatchKey(product) === latestBatchKey,
+        isReserved: reservedProductIds.has(product.id),
+        supplierOrderNumber: link?.displayNumber ?? '',
+        ...(link
+          ? {
+              supplierOrderId: link.order.id,
+              supplierOrderItemIndex: link.itemIndex,
+            }
+          : {}),
+      };
+    });
 };
 
 export type ProductModelWarehouseSummary = {

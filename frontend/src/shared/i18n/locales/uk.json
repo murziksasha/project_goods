@@ -2688,6 +2688,7 @@
       "latestBatchSummary": "Остання партія: {{price}} · {{date}}",
       "serialNumber": "Серійний №",
       "purchaseDate": "Дата прийому",
+      "supplierOrder": "Замовлення постачальника",
       "serialMissing": "Без серійного №",
       "latestBatchBadge": "Остання",
       "reservedBadge": "Резерв",

@@ -182,11 +182,14 @@ This document defines current warehouse requirements for stock balances, receipt
 3. retail price from `salePriceOptions[0]`
 4. wholesale price from `salePriceOptions[1]`
 5. purchase prices in `PRICES` (**read-only**, per serialized stock unit):
-   - section title `Purchase by serial` lists every **active in-stock** matching row as `Serial # | Purchase | Receipt date`
+   - section title `Purchase by serial` lists every **active in-stock** matching row as `Serial # | Purchase | Receipt date | Supplier order`
    - active row rule matches `Stock balances` visibility: `quantity > 0` and not linked to a sale with status `issued`
    - each row uses that unit's own `Product.price` and `purchaseDate` (fallback `createdAt`) from take-on-charge
+   - `Supplier order` is unit-level provenance (same as §2.1): `product.supplierOrderId` + `product.supplierOrderItemIndex` resolved to `displayNumber` (`SO-1`, or `SO-1-2` on multi-item orders). Missing / unmatched provenance shows `—`
+   - click the supplier-order number to open the existing `SupplierOrderModal` (item-scoped, same as Stock balances). The product-model modal stays open underneath
+   - hover on the supplier-order number shows a copy icon; only the icon copies the visible number. Spec: [UI_DESIGN_SYSTEM.md — Hover copy icon](./UI_DESIGN_SYSTEM.md#hover-copy-icon)
    - rows are sorted by receipt date descending, then serial number
-   - compact scrollable table (`max-height: 220px`) keeps modal layout stable on mobile
+   - compact scrollable table (`max-height: 220px`, dense cell padding) keeps serial, purchase, date, and supplier-order number visible without horizontal scroll on the desktop modal width
    - header summary `Latest batch: <price> · <date>` uses the newest receipt batch among **remaining active rows**
    - badge `Latest` marks every active row that belongs to that newest batch (same receipt date + purchase price)
    - badge `Reserved` (red) marks an active row already bound on another sale/order

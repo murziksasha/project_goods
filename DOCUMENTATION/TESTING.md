@@ -41,7 +41,7 @@ Specs:
 - Co-located `*.test.tsx` / `*.test.ts` next to components and hooks.
 - High-value suites: `OrdersWorkspace`, `OrderDetailCard`, `CreateOrderCard`, `AccountingPanel`, `DashboardPage`.
 - Product grouping: `order-line-item-groups.test.ts` (card key + print key with price); `OrderDetailCard.test.tsx` (collapsed `×N` groups); `orders-workspace-shared.test.tsx` (print `products_table` / invoice merge-vs-split).
-- Product model serial table: `product-model.test.ts` (latest batch + reserved-on-other-sale); `ProductModelModal.test.tsx` (Latest / Reserved badges).
+- Product model serial table: `product-model.test.ts` (latest batch, reserved-on-other-sale, supplier-order provenance); `ProductModelModal.test.tsx` (Latest / Reserved badges, supplier-order click + hover copy, empty `—`). Nested modal Escape: `Modal.test.tsx`.
 - Split workspace shells: `OrdersWorkspaceListHeader`, `OrdersWorkspaceTableSection`, `OrdersWorkspaceModals`.
 - Query migration regression: `useDashboardPage.invalidation.test.ts` asserts `queryKeys` invalidation contract.
 

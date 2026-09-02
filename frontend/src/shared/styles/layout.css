@@ -755,19 +755,39 @@
 
 .product-model-serial-purchases-table {
   margin: 0;
+  width: 100%;
+  min-width: 0;
 }
 
 .product-model-serial-purchases-table th,
 .product-model-serial-purchases-table td {
-  padding: 8px 10px;
-  font-size: 0.86rem;
+  padding: 4px 8px 4px 6px;
+  font-size: 0.78rem;
   white-space: nowrap;
+  width: 1%;
+  min-width: 0;
 }
 
-.product-model-serial-purchases-table th:nth-child(2),
-.product-model-serial-purchases-table td:nth-child(2) {
-  min-width: 120px;
-  white-space: normal;
+.product-model-serial-purchases-table th:nth-child(3),
+.product-model-serial-purchases-table td:nth-child(3),
+.product-model-serial-purchases-table th:nth-child(4),
+.product-model-serial-purchases-table td:nth-child(4),
+.product-model-serial-purchases-table th:nth-child(5),
+.product-model-serial-purchases-table td:nth-child(5) {
+  font-variant-numeric: tabular-nums;
+}
+
+.product-model-serial-purchases-table th:last-child,
+.product-model-serial-purchases-table td:last-child {
+  width: auto;
+}
+
+.product-model-serial-purchases-table .copyable-value {
+  max-width: 100%;
+}
+
+.product-model-serial-empty {
+  color: var(--text-soft);
 }
 
 .product-model-serial-cell {
@@ -780,8 +800,8 @@
 .product-model-latest-batch-badge,
 .product-model-reserved-badge {
   border-radius: 999px;
-  padding: 2px 8px;
-  font-size: 0.72rem;
+  padding: 1px 6px;
+  font-size: 0.68rem;
   font-weight: 800;
   line-height: 1.2;
 }
@@ -3847,7 +3867,8 @@ select.line-item-inline-input {
   overflow: auto;
 }
 
-.modal-backdrop:has(.unbound-serial-issue-modal) {
+.modal-backdrop:has(.unbound-serial-issue-modal),
+.modal-backdrop:has(.supplier-order-modal) {
   z-index: 110;
 }
 

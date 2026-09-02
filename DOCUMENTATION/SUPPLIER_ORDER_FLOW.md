@@ -52,6 +52,7 @@ Canonical order (keys): `number`, `product`, `quantity`, `price`, `total`, `paid
 - Content locked after receipt/final status or paid/`without_payment` (take-on-charge remains when allowed).
 - Paid orders cannot be cancelled (`POST .../cancel` rejected).
 - Full-order modal: **Cancel order** (confirm) cancels the unpaid order. **Cancel item** cancels one unreceived line (`new` / `approved` receipt), including on `approved` + paid/`without_payment` orders. There is no hard-delete.
+- Product model modal `Purchase by serial` shows the unit's supplier-order number (same provenance as Warehouse Stock balances). Click opens this same `SupplierOrderModal` (item-scoped); hover copy icon copies the visible number. Spec: [WAREHOUSE_FLOW.md §4.4](./WAREHOUSE_FLOW.md#44-product-model-detail-modal).
 - Linked sale/order card `Supplier Order` tab shows a dollar pay icon after the status badge when Accounting queue rules allow payment (`finance.supplierOrders.pay`). Click opens a pay modal (`POST /finance/supplier-orders/:id/pay`); optional issue-without-payment uses `finance.supplierOrders.issueWithoutPayment`.
 - After payment (`paymentStatus = paid`) the same slot shows a green check (not clickable). `without_payment` has no marker. The check is visible to anyone who can see the tab.
 

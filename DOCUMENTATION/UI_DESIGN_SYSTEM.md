@@ -87,9 +87,11 @@ Product model serial table (`ProductModelModal`, `layout.css`):
 
 | Class | Role |
 |-------|------|
+| `.product-model-serial-purchases-table` | Compact `Purchase by serial` table: Serial #, Purchase, Receipt date, Supplier order |
 | `.product-model-latest-batch-badge` | Newest receipt batch (`--bg-soft-primary-strong`) |
 | `.product-model-reserved-badge` | Bound on another order (`--bg-soft-danger`, `--color-danger-soft`) |
 | `.product-model-serial-row-reserved` | Reserved row wash; wins over latest/selected row background |
+| `.product-model-serial-empty` | `—` for missing supplier-order provenance |
 
 ## Tables
 
@@ -127,6 +129,7 @@ Shared control: [`frontend/src/shared/ui/CopyableValue.tsx`](../frontend/src/sha
 | `Supplier Order` table | Order number (parent and child) | `SupplierOrdersWorkspaceSections.tsx` |
 | Warehouse `Receipts` | Order number (lines + grouped parent) | `WarehouseTables.tsx` |
 | Warehouse `Stock balances` | Name, Serial # (**not** Article) | `WarehouseTables.tsx` |
+| Product model modal `Purchase by serial` | Supplier order number (click still opens `SupplierOrderModal`) | `ProductModelModal.tsx` |
 | `Clients & suppliers` → Clients / Suppliers | Name, phone | `ClientsTable.tsx`, `ClientsSuppliersWorkspace.tsx` |
 | Client card header | Blue `tel:` phone | `ClientCardModal.tsx` |
 | Products & Services → Client devices / Products / Services | Name | `CatalogCopyableName` in `ProductCatalogTables.tsx` |

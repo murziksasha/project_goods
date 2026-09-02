@@ -2688,6 +2688,7 @@
       "latestBatchSummary": "Latest batch: {{price}} · {{date}}",
       "serialNumber": "Serial #",
       "purchaseDate": "Receipt date",
+      "supplierOrder": "Supplier order",
       "serialMissing": "No serial",
       "latestBatchBadge": "Latest",
       "reservedBadge": "Reserved",

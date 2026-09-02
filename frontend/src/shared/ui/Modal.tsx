@@ -132,7 +132,15 @@ export const Modal = ({
 
     const frameId = window.requestAnimationFrame(focusInitial);
 
+    const isTopmostModal = () => {
+      const backdrops = document.querySelectorAll('.modal-backdrop');
+      const top = backdrops[backdrops.length - 1];
+      return Boolean(top?.contains(dialog));
+    };
+
     const handleKeyDown = (event: KeyboardEvent) => {
+      if (!isTopmostModal()) return;
+
       if (event.key === 'Escape' && closeOnEscape) {
         event.preventDefault();
         event.stopPropagation();

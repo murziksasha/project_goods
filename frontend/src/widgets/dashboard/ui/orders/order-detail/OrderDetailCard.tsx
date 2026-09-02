@@ -1492,8 +1492,16 @@ export const OrderDetailCard = ({
               items={productItems}
               allItems={lineItems}
               products={products}
+              supplierOrders={supplierOrders}
               printForms={printForms}
               catalogProducts={catalogProducts}
+              onOpenSupplierOrder={(supplierOrderId, itemIndex) => {
+                const order = supplierOrders.find(
+                  (candidate) => candidate.id === supplierOrderId,
+                );
+                if (!order) return;
+                void openRelatedSupplierOrderTakeOnCharge(order, itemIndex);
+              }}
               onUpdateProductModel={onUpdateProductModel}
               onAddItem={onAddLineItem}
               onReplaceItem={onReplaceLineItem}
@@ -1545,8 +1553,16 @@ export const OrderDetailCard = ({
               items={serviceItems}
               allItems={lineItems}
               products={products}
+              supplierOrders={supplierOrders}
               printForms={printForms}
               catalogProducts={catalogProducts}
+              onOpenSupplierOrder={(supplierOrderId, itemIndex) => {
+                const order = supplierOrders.find(
+                  (candidate) => candidate.id === supplierOrderId,
+                );
+                if (!order) return;
+                void openRelatedSupplierOrderTakeOnCharge(order, itemIndex);
+              }}
               onUpdateProductModel={onUpdateProductModel}
               onAddItem={onAddLineItem}
               onReplaceItem={onReplaceLineItem}
