@@ -39,7 +39,7 @@ Related: [ORDER_FLOW.md](./ORDER_FLOW.md) · [SALE_FLOW.md](./SALE_FLOW.md) · [
 - Tab strip uses dedicated `clients-card-tabs` styles (sale-card related-tabs pattern), not body-only scroll content.
 - Layout shell is 3 rows (`header` + scrollable `body` + optional `footer` on Main). Tabs live in the header extra row so they stay visible while the body scrolls.
 - Clients / Suppliers list tables lead with **Name** (no truncated `Id` column). ID remains in the Filter drawer.
-- Hover on **Name** and **Phone** in both list tables shows a copy icon. Only the icon copies; row click still opens the card and phone `tel:` stays on the number. The client card header phone (blue `tel:` link) uses the same icon. Spec: [UI_DESIGN_SYSTEM.md — Hover copy icon](./UI_DESIGN_SYSTEM.md#hover-copy-icon).
+- Hover on **Name** and **Phone** in both `Clients & suppliers` list tables shows a copy icon. Only the icon copies; row click still opens the card and phone `tel:` stays on the number. The client card header phone (blue `tel:` link) uses the same icon. Catalog **Products & Services → Suppliers** phone is the same control (that table lives in the catalog, not this workspace). Spec: [UI_DESIGN_SYSTEM.md — Hover copy icon](./UI_DESIGN_SYSTEM.md#hover-copy-icon).
 - Status select on Main stores the raw value: `-` (`''`, auto) plus pinned `ok` / `opt` / `vip` / `blacklist`. It must not bind to effective status. Auto mode shows `Auto: {effective}` (status words stay English per the localization rule above).
 - Responsive:
   - tabs scroll horizontally on narrow widths;

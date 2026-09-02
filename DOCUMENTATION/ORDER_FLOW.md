@@ -206,7 +206,7 @@ Related: [ORDER_CARD.md](./ORDER_CARD.md) · [SALE_FLOW.md](./SALE_FLOW.md) · [
 - Device `Name` must be unique in `Clients goods` list view (case-insensitive).
 - When creating an order, if a device with the same canonical name already exists in `Clients goods`, it must be reused from suggestions and no duplicate record is created.
 - Serial numbers are not stored or edited in `Clients goods`; they are handled in order card context/history only.
-- Clicking `Name` opens edit modal.
+- Clicking `Name` opens edit modal. Hover on `Name` shows a copy icon (icon-only copy). Spec: [UI_DESIGN_SYSTEM.md — Hover copy icon](./UI_DESIGN_SYSTEM.md#hover-copy-icon).
 - Create/Edit modals for `Clients goods` include only device name, note and activity.
 - Modal allows toggling `active/inactive`.
 - Inactive devices are excluded from order device lookup.

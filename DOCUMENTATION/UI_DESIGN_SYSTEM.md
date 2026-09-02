@@ -97,18 +97,20 @@ Shared table primitives: `.catalog-table`, `.catalog-table-wrap`, zebra rows, co
 
 ## Hover copy icon
 
-Shared control: [`frontend/src/shared/ui/CopyableValue.tsx`](../frontend/src/shared/ui/CopyableValue.tsx). Clipboard helper: [`frontend/src/shared/lib/clipboard.ts`](../frontend/src/shared/lib/clipboard.ts). Catalog names reuse it via `CatalogCopyableName`.
+**Source of truth** for hover-to-copy on list/table values. Domain docs **link** here; they do not restate the rules.
+
+Shared control: [`frontend/src/shared/ui/CopyableValue.tsx`](../frontend/src/shared/ui/CopyableValue.tsx). Clipboard helper: [`frontend/src/shared/lib/clipboard.ts`](../frontend/src/shared/lib/clipboard.ts). Catalog **names** wrap it via [`CatalogCopyableName.tsx`](../frontend/src/widgets/dashboard/ui/product-catalog/CatalogCopyableName.tsx). CSS: `.copyable-value` / `.copyable-value-copy` in [`layout.css`](../frontend/src/shared/styles/layout.css) (aliases `.catalog-name-copy-button` remain).
 
 ### Interaction
 
 - Hover or `:focus-within` on the **value wrapper** (not the whole row) shows a copy icon as an inline sibling after the text.
-- Only the icon copies. Clicking the value keeps the current flow: open order/sale/client/model, `tel:`, or row click.
+- Only the icon copies. Clicking the value keeps the current flow: open order/sale/client/model/supplier, `tel:`, or row click.
 - Icon click uses `preventDefault` + `stopPropagation` so star, expand, delete, and row handlers do not run.
 - Empty / whitespace-only values have no icon.
 - The icon is **not** `position: absolute` and must not cover the star, expand chevron, status badge, delete `×`, next column, or modal close.
 - Hidden until hover by collapsing width (`width: 0`). On `@media (hover: none)` the icon stays visible.
 - Success state (~1.4s) uses `--color-success` on the icon button.
-- Labels: `common.copy` / `common.copied` / `common.copyFailed` (catalog still uses `catalog.tables.copyName` for the idle label). Keep those catalog keys in `frontend/scripts/catalog-locale-*.json` so locale merge does not drop them again.
+- Labels: `common.copy` / `common.copied` / `common.copyFailed`. Catalog **name** idle label is `catalog.tables.copyName` (keep `copyName` / `copied` / `copyFailed` in `frontend/scripts/catalog-locale-*.json` so locale merge does not drop them).
 
 ### Clipboard payload
 
@@ -119,15 +121,26 @@ Shared control: [`frontend/src/shared/ui/CopyableValue.tsx`](../frontend/src/sha
 
 ### Surfaces
 
-| Place | Hover targets |
-| --- | --- |
-| `Orders` / `Sales` tables | Order number, client phone |
-| `Supplier Order` table | Order number (parent and child) |
-| Warehouse `Receipts` | Order number |
-| Warehouse `Stock balances` | Name, Serial # (not Article) |
-| `Clients` / `Suppliers` tables | Name, phone |
-| Client card header | Blue `tel:` phone |
-| Products & Services catalog | Name (all tabs); **Suppliers** phone (`tel:` stays on the number) |
+| Place | Hover targets | Wiring |
+| --- | --- | --- |
+| `Orders` / `Sales` tables | Order number, client phone | `OrdersWorkspace.tsx` |
+| `Supplier Order` table | Order number (parent and child) | `SupplierOrdersWorkspaceSections.tsx` |
+| Warehouse `Receipts` | Order number (lines + grouped parent) | `WarehouseTables.tsx` |
+| Warehouse `Stock balances` | Name, Serial # (**not** Article) | `WarehouseTables.tsx` |
+| `Clients & suppliers` → Clients / Suppliers | Name, phone | `ClientsTable.tsx`, `ClientsSuppliersWorkspace.tsx` |
+| Client card header | Blue `tel:` phone | `ClientCardModal.tsx` |
+| Products & Services → Client devices / Products / Services | Name | `CatalogCopyableName` in `ProductCatalogTables.tsx` |
+| Products & Services → **Suppliers** | Name **and** phone (`tel:` stays on the number; icon copies; row click still opens the supplier) | `ProductCatalogTables.tsx` `SuppliersTable` |
+
+### Out of scope
+
+- Product model modal title copy (separate `.product-model-copy-button` control)
+- Warehouse Stock `Article` / `Note`
+- Employee phones
+- Client-card history order numbers
+- Kanban cards
+
+Domain links: [ORDER_FLOW.md](./ORDER_FLOW.md) · [SALE_FLOW.md](./SALE_FLOW.md) · [SUPPLIER_ORDER_FLOW.md](./SUPPLIER_ORDER_FLOW.md) · [WAREHOUSE_FLOW.md](./WAREHOUSE_FLOW.md) · [CLIENTS_RULES.md](./CLIENTS_RULES.md) · [CATALOG_PRODUCT_CREATE_MODAL_SPEC.md](./CATALOG_PRODUCT_CREATE_MODAL_SPEC.md)
 
 ## Breakpoints
 
@@ -194,7 +207,7 @@ From [`responsive.css`](../frontend/src/shared/styles/responsive.css):
 ```
 shared/styles/
   base.css          # tokens, client badges
-  layout.css        # shell, catalog, toast, shared workspace
+  layout.css        # shell, catalog, toast, hover-copy (`.copyable-value`), shared workspace
   forms.css         # buttons, fields, inline errors
   lists.css         # tables, pills
   responsive.css    # breakpoints
