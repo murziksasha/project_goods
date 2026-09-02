@@ -31,6 +31,7 @@ Related: [ORDER_CARD.md](./ORDER_CARD.md) · [SALE_FLOW.md](./SALE_FLOW.md) · [
 - Left-click navigation inside the dashboard (sidebar, orders tabs, open/close cards) uses client-side History API (`pushState`) and does **not** reload the page.
 - Browser **Back** / **Forward** restore the previous in-app view (page, tab, open card) from the URL query string.
 - Opening an order/sale card from the orders workspace, client card, or warehouse stock table updates `saleId` in the URL and pushes a history entry; closing the card clears `saleId` so Back can reopen the card.
+- Client card `Orders` / `Sales` numbers are real `getOrderLink()` hrefs. Left click opens the card in-app (closes the client modal). Right-click / middle-click / Ctrl+click opens a new browser tab. Spec: [BROWSER_NAVIGATION.md](./BROWSER_NAVIGATION.md) · [CLIENTS_RULES.md](./CLIENTS_RULES.md).
 - Create-order `Client requests` links remain `target="_blank"` (new tab) — they are intentionally outside the in-app history stack.
 - URL helpers: `getOrderLink()` / `buildDashboardHref()` in `frontend/src/pages/dashboard/model/dashboard-navigation.ts`.
 - See [BROWSER_NAVIGATION.md](./BROWSER_NAVIGATION.md).
@@ -206,7 +207,7 @@ Related: [ORDER_CARD.md](./ORDER_CARD.md) · [SALE_FLOW.md](./SALE_FLOW.md) · [
 - Device `Name` must be unique in `Clients goods` list view (case-insensitive).
 - When creating an order, if a device with the same canonical name already exists in `Clients goods`, it must be reused from suggestions and no duplicate record is created.
 - Serial numbers are not stored or edited in `Clients goods`; they are handled in order card context/history only.
-- Clicking `Name` opens edit modal.
+- Clicking `Name` opens edit modal. Hover on `Name` shows a copy icon (icon-only copy). Spec: [UI_DESIGN_SYSTEM.md — Hover copy icon](./UI_DESIGN_SYSTEM.md#hover-copy-icon).
 - Create/Edit modals for `Clients goods` include only device name, note and activity.
 - Modal allows toggling `active/inactive`.
 - Inactive devices are excluded from order device lookup.
@@ -541,6 +542,7 @@ Scope: `Orders -> Supplier Order` table only. Warehouse receipts, Accounting pay
 - The tooltip must remain open while the pointer moves from the truncated value into the tooltip.
 - Tooltip text must be selectable so the operator can copy names, order numbers, serial numbers, notes, and other clipped values.
 - The same behavior should be reusable across orders, sales, supplier orders, warehouse tables, accounting tables, and compact cards.
+- Order number and client phone in the `Orders` / `Sales` tables also expose a hover copy icon. Icon-only copy; number/phone clicks stay unchanged. Spec: [UI_DESIGN_SYSTEM.md — Hover copy icon](./UI_DESIGN_SYSTEM.md#hover-copy-icon).
 
 ## Supplier Order Information Tab (2026-05-29)
 

@@ -57,6 +57,9 @@
     "saving": "Saving...",
     "export": "Export",
     "exporting": "Exporting...",
+    "copy": "Copy",
+    "copied": "Copied",
+    "copyFailed": "Copy failed",
     "pagination": {
       "previousPage": "Previous page",
       "nextPage": "Next page",
@@ -1542,7 +1545,7 @@
       "searchAriaLabel": "Search in client list",
       "clearSearchAriaLabel": "Clear search text",
       "searchPlaceholder": {
-        "orders": "Search by number, service, status",
+        "orders": "Search by number, device, status",
         "sales": "Search by number, product, status",
         "devices": "Search by name, note"
       },
@@ -1601,7 +1604,7 @@
         "columns": {
           "number": "No.",
           "date": "Date",
-          "service": "Service",
+          "device": "Device",
           "sale": "Sale",
           "status": "Status",
           "amount": "Amount"
@@ -2604,7 +2607,10 @@
       },
       "selectAllServices": "Select all services",
       "selectService": "Select {{name}}",
-      "inactiveBadge": "Inactive"
+      "inactiveBadge": "Inactive",
+      "copyName": "Copy name",
+      "copied": "Copied",
+      "copyFailed": "Copy failed"
     },
     "modals": {
       "close": "Close",
@@ -2682,6 +2688,7 @@
       "latestBatchSummary": "Latest batch: {{price}} · {{date}}",
       "serialNumber": "Serial #",
       "purchaseDate": "Receipt date",
+      "supplierOrder": "Supplier order",
       "serialMissing": "No serial",
       "latestBatchBadge": "Latest",
       "reservedBadge": "Reserved",

@@ -13,6 +13,26 @@ describe('Modal', () => {
     expect(container).toBeEmptyDOMElement();
   });
 
+  it('closes only the topmost stacked modal on Escape', () => {
+    const onCloseBottom = vi.fn();
+    const onCloseTop = vi.fn();
+
+    render(
+      <>
+        <Modal isOpen title="Bottom" onClose={onCloseBottom}>
+          Bottom body
+        </Modal>
+        <Modal isOpen title="Top" onClose={onCloseTop}>
+          Top body
+        </Modal>
+      </>,
+    );
+
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(onCloseTop).toHaveBeenCalledTimes(1);
+    expect(onCloseBottom).not.toHaveBeenCalled();
+  });
+
   it('closes on Escape and restores focus', () => {
     const onClose = vi.fn();
     const trigger = document.createElement('button');

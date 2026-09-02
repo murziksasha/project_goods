@@ -4,9 +4,24 @@ ARG GIT_SHA=unknown
 
 WORKDIR /app
 
-COPY package*.json ./
-COPY frontend/package*.json ./frontend/
-RUN npm install && npm install --prefix frontend
+ENV NPM_CONFIG_FETCH_RETRIES=10 \
+    NPM_CONFIG_FETCH_RETRY_MINTIMEOUT=20000 \
+    NPM_CONFIG_FETCH_RETRY_MAXTIMEOUT=120000 \
+    NPM_CONFIG_FETCH_TIMEOUT=300000 \
+    NPM_CONFIG_UPDATE_NOTIFIER=false
+
+COPY package.json package-lock.json ./
+COPY frontend/package.json frontend/package-lock.json ./frontend/
+# Root package is only `file:..` for frontend; skip root `npm install`.
+RUN --mount=type=cache,target=/root/.npm \
+    set -eux; \
+    i=0; \
+    until npm install --prefix frontend --no-audit --no-fund; do \
+      i=$((i + 1)); \
+      if [ "$i" -ge 5 ]; then exit 1; fi; \
+      echo "npm install failed (attempt $i), retrying in 8s..."; \
+      sleep 8; \
+    done
 
 COPY . .
 

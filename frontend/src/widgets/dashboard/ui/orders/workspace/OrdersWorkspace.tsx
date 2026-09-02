@@ -166,6 +166,7 @@ import {
   type TimelineEntry,
 } from './orders-workspace-shared';
 
+import { CopyableValue } from '../../../../../shared/ui/CopyableValue';
 import { PhoneNumber } from '../../shared/PhoneNumber';
 
 const isSaleResponse = (value: unknown): value is Sale => {
@@ -1626,7 +1627,8 @@ export const OrdersWorkspace = ({
     const status = getStatus(sale);
 
     switch (columnKey) {
-      case 'orderNumber':
+      case 'orderNumber': {
+        const orderNumber = buildOrderNumber(sale);
         return (
           <div className='supplier-order-number-cell'>
             <button
@@ -1639,10 +1641,10 @@ export const OrdersWorkspace = ({
               aria-label={
                 sale.isFavorite
                   ? t('orders.toolbar.unstarOrder', {
-                      orderNumber: buildOrderNumber(sale),
+                      orderNumber,
                     })
                   : t('orders.toolbar.starOrder', {
-                      orderNumber: buildOrderNumber(sale),
+                      orderNumber,
                     })
               }
               aria-pressed={sale.isFavorite}
@@ -1654,19 +1656,22 @@ export const OrdersWorkspace = ({
             >
               {sale.isFavorite ? '★' : '☆'}
             </button>
-            <a
-              className='order-number-button'
-              href={getOrderLink(sale.id, sale.kind)}
-              onClick={(event) => {
-                if (!isPlainLeftClick(event)) return;
-                event.preventDefault();
-                openSaleCard(sale);
-              }}
-            >
-              {buildOrderNumber(sale)}
-            </a>
+            <CopyableValue value={orderNumber}>
+              <a
+                className='order-number-button'
+                href={getOrderLink(sale.id, sale.kind)}
+                onClick={(event) => {
+                  if (!isPlainLeftClick(event)) return;
+                  event.preventDefault();
+                  openSaleCard(sale);
+                }}
+              >
+                {orderNumber}
+              </a>
+            </CopyableValue>
           </div>
         );
+      }
       case 'manager':
         return (
           <TruncatedTextTooltip
@@ -1789,9 +1794,11 @@ export const OrdersWorkspace = ({
             )}
             <small>
               {!isRapidSale ? (
-                <span title={sale.client.phone}>
-                  <PhoneNumber value={sale.client.phone} />
-                </span>
+                <CopyableValue value={sale.client.phone}>
+                  <span title={sale.client.phone}>
+                    <PhoneNumber value={sale.client.phone} />
+                  </span>
+                </CopyableValue>
               ) : null}
               {!isRapidSale && effectiveStatus ? (
                 <span

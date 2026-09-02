@@ -65,7 +65,10 @@
     },
     "selectAllServices": "Вибрати всі послуги",
     "selectService": "Вибрати {{name}}",
-    "inactiveBadge": "Неактивний"
+    "inactiveBadge": "Неактивний",
+    "copyName": "Копіювати назву",
+    "copied": "Скопійовано",
+    "copyFailed": "Не вдалося скопіювати"
   },
   "modals": {
     "close": "Закрити",
@@ -143,6 +146,7 @@
     "latestBatchSummary": "Остання партія: {{price}} · {{date}}",
     "serialNumber": "Серійний №",
     "purchaseDate": "Дата прийому",
+    "supplierOrder": "Замовлення постачальника",
     "serialMissing": "Без серійного №",
     "latestBatchBadge": "Остання",
     "reservedBadge": "Резерв",

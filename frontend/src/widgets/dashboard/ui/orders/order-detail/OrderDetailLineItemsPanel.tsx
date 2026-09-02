@@ -21,7 +21,10 @@ import type {
   Supplier,
   SupplierFormValues,
 } from '../../../../../entities/supplier/model/types';
-import type { SupplierOrderFormValues } from '../../../../../entities/supplier-order/model/types';
+import type {
+  SupplierOrder,
+  SupplierOrderFormValues,
+} from '../../../../../entities/supplier-order/model/types';
 import { createSupplierOrder } from '../../../../../entities/supplier-order/api/supplierOrderApi';
 import type {
   Product,
@@ -102,8 +105,10 @@ export type OrderDetailLineItemsPanelProps = {
   items: OrderLineItem[];
   allItems: OrderLineItem[];
   products: Product[];
+  supplierOrders?: SupplierOrder[];
   printForms: PrintForm[];
   catalogProducts: CatalogProduct[];
+  onOpenSupplierOrder?: (supplierOrderId: string, itemIndex: number) => void;
   onAddItem: (item: Omit<OrderLineItem, 'id'>) => void;
   onReplaceItem: (
     itemId: string,
@@ -161,8 +166,10 @@ export const OrderDetailLineItemsPanel = ({
   items,
   allItems,
   products,
+  supplierOrders,
   printForms,
   catalogProducts,
+  onOpenSupplierOrder,
   onAddItem,
   onReplaceItem,
   onRemoveItem,
@@ -2004,11 +2011,13 @@ export const OrderDetailLineItemsPanel = ({
           name={productModelContext.name}
           products={products}
           sales={sales}
+          supplierOrders={supplierOrders}
           currentSaleId={currentSaleId}
           warehouses={productModelWarehouses}
           printForms={printForms}
           printProduct={productModelContext.printProduct}
           isSaving={isCatalogSaving}
+          onOpenSupplierOrder={onOpenSupplierOrder}
           onClose={() => setProductModelContext(null)}
           onSave={async (payload) => {
             setIsCatalogSaving(true);

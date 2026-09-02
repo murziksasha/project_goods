@@ -17,6 +17,7 @@ Related: [SALE_CARD.md](./SALE_CARD.md) · [ORDER_FLOW.md](./ORDER_FLOW.md) · [
 - The blacklist warning must include the client name/phone and must not prevent saving the sales order.
 - Clicking the blacklist warning opens the matched client card so the operator can read the client note/reason before continuing.
 - If client does not exist and phone+name are provided, a new client is created only when the operator presses `Save order` and hard validation passes (same rule as repair orders). Lookup/suggestions for existing clients are unchanged.
+- Client card `Sales` numbers use the same `getOrderLink(saleId, 'sale')` pattern as Orders: left click opens the sale card in-app; right-click / middle-click / Ctrl+click opens a new browser tab. Spec: [BROWSER_NAVIGATION.md](./BROWSER_NAVIGATION.md) · [CLIENTS_RULES.md](./CLIENTS_RULES.md).
 
 ## Rapid Sale (2026-06-24, UX updates 2026-06-30)
 
@@ -390,6 +391,10 @@ Suggestion rows may show the resolved retail price before click when matching st
   - exception: `issued` is allowed when final order total is `0`
 - Backend validation mirrors this rule: sale cannot be persisted in `issued`/`paid` with unpaid product amount.
 - Exception for **workspace/line-item edits** on an already-`paid` sale: if the new total leaves product lines underpaid, status is auto-reopened to **`new`** instead of rejecting the edit (see Rapid Sale → **Opened Rapid Sale Card** / `resolveEditableSaleStatus`). Explicit issue paths and `issued` status still reject unpaid products.
+
+## Sales list copy
+
+- In `Orders -> Sales`, hover on the sale number and client phone shows a copy icon. Only the icon copies; number click still opens the sale card. Spec: [UI_DESIGN_SYSTEM.md — Hover copy icon](./UI_DESIGN_SYSTEM.md#hover-copy-icon).
 
 ## Status Dropdown UX
 

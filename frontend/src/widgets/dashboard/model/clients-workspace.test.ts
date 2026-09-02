@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import type { Sale } from '../../../entities/sale/model/types';
-import { getClientStatsMap, getStoredClientCardTab } from './clients-workspace';
+import {
+  formatItemList,
+  getClientStatsMap,
+  getStoredClientCardTab,
+} from './clients-workspace';
 
 const baseSale: Sale = {
   id: 'sale-1',
@@ -97,5 +101,45 @@ describe('getClientStatsMap', () => {
 
     expect(stats?.visits).toBe(2);
     expect(stats?.income).toBe(230);
+  });
+});
+
+describe('formatItemList', () => {
+  it('shows the repair device on Orders, not joined services', () => {
+    const repair: Sale = {
+      ...baseSale,
+      kind: 'repair',
+      product: {
+        id: 'device-1',
+        article: '',
+        name: 'Dell monitor',
+        serialNumber: 'SN-1',
+      },
+      lineItems: [
+        {
+          id: 'line-device',
+          kind: 'product',
+          name: 'Dell monitor',
+          price: 0,
+          quantity: 1,
+          warrantyPeriod: 0,
+        },
+        {
+          id: 'line-service',
+          kind: 'service',
+          name: 'BIOS flash',
+          price: 400,
+          quantity: 1,
+          warrantyPeriod: 0,
+        },
+      ],
+    };
+
+    expect(formatItemList(repair, 'orders')).toBe('Dell monitor');
+    expect(formatItemList(repair, 'orders')).not.toContain('BIOS flash');
+  });
+
+  it('keeps product line items on Sales', () => {
+    expect(formatItemList(baseSale, 'sales')).toBe('Part x2');
   });
 });

@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Product } from '../../../../../entities/product/model/types';
 import type { Sale } from '../../../../../entities/sale/model/types';
+import type { SupplierOrder } from '../../../../../entities/supplier-order/model/types';
 import { getOccupiedSerialNumbers } from '../../../../../entities/sale/api/saleApi';
 import { defaultPrintForms } from '../../../../../entities/settings/model/printForms';
 import i18n from '../../../../../shared/i18n/config';
@@ -58,6 +59,39 @@ const serialPurchaseProducts = () => {
     ],
   };
 };
+
+const createSupplierOrder = (
+  patch: Partial<SupplierOrder> = {},
+): SupplierOrder => ({
+  id: 'so-1',
+  orderBaseId: 'SO-1',
+  supplierId: 'supplier-1',
+  supplierName: 'Linked supplier',
+  deliveryDate: '2026-01-01T00:00:00.000Z',
+  supplyType: 'Local',
+  number: 'SO-1',
+  note: '',
+  createdBy: 'Owner',
+  status: 'stocked',
+  paymentStatus: 'pending',
+  receiptStatus: 'received',
+  total: 200,
+  paid: 0,
+  isFavorite: false,
+  items: [
+    {
+      lineId: 'line-1',
+      itemIndex: 0,
+      productName: 'БЖ Meanwell 9V 1.66A',
+      quantity: 1,
+      price: 200,
+      receiptStatus: 'received',
+    },
+  ],
+  createdAt: '2026-01-01T00:00:00.000Z',
+  updatedAt: '2026-01-01T00:00:00.000Z',
+  ...patch,
+});
 
 const getPrintButton = () =>
   screen.getByRole('button', {
@@ -347,6 +381,9 @@ describe('ProductModelModal serial printing', () => {
       screen.getByText(i18n.t('catalog.productModel.purchaseDate')),
     ).toBeInTheDocument();
     expect(
+      screen.getByText(i18n.t('catalog.productModel.supplierOrder')),
+    ).toBeInTheDocument();
+    expect(
       screen.getByText(
         i18n.t('catalog.productModel.latestBatchSummary', {
           price: '250,00 ₴',
@@ -505,5 +542,69 @@ describe('ProductModelModal serial printing', () => {
     expect(reservedRow).toHaveTextContent(
       i18n.t('catalog.productModel.reservedBadge'),
     );
+  });
+
+  it('shows receipt date and a clickable copyable supplier order number', () => {
+    const onOpenSupplierOrder = vi.fn();
+    const { clickedProduct, products } = serialPurchaseProducts();
+    const linkedProducts = products.map((product, index) =>
+      index === 0
+        ? {
+            ...product,
+            supplierOrderId: 'so-1',
+            supplierOrderItemIndex: 0,
+          }
+        : product,
+    );
+
+    render(
+      <ProductModelModal
+        name='БЖ Meanwell 9V 1.66A'
+        products={linkedProducts}
+        supplierOrders={[createSupplierOrder()]}
+        warehouses={[]}
+        printForms={defaultPrintForms}
+        printProduct={clickedProduct}
+        onClose={vi.fn()}
+        onSave={vi.fn(async () => true)}
+        onOpenSupplierOrder={onOpenSupplierOrder}
+      />,
+    );
+
+    expect(screen.getByText('10.01.2026')).toBeInTheDocument();
+    expect(screen.getByText('15.03.2026')).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'SO-1' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: i18n.t('common.copy') }),
+    ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'SO-1' }));
+    expect(onOpenSupplierOrder).toHaveBeenCalledWith('so-1', 0);
+  });
+
+  it('renders an empty supplier order cell without copy or click', () => {
+    const onOpenSupplierOrder = vi.fn();
+    const { clickedProduct, products } = serialPurchaseProducts();
+
+    render(
+      <ProductModelModal
+        name='БЖ Meanwell 9V 1.66A'
+        products={products}
+        warehouses={[]}
+        printForms={defaultPrintForms}
+        printProduct={clickedProduct}
+        onClose={vi.fn()}
+        onSave={vi.fn(async () => true)}
+        onOpenSupplierOrder={onOpenSupplierOrder}
+      />,
+    );
+
+    expect(screen.getAllByText('\u2014').length).toBeGreaterThan(0);
+    expect(
+      screen.queryByRole('button', { name: i18n.t('common.copy') }),
+    ).toBeNull();
+    expect(onOpenSupplierOrder).not.toHaveBeenCalled();
   });
 });

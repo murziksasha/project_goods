@@ -232,9 +232,12 @@ export const getLegacyClientAddress = (client: Client) =>
   getMetaFieldFromNoteLegacy(client.note, 'Address');
 
 export const formatItemList = (sale: Sale, tab: ClientCardTab) => {
-  const targetKind = tab === 'orders' ? 'service' : 'product';
+  if (tab === 'orders') {
+    return getSaleProductName(sale, i18n.t('orders.fallbacks.device'));
+  }
+
   const lineItems = (sale.lineItems ?? []).filter(
-    (item) => item.kind === targetKind,
+    (item) => item.kind === 'product',
   );
 
   if (lineItems.length > 0) {

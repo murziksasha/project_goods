@@ -478,6 +478,32 @@ export const WarehousePanel = ({
     await supplierOrdersQuery.refetch();
   }, [canViewSupplierOrders, supplierOrdersQuery]);
 
+  const openSupplierOrderById = useCallback(
+    (supplierOrderId: string, itemIndex: number) => {
+      const matchedOrder = supplierOrders.find(
+        (order) => order.id === supplierOrderId,
+      );
+      if (!matchedOrder) return;
+      const matchedItem = matchedOrder.items.find(
+        (item) => item.itemIndex === itemIndex,
+      );
+      if (!matchedItem) return;
+      setEditingSupplierOrder({
+        ...matchedOrder,
+        receiptStatus: matchedItem.receiptStatus ?? 'new',
+        number: buildSupplierOrderItemNumber(
+          matchedOrder,
+          matchedItem.itemIndex,
+        ),
+        items: [matchedItem],
+      });
+      setEditingSupplierOrderSource(matchedOrder);
+      setEditingSupplierOrderItemIndex(matchedItem.itemIndex);
+      setIsSupplierOrderModalOpen(true);
+    },
+    [supplierOrders],
+  );
+
   const syncCatalogRenameToSupplierOrders = async (
     catalogProductId: string,
     nextName: string,
@@ -2131,28 +2157,7 @@ export const WarehousePanel = ({
               }));
             }}
             onOpenSaleCard={onOpenSaleCard}
-            onOpenSupplierOrder={(supplierOrderId, itemIndex) => {
-              const matchedOrder = supplierOrders.find(
-                (order) => order.id === supplierOrderId,
-              );
-              if (!matchedOrder) return;
-              const matchedItem = matchedOrder.items.find(
-                (item) => item.itemIndex === itemIndex,
-              );
-              if (!matchedItem) return;
-              setEditingSupplierOrder({
-                ...matchedOrder,
-                receiptStatus: matchedItem.receiptStatus ?? 'new',
-                number: buildSupplierOrderItemNumber(
-                  matchedOrder,
-                  matchedItem.itemIndex,
-                ),
-                items: [matchedItem],
-              });
-              setEditingSupplierOrderSource(matchedOrder);
-              setEditingSupplierOrderItemIndex(matchedItem.itemIndex);
-              setIsSupplierOrderModalOpen(true);
-            }}
+            onOpenSupplierOrder={openSupplierOrderById}
           />
           <PaginationPanel
             totalItems={
@@ -2173,12 +2178,14 @@ export const WarehousePanel = ({
               name={selectedProductModelContext.name}
               products={products}
               sales={sales}
+              supplierOrders={supplierOrders}
               warehouses={warehouses}
               printForms={printForms}
               printProduct={selectedProductModelContext.printProduct}
               isSaving={isProductSaving}
               onClose={() => setSelectedProductModelContext(null)}
               onSave={onUpdateProductModel}
+              onOpenSupplierOrder={openSupplierOrderById}
             />
           ) : null}
         </>
@@ -2199,28 +2206,11 @@ export const WarehousePanel = ({
             onToggleFavorite={(receipt) => void toggleReceiptFavorite(receipt)}
             onOpenOrder={(receipt) => {
               if (!receipt.supplierOrderId) return;
-              const matchedOrder = supplierOrders.find(
-                (order) => order.id === receipt.supplierOrderId,
+              if (receipt.supplierOrderItemIndex === undefined) return;
+              openSupplierOrderById(
+                receipt.supplierOrderId,
+                receipt.supplierOrderItemIndex,
               );
-              if (!matchedOrder) return;
-              const itemIndex = receipt.supplierOrderItemIndex;
-              if (itemIndex === undefined) return;
-              const matchedItem = matchedOrder.items.find(
-                (item) => item.itemIndex === itemIndex,
-              );
-              if (!matchedItem) return;
-              setEditingSupplierOrder({
-                ...matchedOrder,
-                receiptStatus: matchedItem.receiptStatus ?? 'new',
-                number: buildSupplierOrderItemNumber(
-                  matchedOrder,
-                  matchedItem.itemIndex,
-                ),
-                items: [matchedItem],
-              });
-              setEditingSupplierOrderSource(matchedOrder);
-              setEditingSupplierOrderItemIndex(matchedItem.itemIndex);
-              setIsSupplierOrderModalOpen(true);
             }}
             onOpenProduct={(receipt) => {
               const matchedProduct = receipt.catalogProductId

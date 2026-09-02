@@ -7,6 +7,7 @@ import { formatCurrency, formatDate } from '../../../../shared/lib/format';
 import { EmptyState } from '../../../../shared/ui/EmptyState';
 import { StatusBadge } from '../../../../shared/ui/StatusBadge';
 import { TableSkeleton } from '../../../../shared/ui/TableSkeleton';
+import { CopyableValue } from '../../../../shared/ui/CopyableValue';
 import { CatalogCopyableName } from './CatalogCopyableName';
 
 const CatalogNote = ({ note }: { note: string }) => {
@@ -82,12 +83,14 @@ export const SuppliersTable = ({
                 />
               </td>
               <td data-label={t('catalog.tables.columns.phone')}>
-                <a
-                  href={`tel:${supplier.phone}`}
-                  onClick={(event) => event.stopPropagation()}
-                >
-                  {supplier.phone}
-                </a>
+                <CopyableValue value={supplier.phone}>
+                  <a
+                    href={`tel:${supplier.phone}`}
+                    onClick={(event) => event.stopPropagation()}
+                  >
+                    {supplier.phone}
+                  </a>
+                </CopyableValue>
               </td>
               <td data-label={t('catalog.tables.columns.note')}>
                 <CatalogNote note={supplier.note} />

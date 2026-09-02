@@ -100,7 +100,7 @@ Related: [ORDER_FLOW.md](./ORDER_FLOW.md) · [SALE_CARD.md](./SALE_CARD.md) · [
   - Print forms group the same products **only when unit price also matches**; spec: [PRINT_FORMS_SPEC.md](./PRINT_FORMS_SPEC.md#line-items-grouping-products).
 - Clicking a product line item name opens the shared product model modal for `lineItems[].name`.
 - The product model modal is exact-name only, shows warehouse stock summary, and saves shared stock-row fields to matching `Product` rows only.
-- In that modal's `Purchase by serial` table, `Latest` marks the newest receipt batch and red `Reserved` marks units already bound on another order. Serials bound only on the opened card stay unmarked. Same rules: [WAREHOUSE_FLOW.md §4.4](./WAREHOUSE_FLOW.md#44-product-model-detail-modal).
+- In that modal's `Purchase by serial` table, columns are `Serial # | Purchase | Receipt date | Supplier order`. `Latest` marks the newest receipt batch and red `Reserved` marks units already bound on another order. Serials bound only on the opened card stay unmarked. Supplier-order number is clickable (opens the related supplier-order modal) and has the hover copy icon. Same rules: [WAREHOUSE_FLOW.md §4.4](./WAREHOUSE_FLOW.md#44-product-model-detail-modal).
 - Serial binding/removal controls keep their existing behavior and are separate from opening the product model modal.
 - **Serial bind modal** (Products action column → `Serials`): warehouse dropdown + `Auto-select oldest` (oldest `purchaseDate`, fallback `createdAt`, selected warehouse only, up to line qty). Occupancy spec: [WAREHOUSE_FLOW.md §4.3.0](./WAREHOUSE_FLOW.md#430-bind-modal-occupancy-opened-repair-and-sale-cards). Changing warehouse clears selections not visible in the new warehouse.
 

@@ -36,6 +36,7 @@ import { Button } from '../../../../shared/ui/Button';
 import { Modal } from '../../../../shared/ui/Modal';
 import { PageHeader } from '../../../../shared/ui/PageHeader';
 import { StatusBadge } from '../../../../shared/ui/StatusBadge';
+import { CopyableValue } from '../../../../shared/ui/CopyableValue';
 import { PhoneNumber } from '../shared/PhoneNumber';
 import { ClientsWorkspace } from './ClientsWorkspace';
 import { SupplierEditorModal } from './SupplierEditorModal';
@@ -1196,7 +1197,11 @@ const SuppliersTable = ({
                   className='clients-table-row'
                   onClick={() => onOpenEditModal(supplier)}
                 >
-                  <td data-label={columns.name}>{supplier.name}</td>
+                  <td data-label={columns.name}>
+                    <CopyableValue value={supplier.name}>
+                      {supplier.name}
+                    </CopyableValue>
+                  </td>
                   <td data-label={columns.status}>
                     <StatusBadge
                       tone={supplier.isActive ? 'success' : 'gray'}
@@ -1209,12 +1214,14 @@ const SuppliersTable = ({
                   </td>
                   <td data-label={columns.phone}>
                     {phone ? (
-                      <a
-                        href={`tel:${phone}`}
-                        onClick={(event) => event.stopPropagation()}
-                      >
-                        <PhoneNumber value={phone} />
-                      </a>
+                      <CopyableValue value={phone}>
+                        <a
+                          href={`tel:${phone}`}
+                          onClick={(event) => event.stopPropagation()}
+                        >
+                          <PhoneNumber value={phone} />
+                        </a>
+                      </CopyableValue>
                     ) : (
                       '-'
                     )}

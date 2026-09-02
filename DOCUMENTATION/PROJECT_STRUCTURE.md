@@ -111,6 +111,7 @@ frontend/
 - `src/entities/` - доменные сущности, API-модули, типы и UI-компоненты
 - `src/shared/` - переиспользуемая инфраструктура: стили, утилиты, HTTP-слой
 - `src/shared/lib/buildInfo.ts` - метка версии frontend-сборки (`getBuildSha`, `getBuildLabel`); см. [BUILD_VERSION_SPEC.md](./BUILD_VERSION_SPEC.md)
+- `src/shared/ui/CopyableValue.tsx` — hover copy icon for table values; `src/shared/lib/clipboard.ts` — clipboard helper. Spec: [UI_DESIGN_SYSTEM.md — Hover copy icon](./UI_DESIGN_SYSTEM.md#hover-copy-icon)
 
 ## Структурные соглашения
 
@@ -218,7 +219,8 @@ ui/
 |     `- PrinterIcon.tsx
 |- product-catalog/            # каталог товаров (Product List)
 |  |- ProductCatalogPanel.tsx
-|  |- ProductCatalogTables.tsx
+|  |- ProductCatalogTables.tsx  # name copy all tabs; Suppliers phone copy
+|  |- CatalogCopyableName.tsx
 |  `- product-catalog-shared.tsx
 |- settings/                   # настройки, сотрудники, конструктор печати
 |  |- SettingsPanel.tsx

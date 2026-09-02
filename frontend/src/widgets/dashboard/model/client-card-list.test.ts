@@ -142,6 +142,44 @@ describe('filterClientHistoryRows', () => {
     );
     expect(filtered.map((s) => s.id)).toEqual(['s2']);
   });
+
+  it('matches Orders search by device name, not service lines', () => {
+    const repair = baseSale({
+      id: 'r1',
+      kind: 'repair',
+      recordNumber: 'r000770',
+      product: {
+        id: 'device-1',
+        article: '',
+        name: 'Dell monitor',
+        serialNumber: '',
+      },
+      lineItems: [
+        {
+          id: 'l-service',
+          kind: 'service',
+          name: 'BIOS flash',
+          price: 400,
+          quantity: 1,
+          warrantyPeriod: 0,
+        },
+      ],
+    });
+
+    const byDevice = filterClientHistoryRows(
+      [repair],
+      { query: 'dell', status: 'all', dateFrom: '', dateTo: '' },
+      'orders',
+    );
+    expect(byDevice.map((s) => s.id)).toEqual(['r1']);
+
+    const byService = filterClientHistoryRows(
+      [repair],
+      { query: 'BIOS', status: 'all', dateFrom: '', dateTo: '' },
+      'orders',
+    );
+    expect(byService).toEqual([]);
+  });
 });
 
 describe('collectHistoryStatuses', () => {

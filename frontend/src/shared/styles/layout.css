@@ -175,7 +175,7 @@
 }
 
 .catalog-col-phone {
-  width: 160px;
+  width: 190px;
 }
 
 .catalog-table-row {
@@ -251,57 +251,96 @@
   text-decoration: underline;
 }
 
+.copyable-value {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  min-width: 0;
+  vertical-align: middle;
+}
+
+.copyable-value-content {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  flex: 0 1 auto;
+  max-width: 100%;
+}
+
+.copyable-value-copy,
 .catalog-name-copy-button {
   box-sizing: border-box;
   flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
-  min-width: 28px;
-  min-height: 28px;
+  width: 0;
+  height: 22px;
+  min-width: 0;
+  min-height: 22px;
   padding: 0;
-  border: 1px solid var(--color-line-panel);
+  margin: 0;
+  border: 1px solid transparent;
   border-radius: 6px;
   background: var(--bg-surface-subtle);
   color: var(--color-text-body-strong);
   cursor: pointer;
   opacity: 0;
+  overflow: hidden;
   pointer-events: none;
-  transition: opacity 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+  transition:
+    opacity 0.12s ease,
+    width 0.12s ease,
+    min-width 0.12s ease,
+    border-color 0.12s ease,
+    color 0.12s ease;
 }
 
+.copyable-value:hover .copyable-value-copy,
+.copyable-value:focus-within .copyable-value-copy,
 .catalog-name-cell:hover .catalog-name-copy-button,
-.catalog-name-cell:focus-within .catalog-name-copy-button {
+.catalog-name-cell:focus-within .catalog-name-copy-button,
+.copyable-value-copy.copyable-value-copy-success,
+.catalog-name-copy-button-success,
+.copyable-value-copy:focus-visible,
+.catalog-name-copy-button:focus-visible {
+  width: 22px;
+  min-width: 22px;
   opacity: 1;
+  overflow: visible;
   pointer-events: auto;
+  border-color: var(--color-line-panel);
 }
 
 @media (hover: none) {
+  .copyable-value-copy,
   .catalog-name-copy-button {
+    width: 22px;
+    min-width: 22px;
     opacity: 1;
+    overflow: visible;
     pointer-events: auto;
+    border-color: var(--color-line-panel);
   }
 }
 
+.copyable-value-copy:hover,
 .catalog-name-copy-button:hover {
   border-color: var(--color-primary);
   color: var(--color-primary);
 }
 
+.copyable-value-copy:focus-visible,
 .catalog-name-copy-button:focus-visible {
-  opacity: 1;
-  pointer-events: auto;
   outline: none;
   box-shadow: var(--focus-ring);
 }
 
+.copyable-value-copy-success,
 .catalog-name-copy-button-success {
   border-color: var(--color-success);
   color: var(--color-success);
-  opacity: 1;
-  pointer-events: auto;
 }
 
 .catalog-inactive-badge {
@@ -716,19 +755,39 @@
 
 .product-model-serial-purchases-table {
   margin: 0;
+  width: 100%;
+  min-width: 0;
 }
 
 .product-model-serial-purchases-table th,
 .product-model-serial-purchases-table td {
-  padding: 8px 10px;
-  font-size: 0.86rem;
+  padding: 4px 8px 4px 6px;
+  font-size: 0.78rem;
   white-space: nowrap;
+  width: 1%;
+  min-width: 0;
 }
 
-.product-model-serial-purchases-table th:nth-child(2),
-.product-model-serial-purchases-table td:nth-child(2) {
-  min-width: 120px;
-  white-space: normal;
+.product-model-serial-purchases-table th:nth-child(3),
+.product-model-serial-purchases-table td:nth-child(3),
+.product-model-serial-purchases-table th:nth-child(4),
+.product-model-serial-purchases-table td:nth-child(4),
+.product-model-serial-purchases-table th:nth-child(5),
+.product-model-serial-purchases-table td:nth-child(5) {
+  font-variant-numeric: tabular-nums;
+}
+
+.product-model-serial-purchases-table th:last-child,
+.product-model-serial-purchases-table td:last-child {
+  width: auto;
+}
+
+.product-model-serial-purchases-table .copyable-value {
+  max-width: 100%;
+}
+
+.product-model-serial-empty {
+  color: var(--text-soft);
 }
 
 .product-model-serial-cell {
@@ -741,8 +800,8 @@
 .product-model-latest-batch-badge,
 .product-model-reserved-badge {
   border-radius: 999px;
-  padding: 2px 8px;
-  font-size: 0.72rem;
+  padding: 1px 6px;
+  font-size: 0.68rem;
   font-weight: 800;
   line-height: 1.2;
 }
@@ -3808,7 +3867,8 @@ select.line-item-inline-input {
   overflow: auto;
 }
 
-.modal-backdrop:has(.unbound-serial-issue-modal) {
+.modal-backdrop:has(.unbound-serial-issue-modal),
+.modal-backdrop:has(.supplier-order-modal) {
   z-index: 110;
 }
 

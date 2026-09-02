@@ -13,6 +13,7 @@ import type { Product } from '../../../../entities/product/model/types';
 import type { Sale } from '../../../../entities/sale/model/types';
 import { getOrderLink } from '../../../../pages/dashboard/model/dashboard-navigation';
 import { formatCurrency, formatDate } from '../../../../shared/lib/format';
+import { CopyableValue } from '../../../../shared/ui/CopyableValue';
 import { SelectableActionLink } from '../../../../shared/ui/SelectableActionLink';
 import { TableSkeleton } from '../../../../shared/ui/TableSkeleton';
 import { TruncatedTextTooltip } from '../../../../shared/ui/TruncatedTextTooltip';
@@ -193,15 +194,17 @@ export const ReceiptsTable = ({
             canManageSupplierOrders={canManageSupplierOrders}
             onToggleFavorite={onToggleFavorite}
           />
-          <button
-            type='button'
-            className='catalog-name-button warehouse-cell-truncate'
-            onClick={() => onOpenOrder(receipt)}
-          >
-            <TruncatedCell text={receipt.number}>
-              {receipt.number}
-            </TruncatedCell>
-          </button>
+          <CopyableValue value={receipt.number}>
+            <button
+              type='button'
+              className='catalog-name-button warehouse-cell-truncate'
+              onClick={() => onOpenOrder(receipt)}
+            >
+              <TruncatedCell text={receipt.number}>
+                {receipt.number}
+              </TruncatedCell>
+            </button>
+          </CopyableValue>
         </div>
       );
     }
@@ -362,13 +365,15 @@ export const ReceiptsTable = ({
             canManageSupplierOrders={canManageSupplierOrders}
             onToggleFavorite={onToggleFavorite}
           />
-          <button
-            type='button'
-            className='catalog-name-button warehouse-cell-truncate'
-            onClick={() => onOpenOrder(first)}
-          >
-            <TruncatedCell text={first.number}>{first.number}</TruncatedCell>
-          </button>
+          <CopyableValue value={first.number}>
+            <button
+              type='button'
+              className='catalog-name-button warehouse-cell-truncate'
+              onClick={() => onOpenOrder(first)}
+            >
+              <TruncatedCell text={first.number}>{first.number}</TruncatedCell>
+            </button>
+          </CopyableValue>
         </div>
       );
     }
@@ -822,12 +827,14 @@ export const StockTable = ({
               {options?.expanded ? '\u25BE' : '\u25B8'}
             </button>
           ) : null}
-          <SelectableActionLink
-            className='settings-link-button warehouse-cell-truncate'
-            onAction={() => onOpenModel(product)}
-          >
-            <TruncatedCell text={product.name}>{product.name}</TruncatedCell>
-          </SelectableActionLink>
+          <CopyableValue value={product.name}>
+            <SelectableActionLink
+              className='settings-link-button warehouse-cell-truncate'
+              onAction={() => onOpenModel(product)}
+            >
+              <TruncatedCell text={product.name}>{product.name}</TruncatedCell>
+            </SelectableActionLink>
+          </CopyableValue>
           {isGroup ? (
             <span className='warehouse-data-badge warehouse-data-badge-location'>
               {t('warehouse.tables.receipts.quantityPcs', {
@@ -841,14 +848,16 @@ export const StockTable = ({
     if (columnKey === 'serial') {
       if (isGroup) return <EmptyValue />;
       return (
-        <SelectableActionLink
-          className='settings-link-button warehouse-cell-truncate'
-          onAction={() => onOpenSerial(product)}
-        >
-          <TruncatedCell text={product.serialNumber}>
-            {product.serialNumber}
-          </TruncatedCell>
-        </SelectableActionLink>
+        <CopyableValue value={product.serialNumber}>
+          <SelectableActionLink
+            className='settings-link-button warehouse-cell-truncate'
+            onAction={() => onOpenSerial(product)}
+          >
+            <TruncatedCell text={product.serialNumber}>
+              {product.serialNumber}
+            </TruncatedCell>
+          </SelectableActionLink>
+        </CopyableValue>
       );
     }
     if (columnKey === 'article') {

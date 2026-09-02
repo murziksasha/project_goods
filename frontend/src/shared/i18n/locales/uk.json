@@ -57,6 +57,9 @@
     "saving": "Збереження...",
     "export": "Експорт",
     "exporting": "Експорт...",
+    "copy": "Копіювати",
+    "copied": "Скопійовано",
+    "copyFailed": "Не вдалося скопіювати",
     "pagination": {
       "previousPage": "Попередня сторінка",
       "nextPage": "Наступна сторінка",
@@ -1542,7 +1545,7 @@
       "searchAriaLabel": "Пошук у списку клієнта",
       "clearSearchAriaLabel": "Очистити текст пошуку",
       "searchPlaceholder": {
-        "orders": "Пошук за номером, послугою, статусом",
+        "orders": "Пошук за номером, пристроєм, статусом",
         "sales": "Пошук за номером, товаром, статусом",
         "devices": "Пошук за назвою, приміткою"
       },
@@ -1601,7 +1604,7 @@
         "columns": {
           "number": "№",
           "date": "Дата",
-          "service": "Послуга",
+          "device": "Пристрій",
           "sale": "Продаж",
           "status": "Статус",
           "amount": "Сума"
@@ -2604,7 +2607,10 @@
       },
       "selectAllServices": "Вибрати всі послуги",
       "selectService": "Вибрати {{name}}",
-      "inactiveBadge": "Неактивний"
+      "inactiveBadge": "Неактивний",
+      "copyName": "Копіювати назву",
+      "copied": "Скопійовано",
+      "copyFailed": "Не вдалося скопіювати"
     },
     "modals": {
       "close": "Закрити",
@@ -2682,6 +2688,7 @@
       "latestBatchSummary": "Остання партія: {{price}} · {{date}}",
       "serialNumber": "Серійний №",
       "purchaseDate": "Дата прийому",
+      "supplierOrder": "Замовлення постачальника",
       "serialMissing": "Без серійного №",
       "latestBatchBadge": "Остання",
       "reservedBadge": "Резерв",

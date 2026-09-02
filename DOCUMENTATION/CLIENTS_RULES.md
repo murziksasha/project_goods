@@ -39,6 +39,7 @@ Related: [ORDER_FLOW.md](./ORDER_FLOW.md) · [SALE_FLOW.md](./SALE_FLOW.md) · [
 - Tab strip uses dedicated `clients-card-tabs` styles (sale-card related-tabs pattern), not body-only scroll content.
 - Layout shell is 3 rows (`header` + scrollable `body` + optional `footer` on Main). Tabs live in the header extra row so they stay visible while the body scrolls.
 - Clients / Suppliers list tables lead with **Name** (no truncated `Id` column). ID remains in the Filter drawer.
+- Hover on **Name** and **Phone** in both `Clients & suppliers` list tables shows a copy icon. Only the icon copies; row click still opens the card and phone `tel:` stays on the number. The client card header phone (blue `tel:` link) uses the same icon. Catalog **Products & Services → Suppliers** phone is the same control (that table lives in the catalog, not this workspace). Spec: [UI_DESIGN_SYSTEM.md — Hover copy icon](./UI_DESIGN_SYSTEM.md#hover-copy-icon).
 - Status select on Main stores the raw value: `-` (`''`, auto) plus pinned `ok` / `opt` / `vip` / `blacklist`. It must not bind to effective status. Auto mode shows `Auto: {effective}` (status words stay English per the localization rule above).
 - Responsive:
   - tabs scroll horizontally on narrow widths;
@@ -46,7 +47,11 @@ Related: [ORDER_FLOW.md](./ORDER_FLOW.md) · [SALE_FLOW.md](./SALE_FLOW.md) · [
   - history table becomes label/value cards under ~720px (same pattern as other orders tables);
   - modal uses `100dvh` / full-width near phone widths so content is not clipped.
 - Default tab on open: `Main`. Last tab is persisted in `localStorage` (`project-goods.client-card-tab`); legacy `services` migrates to `orders`.
-- On `Orders` / `Sales`, row click or order number opens that sale/order card for the client.
+- On `Orders`, the item column is **Device** (repair device name from the sale `product` snapshot / product line). It must not list service line items.
+- On `Sales`, the item column remains **Sale** (product line items).
+- Search on `Orders` matches number, device, and status (placeholder: “Search by number, device, status”).
+- On `Orders` / `Sales`, row click or a plain left-click on the number opens that sale/order card in-app (closes the client modal).
+- Order/sale numbers are real links (`<a href={getOrderLink(id, kind)}>`) so the browser context menu offers **Open link in new tab**. Middle-click / Ctrl+click opens the deep link in a new tab. Spec: [BROWSER_NAVIGATION.md](./BROWSER_NAVIGATION.md).
 - On `Orders` / `Sales`, total is inline next to the phone (`label — amount`); the list starts directly below.
 - `Client devices` lists active `Clients goods` records for the selected client only.
 - Each device row shows device name, note, activity, and an `Unbind` action.

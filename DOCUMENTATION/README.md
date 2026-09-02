@@ -18,6 +18,7 @@ One topic → one source of truth. Other files **link**, they do not copy the ru
 | Clients | [CLIENTS_RULES.md](./CLIENTS_RULES.md) | — |
 | Employees / RBAC | [EMPLOYEES_SPEC.md](./EMPLOYEES_SPEC.md) | [Permission_Flow.md](./Permission_Flow.md) |
 | Settings | [SETTINGS_SPEC.md](./SETTINGS_SPEC.md) | [PRINT_FORMS_SPEC.md](./PRINT_FORMS_SPEC.md), [BUSINESS_DASHBOARD.md](./BUSINESS_DASHBOARD.md) |
+| Hover copy icon (tables) | [UI_DESIGN_SYSTEM.md — Hover copy icon](./UI_DESIGN_SYSTEM.md#hover-copy-icon) | Orders, Sales, Supplier Order, warehouse, clients, catalog Suppliers phone |
 
 ## 1. Start here
 
@@ -37,7 +38,7 @@ One topic → one source of truth. Other files **link**, they do not copy the ru
 - [Permission_Flow.md](./Permission_Flow.md) — roles and permission keys
 - [BROWSER_NAVIGATION.md](./BROWSER_NAVIGATION.md) — History API, URL params
 - [BUILD_VERSION_SPEC.md](./BUILD_VERSION_SPEC.md) — build SHA
-- [UI_DESIGN_SYSTEM.md](./UI_DESIGN_SYSTEM.md) — tokens, breakpoints
+- [UI_DESIGN_SYSTEM.md](./UI_DESIGN_SYSTEM.md) — tokens, breakpoints, [hover copy icon](./UI_DESIGN_SYSTEM.md#hover-copy-icon)
 - [DATA_RETENTION.md](./DATA_RETENTION.md) — hot/cold sales, finance snapshots
 
 ## 3. Orders and sales
@@ -54,7 +55,7 @@ One topic → one source of truth. Other files **link**, they do not copy the ru
 - [WAREHOUSE_FLOW.md](./WAREHOUSE_FLOW.md) — stock models/units, receipts, transfers, information, occupancy, labels
 - [SERIAL_NUMBER_SEQUENCE_SPEC.md](./SERIAL_NUMBER_SEQUENCE_SPEC.md) — `S000001` assignment on receipt
 - [PRINT_FORMS_SPEC.md](./PRINT_FORMS_SPEC.md) — print templates
-- [CATALOG_PRODUCT_CREATE_MODAL_SPEC.md](./CATALOG_PRODUCT_CREATE_MODAL_SPEC.md) — Product List modal (not stock)
+- [CATALOG_PRODUCT_CREATE_MODAL_SPEC.md](./CATALOG_PRODUCT_CREATE_MODAL_SPEC.md) — Product List modal (not stock); catalog list hover-copy (Suppliers phone)
 
 ## 5. Procurement, finance, people, home
 

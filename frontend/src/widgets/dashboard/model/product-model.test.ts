@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import type { Product } from '../../../entities/product/model/types';
+import type { SupplierOrder } from '../../../entities/supplier-order/model/types';
 import type { WarehouseItem } from '../../../entities/warehouse-settings/model/types';
-import type { StockSaleLink } from './stock-balance';
+import {
+  buildSupplierOrdersByProductId,
+  type StockSaleLink,
+} from './stock-balance';
 import {
   aggregateProductModelStock,
   buildProductModelSavePayload,
@@ -193,6 +197,7 @@ describe('product model aggregation', () => {
         purchaseDate: '2026-03-15',
         isLatestBatch: true,
         isReserved: false,
+        supplierOrderNumber: '',
       },
       {
         productId: 'p-new-2',
@@ -201,6 +206,7 @@ describe('product model aggregation', () => {
         purchaseDate: '2026-03-15',
         isLatestBatch: true,
         isReserved: false,
+        supplierOrderNumber: '',
       },
       {
         productId: 'p-old-1',
@@ -209,6 +215,7 @@ describe('product model aggregation', () => {
         purchaseDate: '2026-01-10',
         isLatestBatch: false,
         isReserved: false,
+        supplierOrderNumber: '',
       },
       {
         productId: 'p-old-2',
@@ -217,6 +224,7 @@ describe('product model aggregation', () => {
         purchaseDate: '2026-01-10',
         isLatestBatch: false,
         isReserved: false,
+        supplierOrderNumber: '',
       },
     ]);
   });
@@ -306,6 +314,112 @@ describe('product model aggregation', () => {
       { productId: 'p-here', isReserved: false },
       { productId: 'p-other', isReserved: true },
     ]);
+  });
+
+  it('attaches supplier order numbers from exact product provenance', () => {
+    const products = [
+      {
+        ...baseProduct,
+        id: 'p-linked',
+        serialNumber: 'S-linked',
+        supplierOrderId: 'so-1',
+        supplierOrderItemIndex: 1,
+      },
+      {
+        ...baseProduct,
+        id: 'p-legacy',
+        serialNumber: 'S-legacy',
+      },
+    ];
+    const supplierOrder: SupplierOrder = {
+      id: 'so-1',
+      orderBaseId: 'SO-1',
+      supplierId: 'supplier-1',
+      supplierName: 'Linked supplier',
+      deliveryDate: '2026-01-01T00:00:00.000Z',
+      supplyType: 'Local',
+      number: 'SO-1',
+      note: '',
+      createdBy: 'Owner',
+      status: 'stocked',
+      paymentStatus: 'pending',
+      receiptStatus: 'received',
+      total: 100,
+      paid: 0,
+      isFavorite: false,
+      items: [
+        {
+          lineId: 'line-1',
+          itemIndex: 0,
+          productName: 'Other item',
+          quantity: 1,
+          price: 50,
+          receiptStatus: 'received',
+        },
+        {
+          lineId: 'line-2',
+          itemIndex: 1,
+          productName: 'Mi Box S Gen 3',
+          quantity: 1,
+          price: 100,
+          receiptStatus: 'received',
+        },
+      ],
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    };
+    const links = buildSupplierOrdersByProductId({
+      products,
+      supplierOrders: [supplierOrder],
+    });
+
+    expect(
+      buildProductModelSerialPurchases(products, new Set(), links).map(
+        (row) => ({
+          productId: row.productId,
+          supplierOrderId: row.supplierOrderId,
+          supplierOrderItemIndex: row.supplierOrderItemIndex,
+          supplierOrderNumber: row.supplierOrderNumber,
+        }),
+      ),
+    ).toEqual([
+      {
+        productId: 'p-legacy',
+        supplierOrderNumber: '',
+      },
+      {
+        productId: 'p-linked',
+        supplierOrderId: 'so-1',
+        supplierOrderItemIndex: 1,
+        supplierOrderNumber: 'SO-1-2',
+      },
+    ]);
+  });
+
+  it('leaves supplier order empty when provenance points at a missing item', () => {
+    const products = [
+      {
+        ...baseProduct,
+        id: 'p-missing',
+        serialNumber: 'S-missing',
+        supplierOrderId: 'so-missing',
+        supplierOrderItemIndex: 0,
+      },
+    ];
+
+    expect(
+      buildProductModelSerialPurchases(
+        products,
+        new Set(),
+        buildSupplierOrdersByProductId({
+          products,
+          supplierOrders: [],
+        }),
+      )[0],
+    ).toMatchObject({
+      productId: 'p-missing',
+      supplierOrderNumber: '',
+    });
   });
 
   it('maps occupied serials onto matching product ids', () => {

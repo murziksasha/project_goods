@@ -95,7 +95,7 @@
       "columns": {
         "number": "№",
         "date": "Дата",
-        "service": "Послуга",
+        "device": "Пристрій",
         "sale": "Продаж",
         "status": "Статус",
         "amount": "Сума"
