@@ -3,6 +3,7 @@ import {
   useMemo,
   useState,
   type Dispatch,
+  type MouseEvent as ReactMouseEvent,
   type SetStateAction,
 } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -55,6 +56,14 @@ import { hasDuplicatePhones } from '../../../../shared/lib/phones';
 import { PhonesField } from '../../../../shared/ui/PhonesField';
 import { Modal } from '../../../../shared/ui/Modal';
 import { CompactPaginationPanel } from '../../../../shared/ui/PaginationPanel';
+import { getOrderLink } from '../../../../pages/dashboard/model/dashboard-navigation';
+
+const isPlainLeftClick = (event: ReactMouseEvent<HTMLAnchorElement>) =>
+  event.button === 0 &&
+  !event.metaKey &&
+  !event.ctrlKey &&
+  !event.shiftKey &&
+  !event.altKey;
 
 type ClientCardModalProps = {
   activeHistoryRows: Sale[];
@@ -958,7 +967,7 @@ const ClientHistoryTable = ({
   const { t } = useTranslation();
   const itemColumnLabel =
     tab === 'orders'
-      ? t('clients.card.history.columns.service')
+      ? t('clients.card.history.columns.device')
       : t('clients.card.history.columns.sale');
 
   return (
@@ -981,16 +990,18 @@ const ClientHistoryTable = ({
               onClick={() => onOpenSaleCard(sale)}
             >
               <td data-label={t('clients.card.history.columns.number')}>
-                <button
-                  type='button'
+                <a
                   className='order-number-button'
+                  href={getOrderLink(sale.id, sale.kind)}
                   onClick={(event) => {
                     event.stopPropagation();
+                    if (!isPlainLeftClick(event)) return;
+                    event.preventDefault();
                     onOpenSaleCard(sale);
                   }}
                 >
                   {sale.recordNumber ?? sale.id.slice(-6)}
-                </button>
+                </a>
               </td>
               <td data-label={t('clients.card.history.columns.date')}>
                 {formatDateTime(sale.saleDate)}

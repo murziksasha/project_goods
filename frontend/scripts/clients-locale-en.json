@@ -95,7 +95,7 @@
       "columns": {
         "number": "No.",
         "date": "Date",
-        "service": "Service",
+        "device": "Device",
         "sale": "Sale",
         "status": "Status",
         "amount": "Amount"

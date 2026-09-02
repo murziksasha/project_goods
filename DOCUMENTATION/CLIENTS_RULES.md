@@ -47,7 +47,11 @@ Related: [ORDER_FLOW.md](./ORDER_FLOW.md) · [SALE_FLOW.md](./SALE_FLOW.md) · [
   - history table becomes label/value cards under ~720px (same pattern as other orders tables);
   - modal uses `100dvh` / full-width near phone widths so content is not clipped.
 - Default tab on open: `Main`. Last tab is persisted in `localStorage` (`project-goods.client-card-tab`); legacy `services` migrates to `orders`.
-- On `Orders` / `Sales`, row click or order number opens that sale/order card for the client.
+- On `Orders`, the item column is **Device** (repair device name from the sale `product` snapshot / product line). It must not list service line items.
+- On `Sales`, the item column remains **Sale** (product line items).
+- Search on `Orders` matches number, device, and status (placeholder: “Search by number, device, status”).
+- On `Orders` / `Sales`, row click or a plain left-click on the number opens that sale/order card in-app (closes the client modal).
+- Order/sale numbers are real links (`<a href={getOrderLink(id, kind)}>`) so the browser context menu offers **Open link in new tab**. Middle-click / Ctrl+click opens the deep link in a new tab. Spec: [BROWSER_NAVIGATION.md](./BROWSER_NAVIGATION.md).
 - On `Orders` / `Sales`, total is inline next to the phone (`label — amount`); the list starts directly below.
 - `Client devices` lists active `Clients goods` records for the selected client only.
 - Each device row shows device name, note, activity, and an `Unbind` action.

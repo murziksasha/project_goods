@@ -1545,7 +1545,7 @@
       "searchAriaLabel": "Search in client list",
       "clearSearchAriaLabel": "Clear search text",
       "searchPlaceholder": {
-        "orders": "Search by number, service, status",
+        "orders": "Search by number, device, status",
         "sales": "Search by number, product, status",
         "devices": "Search by name, note"
       },
@@ -1604,7 +1604,7 @@
         "columns": {
           "number": "No.",
           "date": "Date",
-          "service": "Service",
+          "device": "Device",
           "sale": "Sale",
           "status": "Status",
           "amount": "Amount"

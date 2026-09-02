@@ -31,6 +31,7 @@ Related: [ORDER_CARD.md](./ORDER_CARD.md) · [SALE_FLOW.md](./SALE_FLOW.md) · [
 - Left-click navigation inside the dashboard (sidebar, orders tabs, open/close cards) uses client-side History API (`pushState`) and does **not** reload the page.
 - Browser **Back** / **Forward** restore the previous in-app view (page, tab, open card) from the URL query string.
 - Opening an order/sale card from the orders workspace, client card, or warehouse stock table updates `saleId` in the URL and pushes a history entry; closing the card clears `saleId` so Back can reopen the card.
+- Client card `Orders` / `Sales` numbers are real `getOrderLink()` hrefs. Left click opens the card in-app (closes the client modal). Right-click / middle-click / Ctrl+click opens a new browser tab. Spec: [BROWSER_NAVIGATION.md](./BROWSER_NAVIGATION.md) · [CLIENTS_RULES.md](./CLIENTS_RULES.md).
 - Create-order `Client requests` links remain `target="_blank"` (new tab) — they are intentionally outside the in-app history stack.
 - URL helpers: `getOrderLink()` / `buildDashboardHref()` in `frontend/src/pages/dashboard/model/dashboard-navigation.ts`.
 - See [BROWSER_NAVIGATION.md](./BROWSER_NAVIGATION.md).
