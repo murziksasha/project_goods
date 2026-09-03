@@ -127,6 +127,7 @@ On **Back / Forward**, the URL is authoritative. `localStorage` must not overrid
 - **Left click** opens the order/sale card inside the SPA (`onOpenSaleCard` → `navigateTo()`), closing the client modal — no full page reload.
 - **Right-click** shows the native browser “Open link in new tab”. **Middle click / Ctrl+click** opens the deep-link URL in a new tab (`?page=orders&ordersTab=...&saleId=...`).
 - Number-cell clicks always `stopPropagation` so a modified click does not also fire the row handler in the current tab.
+- Hover copy icon on the number copies the visible `recordNumber` and does not navigate. Spec: [UI_DESIGN_SYSTEM.md — Hover copy icon](./UI_DESIGN_SYSTEM.md#hover-copy-icon).
 
 ### Accounting
 

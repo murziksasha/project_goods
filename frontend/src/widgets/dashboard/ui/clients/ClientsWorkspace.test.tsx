@@ -454,7 +454,7 @@ describe('ClientsWorkspace', () => {
 
     fireEvent.click(screen.getByText('Ivan Petrenko'));
     fireEvent.click(screen.getByRole('tab', { name: 'Sales' }));
-    fireEvent.click(screen.getByRole('button', { name: 'r000001' }));
+    fireEvent.click(screen.getByRole('link', { name: 'r000001' }));
 
     expect(onOpenSaleCard).toHaveBeenCalledWith(sale);
     expect(onSelectClient).toHaveBeenLastCalledWith(null);
@@ -529,16 +529,16 @@ describe('ClientsWorkspace', () => {
     const dialog = screen.getByRole('dialog');
     const card = within(dialog);
 
-    expect(card.getByRole('button', { name: 'r000001' })).toBeInTheDocument();
-    expect(card.getByRole('button', { name: 'r000010' })).toBeInTheDocument();
-    expect(card.queryByRole('button', { name: 'r000011' })).not.toBeInTheDocument();
+    expect(card.getByRole('link', { name: 'r000001' })).toBeInTheDocument();
+    expect(card.getByRole('link', { name: 'r000010' })).toBeInTheDocument();
+    expect(card.queryByRole('link', { name: 'r000011' })).not.toBeInTheDocument();
     expect(card.getByLabelText('1 / 2')).toBeInTheDocument();
 
     fireEvent.click(card.getByRole('button', { name: 'Next page' }));
 
-    expect(card.queryByRole('button', { name: 'r000001' })).not.toBeInTheDocument();
-    expect(card.getByRole('button', { name: 'r000011' })).toBeInTheDocument();
-    expect(card.getByRole('button', { name: 'r000012' })).toBeInTheDocument();
+    expect(card.queryByRole('link', { name: 'r000001' })).not.toBeInTheDocument();
+    expect(card.getByRole('link', { name: 'r000011' })).toBeInTheDocument();
+    expect(card.getByRole('link', { name: 'r000012' })).toBeInTheDocument();
   });
 
   it('filters client sales history by search query', () => {
@@ -598,8 +598,8 @@ describe('ClientsWorkspace', () => {
       target: { value: 'Battery' },
     });
 
-    expect(screen.queryByRole('button', { name: 'r000010' })).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'r000020' })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'r000010' })).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'r000020' })).toBeInTheDocument();
   });
 
   it('filters client devices by search query', () => {

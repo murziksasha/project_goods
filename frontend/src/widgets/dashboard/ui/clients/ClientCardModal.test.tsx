@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import * as clipboard from '../../../../shared/lib/clipboard';
 import type { Client } from '../../../../entities/client/model/types';
@@ -103,6 +103,7 @@ const productSale = historySale({
       price: 400,
       quantity: 1,
       warrantyPeriod: 0,
+      serialNumbers: ['S000533'],
     },
   ],
 });
@@ -202,9 +203,10 @@ describe('ClientCardModal', () => {
     expect(screen.getByRole('columnheader', { name: 'Device' })).toBeInTheDocument();
     expect(screen.queryByRole('columnheader', { name: 'Service' })).not.toBeInTheDocument();
     expect(
-      screen.getByPlaceholderText('Search by number, device, status'),
+      screen.getByPlaceholderText('Search by number, device, serial, status'),
     ).toBeInTheDocument();
     expect(screen.getByText('Dell monitor')).toBeInTheDocument();
+    expect(screen.getByText('S/N: SN-1')).toBeInTheDocument();
     expect(screen.queryByText(/BIOS flash/)).not.toBeInTheDocument();
 
     const numberLink = screen.getByRole('link', { name: 'r000770' });
@@ -262,6 +264,100 @@ describe('ClientCardModal', () => {
 
     fireEvent.click(numberLink);
     expect(onOpenSaleCard).toHaveBeenCalledWith(productSale);
+  });
+
+  it('copies the history order number from the hover icon without opening the card', async () => {
+    const onOpenSaleCard = vi.fn();
+    const copySpy = vi
+      .spyOn(clipboard, 'copyTextToClipboard')
+      .mockResolvedValue(true);
+
+    renderCard({
+      clientCardTab: 'orders',
+      activeHistoryRows: [repairSale],
+      onOpenSaleCard,
+    });
+
+    const numberCopy = within(
+      screen.getByRole('link', { name: 'r000770' }).closest(
+        '.copyable-value',
+      ) as HTMLElement,
+    ).getByRole('button', { name: 'Copy' });
+    fireEvent.click(numberCopy);
+
+    await waitFor(() => {
+      expect(copySpy).toHaveBeenCalledWith('r000770');
+    });
+    expect(onOpenSaleCard).not.toHaveBeenCalled();
+  });
+
+  it('copies history serials from the hover icon without opening the card', async () => {
+    const onOpenSaleCard = vi.fn();
+    const copySpy = vi
+      .spyOn(clipboard, 'copyTextToClipboard')
+      .mockResolvedValue(true);
+
+    renderCard({
+      clientCardTab: 'orders',
+      activeHistoryRows: [repairSale],
+      onOpenSaleCard,
+    });
+
+    const serialCopy = within(
+      screen.getByText('S/N: SN-1').closest('.copyable-value') as HTMLElement,
+    ).getByRole('button', { name: 'Copy' });
+    fireEvent.click(serialCopy);
+
+    await waitFor(() => {
+      expect(copySpy).toHaveBeenCalledWith('SN-1');
+    });
+    expect(onOpenSaleCard).not.toHaveBeenCalled();
+  });
+
+  it('copies bound sale serials on the Sales tab', async () => {
+    const onOpenSaleCard = vi.fn();
+    const copySpy = vi
+      .spyOn(clipboard, 'copyTextToClipboard')
+      .mockResolvedValue(true);
+
+    renderCard({
+      clientCardTab: 'sales',
+      activeHistoryRows: [productSale],
+      onOpenSaleCard,
+    });
+
+    expect(screen.getByText('S/N: S000533')).toBeInTheDocument();
+    const serialCopy = within(
+      screen.getByText('S/N: S000533').closest('.copyable-value') as HTMLElement,
+    ).getByRole('button', { name: 'Copy' });
+    fireEvent.click(serialCopy);
+
+    await waitFor(() => {
+      expect(copySpy).toHaveBeenCalledWith('S000533');
+    });
+    expect(onOpenSaleCard).not.toHaveBeenCalled();
+  });
+
+  it('hides the serial copy control when the serial is empty', () => {
+    renderCard({
+      clientCardTab: 'orders',
+      activeHistoryRows: [
+        historySale({
+          id: 'sale-repair-empty',
+          recordNumber: 'r000771',
+          kind: 'repair',
+          product: {
+            id: 'device-2',
+            article: '',
+            name: 'Old TV',
+            serialNumber: '',
+          },
+        }),
+      ],
+    });
+
+    expect(screen.getByText('Old TV')).toBeInTheDocument();
+    expect(screen.queryByText(/S\/N:/)).not.toBeInTheDocument();
   });
 });
 

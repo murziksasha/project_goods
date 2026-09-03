@@ -33,6 +33,7 @@ import { CopyableValue } from '../../../../shared/ui/CopyableValue';
 import { PhoneNumber } from '../shared/PhoneNumber';
 import { formatDateTime } from '../../../../shared/lib/format';
 import {
+  collectClientHistorySerials,
   formatClientIncome,
   getClientSaleIncome,
   formatItemList,
@@ -955,6 +956,30 @@ const ClientDevicesTable = ({
   );
 };
 
+const ClientHistoryItemCell = ({
+  sale,
+  tab,
+}: {
+  sale: Sale;
+  tab: ClientCardTab;
+}) => {
+  const { t } = useTranslation();
+  const serials = collectClientHistorySerials(sale, tab);
+
+  return (
+    <div className='clients-history-items'>
+      <span>{formatItemList(sale, tab)}</span>
+      {serials.map((serial) => (
+        <span key={serial} className='clients-history-item-serial'>
+          <CopyableValue value={serial}>
+            {t('orders.toolbar.serialPrefix', { serial })}
+          </CopyableValue>
+        </span>
+      ))}
+    </div>
+  );
+};
+
 const ClientHistoryTable = ({
   rows,
   tab,
@@ -990,24 +1015,28 @@ const ClientHistoryTable = ({
               onClick={() => onOpenSaleCard(sale)}
             >
               <td data-label={t('clients.card.history.columns.number')}>
-                <a
-                  className='order-number-button'
-                  href={getOrderLink(sale.id, sale.kind)}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    if (!isPlainLeftClick(event)) return;
-                    event.preventDefault();
-                    onOpenSaleCard(sale);
-                  }}
+                <CopyableValue
+                  value={sale.recordNumber ?? sale.id.slice(-6)}
                 >
-                  {sale.recordNumber ?? sale.id.slice(-6)}
-                </a>
+                  <a
+                    className='order-number-button'
+                    href={getOrderLink(sale.id, sale.kind)}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      if (!isPlainLeftClick(event)) return;
+                      event.preventDefault();
+                      onOpenSaleCard(sale);
+                    }}
+                  >
+                    {sale.recordNumber ?? sale.id.slice(-6)}
+                  </a>
+                </CopyableValue>
               </td>
               <td data-label={t('clients.card.history.columns.date')}>
                 {formatDateTime(sale.saleDate)}
               </td>
               <td data-label={itemColumnLabel}>
-                {formatItemList(sale, tab)}
+                <ClientHistoryItemCell sale={sale} tab={tab} />
               </td>
               <td data-label={t('clients.card.history.columns.status')}>
                 {sale.status}

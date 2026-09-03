@@ -43,6 +43,8 @@ Specs:
 - Product grouping: `order-line-item-groups.test.ts` (card key + print key with price); `OrderDetailCard.test.tsx` (collapsed `×N` groups); `orders-workspace-shared.test.tsx` (print `products_table` / invoice merge-vs-split).
 - Product model serial table: `product-model.test.ts` (latest batch, reserved-on-other-sale, supplier-order provenance); `ProductModelModal.test.tsx` (Latest / Reserved badges, serial + supplier-order hover copy, empty `—`). Nested modal Escape: `Modal.test.tsx`.
 - Warehouse stock table: `WarehouseTables.test.tsx` (name/serial/client-order/supplier-order hover copy; badge click still opens).
+- Supplier Order table: `SupplierOrdersWorkspaceSections.test.tsx` (number + product + supplier hover copy; parent `N items` / child `—` have no product/supplier icon; click still opens).
+- Client card history: `ClientCardModal.test.tsx` (Orders/Sales number + serial hover copy; empty serial has no icon; number click still opens).
 - Split workspace shells: `OrdersWorkspaceListHeader`, `OrdersWorkspaceTableSection`, `OrdersWorkspaceModals`.
 - Query migration regression: `useDashboardPage.invalidation.test.ts` asserts `queryKeys` invalidation contract.
 

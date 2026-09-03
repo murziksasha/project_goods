@@ -118,7 +118,7 @@ Shared control: [`frontend/src/shared/ui/CopyableValue.tsx`](../frontend/src/sha
 
 | Value | Copied text |
 | --- | --- |
-| Name, serial, order number | Visible string |
+| Name, serial, order number, product, supplier | Visible string |
 | Phone | Stored canonical value (`+380…`), not the grouped display |
 
 ### Surfaces
@@ -126,12 +126,13 @@ Shared control: [`frontend/src/shared/ui/CopyableValue.tsx`](../frontend/src/sha
 | Place | Hover targets | Wiring |
 | --- | --- | --- |
 | `Orders` / `Sales` tables | Order number, client phone | `OrdersWorkspace.tsx` |
-| `Supplier Order` table | Order number (parent and child) | `SupplierOrdersWorkspaceSections.tsx` |
+| `Supplier Order` table | Order number (parent and child), Product, Supplier (not collapsed `N items` / child `—`) | `SupplierOrdersWorkspaceSections.tsx` |
 | Warehouse `Receipts` | Order number (lines + grouped parent) | `WarehouseTables.tsx` |
 | Warehouse `Stock balances` | Name, Serial #, Client order, Supplier order (**not** Article / Note) | `WarehouseTables.tsx` |
 | Product model modal `Purchase by serial` | Serial #, Supplier order number (order click still opens `SupplierOrderModal`; Latest/Reserved stay outside the serial copy target) | `ProductModelModal.tsx` |
 | `Clients & suppliers` → Clients / Suppliers | Name, phone | `ClientsTable.tsx`, `ClientsSuppliersWorkspace.tsx` |
 | Client card header | Blue `tel:` phone | `ClientCardModal.tsx` |
+| Client card `Orders` / `Sales` | Order/sale number, device / product serial (`S/N:` line; icon copies the serial). Number click still opens the card | `ClientCardModal.tsx` |
 | Products & Services → Client devices / Products / Services | Name | `CatalogCopyableName` in `ProductCatalogTables.tsx` |
 | Products & Services → **Suppliers** | Name **and** phone (`tel:` stays on the number; icon copies; row click still opens the supplier) | `ProductCatalogTables.tsx` `SuppliersTable` |
 
@@ -140,7 +141,6 @@ Shared control: [`frontend/src/shared/ui/CopyableValue.tsx`](../frontend/src/sha
 - Product model modal title copy (separate `.product-model-copy-button` control)
 - Warehouse Stock `Article` / `Note`
 - Employee phones
-- Client-card history order numbers
 - Kanban cards
 
 Domain links: [ORDER_FLOW.md](./ORDER_FLOW.md) · [SALE_FLOW.md](./SALE_FLOW.md) · [SUPPLIER_ORDER_FLOW.md](./SUPPLIER_ORDER_FLOW.md) · [WAREHOUSE_FLOW.md](./WAREHOUSE_FLOW.md) · [CLIENTS_RULES.md](./CLIENTS_RULES.md) · [CATALOG_PRODUCT_CREATE_MODAL_SPEC.md](./CATALOG_PRODUCT_CREATE_MODAL_SPEC.md)

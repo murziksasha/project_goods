@@ -180,6 +180,52 @@ describe('filterClientHistoryRows', () => {
     );
     expect(byService).toEqual([]);
   });
+
+  it('matches Orders and Sales search by serial', () => {
+    const repair = baseSale({
+      id: 'r-serial',
+      kind: 'repair',
+      recordNumber: 'r000771',
+      product: {
+        id: 'device-1',
+        article: '',
+        name: 'Dell monitor',
+        serialNumber: 'SN-DEVICE',
+      },
+      lineItems: [],
+    });
+    const sale = baseSale({
+      id: 's-serial',
+      recordNumber: 's000534',
+      lineItems: [
+        {
+          id: 'l-serial',
+          kind: 'product',
+          name: 'TV box',
+          price: 100,
+          quantity: 1,
+          warrantyPeriod: 0,
+          serialNumbers: ['S000680'],
+        },
+      ],
+    });
+
+    expect(
+      filterClientHistoryRows(
+        [repair, sale],
+        { query: 'sn-device', status: 'all', dateFrom: '', dateTo: '' },
+        'orders',
+      ).map((row) => row.id),
+    ).toEqual(['r-serial']);
+
+    expect(
+      filterClientHistoryRows(
+        [repair, sale],
+        { query: 's000680', status: 'all', dateFrom: '', dateTo: '' },
+        'sales',
+      ).map((row) => row.id),
+    ).toEqual(['s-serial']);
+  });
 });
 
 describe('collectHistoryStatuses', () => {
