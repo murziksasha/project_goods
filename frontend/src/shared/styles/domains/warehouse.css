@@ -414,6 +414,21 @@
   vertical-align: middle;
 }
 
+.warehouse-stock-cell-clientOrder .copyable-value,
+.warehouse-stock-cell-supplierOrder .copyable-value {
+  max-width: 100%;
+}
+
+.warehouse-stock-cell-clientOrder .copyable-value-content,
+.warehouse-stock-cell-supplierOrder .copyable-value-content {
+  overflow: hidden;
+}
+
+.warehouse-stock-cell-clientOrder .warehouse-link-badge,
+.warehouse-stock-cell-supplierOrder .warehouse-link-badge {
+  min-width: 0;
+}
+
 .warehouse-stock-cell-note {
   width: 160px;
   min-width: 160px;

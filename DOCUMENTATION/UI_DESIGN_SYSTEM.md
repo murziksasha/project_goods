@@ -128,7 +128,7 @@ Shared control: [`frontend/src/shared/ui/CopyableValue.tsx`](../frontend/src/sha
 | `Orders` / `Sales` tables | Order number, client phone | `OrdersWorkspace.tsx` |
 | `Supplier Order` table | Order number (parent and child) | `SupplierOrdersWorkspaceSections.tsx` |
 | Warehouse `Receipts` | Order number (lines + grouped parent) | `WarehouseTables.tsx` |
-| Warehouse `Stock balances` | Name, Serial # (**not** Article) | `WarehouseTables.tsx` |
+| Warehouse `Stock balances` | Name, Serial #, Client order, Supplier order (**not** Article / Note) | `WarehouseTables.tsx` |
 | Product model modal `Purchase by serial` | Supplier order number (click still opens `SupplierOrderModal`) | `ProductModelModal.tsx` |
 | `Clients & suppliers` → Clients / Suppliers | Name, phone | `ClientsTable.tsx`, `ClientsSuppliersWorkspace.tsx` |
 | Client card header | Blue `tel:` phone | `ClientCardModal.tsx` |
