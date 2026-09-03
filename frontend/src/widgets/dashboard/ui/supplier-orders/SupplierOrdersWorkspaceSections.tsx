@@ -520,7 +520,10 @@ export const SupplierOrdersTable = ({
                     </td>
                   ) : null}
                   {visibleColumns.includes('product') ? (
-                    <td data-label={t('orders.supplier.columns.product')}>
+                    <td
+                      className='supplier-order-product-cell'
+                      data-label={t('orders.supplier.columns.product')}
+                    >
                       {isParent && summary ? (
                         <span className='supplier-order-items-summary'>
                           {t('orders.supplier.table.itemsCount', {
@@ -528,19 +531,21 @@ export const SupplierOrdersTable = ({
                           })}
                         </span>
                       ) : item ? (
-                        <button
-                          type='button'
-                          className={`catalog-name-button${
-                            item.receiptStatus === 'cancelled'
-                              ? ' supplier-order-item-cancelled'
-                              : ''
-                          }`}
-                          onClick={() => openProductCatalog(item)}
-                        >
-                          <TruncatedTextTooltip text={item.productName}>
-                            {item.productName}
-                          </TruncatedTextTooltip>
-                        </button>
+                        <CopyableValue value={item.productName}>
+                          <button
+                            type='button'
+                            className={`catalog-name-button${
+                              item.receiptStatus === 'cancelled'
+                                ? ' supplier-order-item-cancelled'
+                                : ''
+                            }`}
+                            onClick={() => openProductCatalog(item)}
+                          >
+                            <TruncatedTextTooltip text={item.productName}>
+                              {item.productName}
+                            </TruncatedTextTooltip>
+                          </button>
+                        </CopyableValue>
                       ) : null}
                     </td>
                   ) : null}
@@ -586,34 +591,39 @@ export const SupplierOrdersTable = ({
                     </td>
                   ) : null}
                   {visibleColumns.includes('supplier') ? (
-                    <td data-label={t('orders.supplier.columns.supplier')}>
+                    <td
+                      className='supplier-order-supplier-cell'
+                      data-label={t('orders.supplier.columns.supplier')}
+                    >
                       {isChild ? (
                         notApplicableLabel
                       ) : (
-                        <button
-                          type='button'
-                          className='catalog-name-button'
-                          onClick={() => {
-                            const matchedSupplier = suppliers.find(
-                              (supplier) => supplier.id === order.supplierId,
-                            );
-                            if (!matchedSupplier) {
-                              onError(
-                                t('orders.supplier.messages.errors.supplierNotFound'),
+                        <CopyableValue value={order.supplierName}>
+                          <button
+                            type='button'
+                            className='catalog-name-button'
+                            onClick={() => {
+                              const matchedSupplier = suppliers.find(
+                                (supplier) => supplier.id === order.supplierId,
                               );
-                              return;
-                            }
-                            if (!canManageSupplierOrders) {
-                              onError(
-                                t('orders.supplier.messages.errors.noManagePermission'),
-                              );
-                              return;
-                            }
-                            onOpenSupplier(matchedSupplier);
-                          }}
-                        >
-                          {order.supplierName}
-                        </button>
+                              if (!matchedSupplier) {
+                                onError(
+                                  t('orders.supplier.messages.errors.supplierNotFound'),
+                                );
+                                return;
+                              }
+                              if (!canManageSupplierOrders) {
+                                onError(
+                                  t('orders.supplier.messages.errors.noManagePermission'),
+                                );
+                                return;
+                              }
+                              onOpenSupplier(matchedSupplier);
+                            }}
+                          >
+                            {order.supplierName}
+                          </button>
+                        </CopyableValue>
                       )}
                     </td>
                   ) : null}

@@ -4336,6 +4336,27 @@ button.payment-summary-discount-badge:hover:not(:disabled) {
   min-width: max-content;
 }
 
+.supplier-order-product-cell .copyable-value,
+.supplier-order-supplier-cell .copyable-value {
+  display: flex;
+  width: 100%;
+  max-width: 100%;
+}
+
+.supplier-order-product-cell .copyable-value-content,
+.supplier-order-supplier-cell .copyable-value-content {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.supplier-order-product-cell .catalog-name-button,
+.supplier-order-supplier-cell .catalog-name-button {
+  display: block;
+  min-width: 0;
+  max-width: 100%;
+}
+
 .supplier-order-number-button {
   border: 0;
   background: transparent;

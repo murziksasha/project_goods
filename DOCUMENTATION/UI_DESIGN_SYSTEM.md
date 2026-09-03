@@ -118,7 +118,7 @@ Shared control: [`frontend/src/shared/ui/CopyableValue.tsx`](../frontend/src/sha
 
 | Value | Copied text |
 | --- | --- |
-| Name, serial, order number | Visible string |
+| Name, serial, order number, product, supplier | Visible string |
 | Phone | Stored canonical value (`+380…`), not the grouped display |
 
 ### Surfaces
@@ -126,7 +126,7 @@ Shared control: [`frontend/src/shared/ui/CopyableValue.tsx`](../frontend/src/sha
 | Place | Hover targets | Wiring |
 | --- | --- | --- |
 | `Orders` / `Sales` tables | Order number, client phone | `OrdersWorkspace.tsx` |
-| `Supplier Order` table | Order number (parent and child) | `SupplierOrdersWorkspaceSections.tsx` |
+| `Supplier Order` table | Order number (parent and child), Product, Supplier (not collapsed `N items` / child `—`) | `SupplierOrdersWorkspaceSections.tsx` |
 | Warehouse `Receipts` | Order number (lines + grouped parent) | `WarehouseTables.tsx` |
 | Warehouse `Stock balances` | Name, Serial #, Client order, Supplier order (**not** Article / Note) | `WarehouseTables.tsx` |
 | Product model modal `Purchase by serial` | Serial #, Supplier order number (order click still opens `SupplierOrderModal`; Latest/Reserved stay outside the serial copy target) | `ProductModelModal.tsx` |

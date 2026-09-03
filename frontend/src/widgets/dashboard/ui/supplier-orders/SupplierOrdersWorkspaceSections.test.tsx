@@ -1,8 +1,39 @@
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import * as clipboard from '../../../../shared/lib/clipboard';
+import type { CatalogProduct } from '../../../../entities/catalog-product/model/types';
+import type { Supplier } from '../../../../entities/supplier/model/types';
 import type { SupplierOrder } from '../../../../entities/supplier-order/model/types';
+import type { SupplierOrdersColumnKey } from '../../model/supplier-orders-workspace';
+import * as clipboard from '../../../../shared/lib/clipboard';
 import { SupplierOrdersTable } from './SupplierOrdersWorkspaceSections';
+
+const catalogProduct: CatalogProduct = {
+  id: 'cat-1',
+  name: 'Type C cable',
+  note: '',
+  isActive: true,
+  sourceTags: [],
+  lastSeenAt: '2026-05-19T00:00:00.000Z',
+  createdAt: '2026-05-19T00:00:00.000Z',
+  updatedAt: '2026-05-19T00:00:00.000Z',
+};
+
+const supplier: Supplier = {
+  id: 'sup-1',
+  name: 'Parts Hub',
+  phone: '+380501111111',
+  phones: ['+380501111111'],
+  supplierOrder: '',
+  note: '',
+  isActive: true,
+  createdAt: '2026-05-19T00:00:00.000Z',
+  updatedAt: '2026-05-19T00:00:00.000Z',
+};
+
+const copyButtonFor = (text: string) =>
+  within(
+    screen.getByText(text).closest('.copyable-value') as HTMLElement,
+  ).getByRole('button', { name: 'Copy' });
 
 const makeOrder = (patch: Partial<SupplierOrder> = {}): SupplierOrder => ({
   id: 'so-1',
@@ -38,12 +69,25 @@ const makeOrder = (patch: Partial<SupplierOrder> = {}): SupplierOrder => ({
 const renderTable = ({
   order = makeOrder(),
   expandedOrderIds = new Set<string>(),
+  catalogProducts = [] as CatalogProduct[],
+  suppliers = [] as Supplier[],
+  visibleColumns = [
+    'number',
+    'product',
+    'status',
+    'paymentStatus',
+  ] as SupplierOrdersColumnKey[],
   onToggleFavorite = vi.fn(),
   onEditOrder = vi.fn(),
   onToggleOrderExpanded = vi.fn(),
+  onOpenCatalogProduct = vi.fn(),
+  onOpenSupplier = vi.fn(),
 }: {
   order?: SupplierOrder;
   expandedOrderIds?: Set<string>;
+  catalogProducts?: CatalogProduct[];
+  suppliers?: Supplier[];
+  visibleColumns?: SupplierOrdersColumnKey[];
   onToggleFavorite?: (order: SupplierOrder) => void;
   onEditOrder?: (
     order: SupplierOrder,
@@ -51,10 +95,12 @@ const renderTable = ({
     itemIndex: number | null,
   ) => void;
   onToggleOrderExpanded?: (orderId: string) => void;
+  onOpenCatalogProduct?: (product: CatalogProduct) => void;
+  onOpenSupplier?: (nextSupplier: Supplier) => void;
 } = {}) => {
   render(
     <SupplierOrdersTable
-      catalogProducts={[]}
+      catalogProducts={catalogProducts}
       expandedOrderIds={expandedOrderIds}
       filteredOrdersCount={1}
       totals={{
@@ -69,14 +115,14 @@ const renderTable = ({
       page={1}
       pageSize={30}
       paginatedOrders={[order]}
-      suppliers={[]}
-      visibleColumns={['number', 'product', 'status', 'paymentStatus']}
+      suppliers={suppliers}
+      visibleColumns={visibleColumns}
       canViewSupplierOrders
       canManageSupplierOrders
       onError={vi.fn()}
       onEditOrder={onEditOrder}
-      onOpenCatalogProduct={vi.fn()}
-      onOpenSupplier={vi.fn()}
+      onOpenCatalogProduct={onOpenCatalogProduct}
+      onOpenSupplier={onOpenSupplier}
       onToggleFavorite={onToggleFavorite}
       onToggleOrderExpanded={onToggleOrderExpanded}
       onOpenStatusOrder={vi.fn()}
@@ -89,6 +135,7 @@ const renderTable = ({
 describe('SupplierOrdersTable', () => {
   afterEach(() => {
     cleanup();
+    vi.restoreAllMocks();
   });
 
   it('renders active and inactive star state', () => {
@@ -362,7 +409,7 @@ describe('SupplierOrdersTable', () => {
     const copySpy = vi
       .spyOn(clipboard, 'copyTextToClipboard')
       .mockResolvedValue(true);
-    fireEvent.click(screen.getAllByRole('button', { name: 'Copy' })[0]);
+    fireEvent.click(copyButtonFor('SO-MULTI'));
     await waitFor(() => {
       expect(copySpy).toHaveBeenCalledWith('SO-MULTI');
     });
@@ -477,5 +524,169 @@ describe('SupplierOrdersTable', () => {
     expect(document.querySelector('.orders-money-unpaid')).toBeTruthy();
     expect(screen.getByText('1 orders')).toBeTruthy();
     expect(screen.getByText(/Outstanding/)).toBeTruthy();
+  });
+
+  it('copies product and supplier from the hover icon without opening cards', async () => {
+    const onOpenCatalogProduct = vi.fn();
+    const onOpenSupplier = vi.fn();
+    const copySpy = vi
+      .spyOn(clipboard, 'copyTextToClipboard')
+      .mockResolvedValue(true);
+
+    renderTable({
+      catalogProducts: [catalogProduct],
+      suppliers: [supplier],
+      visibleColumns: ['number', 'product', 'supplier'],
+      onOpenCatalogProduct,
+      onOpenSupplier,
+    });
+
+    fireEvent.click(copyButtonFor('Type C cable'));
+    await waitFor(() => {
+      expect(copySpy).toHaveBeenCalledWith('Type C cable');
+    });
+
+    fireEvent.click(copyButtonFor('Parts Hub'));
+    await waitFor(() => {
+      expect(copySpy).toHaveBeenCalledWith('Parts Hub');
+    });
+    expect(onOpenCatalogProduct).not.toHaveBeenCalled();
+    expect(onOpenSupplier).not.toHaveBeenCalled();
+  });
+
+  it('keeps product and supplier click flows', () => {
+    const onOpenCatalogProduct = vi.fn();
+    const onOpenSupplier = vi.fn();
+
+    renderTable({
+      catalogProducts: [catalogProduct],
+      suppliers: [supplier],
+      visibleColumns: ['number', 'product', 'supplier'],
+      onOpenCatalogProduct,
+      onOpenSupplier,
+    });
+
+    fireEvent.click(screen.getByText('Type C cable'));
+    fireEvent.click(screen.getByText('Parts Hub'));
+
+    expect(onOpenCatalogProduct).toHaveBeenCalledWith(catalogProduct);
+    expect(onOpenSupplier).toHaveBeenCalledWith(supplier);
+  });
+
+  it('hides product and supplier copy controls when the value is empty', () => {
+    renderTable({
+      order: makeOrder({
+        supplierName: '   ',
+        items: [
+          {
+            lineId: 'line-1',
+            itemIndex: 0,
+            catalogProductId: 'cat-1',
+            productName: '   ',
+            quantity: 5,
+            price: 100,
+          },
+        ],
+      }),
+      visibleColumns: ['number', 'product', 'supplier'],
+    });
+
+    expect(
+      within(
+        document.querySelector('.supplier-order-product-cell') as HTMLElement,
+      ).queryByRole('button', { name: 'Copy' }),
+    ).toBeNull();
+    expect(
+      within(
+        document.querySelector('.supplier-order-supplier-cell') as HTMLElement,
+      ).queryByRole('button', { name: 'Copy' }),
+    ).toBeNull();
+  });
+
+  it('does not copy the collapsed multi-item product summary', () => {
+    const order = makeOrder({
+      id: 'so-multi',
+      number: 'SO-MULTI',
+      items: [
+        {
+          lineId: 'line-1',
+          itemIndex: 0,
+          productName: 'Cable',
+          quantity: 1,
+          price: 10,
+        },
+        {
+          lineId: 'line-2',
+          itemIndex: 1,
+          productName: 'Adapter',
+          quantity: 2,
+          price: 20,
+        },
+      ],
+    });
+
+    renderTable({
+      order,
+      visibleColumns: ['number', 'product', 'supplier'],
+    });
+
+    expect(screen.getByText('2 items')).toBeInTheDocument();
+    expect(
+      document.querySelector('.supplier-order-product-cell .copyable-value'),
+    ).toBeNull();
+    expect(copyButtonFor('SO-MULTI')).toBeInTheDocument();
+    expect(copyButtonFor('Parts Hub')).toBeInTheDocument();
+  });
+
+  it('copies expanded child product names and skips child supplier placeholders', async () => {
+    const copySpy = vi
+      .spyOn(clipboard, 'copyTextToClipboard')
+      .mockResolvedValue(true);
+    const order = makeOrder({
+      id: 'so-multi',
+      number: 'SO-MULTI',
+      items: [
+        {
+          lineId: 'line-1',
+          itemIndex: 0,
+          productName: 'Cable',
+          quantity: 1,
+          price: 10,
+        },
+        {
+          lineId: 'line-2',
+          itemIndex: 1,
+          productName: 'Adapter',
+          quantity: 2,
+          price: 20,
+        },
+      ],
+    });
+
+    renderTable({
+      order,
+      expandedOrderIds: new Set(['so-multi']),
+      visibleColumns: ['number', 'product', 'supplier'],
+    });
+
+    fireEvent.click(copyButtonFor('Cable'));
+    await waitFor(() => {
+      expect(copySpy).toHaveBeenCalledWith('Cable');
+    });
+    fireEvent.click(copyButtonFor('Adapter'));
+    await waitFor(() => {
+      expect(copySpy).toHaveBeenCalledWith('Adapter');
+    });
+
+    const childSupplierCells = document.querySelectorAll(
+      '.supplier-order-group-child .supplier-order-supplier-cell',
+    );
+    expect(childSupplierCells).toHaveLength(2);
+    childSupplierCells.forEach((cell) => {
+      expect(cell).toHaveTextContent('—');
+      expect(
+        within(cell as HTMLElement).queryByRole('button', { name: 'Copy' }),
+      ).toBeNull();
+    });
   });
 });
