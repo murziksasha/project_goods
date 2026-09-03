@@ -9,7 +9,10 @@ import {
   normalizeClientPhoneIdentity,
 } from '../../../entities/client/lib/phone-match';
 import type { Sale } from '../../../entities/sale/model/types';
-import { getSaleProductName } from '../../../entities/sale/lib/sale-product';
+import {
+  getSaleProductName,
+  getSaleProductSerialNumber,
+} from '../../../entities/sale/lib/sale-product';
 import { getEffectiveClientStatusLogic } from '../../../entities/client/model/constants';
 import { formatCurrency } from '../../../shared/lib/format';
 import i18n from '../../../shared/i18n/config';
@@ -230,6 +233,42 @@ export const getLegacyClientAddress = (client: Client) =>
   client.address ||
   getMetaFieldFromNote(client.note, 'Address') ||
   getMetaFieldFromNoteLegacy(client.note, 'Address');
+
+const uniqueHistorySerials = (values: Array<string | undefined | null>) => {
+  const seen = new Set<string>();
+  const serials: string[] = [];
+
+  values.forEach((value) => {
+    const serial = (value ?? '').trim();
+    if (!serial) return;
+    const key = serial.toUpperCase();
+    if (key === 'REPAIR-PLACEHOLDER' || seen.has(key)) return;
+    seen.add(key);
+    serials.push(serial);
+  });
+
+  return serials;
+};
+
+export const collectClientHistorySerials = (
+  sale: Sale,
+  tab: ClientCardTab,
+): string[] => {
+  if (tab === 'orders') {
+    return uniqueHistorySerials([getSaleProductSerialNumber(sale)]);
+  }
+
+  const productLines = (sale.lineItems ?? []).filter(
+    (item) => item.kind === 'product',
+  );
+  if (productLines.length > 0) {
+    return uniqueHistorySerials(
+      productLines.flatMap((item) => item.serialNumbers ?? []),
+    );
+  }
+
+  return uniqueHistorySerials([getSaleProductSerialNumber(sale)]);
+};
 
 export const formatItemList = (sale: Sale, tab: ClientCardTab) => {
   if (tab === 'orders') {

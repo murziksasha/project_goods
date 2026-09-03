@@ -132,6 +132,7 @@ Shared control: [`frontend/src/shared/ui/CopyableValue.tsx`](../frontend/src/sha
 | Product model modal `Purchase by serial` | Serial #, Supplier order number (order click still opens `SupplierOrderModal`; Latest/Reserved stay outside the serial copy target) | `ProductModelModal.tsx` |
 | `Clients & suppliers` → Clients / Suppliers | Name, phone | `ClientsTable.tsx`, `ClientsSuppliersWorkspace.tsx` |
 | Client card header | Blue `tel:` phone | `ClientCardModal.tsx` |
+| Client card `Orders` / `Sales` | Order/sale number, device / product serial (`S/N:` line; icon copies the serial). Number click still opens the card | `ClientCardModal.tsx` |
 | Products & Services → Client devices / Products / Services | Name | `CatalogCopyableName` in `ProductCatalogTables.tsx` |
 | Products & Services → **Suppliers** | Name **and** phone (`tel:` stays on the number; icon copies; row click still opens the supplier) | `ProductCatalogTables.tsx` `SuppliersTable` |
 
@@ -140,7 +141,6 @@ Shared control: [`frontend/src/shared/ui/CopyableValue.tsx`](../frontend/src/sha
 - Product model modal title copy (separate `.product-model-copy-button` control)
 - Warehouse Stock `Article` / `Note`
 - Employee phones
-- Client-card history order numbers
 - Kanban cards
 
 Domain links: [ORDER_FLOW.md](./ORDER_FLOW.md) · [SALE_FLOW.md](./SALE_FLOW.md) · [SUPPLIER_ORDER_FLOW.md](./SUPPLIER_ORDER_FLOW.md) · [WAREHOUSE_FLOW.md](./WAREHOUSE_FLOW.md) · [CLIENTS_RULES.md](./CLIENTS_RULES.md) · [CATALOG_PRODUCT_CREATE_MODAL_SPEC.md](./CATALOG_PRODUCT_CREATE_MODAL_SPEC.md)

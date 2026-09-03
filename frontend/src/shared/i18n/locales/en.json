@@ -1545,8 +1545,8 @@
       "searchAriaLabel": "Search in client list",
       "clearSearchAriaLabel": "Clear search text",
       "searchPlaceholder": {
-        "orders": "Search by number, device, status",
-        "sales": "Search by number, product, status",
+        "orders": "Search by number, device, serial, status",
+        "sales": "Search by number, product, serial, status",
         "devices": "Search by name, note"
       },
       "filters": {

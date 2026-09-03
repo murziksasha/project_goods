@@ -49,7 +49,10 @@ Related: [ORDER_FLOW.md](./ORDER_FLOW.md) · [SALE_FLOW.md](./SALE_FLOW.md) · [
 - Default tab on open: `Main`. Last tab is persisted in `localStorage` (`project-goods.client-card-tab`); legacy `services` migrates to `orders`.
 - On `Orders`, the item column is **Device** (repair device name from the sale `product` snapshot / product line). It must not list service line items.
 - On `Sales`, the item column remains **Sale** (product line items).
-- Search on `Orders` matches number, device, and status (placeholder: “Search by number, device, status”).
+- On `Orders` / `Sales`, hover on the order/sale number (`r000768`) shows a copy icon. Only the icon copies; a plain left-click on the number still opens the card. Spec: [UI_DESIGN_SYSTEM.md — Hover copy icon](./UI_DESIGN_SYSTEM.md#hover-copy-icon).
+- On `Orders` / `Sales`, a bound serial shows as `S/N: {serial}` under the item names. Hover on that serial shows a copy icon. Only the icon copies the serial (`SN-1`, not the `S/N:` prefix). Empty / whitespace / repair-placeholder serials have no line and no icon. Row click still opens the sale/order card. Spec: [UI_DESIGN_SYSTEM.md — Hover copy icon](./UI_DESIGN_SYSTEM.md#hover-copy-icon).
+- Search on `Orders` matches number, device, serial, and status (placeholder: “Search by number, device, serial, status”).
+- Search on `Sales` matches number, product, serial, and status (placeholder: “Search by number, product, serial, status”).
 - On `Orders` / `Sales`, row click or a plain left-click on the number opens that sale/order card in-app (closes the client modal).
 - Order/sale numbers are real links (`<a href={getOrderLink(id, kind)}>`) so the browser context menu offers **Open link in new tab**. Middle-click / Ctrl+click opens the deep link in a new tab. Spec: [BROWSER_NAVIGATION.md](./BROWSER_NAVIGATION.md).
 - On `Orders` / `Sales`, total is inline next to the phone (`label — amount`); the list starts directly below.

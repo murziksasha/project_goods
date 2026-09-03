@@ -362,6 +362,10 @@
   white-space: nowrap;
 }
 
+.clients-card-table td:nth-child(1) .copyable-value {
+  max-width: 100%;
+}
+
 .clients-card-table td:nth-child(3) {
   white-space: normal;
   max-width: 28ch;
@@ -383,6 +387,24 @@
 
 .clients-history-row {
   cursor: pointer;
+}
+
+.clients-history-items {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.clients-history-item-serial {
+  display: block;
+  min-width: 0;
+  color: var(--color-text-body);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.clients-history-item-serial .copyable-value {
+  max-width: 100%;
 }
 
 .clients-status-hint {
