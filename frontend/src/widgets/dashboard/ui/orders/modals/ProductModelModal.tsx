@@ -548,8 +548,10 @@ export const ProductModelModal = ({
                               </td>
                               <td>
                                 <span className='product-model-serial-cell'>
-                                  {row.serialNumber ||
-                                    t('catalog.productModel.serialMissing')}
+                                  <CopyableValue value={row.serialNumber}>
+                                    {row.serialNumber ||
+                                      t('catalog.productModel.serialMissing')}
+                                  </CopyableValue>
                                   {row.isLatestBatch ? (
                                     <span className='product-model-latest-batch-badge'>
                                       {t('catalog.productModel.latestBatchBadge')}

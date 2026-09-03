@@ -920,48 +920,55 @@ export const StockTable = ({
     }
     if (columnKey === 'clientOrder') {
       if (linkedSales.length === 0) return <EmptyValue />;
-      return linkedSales.map((sale, index) => (
-        <span key={`${product.id}-sale-${sale.id}`}>
-          {index > 0 ? ', ' : null}
-          <a
-            className='warehouse-link-badge'
-            href={getOrderLink(sale.id, sale.kind)}
-            onClick={(event) => {
-              if (
-                event.button !== 0 ||
-                event.metaKey ||
-                event.ctrlKey ||
-                event.shiftKey ||
-                event.altKey
-              ) {
-                return;
-              }
-              event.preventDefault();
-              onOpenSaleCard?.(sale);
-            }}
-          >
-            {sale.recordNumber || sale.id.slice(0, 8)}
-          </a>
-        </span>
-      ));
+      return linkedSales.map((sale, index) => {
+        const label = sale.recordNumber || sale.id.slice(0, 8);
+        return (
+          <Fragment key={`${product.id}-sale-${sale.id}`}>
+            {index > 0 ? ', ' : null}
+            <CopyableValue value={label}>
+              <a
+                className='warehouse-link-badge'
+                href={getOrderLink(sale.id, sale.kind)}
+                onClick={(event) => {
+                  if (
+                    event.button !== 0 ||
+                    event.metaKey ||
+                    event.ctrlKey ||
+                    event.shiftKey ||
+                    event.altKey
+                  ) {
+                    return;
+                  }
+                  event.preventDefault();
+                  onOpenSaleCard?.(sale);
+                }}
+              >
+                {label}
+              </a>
+            </CopyableValue>
+          </Fragment>
+        );
+      });
     }
     if (columnKey === 'supplierOrder') {
       if (linkedSupplierOrders.length === 0) return <EmptyValue />;
       return linkedSupplierOrders.map((order, index) => (
-        <span
+        <Fragment
           key={`${product.id}-supplier-${order.order.id}-${order.itemIndex}`}
         >
           {index > 0 ? ', ' : null}
-          <button
-            type='button'
-            className='warehouse-link-badge'
-            onClick={() =>
-              onOpenSupplierOrder(order.order.id, order.itemIndex)
-            }
-          >
-            {order.displayNumber}
-          </button>
-        </span>
+          <CopyableValue value={order.displayNumber}>
+            <button
+              type='button'
+              className='warehouse-link-badge'
+              onClick={() =>
+                onOpenSupplierOrder(order.order.id, order.itemIndex)
+              }
+            >
+              {order.displayNumber}
+            </button>
+          </CopyableValue>
+        </Fragment>
       ));
     }
     if (columnKey === 'supplier') {

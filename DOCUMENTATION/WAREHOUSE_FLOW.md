@@ -12,6 +12,12 @@ This document defines current warehouse requirements for stock balances, receipt
 - Column `Client order` renders linked sale/order numbers with a shareable `href` built via `getOrderLink(saleId, kind)`.
 - **Left click** opens the order/sale card inside the SPA (`navigateTo` / `pushState`) — no full page reload; browser Back returns to the warehouse view.
 - **Middle click / Ctrl+click** opens the deep-link URL in a new tab (full SPA load with `?page=orders&ordersTab=...&saleId=...`).
+- Hover on the badge shows a copy icon. Only the icon copies the visible number (`recordNumber`, else `sale.id` first 8 chars). Badge click stays the SPA / new-tab flow. Spec: [UI_DESIGN_SYSTEM.md — Hover copy icon](./UI_DESIGN_SYSTEM.md#hover-copy-icon).
+
+### Supplier order links (Stock balances)
+- Column `Supplier order` renders unit-level provenance badges (`displayNumber`, e.g. `SO-1` or `SO-1-2`).
+- **Click** opens `SupplierOrderModal` (item-scoped).
+- Hover on the badge shows a copy icon. Only the icon copies the visible `displayNumber`. Spec: [UI_DESIGN_SYSTEM.md — Hover copy icon](./UI_DESIGN_SYSTEM.md#hover-copy-icon).
 
 ## Stock Balances Requirements
 
@@ -100,7 +106,7 @@ This document defines current warehouse requirements for stock balances, receipt
 3. `Name` is resizable from the header handle; width is stored on this device only (see 4.4.2)
 4. rows use compact spacing for dense scanning; truncated cells show a hover tooltip
 5. `Warehouse` and `Location` are displayed as readable badges; warehouse badge uses the service-center color when set
-6. `Client order` and `Supplier order` links are displayed as compact badges
+6. `Client order` and `Supplier order` links are displayed as compact badges. Hover shows a copy icon; only the icon copies the visible number. Badge click still opens the sale/order card or supplier-order modal.
 7. `Note` is a compact single-line column; long text is truncated with ellipsis and exposes the full note in the native hover tooltip
 8. `Action` is a kebab menu (`⋮`) with `Transfer` (when a transfer handler is provided) and `Delete`
 9. empty state must explicitly suggest adjusting search or filters
@@ -173,7 +179,7 @@ This document defines current warehouse requirements for stock balances, receipt
 
 ### 4.4) Product Model Detail Modal
 - In `Warehouse -> Stock balances`, clicking `Name`, `Serial #`, `Article`, or `Note` opens the shared product model modal for the row's exact product name.
-- Hover on `Name` and `Serial #` shows a copy icon. Only the icon copies; name/serial clicks still open the model/serial card. `Article` has no copy icon. Spec: [UI_DESIGN_SYSTEM.md — Hover copy icon](./UI_DESIGN_SYSTEM.md#hover-copy-icon).
+- Hover on `Name`, `Serial #`, `Client order`, and `Supplier order` shows a copy icon. Only the icon copies; name/serial clicks still open the model/serial card, and order badges still open the sale/order or supplier-order modal. `Article` and `Note` have no copy icon. Spec: [UI_DESIGN_SYSTEM.md — Hover copy icon](./UI_DESIGN_SYSTEM.md#hover-copy-icon).
 - `Note` click opens the same modal so the operator can view or edit the full note in `MAIN INFORMATION -> Note`.
 - The modal aggregates only `Product` rows whose normalized name exactly equals the opened name (trim + lowercase); similar names such as `Mi Box S Gen 3` and `Mi Box S Gen 3 Pro` must stay separate.
 - The modal shows:
@@ -187,6 +193,7 @@ This document defines current warehouse requirements for stock balances, receipt
    - each row uses that unit's own `Product.price` and `purchaseDate` (fallback `createdAt`) from take-on-charge
    - `Supplier order` is unit-level provenance (same as §2.1): `product.supplierOrderId` + `product.supplierOrderItemIndex` resolved to `displayNumber` (`SO-1`, or `SO-1-2` on multi-item orders). Missing / unmatched provenance shows `—`
    - click the supplier-order number to open the existing `SupplierOrderModal` (item-scoped, same as Stock balances). The product-model modal stays open underneath
+   - hover on the serial number shows a copy icon; only the icon copies the visible serial. Empty / whitespace serials have no icon. `Latest` / `Reserved` badges stay outside the copy target. Spec: [UI_DESIGN_SYSTEM.md — Hover copy icon](./UI_DESIGN_SYSTEM.md#hover-copy-icon)
    - hover on the supplier-order number shows a copy icon; only the icon copies the visible number. Spec: [UI_DESIGN_SYSTEM.md — Hover copy icon](./UI_DESIGN_SYSTEM.md#hover-copy-icon)
    - rows are sorted by receipt date descending, then serial number
    - compact scrollable table (`max-height: 220px`, dense cell padding) keeps serial, purchase, date, and supplier-order number visible without horizontal scroll on the desktop modal width

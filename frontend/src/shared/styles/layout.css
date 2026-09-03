@@ -786,6 +786,11 @@
   max-width: 100%;
 }
 
+.product-model-serial-cell .copyable-value {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
 .product-model-serial-empty {
   color: var(--text-soft);
 }

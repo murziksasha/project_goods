@@ -2,12 +2,15 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import * as clipboard from '../../../../shared/lib/clipboard';
 import type { Product } from '../../../../entities/product/model/types';
+import type { Sale } from '../../../../entities/sale/model/types';
+import type { SupplierOrder } from '../../../../entities/supplier-order/model/types';
 import {
   getWarehouseStockTableMinWidth,
   warehouseStockNameWidthDefault,
   warehouseStockNameWidthStorageKey,
   type ReceiptRow,
   type StockColumnKey,
+  type SupplierOrderLink,
 } from '../../model/warehouse-panel';
 import { ReceiptsTable, StockTable } from './WarehouseTables';
 
@@ -238,6 +241,125 @@ describe('StockTable selectable links', () => {
     });
     expect(onOpenModel).not.toHaveBeenCalled();
     expect(onOpenSerial).not.toHaveBeenCalled();
+  });
+});
+
+const linkedSale = {
+  id: 'sale-1',
+  kind: 'repair',
+  status: 'in_progress',
+  recordNumber: 'r000762',
+} as Sale;
+
+const linkedSupplierOrder: SupplierOrderLink = {
+  order: {
+    id: 'so-1',
+    orderBaseId: 'SO-1',
+    supplierId: 'supplier-1',
+    supplierName: 'AliExpress',
+    deliveryDate: '2026-06-01T00:00:00.000Z',
+    supplyType: 'Local',
+    number: 'SO-1786596067633',
+    note: '',
+    createdBy: 'Owner',
+    status: 'stocked',
+    paymentStatus: 'pending',
+    receiptStatus: 'received',
+    total: 100,
+    paid: 0,
+    isFavorite: false,
+    items: [
+      {
+        lineId: 'line-1',
+        itemIndex: 0,
+        productName: 'iPhone 15',
+        quantity: 1,
+        price: 500,
+        receiptStatus: 'received',
+      },
+    ],
+    createdAt: '2026-06-01T00:00:00.000Z',
+    updatedAt: '2026-06-01T00:00:00.000Z',
+  } as SupplierOrder,
+  itemIndex: 0,
+  displayNumber: 'SO-1786596067633',
+};
+
+describe('StockTable client and supplier order copy', () => {
+  const orderColumns = ['clientOrder', 'supplierOrder'] as StockColumnKey[];
+
+  it('copies client and supplier order numbers without opening cards', async () => {
+    const onOpenSaleCard = vi.fn();
+    const onOpenSupplierOrder = vi.fn();
+    const copySpy = vi
+      .spyOn(clipboard, 'copyTextToClipboard')
+      .mockResolvedValue(true);
+
+    render(
+      <StockTable
+        {...stockTableProps}
+        visibleColumns={orderColumns}
+        salesByProductId={{ [product.id]: [linkedSale] }}
+        supplierOrdersByProductId={{ [product.id]: [linkedSupplierOrder] }}
+        onOpenSaleCard={onOpenSaleCard}
+        onOpenSupplierOrder={onOpenSupplierOrder}
+      />,
+    );
+
+    const copyButtons = screen.getAllByRole('button', { name: 'Copy' });
+    expect(copyButtons).toHaveLength(2);
+
+    fireEvent.click(copyButtons[0]);
+    await waitFor(() => {
+      expect(copySpy).toHaveBeenCalledWith('r000762');
+    });
+
+    fireEvent.click(copyButtons[1]);
+    await waitFor(() => {
+      expect(copySpy).toHaveBeenCalledWith('SO-1786596067633');
+    });
+    expect(onOpenSaleCard).not.toHaveBeenCalled();
+    expect(onOpenSupplierOrder).not.toHaveBeenCalled();
+  });
+
+  it('keeps badge click flows for client and supplier orders', () => {
+    const onOpenSaleCard = vi.fn();
+    const onOpenSupplierOrder = vi.fn();
+    const copySpy = vi
+      .spyOn(clipboard, 'copyTextToClipboard')
+      .mockResolvedValue(true);
+
+    render(
+      <StockTable
+        {...stockTableProps}
+        visibleColumns={orderColumns}
+        salesByProductId={{ [product.id]: [linkedSale] }}
+        supplierOrdersByProductId={{ [product.id]: [linkedSupplierOrder] }}
+        onOpenSaleCard={onOpenSaleCard}
+        onOpenSupplierOrder={onOpenSupplierOrder}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('link', { name: 'r000762' }));
+    fireEvent.click(
+      screen.getByRole('button', { name: 'SO-1786596067633' }),
+    );
+
+    expect(onOpenSaleCard).toHaveBeenCalledWith(linkedSale);
+    expect(onOpenSupplierOrder).toHaveBeenCalledWith('so-1', 0);
+    expect(copySpy).not.toHaveBeenCalled();
+  });
+
+  it('hides the copy icon when client and supplier order cells are empty', () => {
+    render(
+      <StockTable
+        {...stockTableProps}
+        visibleColumns={orderColumns}
+      />,
+    );
+
+    expect(screen.queryByRole('button', { name: 'Copy' })).not.toBeInTheDocument();
+    expect(screen.getAllByText('\u2014')).toHaveLength(2);
   });
 });
 
