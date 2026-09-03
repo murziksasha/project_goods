@@ -193,6 +193,7 @@ This document defines current warehouse requirements for stock balances, receipt
    - each row uses that unit's own `Product.price` and `purchaseDate` (fallback `createdAt`) from take-on-charge
    - `Supplier order` is unit-level provenance (same as §2.1): `product.supplierOrderId` + `product.supplierOrderItemIndex` resolved to `displayNumber` (`SO-1`, or `SO-1-2` on multi-item orders). Missing / unmatched provenance shows `—`
    - click the supplier-order number to open the existing `SupplierOrderModal` (item-scoped, same as Stock balances). The product-model modal stays open underneath
+   - hover on the serial number shows a copy icon; only the icon copies the visible serial. Empty / whitespace serials have no icon. `Latest` / `Reserved` badges stay outside the copy target. Spec: [UI_DESIGN_SYSTEM.md — Hover copy icon](./UI_DESIGN_SYSTEM.md#hover-copy-icon)
    - hover on the supplier-order number shows a copy icon; only the icon copies the visible number. Spec: [UI_DESIGN_SYSTEM.md — Hover copy icon](./UI_DESIGN_SYSTEM.md#hover-copy-icon)
    - rows are sorted by receipt date descending, then serial number
    - compact scrollable table (`max-height: 220px`, dense cell padding) keeps serial, purchase, date, and supplier-order number visible without horizontal scroll on the desktop modal width

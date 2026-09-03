@@ -6,6 +6,7 @@ import type { SupplierOrder } from '../../../../../entities/supplier-order/model
 import { getOccupiedSerialNumbers } from '../../../../../entities/sale/api/saleApi';
 import { defaultPrintForms } from '../../../../../entities/settings/model/printForms';
 import i18n from '../../../../../shared/i18n/config';
+import * as clipboard from '../../../../../shared/lib/clipboard';
 import * as ordersWorkspaceShared from '../workspace/orders-workspace-shared';
 import { ProductModelModal } from './ProductModelModal';
 
@@ -577,8 +578,8 @@ describe('ProductModelModal serial printing', () => {
       screen.getByRole('button', { name: 'SO-1' }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole('button', { name: i18n.t('common.copy') }),
-    ).toBeInTheDocument();
+      screen.getAllByRole('button', { name: i18n.t('common.copy') }),
+    ).toHaveLength(3);
 
     fireEvent.click(screen.getByRole('button', { name: 'SO-1' }));
     expect(onOpenSupplierOrder).toHaveBeenCalledWith('so-1', 0);
@@ -602,9 +603,46 @@ describe('ProductModelModal serial printing', () => {
     );
 
     expect(screen.getAllByText('\u2014').length).toBeGreaterThan(0);
+    expect(screen.queryByRole('button', { name: 'SO-1' })).toBeNull();
     expect(
-      screen.queryByRole('button', { name: i18n.t('common.copy') }),
-    ).toBeNull();
+      screen.getAllByRole('button', { name: i18n.t('common.copy') }),
+    ).toHaveLength(2);
     expect(onOpenSupplierOrder).not.toHaveBeenCalled();
+  });
+
+  it('copies serial from the hover icon', async () => {
+    const copySpy = vi
+      .spyOn(clipboard, 'copyTextToClipboard')
+      .mockResolvedValue(true);
+    const { clickedProduct, products } = serialPurchaseProducts();
+
+    render(
+      <ProductModelModal
+        name='БЖ Meanwell 9V 1.66A'
+        products={products}
+        warehouses={[]}
+        printForms={defaultPrintForms}
+        printProduct={clickedProduct}
+        onClose={vi.fn()}
+        onSave={vi.fn(async () => true)}
+      />,
+    );
+
+    const copyButtons = screen.getAllByRole('button', {
+      name: i18n.t('common.copy'),
+    });
+    expect(copyButtons).toHaveLength(2);
+
+    fireEvent.click(copyButtons[0]);
+    await waitFor(() => {
+      expect(copySpy).toHaveBeenCalledWith('R0000002');
+    });
+
+    fireEvent.click(copyButtons[1]);
+    await waitFor(() => {
+      expect(copySpy).toHaveBeenCalledWith('R0000001');
+    });
+
+    copySpy.mockRestore();
   });
 });

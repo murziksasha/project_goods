@@ -64,7 +64,7 @@ Related: [SALE_FLOW.md](./SALE_FLOW.md) · [ORDER_CARD.md](./ORDER_CARD.md) · [
 - Stock suggestion click with a bound `serialNumber` auto-adds one atomic product row; catalog suggestion click or stock suggestion without `serialNumber` pre-fills the entry row and waits for `Add product`; serial binding uses the `Serials` modal.
 - In create-order sales flow, clicking the name of an already selected product row opens the shared product model modal; suggestion clicks still only select products.
 - In an existing sale card, clicking a product line item name opens the same exact-name product model modal for `lineItems[].name`.
-- That modal's `Purchase by serial` table is `Serial # | Purchase | Receipt date | Supplier order`. `Latest` marks the newest receipt batch and red `Reserved` marks units bound on another order (not this card). Supplier-order number is clickable (opens the related supplier-order modal) and has the hover copy icon. Spec: [WAREHOUSE_FLOW.md §4.4](./WAREHOUSE_FLOW.md#44-product-model-detail-modal).
+- That modal's `Purchase by serial` table is `Serial # | Purchase | Receipt date | Supplier order`. `Latest` marks the newest receipt batch and red `Reserved` marks units bound on another order (not this card). Serial # and supplier-order number have the hover copy icon; supplier-order click still opens the related supplier-order modal. Spec: [WAREHOUSE_FLOW.md §4.4](./WAREHOUSE_FLOW.md#44-product-model-detail-modal).
 - The modal updates matching stock `Product` rows only and never creates missing stock or updates `CatalogProduct`.
 
 ## Identical Product Grouping
