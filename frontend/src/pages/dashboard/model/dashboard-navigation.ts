@@ -99,6 +99,7 @@ export const buildDashboardHref = (
 
   if (page !== 'accounting') {
     url.searchParams.delete('accountingTab');
+    url.searchParams.delete('accountingSettings');
   } else if (accountingTab) {
     url.searchParams.set('accountingTab', accountingTab);
   }

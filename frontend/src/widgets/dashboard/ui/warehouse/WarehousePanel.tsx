@@ -10,6 +10,7 @@ import type { CatalogProduct } from '../../../../entities/catalog-product/model/
 import type { Product } from '../../../../entities/product/model/types';
 import { printSerialNumbers } from '../../../../shared/lib/serialPrint';
 import { normalizeDecimalInput, parseDecimal } from '../../../../shared/lib/decimal';
+import { formatCurrency } from '../../../../shared/lib/format';
 import { PaginationPanel } from '../../../../shared/ui/PaginationPanel';
 import { Modal } from '../../../../shared/ui/Modal';
 import { Button } from '../../../../shared/ui/Button';
@@ -49,6 +50,7 @@ import {
   buildSupplierOrdersByProductId,
   buildProductWarehouseMetaById,
   filterStockProducts,
+  groupStockProductsByModel,
 } from '../../model/stock-balance';
 import { buildLocationUsageByWarehouse } from '../../model/warehouse-information';
 import { ProductModelModal } from '../orders/modals/ProductModelModal';
@@ -64,6 +66,8 @@ import {
   defaultWarehouseVisibleColumns,
   emptySupplierOrders,
   filterReceiptRows,
+  getReceiptGroupTotals,
+  groupReceiptRowsByOrder,
   initialAdministrators,
   initialServiceCenters,
   initialWarehouseFilters,
@@ -93,6 +97,8 @@ import {
   type WarehouseColumnVisibility,
   type WarehouseColumnsTab,
   type ReceiptStatus,
+  type ReceiptsViewMode,
+  type StockViewMode,
   type WarehouseFilters,
   type WarehouseFormState,
   type WarehouseItem,
@@ -202,6 +208,33 @@ export const WarehousePanel = ({
       }
     },
   );
+  const [stockView, setStockView] = useState<StockViewMode>(() => {
+    try {
+      const parsed = JSON.parse(
+        window.localStorage.getItem(warehouseFiltersStorageKey) ??
+          '{}',
+      ) as Partial<{ stockView: StockViewMode }>;
+      return parsed.stockView === 'units' || parsed.stockView === 'models'
+        ? parsed.stockView
+        : 'models';
+    } catch {
+      return 'models';
+    }
+  });
+  const [receiptsView, setReceiptsView] = useState<ReceiptsViewMode>(() => {
+    try {
+      const parsed = JSON.parse(
+        window.localStorage.getItem(warehouseFiltersStorageKey) ??
+          '{}',
+      ) as Partial<{ receiptsView: ReceiptsViewMode }>;
+      return parsed.receiptsView === 'orders' ||
+        parsed.receiptsView === 'lines'
+        ? parsed.receiptsView
+        : 'orders';
+    } catch {
+      return 'orders';
+    }
+  });
   const [currentPage, setCurrentPage] = useState(() => {
     try {
       const parsed = JSON.parse(
@@ -445,6 +478,32 @@ export const WarehousePanel = ({
     await supplierOrdersQuery.refetch();
   }, [canViewSupplierOrders, supplierOrdersQuery]);
 
+  const openSupplierOrderById = useCallback(
+    (supplierOrderId: string, itemIndex: number) => {
+      const matchedOrder = supplierOrders.find(
+        (order) => order.id === supplierOrderId,
+      );
+      if (!matchedOrder) return;
+      const matchedItem = matchedOrder.items.find(
+        (item) => item.itemIndex === itemIndex,
+      );
+      if (!matchedItem) return;
+      setEditingSupplierOrder({
+        ...matchedOrder,
+        receiptStatus: matchedItem.receiptStatus ?? 'new',
+        number: buildSupplierOrderItemNumber(
+          matchedOrder,
+          matchedItem.itemIndex,
+        ),
+        items: [matchedItem],
+      });
+      setEditingSupplierOrderSource(matchedOrder);
+      setEditingSupplierOrderItemIndex(matchedItem.itemIndex);
+      setIsSupplierOrderModalOpen(true);
+    },
+    [supplierOrders],
+  );
+
   const syncCatalogRenameToSupplierOrders = async (
     catalogProductId: string,
     nextName: string,
@@ -684,10 +743,26 @@ export const WarehousePanel = ({
       supplierOrdersByProductId,
     ],
   );
+  const stockModelGroups = useMemo(
+    () => groupStockProductsByModel(filteredProducts),
+    [filteredProducts],
+  );
+  const receiptOrderGroups = useMemo(
+    () => groupReceiptRowsByOrder(filteredReceipts),
+    [filteredReceipts],
+  );
   const paginatedProducts = useMemo(() => {
     const start = (currentPage - 1) * pageSize;
     return filteredProducts.slice(start, start + pageSize);
   }, [currentPage, filteredProducts, pageSize]);
+  const paginatedStockGroups = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return stockModelGroups.slice(start, start + pageSize);
+  }, [currentPage, pageSize, stockModelGroups]);
+  const paginatedReceiptGroups = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return receiptOrderGroups.slice(start, start + pageSize);
+  }, [currentPage, pageSize, receiptOrderGroups]);
   const selectedStockProducts = useMemo(
     () =>
       products.filter((product) =>
@@ -748,12 +823,6 @@ export const WarehousePanel = ({
       ),
     [activeTab, currentEmployeeId, savedFilters],
   );
-  const totalItems =
-    activeTab === 'receipts'
-      ? filteredReceipts.length
-      : filteredProducts.length;
-  const activePageSize =
-    activeTab === 'transfers' ? transferPageSize : pageSize;
   const activeColumnsTab: WarehouseColumnsTab | null =
     activeTab === 'stock' || activeTab === 'receipts'
       ? activeTab
@@ -783,12 +852,32 @@ export const WarehousePanel = ({
       appliedFilters.buyer,
       appliedFilters.location,
     ].filter((value) => value.trim()).length;
+  const stockPurchaseValue = useMemo(
+    () =>
+      filteredProducts.reduce((sum, product) => sum + product.price, 0),
+    [filteredProducts],
+  );
+  const receiptsUnpaidValue = useMemo(
+    () =>
+      receiptOrderGroups.reduce((sum, group) => {
+        return sum + getReceiptGroupTotals(group.receipts).unpaid;
+      }, 0),
+    [receiptOrderGroups],
+  );
   const stockSummaryText =
     activeTab === 'stock'
-      ? t('warehouse.summary.stockRows', { count: filteredProducts.length })
+      ? t('warehouse.summary.unitsModelsValue', {
+          units: filteredProducts.length,
+          models: stockModelGroups.length,
+          value: formatCurrency(stockPurchaseValue),
+        })
       : activeTab === 'transfers'
         ? t('warehouse.summary.movableRows', { count: filteredProducts.length })
-        : t('warehouse.summary.receiptRows', { count: filteredReceipts.length });
+        : t('warehouse.summary.linesOrdersUnpaid', {
+            lines: filteredReceipts.length,
+            orders: receiptOrderGroups.length,
+            unpaid: formatCurrency(receiptsUnpaidValue),
+          });
   const paginatedReceipts = useMemo(() => {
     const start = (currentPage - 1) * pageSize;
     return filteredReceipts.slice(start, start + pageSize);
@@ -832,8 +921,12 @@ export const WarehousePanel = ({
     if (isLoading) return;
     const totalItems =
       activeTab === 'receipts'
-        ? filteredReceipts.length
-        : filteredProducts.length;
+        ? receiptsView === 'orders'
+          ? receiptOrderGroups.length
+          : filteredReceipts.length
+        : activeTab === 'stock' && stockView === 'models'
+          ? stockModelGroups.length
+          : filteredProducts.length;
     const activePageSize =
       activeTab === 'transfers' ? transferPageSize : pageSize;
     const pageCount = Math.max(1, Math.ceil(totalItems / activePageSize));
@@ -845,6 +938,10 @@ export const WarehousePanel = ({
     filteredReceipts.length,
     isLoading,
     pageSize,
+    receiptOrderGroups.length,
+    receiptsView,
+    stockModelGroups.length,
+    stockView,
   ]);
 
   useEffect(() => {
@@ -1008,6 +1105,8 @@ export const WarehousePanel = ({
         settingsTab,
         currentPage,
         pageSize,
+        stockView,
+        receiptsView,
       }),
     );
   }, [
@@ -1015,8 +1114,10 @@ export const WarehousePanel = ({
     currentPage,
     pageSize,
     query,
+    receiptsView,
     searchMode,
     settingsTab,
+    stockView,
   ]);
 
   useEffect(() => {
@@ -1264,6 +1365,35 @@ export const WarehousePanel = ({
     setAppliedFilters(nextFilters);
     setCurrentPage(1);
   };
+  const applyReceiptStatusChip = (status: ReceiptStatus | 'all') => {
+    const statuses = status === 'all' ? [] : [status];
+    const nextFilters = {
+      ...appliedFilters,
+      statuses,
+    };
+    setDraftFilters(nextFilters);
+    setAppliedFilters(nextFilters);
+    setCurrentPage(1);
+  };
+  const changeStockView = (view: StockViewMode) => {
+    setStockView(view);
+    setCurrentPage(1);
+  };
+  const changeReceiptsView = (view: ReceiptsViewMode) => {
+    setReceiptsView(view);
+    setCurrentPage(1);
+  };
+  const toggleGroupSelection = (productIds: string[]) => {
+    setSelectedStockProductIds((current) => {
+      const allSelected = productIds.every((productId) =>
+        current.includes(productId),
+      );
+      if (allSelected) {
+        return current.filter((productId) => !productIds.includes(productId));
+      }
+      return Array.from(new Set([...current, ...productIds]));
+    });
+  };
   const toggleReceiptFavorite = async (receipt: ReceiptRow) => {
     if (!receipt.supplierOrderId) return;
     if (!canManageSupplierOrders) {
@@ -1510,10 +1640,21 @@ export const WarehousePanel = ({
       {activeTab !== 'settings' && activeTab !== 'information' ? (
         <WarehouseToolbar
           activeTab={activeTab}
-          currentPage={currentPage}
-          pageSize={activePageSize}
           stockSummaryText={stockSummaryText}
-          totalItems={totalItems}
+          headerActions={
+            activeTab === 'receipts' && canManageSupplierOrders ? (
+              <button
+                type='button'
+                className='orders-create-button'
+                onClick={() => {
+                  setEditingSupplierOrder(null);
+                  setIsSupplierOrderModalOpen(true);
+                }}
+              >
+                {t('warehouse.receipts.createOrder')}
+              </button>
+            ) : null
+          }
           selectedProductCount={selectedStockProductIds.length}
           selectedSerialCount={selectedStockProductsWithSerials.length}
           activeColumnsTab={activeColumnsTab}
@@ -1525,6 +1666,10 @@ export const WarehousePanel = ({
           query={query}
           searchMode={searchMode}
           searchPlaceholder={searchPlaceholder}
+          stockView={stockView}
+          receiptsView={receiptsView}
+          appliedReceiptStatuses={appliedFilters.statuses}
+          showReceiptStatusChips={!isFilterPanelOpen}
           onPrintSelectedSerials={printSelectedStockSerials}
           onClearSelection={() => setSelectedStockProductIds([])}
           onToggleColumnsMenu={() =>
@@ -1533,6 +1678,9 @@ export const WarehousePanel = ({
           onToggleColumnVisibility={toggleColumnVisibility}
           onToggleFilters={() => setIsFilterPanelOpen((current) => !current)}
           onToggleFavoritesOnly={toggleReceiptFavoritesOnly}
+          onStockViewChange={changeStockView}
+          onReceiptsViewChange={changeReceiptsView}
+          onReceiptStatusChip={applyReceiptStatusChip}
           setQuery={setQuery}
           setSearchMode={setSearchMode}
           setCurrentPage={setCurrentPage}
@@ -1602,53 +1750,59 @@ export const WarehousePanel = ({
                 placeholder={t('warehouse.filters.productNamePlaceholder')}
               />
             </label>
-            <label className='orders-filter-field'>
-              <span>{t('warehouse.filters.bySerial')}</span>
-              <input
-                type='text'
-                value={draftFilters.serial}
-                onChange={(event) =>
-                  setDraftFilters((current) => ({
-                    ...current,
-                    serial: event.target.value,
-                  }))
-                }
-                placeholder={t('warehouse.filters.serialPlaceholder')}
-              />
-            </label>
-            <label className='orders-filter-field'>
-              <span>{t('warehouse.filters.byArticle')}</span>
-              <input
-                type='text'
-                value={draftFilters.article}
-                onChange={(event) =>
-                  setDraftFilters((current) => ({
-                    ...current,
-                    article: event.target.value,
-                  }))
-                }
-                placeholder={t('warehouse.filters.articlePlaceholder')}
-              />
-            </label>
-            <label className='orders-filter-field'>
-              <span>{t('orders.filters.warehouse')}</span>
-              <select
-                value={draftFilters.warehouse}
-                onChange={(event) =>
-                  setDraftFilters((current) => ({
-                    ...current,
-                    warehouse: event.target.value,
-                  }))
-                }
-              >
-                <option value=''>{t('orders.filters.all')}</option>
-                {warehouseOptions.map((warehouse) => (
-                  <option key={warehouse.id} value={warehouse.name}>
-                    {warehouse.name}
-                  </option>
-                ))}
-              </select>
-            </label>
+            {activeTab === 'stock' ? (
+              <label className='orders-filter-field'>
+                <span>{t('warehouse.filters.bySerial')}</span>
+                <input
+                  type='text'
+                  value={draftFilters.serial}
+                  onChange={(event) =>
+                    setDraftFilters((current) => ({
+                      ...current,
+                      serial: event.target.value,
+                    }))
+                  }
+                  placeholder={t('warehouse.filters.serialPlaceholder')}
+                />
+              </label>
+            ) : null}
+            {activeTab === 'stock' ? (
+              <label className='orders-filter-field'>
+                <span>{t('warehouse.filters.byArticle')}</span>
+                <input
+                  type='text'
+                  value={draftFilters.article}
+                  onChange={(event) =>
+                    setDraftFilters((current) => ({
+                      ...current,
+                      article: event.target.value,
+                    }))
+                  }
+                  placeholder={t('warehouse.filters.articlePlaceholder')}
+                />
+              </label>
+            ) : null}
+            {activeTab === 'stock' ? (
+              <label className='orders-filter-field'>
+                <span>{t('orders.filters.warehouse')}</span>
+                <select
+                  value={draftFilters.warehouse}
+                  onChange={(event) =>
+                    setDraftFilters((current) => ({
+                      ...current,
+                      warehouse: event.target.value,
+                    }))
+                  }
+                >
+                  <option value=''>{t('orders.filters.all')}</option>
+                  {warehouseOptions.map((warehouse) => (
+                    <option key={warehouse.id} value={warehouse.name}>
+                      {warehouse.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : null}
             <label className='orders-filter-field'>
               <span>{t('common.supplier')}</span>
               <input
@@ -1891,26 +2045,6 @@ export const WarehousePanel = ({
         </div>
       ) : null}
 
-      {activeTab === 'receipts' ? (
-        <div className='warehouse-receipt-header'>
-          <p className='panel-subtitle'>
-            {t('warehouse.receipts.subtitle')}
-          </p>
-          {canManageSupplierOrders ? (
-            <button
-              type='button'
-              className='orders-create-button'
-              onClick={() => {
-                setEditingSupplierOrder(null);
-                setIsSupplierOrderModalOpen(true);
-              }}
-            >
-              {t('warehouse.receipts.createOrder')}
-            </button>
-          ) : null}
-        </div>
-      ) : null}
-
       {activeTab === 'settings' ? (
         <WarehouseSettings
           tab={settingsTab}
@@ -1962,7 +2096,13 @@ export const WarehousePanel = ({
       ) : activeTab === 'stock' ? (
         <>
           <StockTable
-            products={paginatedProducts}
+            products={
+              stockView === 'models'
+                ? paginatedStockGroups.flatMap((group) => group.products)
+                : paginatedProducts
+            }
+            groups={stockView === 'models' ? paginatedStockGroups : undefined}
+            view={stockView}
             isLoading={isLoading}
             visibleColumns={visibleColumns.stock}
             selectedProductIds={selectedStockProductIds}
@@ -1979,7 +2119,12 @@ export const WarehousePanel = ({
               )
             }
             onTogglePageSelection={() => {
-              const pageIds = paginatedProducts.map((product) => product.id);
+              const pageIds =
+                stockView === 'models'
+                  ? paginatedStockGroups.flatMap((group) =>
+                      group.products.map((product) => product.id),
+                    )
+                  : paginatedProducts.map((product) => product.id);
               const isPageSelected = pageIds.every((productId) =>
                 selectedStockProductIds.includes(productId),
               );
@@ -1989,6 +2134,7 @@ export const WarehousePanel = ({
                   : Array.from(new Set([...current, ...pageIds])),
               );
             }}
+            onToggleGroupSelection={toggleGroupSelection}
             onEdit={onProductEdit}
             onOpenModel={(product) =>
               setSelectedProductModelContext({
@@ -2003,32 +2149,22 @@ export const WarehousePanel = ({
               })
             }
             onDelete={onProductDelete}
-            onOpenSaleCard={onOpenSaleCard}
-            onOpenSupplierOrder={(supplierOrderId, itemIndex) => {
-              const matchedOrder = supplierOrders.find(
-                (order) => order.id === supplierOrderId,
-              );
-              if (!matchedOrder) return;
-              const matchedItem = matchedOrder.items.find(
-                (item) => item.itemIndex === itemIndex,
-              );
-              if (!matchedItem) return;
-              setEditingSupplierOrder({
-                ...matchedOrder,
-                receiptStatus: matchedItem.receiptStatus ?? 'new',
-                number: buildSupplierOrderItemNumber(
-                  matchedOrder,
-                  matchedItem.itemIndex,
-                ),
-                items: [matchedItem],
-              });
-              setEditingSupplierOrderSource(matchedOrder);
-              setEditingSupplierOrderItemIndex(matchedItem.itemIndex);
-              setIsSupplierOrderModalOpen(true);
+            onTransfer={(product) => {
+              setActiveTab('transfers');
+              setTransferForm((current) => ({
+                ...current,
+                productId: product.id,
+              }));
             }}
+            onOpenSaleCard={onOpenSaleCard}
+            onOpenSupplierOrder={openSupplierOrderById}
           />
           <PaginationPanel
-            totalItems={filteredProducts.length}
+            totalItems={
+              stockView === 'models'
+                ? stockModelGroups.length
+                : filteredProducts.length
+            }
             page={currentPage}
             pageSize={pageSize}
             onPageChange={setCurrentPage}
@@ -2042,46 +2178,39 @@ export const WarehousePanel = ({
               name={selectedProductModelContext.name}
               products={products}
               sales={sales}
+              supplierOrders={supplierOrders}
               warehouses={warehouses}
               printForms={printForms}
               printProduct={selectedProductModelContext.printProduct}
               isSaving={isProductSaving}
               onClose={() => setSelectedProductModelContext(null)}
               onSave={onUpdateProductModel}
+              onOpenSupplierOrder={openSupplierOrderById}
             />
           ) : null}
         </>
       ) : activeTab === 'receipts' ? (
         <>
           <ReceiptsTable
-            receipts={paginatedReceipts}
+            receipts={
+              receiptsView === 'orders'
+                ? paginatedReceiptGroups.flatMap((group) => group.receipts)
+                : paginatedReceipts
+            }
+            groups={
+              receiptsView === 'orders' ? paginatedReceiptGroups : undefined
+            }
+            view={receiptsView}
             visibleColumns={visibleColumns.receipts}
             canManageSupplierOrders={canManageSupplierOrders}
             onToggleFavorite={(receipt) => void toggleReceiptFavorite(receipt)}
             onOpenOrder={(receipt) => {
               if (!receipt.supplierOrderId) return;
-              const matchedOrder = supplierOrders.find(
-                (order) => order.id === receipt.supplierOrderId,
+              if (receipt.supplierOrderItemIndex === undefined) return;
+              openSupplierOrderById(
+                receipt.supplierOrderId,
+                receipt.supplierOrderItemIndex,
               );
-              if (!matchedOrder) return;
-              const itemIndex = receipt.supplierOrderItemIndex;
-              if (itemIndex === undefined) return;
-              const matchedItem = matchedOrder.items.find(
-                (item) => item.itemIndex === itemIndex,
-              );
-              if (!matchedItem) return;
-              setEditingSupplierOrder({
-                ...matchedOrder,
-                receiptStatus: matchedItem.receiptStatus ?? 'new',
-                number: buildSupplierOrderItemNumber(
-                  matchedOrder,
-                  matchedItem.itemIndex,
-                ),
-                items: [matchedItem],
-              });
-              setEditingSupplierOrderSource(matchedOrder);
-              setEditingSupplierOrderItemIndex(matchedItem.itemIndex);
-              setIsSupplierOrderModalOpen(true);
             }}
             onOpenProduct={(receipt) => {
               const matchedProduct = receipt.catalogProductId
@@ -2127,7 +2256,11 @@ export const WarehousePanel = ({
             }}
           />
           <PaginationPanel
-            totalItems={filteredReceipts.length}
+            totalItems={
+              receiptsView === 'orders'
+                ? receiptOrderGroups.length
+                : filteredReceipts.length
+            }
             page={currentPage}
             pageSize={pageSize}
             onPageChange={setCurrentPage}
@@ -2329,13 +2462,18 @@ export const WarehousePanel = ({
         onCancelItem={async (reason) => {
           if (!canManageSupplierOrders) return;
           if (!editingSupplierOrder) return;
-          if (editingSupplierOrderItemIndex === null) return;
+          const itemIndex =
+            editingSupplierOrderItemIndex ??
+            (editingSupplierOrder.items.length === 1
+              ? (editingSupplierOrder.items[0]?.itemIndex ?? 0)
+              : null);
+          if (itemIndex === null) return;
           const orderId =
             editingSupplierOrderSource?.id ?? editingSupplierOrder.id;
           await cancelSupplierOrderItemMutation.mutateAsync({
             supplierOrderId: orderId,
             payload: {
-              itemIndex: editingSupplierOrderItemIndex,
+              itemIndex,
               reason,
             },
           });

@@ -16,6 +16,7 @@ export type Cashbox = {
   name: string;
   balances: Record<FinanceCurrency, number>;
   enabledCurrencies: Record<FinanceCurrency, boolean>;
+  hasCurrencyOperations?: Record<FinanceCurrency, boolean>;
   isDefault: boolean;
   isArchived: boolean;
   createdAt: string;
@@ -91,6 +92,7 @@ export type SupplierOrderPaymentQueueItem = {
 
 export type CreateCashboxPayload = {
   name: string;
+  enabledCurrencies?: Record<FinanceCurrency, boolean>;
 };
 
 export type CreateFinanceCurrencyPayload = {

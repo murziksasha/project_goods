@@ -2,6 +2,7 @@ import type { ClientDevice } from '../../../entities/client-device/model/types';
 import type { Sale } from '../../../entities/sale/model/types';
 import { formatDateTime } from '../../../shared/lib/format';
 import {
+  collectClientHistorySerials,
   formatClientIncome,
   formatItemList,
   getClientSaleIncome,
@@ -53,6 +54,7 @@ const historySearchHaystack = (
 ): string => {
   const number = sale.recordNumber ?? sale.id.slice(-6);
   const items = formatItemList(sale, tab);
+  const serials = collectClientHistorySerials(sale, tab).join(' ');
   const amount = formatClientIncome(getClientSaleIncome(sale));
   let dateText = '';
   try {
@@ -61,7 +63,7 @@ const historySearchHaystack = (
     dateText = sale.saleDate ?? '';
   }
 
-  return [number, items, sale.status, amount, dateText]
+  return [number, items, serials, sale.status, amount, dateText]
     .join(' ')
     .toLowerCase();
 };

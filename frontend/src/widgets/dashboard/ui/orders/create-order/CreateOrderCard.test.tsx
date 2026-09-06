@@ -1321,6 +1321,58 @@ describe('CreateOrderCard', () => {
     );
   });
 
+  it('dismisses device suggestions on outside click and reopens after an edit', async () => {
+    getClientDevicesMock.mockImplementation(async () => [
+      clientDevice({
+        id: 'tv-32',
+        name: 'Телевізор Samsung 32',
+      }),
+      clientDevice({
+        id: 'tv-55',
+        name: 'Телевізор Samsung 55',
+      }),
+    ]);
+
+    renderCreateOrderCard('repair');
+
+    const deviceInput = screen.getByPlaceholderText('Enter device name');
+    await afterDebouncedInput(
+      () =>
+        fireEvent.change(deviceInput, {
+          target: { value: 'Телевізор Samsung' },
+        }),
+      () => {
+        expect(
+          screen.getByRole('option', { name: /Телевізор Samsung 32/i }),
+        ).toBeInTheDocument();
+      },
+    );
+
+    fireEvent.pointerDown(screen.getByText('Issue from client'));
+
+    expect(
+      screen.queryByRole('option', { name: /Телевізор Samsung 32/i }),
+    ).not.toBeInTheDocument();
+    expect(deviceInput).toHaveValue('Телевізор Samsung');
+
+    fireEvent.pointerDown(deviceInput);
+    expect(
+      screen.queryByRole('option', { name: /Телевізор Samsung 32/i }),
+    ).not.toBeInTheDocument();
+
+    await afterDebouncedInput(
+      () =>
+        fireEvent.change(deviceInput, {
+          target: { value: 'Телевізор Samsung ' },
+        }),
+      () => {
+        expect(
+          screen.getByRole('option', { name: /Телевізор Samsung 32/i }),
+        ).toBeInTheDocument();
+      },
+    );
+  });
+
   it('does not suggest devices that only match via clientName', async () => {
     getClientDevicesMock.mockImplementation(async () => [
       clientDevice({
@@ -1455,6 +1507,43 @@ describe('CreateOrderCard', () => {
         expect(screen.getByText(/Catalog note/)).toBeInTheDocument();
       },
     );
+  });
+
+  it('dismisses sale product suggestions on outside click and keeps the typed name', async () => {
+    renderCreateOrderCard('sale', vi.fn(async () => null), vi.fn(), [], {
+      catalogProducts: [
+        {
+          id: 'catalog-1',
+          name: 'iPhone 14',
+          note: 'Catalog note',
+          isActive: true,
+          sourceTags: [],
+          lastSeenAt: '2026-01-01T00:00:00.000Z',
+          createdAt: '2026-01-01T00:00:00.000Z',
+          updatedAt: '2026-01-01T00:00:00.000Z',
+        },
+      ],
+    });
+
+    const productInput = screen.getByPlaceholderText('Name, serial or article');
+    await afterDebouncedInput(
+      () =>
+        fireEvent.change(productInput, {
+          target: { value: 'iPhone' },
+        }),
+      () => {
+        expect(
+          screen.getByRole('button', { name: /iPhone 14/i }),
+        ).toBeInTheDocument();
+      },
+    );
+
+    fireEvent.pointerDown(screen.getByPlaceholderText('Sale notes'));
+
+    expect(
+      screen.queryByRole('button', { name: /iPhone 14/i }),
+    ).not.toBeInTheDocument();
+    expect(productInput).toHaveValue('iPhone');
   });
 
   it('adds multiple services to the save payload', async () => {

@@ -22,9 +22,10 @@ Mongo **must** run as replica set (`?replicaSet=rs0` in `MONGO_URI`) for transac
 
 `backend/Dockerfile`:
 
-1. Installs MongoDB database tools (`mongodump` / `mongorestore`) from fastdl over HTTP/1.1 with retries (HTTP/2 streams from that CDN often abort with curl 18).
-2. Runs `npm run build` (TypeScript → `dist/`).
-3. Starts with `node dist/server.js` (`NODE_ENV=production` in Compose).
+1. Copies `mongodump` / `mongorestore` from the `mongo:7` image (same tag as the Compose `mongo` service). Do **not** download tools from `fastdl.mongodb.org` during image build — that CDN often times out or resets the stream. Runtime Kerberos libs come from Debian (`libgssapi-krb5-2`).
+2. Installs **backend** npm deps only (`npm install --prefix backend`, not root `concurrently`) with registry retries, longer fetch timeouts, and a BuildKit npm cache. `registry.npmjs.org` ETIMEDOUT during `docker:up` is retried up to 5 times. Frontend image uses the same pattern for `frontend/`.
+3. Runs `npm run build` (TypeScript → `dist/`).
+4. Starts with `node dist/server.js` (`NODE_ENV=production` in Compose).
 
 Pass build metadata:
 

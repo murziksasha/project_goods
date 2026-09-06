@@ -32,6 +32,9 @@ export const AccountingTabs = ({
         <button
           key={key}
           type='button'
+          role='tab'
+          id={`accounting-tab-${key}`}
+          aria-selected={activeTab === key}
           className={activeTab === key ? 'orders-tab orders-tab-active' : 'orders-tab'}
           onClick={() => onTabChange(key)}
         >
@@ -45,6 +48,7 @@ export const AccountingTabs = ({
           type='button'
           className='toolbar-square-button'
           aria-label={t('accounting.tabs.settingsAriaLabel')}
+          title={t('accounting.tabs.settingsAriaLabel')}
           aria-expanded={isFinanceSettingsOpen}
           onClick={onOpenSettings}
         >

@@ -100,9 +100,9 @@ This document defines financial behavior in the `Accounting` workspace (cashboxe
 - Once supplier order passes receipt stage `Оприбутковано` (`status = stocked` or all items `receiptStatus = received`), order content fields are locked.
 - Locked fields include supplier, delivery date, supply type, order number, note, item name, quantity, and price.
 - In locked mode, save and mutation actions are unavailable; only viewing and closing are allowed.
-- For `status = approved` that is not yet stocked/received, `SupplierOrderModal` must keep take-on-charge (`Оприбуткувати`) available in `Orders -> Supplier Order`, Warehouse receipts, and linked sale/order card flows.
-- `paymentStatus = paid` or `without_payment` on an open order locks content editing and forbids modal Delete:
-  - UI must hide the Delete button in `SupplierOrderModal`,
+- For `status = approved` that is not yet stocked/received, `SupplierOrderModal` must keep take-on-charge (`Оприбуткувати`) and **Cancel item** available in `Orders -> Supplier Order`, Warehouse receipts, and linked sale/order card flows.
+- `paymentStatus = paid` or `without_payment` on an open order locks content editing and forbids modal Cancel order:
+  - UI must hide the Cancel order button in `SupplierOrderModal`,
   - backend must reject `POST /supplier-orders/:supplierOrderId/cancel` with `Оплачений заказ не можна скасувати.`
 - Paid / `without_payment` orders may still be closed manually through status badge `Cancelled` or `Unavailable`; for paid orders `paymentStatus` remains `paid`.
 - `overdue` is auto-only and does not block take-on-charge or payment visibility rules by itself.
@@ -157,9 +157,18 @@ This document defines financial behavior in the `Accounting` workspace (cashboxe
   - `Withdraw` and `Transfer`: balance of source cashbox (`From`) after transaction.
   - `Deposit`: balance of destination cashbox (`To`) after transaction.
 
+## Cashboxes tab (compact cards)
+
+- Cards show name (ellipsis) + balances. Actions are **Operation** and **Transactions** (not four stacked type buttons).
+- Clicking a card or **Operation** opens the operation **modal** with Type **Withdraw** by default (prefill rules below still apply).
+- Search and **Hide empty** filter the grid. **Hide empty** is stored in `localStorage` (`project-goods.accounting-hide-empty-cashboxes`) and restored on reload.
+- **Add cashbox** on the cashboxes toolbar (and empty state) opens a create modal. The tab-row gear still opens full Accounting settings (rename/archive/currencies).
+- Settings open is URL `accountingSettings=1` (not sticky `localStorage`).
+
 ## Cashbox Card Action Prefill Rules
-- Clicking a cashbox card action opens the operation form for that cashbox.
-- If the browser has a remembered last operation for `(cashboxId, operationType)` in `project-goods.accounting-last-operation-by-cashbox`, restore `type`, `from`, `to`, and `currency` from that memory; `amount` and `note` start empty.
+- Clicking a cashbox card or **Operation** opens the operation form for that cashbox.
+- Default Type on open is **Withdraw** when the user has `finance.transactions.withdraw`. Otherwise the first remaining permitted type (`deposit`, then `transfer`).
+- If the browser has a remembered last operation for `(cashboxId, operationType)` in `project-goods.accounting-last-operation-by-cashbox`, restore `from`, `to`, and `currency` for that type; `amount` and `note` start empty. Memory does not override the open default Type.
 - If no remembered operation exists, apply type-specific defaults:
   - `Deposit`: `To cashbox` is preselected as the clicked cashbox.
   - `Withdraw`: `From cashbox` is preselected as the clicked cashbox and `To cashbox` stays empty.
@@ -171,6 +180,15 @@ This document defines financial behavior in the `Accounting` workspace (cashboxe
 - On successful submit, the operation snapshot is stored per anchor cashbox:
   - `deposit` -> anchor = `toCashboxId`
   - `withdraw` / `transfer` -> anchor = `fromCashboxId`
+
+## Operation modal submit (2026-08-31)
+- There is **no** extra confirm for large amounts (no `>= 10_000` threshold and no 50% of available-balance gate).
+- The operation modal has two submits:
+  - **Confirm** (outline, left) — saves the transaction, clears `amount` and `note`, keeps type/cashboxes/currency, and **leaves the modal open** for the next entry.
+  - **Confirm and close** (filled primary, right) — saves the transaction and **closes** the modal on success only.
+- Validation or API failure never closes the modal (either button).
+- Insufficient source balance still blocks both buttons and shows the existing warning.
+- Modal **X**, backdrop click, and Escape close without saving; they stay blocked while a save is in progress.
 
 ## Accounting Settings Access
 - In `Accounting`, a gear button is shown on the right side of the tabs row.
@@ -195,11 +213,19 @@ This document defines financial behavior in the `Accounting` workspace (cashboxe
 
 ## Cashbox Currency Visibility Rules
 - System currency visibility for cashboxes is stored in MongoDB per cashbox, not in browser-local user preferences.
-- `UAH` is always enabled for every cashbox and cannot be disabled.
+- New cashboxes still default to **UAH receive on**, other currencies off.
+- Create/edit may enable only USD (or another currency) with UAH off. Listing and currency backfill must not turn UAH back on.
+- A cashbox card shows a currency only when it is enabled for receive or has a leftover balance (`Withdraw only`). Disabled UAH with `0.00` is hidden.
+- UAH can be disabled per cashbox (same as USD) only when that cashbox has zero balance and no operations in UAH; leftover already-disabled UAH still shows as `Withdraw only`.
+- The **default cashbox** cannot disable UAH.
+- At least one receive currency must stay enabled on each cashbox.
 - `USD` and all custom currencies exist for every current and future cashbox, but are disabled by default.
 - Enabling a non-UAH currency in one cashbox setting is global for all users because it updates that cashbox document in the database.
 - If a currency is disabled for a cashbox but its balance is greater than zero, the balance remains visible as `Withdraw only`.
 - Disabled currency cashboxes cannot receive deposits or incoming transfers in that currency; withdrawing existing balance is allowed.
+- A cashbox receive-currency checkbox cannot be unchecked when that cashbox has a **positive balance** in the currency or **one or more operations** in that currency (deposit, withdraw, transfer; cancelled and reversal rows count).
+- `PATCH /finance/cashboxes/:cashboxId` rejects those disable attempts with `Cannot disable a cashbox currency that has operations or a positive balance.`
+- Enabling a currency with zero history stays allowed. Already-disabled currencies keep the withdraw-only path if leftover balance exists.
 
 ## Concurrency Safety Rules
 - Finance mutations must use MongoDB transactions when the database is connected as a replica set.

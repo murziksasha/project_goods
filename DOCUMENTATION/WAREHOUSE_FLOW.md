@@ -4,13 +4,20 @@
 This document defines current warehouse requirements for stock balances, receipts, and procurement-linked behavior.
 
 ## Navigation
-- Warehouse tabs: `Stock balances`, `Receipts`, `Transfers`, `Settings`
+- Warehouse tabs: `Stock balances`, `Receipts`, `Transfers`, `Information`, `Settings`
+- Active tab, search, page size, stock view, and receipts view are restored per browser via `localStorage` (`project-goods.warehouse-filters`).
 - Related: [ORDER_CARD.md](./ORDER_CARD.md) · [SALE_CARD.md](./SALE_CARD.md) · [SERIAL_NUMBER_SEQUENCE_SPEC.md](./SERIAL_NUMBER_SEQUENCE_SPEC.md) · [PRINT_FORMS_SPEC.md](./PRINT_FORMS_SPEC.md) · [ORDER_FLOW.md](./ORDER_FLOW.md) · [SALE_FLOW.md](./SALE_FLOW.md) · [ACCOUNTING.md](./ACCOUNTING.md) · [index](./README.md)
 
 ### Client order links (Stock balances)
 - Column `Client order` renders linked sale/order numbers with a shareable `href` built via `getOrderLink(saleId, kind)`.
 - **Left click** opens the order/sale card inside the SPA (`navigateTo` / `pushState`) — no full page reload; browser Back returns to the warehouse view.
 - **Middle click / Ctrl+click** opens the deep-link URL in a new tab (full SPA load with `?page=orders&ordersTab=...&saleId=...`).
+- Hover on the badge shows a copy icon. Only the icon copies the visible number (`recordNumber`, else `sale.id` first 8 chars). Badge click stays the SPA / new-tab flow. Spec: [UI_DESIGN_SYSTEM.md — Hover copy icon](./UI_DESIGN_SYSTEM.md#hover-copy-icon).
+
+### Supplier order links (Stock balances)
+- Column `Supplier order` renders unit-level provenance badges (`displayNumber`, e.g. `SO-1` or `SO-1-2`).
+- **Click** opens `SupplierOrderModal` (item-scoped).
+- Hover on the badge shows a copy icon. Only the icon copies the visible `displayNumber`. Spec: [UI_DESIGN_SYSTEM.md — Hover copy icon](./UI_DESIGN_SYSTEM.md#hover-copy-icon).
 
 ## Stock Balances Requirements
 
@@ -86,18 +93,45 @@ This document defines current warehouse requirements for stock balances, receipt
 
 ### 4.4) Stock Balance Working Register UI
 - `Stock balances` is a compact operational register for finding and opening a stock unit quickly.
+- Header summary on this tab: `{units} units · {models} models · {purchase value}`.
 - Toolbar requirements:
-1. show current filtered stock row count
+1. `Models` / `Units` view toggle (default `Models`; persisted per browser)
 2. show the number of active applied filters on the `Filter` button
-3. use a search placeholder that matches the active search mode
+3. gear menu for column visibility (`Select` locked)
+4. search mode select + search field; placeholder matches the active search mode
+5. bulk serial print and clear-selection controls appear only when at least one row is selected
 - Table requirements:
 1. header stays sticky while scrolling the stock table
-2. rows use compact spacing for dense scanning
-3. `Warehouse` and `Location` are displayed as readable badges
-4. `Client order` and `Supplier order` links are displayed as compact badges
-5. `Note` is a compact single-line column; long text is truncated with ellipsis and exposes the full note in the native hover tooltip
-6. `Action` contains only the delete `X` control for the stock row
-7. empty state must explicitly suggest adjusting search or filters
+2. `Select` and `Name` stay sticky on horizontal scroll (`Name` sits immediately after `Select`)
+3. `Name` is resizable from the header handle; width is stored on this device only (see 4.4.2)
+4. rows use compact spacing for dense scanning; truncated cells show a hover tooltip
+5. `Warehouse` and `Location` are displayed as readable badges; warehouse badge uses the service-center color when set
+6. `Client order` and `Supplier order` links are displayed as compact badges. Hover shows a copy icon; only the icon copies the visible number. Badge click still opens the sale/order card or supplier-order modal.
+7. `Note` is a compact single-line column; long text is truncated with ellipsis and exposes the full note in the native hover tooltip
+8. `Action` is a kebab menu (`⋮`) with `Transfer` (when a transfer handler is provided) and `Delete`
+9. empty state must explicitly suggest adjusting search or filters
+
+### 4.4.1) Stock View Modes (`Models` / `Units`)
+- `Units` lists one row per in-stock `Product` (serial-level).
+- `Models` groups filtered units by normalized `name` + `article` (`groupStockProductsByModel`).
+- A single-unit model renders as a normal unit row (no expand control).
+- A multi-unit model collapses serials by default:
+  1. parent row shows the model name, a quantity badge (`N pcs`), and empty `Serial #`
+  2. expand control on the name cell reveals child serial rows
+  3. parent checkbox selects/deselects every unit in the group
+- Pagination in `Models` counts model groups, not individual serials; `Units` counts product rows.
+- Page size and current page for this tab are restored per browser with the other warehouse workspace keys.
+
+### 4.4.2) Name Column Width (Device-Local)
+- Only the `Name` column is operator-resizable (header `separator` handle).
+- Width is applied as CSS variable `--warehouse-name-col-width` on `.warehouse-stock-table`.
+- Clamp: `180px` … `720px`; default `320px`.
+- Table `min-width` is `max(100%, sum of visible column widths)` so `Supplier order` / `Supplier` do not collapse when `Name` grows.
+- Persistence:
+  1. key `project-goods.warehouse-stock-name-width` in **this browser's** `localStorage`
+  2. not synced to the employee account, server, or other devices
+  3. invalid/missing values fall back to `320px`
+  4. restore happens when `StockTable` mounts (tab switch and full reload)
 
 ### 4.3) Serial Binding In Sale Card: Strict Product Match Only
 - In `Sale card -> Bind serial numbers`, available serials must be loaded only for the exact product in line item.
@@ -145,6 +179,7 @@ This document defines current warehouse requirements for stock balances, receipt
 
 ### 4.4) Product Model Detail Modal
 - In `Warehouse -> Stock balances`, clicking `Name`, `Serial #`, `Article`, or `Note` opens the shared product model modal for the row's exact product name.
+- Hover on `Name`, `Serial #`, `Client order`, and `Supplier order` shows a copy icon. Only the icon copies; name/serial clicks still open the model/serial card, and order badges still open the sale/order or supplier-order modal. `Article` and `Note` have no copy icon. Spec: [UI_DESIGN_SYSTEM.md — Hover copy icon](./UI_DESIGN_SYSTEM.md#hover-copy-icon).
 - `Note` click opens the same modal so the operator can view or edit the full note in `MAIN INFORMATION -> Note`.
 - The modal aggregates only `Product` rows whose normalized name exactly equals the opened name (trim + lowercase); similar names such as `Mi Box S Gen 3` and `Mi Box S Gen 3 Pro` must stay separate.
 - The modal shows:
@@ -153,13 +188,23 @@ This document defines current warehouse requirements for stock balances, receipt
 3. retail price from `salePriceOptions[0]`
 4. wholesale price from `salePriceOptions[1]`
 5. purchase prices in `PRICES` (**read-only**, per serialized stock unit):
-   - section title `Purchase by serial` lists every **active in-stock** matching row as `Serial # | Purchase | Receipt date`
+   - section title `Purchase by serial` lists every **active in-stock** matching row as `Serial # | Purchase | Receipt date | Supplier order`
    - active row rule matches `Stock balances` visibility: `quantity > 0` and not linked to a sale with status `issued`
    - each row uses that unit's own `Product.price` and `purchaseDate` (fallback `createdAt`) from take-on-charge
+   - `Supplier order` is unit-level provenance (same as §2.1): `product.supplierOrderId` + `product.supplierOrderItemIndex` resolved to `displayNumber` (`SO-1`, or `SO-1-2` on multi-item orders). Missing / unmatched provenance shows `—`
+   - click the supplier-order number to open the existing `SupplierOrderModal` (item-scoped, same as Stock balances). The product-model modal stays open underneath
+   - hover on the serial number shows a copy icon; only the icon copies the visible serial. Empty / whitespace serials have no icon. `Latest` / `Reserved` badges stay outside the copy target. Spec: [UI_DESIGN_SYSTEM.md — Hover copy icon](./UI_DESIGN_SYSTEM.md#hover-copy-icon)
+   - hover on the supplier-order number shows a copy icon; only the icon copies the visible number. Spec: [UI_DESIGN_SYSTEM.md — Hover copy icon](./UI_DESIGN_SYSTEM.md#hover-copy-icon)
    - rows are sorted by receipt date descending, then serial number
-   - compact scrollable table (`max-height: 220px`) keeps modal layout stable on mobile
+   - compact scrollable table (`max-height: 220px`, dense cell padding) keeps serial, purchase, date, and supplier-order number visible without horizontal scroll on the desktop modal width
    - header summary `Latest batch: <price> · <date>` uses the newest receipt batch among **remaining active rows**
    - badge `Latest` marks every active row that belongs to that newest batch (same receipt date + purchase price)
+   - badge `Reserved` (red) marks an active row already bound on another sale/order
+   - occupancy source of truth is `GET /sales/occupied-serials` (same helper as §4.3.0); in-memory `sales` is only a fallback
+   - from an opened repair/sale card, `excludeSaleId` is the opened card so serials bound only on **that** card are not `Reserved`
+   - warehouse (no current sale) treats any occupancy hit as reserved
+   - `Latest` and `Reserved` can appear on the same row; reserved row background wins over latest
+   - print/select in this table stays enabled for reserved rows
    - when a serialized unit is sold/issued, its row disappears from this table after products/sales data refresh
    - when the last serial from a purchase batch is sold, that batch no longer appears in the table and `Latest batch` summary moves to the next newest active batch automatically
    - when modal is opened from a stock serial click, that serial's row is visually highlighted
@@ -248,7 +293,8 @@ Implementation references:
 
 - `orders-workspace-shared.test.tsx`: batch HTML classes and one `print-form-label` section per item.
 - `printForms.test.ts`: `warehouse-barcode` migration copies settings from `barcode`.
-- `ProductModelModal.test.tsx`: single-item print calls `printWarehouseSerialLabels` with one payload row.
+- `ProductModelModal.test.tsx`: single-item print calls `printWarehouseSerialLabels` with one payload row; reserved serials show the red `Reserved` badge from occupancy API and from in-memory sales fallback.
+- `product-model.test.ts`: `getReservedProductIdsOnOtherSales` skips the current sale and issued sales; `getReservedProductIdsFromOccupiedSerials` maps occupied serials; serial purchase rows carry `isReserved`.
 
 ## Receipts Requirements
 
@@ -265,8 +311,21 @@ Implementation references:
 - Empty status selection means all receipt statuses are shown.
 - Multiple selected statuses use OR logic: a row passes when its projected receipt status is in the selected set.
 - The toolbar `Filter` button counts a non-empty status selection as one active filter.
-- Saved warehouse filters persist the `statuses` array in local storage.
+- Toolbar also has `Orders` / `Lines` view toggle (default `Orders`; persisted per browser) and a star toggle for starred supplier-order receipts.
+- When a single receipt status is applied, matching status chips appear under the toolbar; `All` clears the status filter.
+- Header summary on this tab: `{lines} lines · {orders} orders · {unpaid} unpaid`.
+- Named saved warehouse filters persist the `statuses` array on the server (`/api/saved-filters`, scope `warehouse`); active/draft filter fields still live in this browser.
 - Legacy saved filters that still store a single `status` value are migrated to `statuses` on load.
+
+### 5.2) Receipts View Modes (`Orders` / `Lines`)
+- Hover on the receipt/order number shows a copy icon. Only the icon copies; number click still opens the supplier order. Spec: [UI_DESIGN_SYSTEM.md — Hover copy icon](./UI_DESIGN_SYSTEM.md#hover-copy-icon).
+- `Lines` lists one row per receipt line (supplier-order item or manual receipt).
+- `Orders` groups lines by supplier-order number (`groupReceiptRowsByOrder`):
+  1. parent row shows the order number, first product + extra-product count, summed qty/amount/paid, and rolled-up status
+  2. expand control reveals child item rows
+  3. mixed prices on the parent `Price` cell render as empty (`—`)
+- Pagination in `Orders` counts order groups; `Lines` counts receipt rows.
+- Star control is shown only for supplier-order-backed rows, never for manual session receipts.
 
 ### 6) Row Click Behavior
 - Click `#` -> open `SupplierOrderModal` for конкретная позиция заказа (item-level), not full order payload.
@@ -332,15 +391,15 @@ Implementation references:
 - Multi-item take-on-charge from the Supplier Order table status badge `Stocked` or item-scoped modal passes `itemIndex`; success on one line shows partial-stocked feedback until all active lines are received.
 - For open orders (`approved`, `partially_stocked`, `overdue`, etc.) that are not yet fully received:
   1. **Take-on-charge (`Оприбуткувати`)** — allowed for `pending`, `paid`, and `without_payment`; item-scoped via `itemIndex`.
-  2. **Cancel item (`Скасувати позицію`)** — allowed for unreceived items even when `paymentStatus = paid` / `without_payment`; recalculates payable `total` from active items, preserves historical `paid` on paid orders, and renders cancelled product names in red.
-  3. **Delete in modal (`Скасувати`)** — whole-order cancel; allowed only for `paymentStatus = pending` and when not all items are received.
+  2. **Cancel item (`Скасувати позицію`)** — shown when the modal has one unreceived line (`receiptStatus` `new` or `approved`): a 1-line order, or an item-scoped child of a 2+ item order. Allowed for `approved` / `overdue` / other open statuses, including `paymentStatus = paid` / `without_payment`. Recalculates payable `total` from active items, preserves historical `paid` on paid orders, and renders cancelled product names in red. Blocked only when the line is `received`/`cancelled` or the order is `cancelled`/`unavailable`.
+  3. **Cancel order (`Скасувати замовлення`)** — whole-order cancel; shown on the full-order modal (not item-scoped); allowed only for `paymentStatus = pending` and when not all items are received. Confirmation required. This is not a hard delete.
   4. **Status badge closure** — paid / `without_payment` orders may be moved manually to `cancelled` or `unavailable`; `paymentStatus` stays unchanged for paid orders.
 - Take-on-charge locks:
 1. `status = cancelled` or `unavailable`
 2. selected item `receiptStatus = received` or `cancelled`
 3. all items already `received`
 4. `paymentStatus = cancelled`
-- Modal Delete / `POST /supplier-orders/:supplierOrderId/cancel` locks:
+- Modal Cancel order / `POST /supplier-orders/:supplierOrderId/cancel` locks:
 1. `paymentStatus = paid` or `without_payment`
 2. `status = cancelled` or `unavailable`
 3. all items already `received`
@@ -392,12 +451,16 @@ Implementation references:
 - Warehouse settings are loaded through the TanStack Query `warehouseSettings` cache; the panel may mirror them into editable local form state while the operator is changing settings.
 
 ### 12.1) Transfer Item Selection
+- `Transfers` header summary: `{n} movable rows`.
+- Workspace shows session KPI cards: movable stock count, session transfer count, and distinct destinations from session history.
+- Route strip shows `From` (current warehouse/location) → `To` (selected target) before submit.
 - The right-side stock list shows filtered stock items for the current `Transfers` tab.
 - Each visible row is clickable as a whole row.
 - Clicking a row selects that product into the transfer `Product` field.
 - The selected row must be visually highlighted.
 - Keyboard selection must work with `Enter` or `Space` on the focused row.
 - The `Product` select may include all currently filtered stock items, not only the current visible page.
+- `Transfer` from a stock-row kebab menu pre-fills the same form for that unit.
 
 ### 12.2) Transfer Pagination
 - `Transfers` uses the shared top page arrows from the warehouse toolbar.
@@ -435,13 +498,50 @@ Implementation references:
 - `Transfers` stock list must opt out from the global fixed horizontal scrollbar to avoid a second parasitic scrollbar over the transfer history header.
 - Transfer history must not render a horizontal scrollbar by default.
 
+## Information Requirements
+
+### 13) Information Tab Purpose
+- `Warehouse -> Information` is a read-only stock analytics report over the same in-stock set as `Stock balances` (`quantity > 0` and not linked to an `issued` sale).
+- Views: `Products`, `Locations`, `Suppliers`.
+- Report builder: `src/widgets/dashboard/model/warehouse-information.ts` (`buildWarehouseInformationReport`).
+- Filters and view are session UI state (not written to `localStorage`).
+
+### 13.1) Information Filters And Export
+- Filters: search, warehouse, location, supplier, warehouse status (`all` / `active` / `inactive`), purchase-date from/to, sort (`quantity` / `value` / `latest`) and direction.
+- Summary cards: stock units, unique positions, purchase value, active warehouses; secondary signals for inactive warehouses with stock and locations with stock.
+- Charts show top share and top-three comparison for the active view metric.
+- `Export to file` downloads the current view as `.xlsx` (SheetJS), including generated-at and active-filter metadata.
+
+## Settings Requirements
+
+### 14) Settings Workspace
+- Tabs: `Service centers`, `Warehouses`, `Administrators`.
+- KPI cards: service-center count, active/total warehouses, location count, administrator count.
+- Warehouse list can filter `all` / `active` / `inactive`.
+- Clicking a service-center or warehouse name/color opens the existing edit modal.
+- Administrators keep a warehouse multi-select and default warehouse/location pair; defaults snap back to the first active assigned warehouse when the current default is missing or inactive.
+- Persistence is server-backed (`warehouseSettings` query / `useUpdateWarehouseSettingsMutation`), not `localStorage`.
+
 ## Global UI Requirement
 
-### 13) Horizontal Scrollbar Accessibility
+### 15) Horizontal Scrollbar Accessibility
 - If horizontal overflow appears, scrollbar must remain accessible at the bottom of app window.
 - Implemented via global shared component `GlobalHorizontalScrollbar`.
 - The component is mounted once in `DashboardPage` and synchronizes with visible `.catalog-table-wrap`.
 - Wrappers may opt out with `data-global-scrollbar="off"` when the local view already provides an appropriate scrollbar and the fixed bar would overlap nearby content.
+
+## Device-Local Warehouse Layout
+
+### 16) Per-Browser Keys
+These keys stay on the current device/browser and are **not** part of the employee account:
+
+| Key | Contents |
+|---|---|
+| `project-goods.warehouse-filters` | `activeTab`, `query`, `searchMode`, `settingsTab`, `currentPage`, `pageSize`, `stockView`, `receiptsView` |
+| `project-goods.warehouse-columns` | visible stock/receipts column arrays |
+| `project-goods.warehouse-stock-name-width` | stock `Name` column width in px |
+
+Named saved filters are server-backed (`GET/POST/DELETE /api/saved-filters`, scope `warehouse`). Legacy local presets migrate only when the server list is empty. See [STATE_MANAGEMENT.md](./STATE_MANAGEMENT.md).
 
 ## Notes
 - This document is normative for warehouse UI/UX and data mapping.

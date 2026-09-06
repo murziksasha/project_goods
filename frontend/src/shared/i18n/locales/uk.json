@@ -57,6 +57,9 @@
     "saving": "Збереження...",
     "export": "Експорт",
     "exporting": "Експорт...",
+    "copy": "Копіювати",
+    "copied": "Скопійовано",
+    "copyFailed": "Не вдалося скопіювати",
     "pagination": {
       "previousPage": "Попередня сторінка",
       "nextPage": "Наступна сторінка",
@@ -149,8 +152,13 @@
       "backups": "Резервні копії",
       "database": "База даних"
     },
-
     "dashboard": {
+      "subtitle": "Типові параметри віджета курсу та погоди на головній.",
+      "groups": {
+        "widgets": "Видимість віджета",
+        "rates": "Курси валют",
+        "weather": "Погода"
+      },
       "marketWeatherEnabled": "Показувати блок курсу та погоди",
       "exchangeRatesEnabled": "Показувати курси валют",
       "weatherEnabled": "Показувати прогноз погоди",
@@ -184,28 +192,32 @@
       "loading": "Завантаження налаштувань..."
     },
     "company": {
+      "appearanceTitle": "Вигляд",
+      "identityTitle": "Реквізити компанії",
+      "identitySubtitle": "Ці значення підставляються в змінні друкованих форм.",
       "serviceNameInHeader": "Назва сервісу в шапці",
       "serviceNamePlaceholder": "Service CRM",
-      "companyName": "Назва компанії ({{company}})",
+      "companyName": "Назва компанії",
       "companyNamePlaceholder": "Назва компанії",
       "companyNameMinLength": "Назва компанії має містити щонайменше 2 символи.",
-      "companyId": "ЄДРПОУ / ID компанії ({{company_id}})",
+      "companyId": "ЄДРПОУ / ID компанії",
       "companyIdPlaceholder": "Реєстраційний номер компанії",
       "companyIdFormat": "ID компанії має містити 8–12 символів (літери, цифри, дефіс).",
-      "companyAddress": "Адреса компанії ({{company_address}})",
+      "companyAddress": "Адреса компанії",
       "companyAddressPlaceholder": "Адреса компанії",
       "companyAddressMinLength": "Адреса компанії має містити щонайменше 5 символів.",
-      "companyIban": "IBAN компанії ({{company_iban}})",
+      "companyIban": "IBAN компанії",
       "companyIbanPlaceholder": "UA00 0000 0000 0000 0000 0000 0000 000",
       "companyIbanFormat": "IBAN має відповідати формату UA + 27 цифр (пробіли дозволені).",
-      "companyEmail": "E-mail компанії ({{company_email}})",
+      "companyEmail": "E-mail компанії",
       "companyEmailPlaceholder": "service@example.com",
-      "companySite": "Сайт компанії ({{company_site}})",
+      "companySite": "Сайт компанії",
       "companySitePlaceholder": "https://example.com"
     },
     "print": {
       "sectionLabel": "Друковані форми",
       "title": "Документи замовлень",
+      "subtitle": "Шаблони для меню друку замовлень, продажів і складу.",
       "documentTemplate": "Шаблон документа",
       "add": "Додати",
       "duplicate": "Дублювати",
@@ -524,6 +536,7 @@
       "master": "Майстер",
       "status": "Статус",
       "device": "Пристрій",
+      "product": "Товар",
       "serviceCenter": "Сервісний центр",
       "price": "Ціна",
       "paid": "Оплачено",
@@ -682,6 +695,7 @@
       "searchOrders": "Пошук замовлень",
       "clearSearch": "Очистити пошук",
       "toggleColumns": "Керувати колонками таблиці",
+      "resetColumns": "Скинути колонки",
       "toggleTabs": "Вибрати видимі вкладки",
       "lastVisibleTab": "Потрібно залишити хоча б одну вкладку",
       "orderCategories": "Категорії замовлень",
@@ -692,8 +706,8 @@
       "starOrder": "Додати зірку {{orderNumber}}",
       "unstarOrder": "Прибрати зірку з {{orderNumber}}",
       "searchPlaceholder": {
-        "orders": "Пошук за замовленням, клієнтом або пристроєм",
-        "sales": "Пошук за замовленням, клієнтом або менеджером"
+        "orders": "Замовлення, клієнт, телефон або пристрій",
+        "sales": "Замовлення, клієнт, телефон, товар або менеджер"
       },
       "loading": "Завантаження замовлень...",
       "empty": {
@@ -705,6 +719,7 @@
         "nonUrgent": "Не терміново"
       },
       "serialPrefix": "S/N: {{serial}}",
+      "extraLines": "+{{count}}",
       "warehouseLabel": "Склад: Service center",
       "assignee": {
         "master": "{{name}} (Майстер)",
@@ -728,8 +743,12 @@
       "clientPlaceholder": "Імʼя або телефон клієнта",
       "assignee": "Майстер / менеджер",
       "master": "Майстер",
+      "manager": "Менеджер",
       "warehouse": "Склад",
       "repairType": "Тип ремонту",
+      "saleType": "Тип продажу",
+      "saleTypeRapid": "Швидкий продаж",
+      "saleTypeRegular": "Звичайний",
       "repairTypePaid": "Paid",
       "repairTypeWarranty": "Warranty",
       "dateFrom": "Дата від",
@@ -1014,7 +1033,7 @@
         "action": "Дія",
         "noProductsAdded": "Товари не додано.",
         "noServicesAdded": "Послуги не додано.",
-        "groupedCount": "\u00d7{{quantity}}",
+        "groupedCount": "×{{quantity}}",
         "toggleGroup": "Група {{name}} ({{quantity}})",
         "return": "Повернути",
         "remove": "Видалити",
@@ -1054,9 +1073,10 @@
       "toolbar": {
         "data": "Дата",
         "createOrder": "Замовити у постачальника",
-        "searchPlaceholder": "Пошук за номером, товаром, постачальником",
+        "searchPlaceholder": "Пошук за номером, товаром, постачальником, автором або нотаткою",
         "orderStatus": "Статус замовлення",
         "orderStatusesCount": "{{count}} статусів замовлення",
+        "paymentStatusesCount": "{{count}} статусів оплати",
         "allPaymentStatuses": "Усі статуси оплати",
         "showAllOrders": "Показати всі замовлення постачальників",
         "showStarredOrders": "Показати обрані замовлення постачальників",
@@ -1072,6 +1092,7 @@
         "paid": "Оплачено",
         "supplier": "Постачальник",
         "createdAt": "Дата замовлення",
+        "createdBy": "Створив",
         "deliveryDate": "Дата поставки",
         "status": "Статус",
         "paymentStatus": "Статус оплати"
@@ -1079,7 +1100,18 @@
       "filters": {
         "dateFrom": "Дата від",
         "dateTo": "Дата до",
-        "clearDates": "Очистити дати"
+        "clearDates": "Очистити дати",
+        "orderStatus": "Статус замовлення",
+        "paymentStatus": "Статус оплати",
+        "supplier": "Постачальник",
+        "createdBy": "Створив",
+        "product": "Товар",
+        "productPlaceholder": "Назва товару",
+        "orderNumber": "№",
+        "orderNumberPlaceholder": "Номер замовлення",
+        "dateField": "Поле дати",
+        "dateFieldDelivery": "Дата поставки",
+        "dateFieldCreated": "Дата замовлення"
       },
       "table": {
         "starOrder": "Додати зірку {{id}}",
@@ -1090,7 +1122,12 @@
         "itemsCount": "{{count}} позицій",
         "expandOrder": "Розгорнути замовлення {{id}}",
         "collapseOrder": "Згорнути замовлення {{id}}",
-        "statusNotApplicable": "—"
+        "statusNotApplicable": "—",
+        "totalsOrders": "{{count}} замовлень",
+        "totalsPcs": "{{count}} шт.",
+        "totalsAmount": "Сума {{amount}}",
+        "totalsPaid": "Оплачено {{amount}}",
+        "totalsOutstanding": "Борг {{amount}}"
       },
       "statusMenu": {
         "orderLabel": "Замовлення {{id}}"
@@ -1166,7 +1203,11 @@
       },
       "modal": {
         "title": "Замовити у постачальника",
-        "delete": "Видалити",
+        "delete": "Скасувати замовлення",
+        "cancelOrder": "Скасувати замовлення",
+        "cancelOrderTitle": "Скасування замовлення",
+        "cancelOrderConfirm": "Скасувати це замовлення постачальника? Неоприбутковані позиції буде скасовано. Запис не видаляється.",
+        "cancelOrderConfirmAction": "Скасувати замовлення",
         "cancelItem": "Скасувати позицію",
         "cancelItemTitle": "Скасування позиції",
         "cancelItemConfirm": "Скасувати цю позицію в замовленні? Оплата та сума замовлення не змінюються автоматично.",
@@ -1243,6 +1284,7 @@
           "itemReceivedNotCancellable": "Оприбутковану позицію не можна скасувати.",
           "itemAlreadyCancelled": "Позицію вже скасовано.",
           "failedCancelItem": "Не вдалося скасувати позицію.",
+          "failedCancelOrder": "Не вдалося скасувати замовлення постачальника.",
           "alreadyPaid": "Замовлення вже сплачено.",
           "alreadyIssuedWithoutPayment": "Замовлення вже видано без оплати.",
           "payStatusNotAllowed": "Оплата доступна тільки для замовлень зі статусом approved, overdue, stocked або частково оприбуткованих.",
@@ -1312,6 +1354,7 @@
         "cannotReturnUnpaid": "Не можна повернути продаж без отриманої оплати. Використайте інший статус для скасування без оплати.",
         "refundBeforeRemoveLine": "Поверніть суму позиції перед видаленням з замовлення.",
         "statusBlocksRemoval": "Поточний статус замовлення не дозволяє видалення позицій.",
+        "statusBlocksEdit": "Поточний статус замовлення не дозволяє змінювати позиції або знижку.",
         "oneSerialPerLine": "Серійні товари продаються по одному серійному номеру на рядок. Додайте інший серійний номер.",
         "paymentExceedsBalance": "Сума оплати не може перевищувати залишок.",
         "issuedRequiresPayment": "Статус Issued потребує оплати в касу. Використайте дію оплати або залиште неоплачений статус.",
@@ -1426,7 +1469,8 @@
       "information": "Інформація",
       "clientsAndSuppliers": "Клієнти та постачальники",
       "clients": "Клієнти",
-      "suppliers": "Постачальники"
+      "suppliers": "Постачальники",
+      "withCount": "{{label}} ({{count}})"
     },
     "toolbar": {
       "filter": "Фільтр",
@@ -1438,7 +1482,9 @@
       "exportXls": "Експорт XLS",
       "exporting": "Експорт...",
       "merge": "Обʼєднати",
-      "createClient": "Створити клієнта"
+      "createClient": "Створити клієнта",
+      "totalCount_one": "{{count}} запис",
+      "totalCount_other": "{{count}} записів"
     },
     "table": {
       "title": "Список клієнтів",
@@ -1499,8 +1545,8 @@
       "searchAriaLabel": "Пошук у списку клієнта",
       "clearSearchAriaLabel": "Очистити текст пошуку",
       "searchPlaceholder": {
-        "orders": "Пошук за номером, послугою, статусом",
-        "sales": "Пошук за номером, товаром, статусом",
+        "orders": "Пошук за номером, пристроєм, серійним номером, статусом",
+        "sales": "Пошук за номером, товаром, серійним номером, статусом",
         "devices": "Пошук за назвою, приміткою"
       },
       "filters": {
@@ -1553,11 +1599,12 @@
       "removePhoneAriaLabel": "Видалити телефон",
       "saveClient": "Зберегти клієнта",
       "saving": "Збереження...",
+      "statusAutoHint": "Авто: {{status}}",
       "history": {
         "columns": {
           "number": "№",
           "date": "Дата",
-          "service": "Послуга",
+          "device": "Пристрій",
           "sale": "Продаж",
           "status": "Статус",
           "amount": "Сума"
@@ -1609,6 +1656,7 @@
       "toolbar": {
         "filter": "Фільтр",
         "searchPlaceholder": "Пошук за імʼям, телефоном або замовленням постачальника",
+        "searchAriaLabel": "Пошук постачальника",
         "clearSearchAriaLabel": "Очистити пошук",
         "merge": "Обʼєднати",
         "createSupplier": "Створити постачальника"
@@ -1649,7 +1697,7 @@
         "fields": {
           "name": "Імʼя",
           "phone": "Телефон",
-          "supplierOrder": "Замовлення постачальника",
+          "supplierOrder": "Типове ЗП / номер замовлення",
           "note": "Примітка",
           "status": "Статус"
         },
@@ -1750,19 +1798,24 @@
         "quantityPcs": "{{count}} шт",
         "removeStarAriaLabel": "Прибрати зірку з {{number}}",
         "starAriaLabel": "Позначити зіркою {{number}}",
+        "expandOrder": "Показати рядки {{number}}",
+        "collapseOrder": "Сховати рядки {{number}}",
+        "moreProducts": "+{{count}}",
         "columns": {
           "number": "#",
           "product": "Товар",
           "quantity": "Кількість",
           "price": "Ціна",
-          "amount": "Сума",
+          "amount": "Разом",
           "paid": "Оплачено",
           "supplier": "Постачальник",
           "receiptDate": "Дата прийому",
           "acceptedBy": "Прийняв",
           "approvedBy": "Затвердив",
           "status": "Статус",
-          "payment": "Оплата"
+          "payment": "Оплата",
+          "money": "Оплачено / Сума",
+          "by": "Ким"
         },
         "status": {
           "cancelled": "Скасовано",
@@ -1783,6 +1836,10 @@
         "emptyHint": "Змініть пошук або фільтри, щоб побачити доступні залишки.",
         "selectAllAriaLabel": "Обрати всі рядки залишків",
         "selectRowAriaLabel": "Обрати {{name}}",
+        "selectModelAriaLabel": "Обрати всі одиниці {{name}}",
+        "expandModel": "Показати серійні номери {{name}}",
+        "collapseModel": "Сховати серійні номери {{name}}",
+        "resizeNameColumn": "Змінити ширину колонки назви",
         "columns": {
           "select": "Обрати",
           "name": "Назва",
@@ -1801,18 +1858,31 @@
       }
     },
     "settings": {
+      "title": "Налаштування складу",
+      "subtitle": "Сервісні центри, склади, локації та доступ адміністраторів.",
       "tabsAriaLabel": "Розділи налаштувань складу",
       "tabs": {
         "serviceCenters": "Сервісні центри",
         "warehouses": "Склади",
         "administrators": "Адміністратори"
       },
+      "kpi": {
+        "serviceCenters": "Сервісні центри",
+        "warehouses": "Склади",
+        "locations": "Локації",
+        "administrators": "Адміністратори"
+      },
+      "warehousesActiveTotal": "{{active}} / {{total}}",
+      "empty": {
+        "serviceCenters": "Сервісних центрів ще немає.",
+        "warehouses": "Немає складів за цим фільтром.",
+        "administrators": "Немає адміністраторів для налаштування."
+      },
       "serviceCenters": {
         "create": "Створити",
         "editAriaLabel": "Редагувати {{name}}",
         "columns": {
           "name": "Назва",
-          "color": "колір",
           "address": "Адреса",
           "phone": "Телефон",
           "warehouses": "Склади"
@@ -1822,10 +1892,10 @@
         "statusFilter": "Статус",
         "createWarehouse": "Створити склад",
         "columns": {
-          "id": "Id",
+          "id": "ID",
           "name": "Назва",
           "status": "Статус",
-          "location": "Локація",
+          "location": "Сервісний центр",
           "address": "Адреса",
           "phone": "Телефон",
           "locations": "Локації",
@@ -1835,8 +1905,8 @@
       },
       "administrators": {
         "administrator": "Адміністратор",
-        "viewWarehouses": "Склади, до яких адміністратор має доступ",
-        "viewDefaultLocation": "Склад і локація за замовчуванням для адміністратора",
+        "viewWarehouses": "Доступні склади",
+        "viewDefaultLocation": "Склад і локація за замовчуванням",
         "allSelected": "Усі ({{count}})",
         "selectWarehouses": "Оберіть склади",
         "searchPlaceholder": "Пошук",
@@ -1846,33 +1916,33 @@
     },
     "modals": {
       "serviceCenter": {
-        "createTitle": "створити сервісний центр",
-        "editTitle": "редагувати сервісний центр",
-        "nameLabel": "назва:",
-        "namePlaceholder": "назва",
-        "colorLabel": "колір (#000000):",
+        "createTitle": "Створити сервісний центр",
+        "editTitle": "Редагувати сервісний центр",
+        "nameLabel": "Назва",
+        "namePlaceholder": "Назва",
+        "colorLabel": "Колір",
         "colorPlaceholder": "#000000",
-        "colorAriaLabel": "колір",
-        "addressLabel": "адреса:",
-        "addressPlaceholder": "адреса",
-        "phoneLabel": "телефон:",
+        "colorAriaLabel": "Колір",
+        "addressLabel": "Адреса",
+        "addressPlaceholder": "Адреса",
+        "phoneLabel": "Телефон",
         "phonePlaceholder": "+380"
       },
       "warehouse": {
-        "createTitle": "створити склад",
-        "editTitle": "редагувати склад",
-        "nameLabel": "назва:",
-        "namePlaceholder": "назва",
-        "active": "активний",
-        "serviceCenterLabel": "Прив'язка до сервісного центру:",
-        "selectServiceCenter": "оберіть сервісний центр",
-        "receiptAddressLabel": "адреса для постачальників:",
-        "receiptPhoneLabel": "телефон для постачальників:",
-        "locationsLabel": "локації:",
-        "locationNamePlaceholder": "введіть назву локації",
+        "createTitle": "Створити склад",
+        "editTitle": "Редагувати склад",
+        "nameLabel": "Назва",
+        "namePlaceholder": "Назва",
+        "active": "Активний",
+        "serviceCenterLabel": "Сервісний центр",
+        "selectServiceCenter": "Оберіть сервісний центр",
+        "receiptAddressLabel": "Адреса для постачальників",
+        "receiptPhoneLabel": "Телефон для постачальників",
+        "locationsLabel": "Локації",
+        "locationNamePlaceholder": "Введіть назву локації",
         "locationUsageTitle": "Товари, що посилаються на цю локацію",
         "duplicateLocationsError": "Назви локацій мають бути унікальними в межах складу.",
-        "addLocation": "локація"
+        "addLocation": "Додати локацію"
       },
       "createReceiptOrder": "Створити прийом",
       "create": "Створити",
@@ -2027,6 +2097,8 @@
       }
     },
     "transfer": {
+      "title": "Переміщення залишків",
+      "subtitle": "Перемістіть одиницю з поточної локації на інший склад або місце.",
       "product": "Товар",
       "selectStockItem": "Оберіть позицію залишку",
       "currentLocation": "Поточна локація",
@@ -2039,7 +2111,22 @@
       "notePlaceholder": "Причина або номер документа",
       "transferring": "Переміщення...",
       "transferStock": "Перемістити залишок",
+      "kpi": {
+        "movable": "Доступно до переміщення",
+        "session": "У цій сесії",
+        "destinations": "Напрямки"
+      },
+      "route": {
+        "from": "Звідки",
+        "to": "Куди",
+        "empty": "Не обрано"
+      },
+      "warnings": {
+        "selectProduct": "Оберіть позицію для переміщення."
+      },
+      "destinationsTitle": "Напрямки сесії",
       "stockTable": {
+        "title": "Залишки для переміщення",
         "columns": {
           "product": "Товар",
           "serial": "Серійний №",
@@ -2050,6 +2137,7 @@
         "empty": "Рядків залишків не знайдено."
       },
       "historyTable": {
+        "title": "Історія сесії",
         "columns": {
           "date": "Дата",
           "product": "Товар",
@@ -2113,7 +2201,16 @@
     "summary": {
       "stockRows": "{{count}} рядків залишків",
       "movableRows": "{{count}} рядків для переміщення",
-      "receiptRows": "{{count}} рядків надходжень"
+      "receiptRows": "{{count}} рядків надходжень",
+      "unitsModelsValue": "{{units}} одиниць · {{models}} моделей · {{value}}",
+      "linesOrdersUnpaid": "{{lines}} рядків · {{orders}} прийомів · {{unpaid}} до сплати"
+    },
+    "view": {
+      "units": "Одиниці",
+      "models": "Моделі",
+      "orders": "Прийоми",
+      "lines": "Рядки",
+      "ariaLabel": "Вигляд таблиці складу"
     },
     "filters": {
       "byName": "За назвою",
@@ -2141,7 +2238,14 @@
       "showStarredReceiptOrders": "Показати лише зірочені прийоми",
       "filter": "Фільтр",
       "filterWithCount": "Фільтр ({{count}})",
-      "clearSearch": "Очистити пошук"
+      "clearSearch": "Очистити пошук",
+      "searchModeAria": "Шукати за",
+      "statusAll": "Усі"
+    },
+    "actions": {
+      "more": "Більше дій",
+      "delete": "Видалити",
+      "transfer": "Перемістити"
     },
     "messages": {
       "errors": {
@@ -2219,7 +2323,16 @@
       "comment": "Коментар",
       "emptyOption": "-",
       "saving": "Збереження...",
-      "saveOperation": "Зберегти операцію"
+      "confirmOperation": "Підтвердити",
+      "confirmAndClose": "Підтвердити і закрити",
+      "searchPlaceholder": "Пошук кас",
+      "hideEmpty": "Приховати порожні",
+      "empty": "Кас ще немає. Створіть касу в налаштуваннях бухгалтерії.",
+      "searchNoResults": "Немає кас за цим пошуком.",
+      "cashboxCount": "{{count}} кас",
+      "remainingBalance": "Доступно: {{amount}}",
+      "insufficientBalance": "Сума перевищує доступний залишок.",
+      "reorderHint": "Перетягніть, щоб змінити порядок"
     },
     "transactions": {
       "loading": "Завантаження фінансових даних...",
@@ -2259,6 +2372,7 @@
       "cancelled": "Скасовано",
       "cancellation": "Скасування",
       "editNoteTitle": "Редагувати примітку",
+      "addNote": "Додати примітку",
       "cancelDeposit": "Скасувати внесення",
       "cancelWithdraw": "Скасувати видачу",
       "cancelTransfer": "Скасувати переказ",
@@ -2273,6 +2387,7 @@
       "cashboxes": "Каси",
       "currencies": "Валюти",
       "createCashbox": "Створити касу",
+      "receiveCurrencies": "Валюти прийому",
       "name": "Назва",
       "enterCashboxNamePlaceholder": "Введіть назву каси",
       "create": "Створити",
@@ -2282,6 +2397,7 @@
       "inactive": "Неактивна",
       "withdrawOnly": "Лише виведення",
       "withdrawOnlyCashboxTitle": "Валюта неактивна для прийому, але в касі ще є залишок. Дозволено лише виведення.",
+      "cannotUncheckCurrencyTitle": "Цю валюту не можна вимкнути, бо в касі є операції або додатний залишок.",
       "inactiveForCashboxTitle": "Валюта неактивна для цієї каси.",
       "globallyInactiveTitle": "Валюта глобально неактивна і не може бути прийнята.",
       "save": "Зберегти",
@@ -2320,6 +2436,8 @@
       "cashbox": "Каса",
       "pay": "Оплатити",
       "paying": "Оплата...",
+      "search": "Пошук",
+      "searchPlaceholder": "Номер або постачальник",
       "issueWithoutPayment": "Видати без оплати",
       "openSupplierOrderAriaLabel": "Відкрити замовлення постачальнику {{orderNumber}}",
       "paymentNote": "Оплата за замовлення {{orderNumber}}"
@@ -2368,6 +2486,9 @@
       "issueWithoutPaymentTitle": "Підтвердити видачу без оплати",
       "issueWithoutPaymentDescription": "Замовлення {{orderNumber}} буде позначено як видане без оплати.",
       "issueWithoutPaymentConfirm": "Фінансова транзакція не буде створена. Продовжити?",
+      "payOrderTitle": "Оплатити замовлення постачальнику",
+      "payOrderDescription": "Сплатити {{amount}} за {{orderNumber}} ({{supplier}}) з каси {{cashbox}}.",
+      "payOrderBalance": "Залишок каси: {{amount}}",
       "confirm": "Підтвердити"
     },
     "messages": {
@@ -2378,6 +2499,9 @@
         "currencyAlreadyExists": "Валюта вже існує.",
         "uahCannotBeArchived": "UAH — основна валюта, її не можна архівувати.",
         "uahAlwaysActive": "UAH завжди активна.",
+        "defaultCashboxUahRequired": "Каса за замовчуванням повинна приймати UAH.",
+        "atLeastOneCurrencyRequired": "Потрібно залишити хоча б одну валюту каси.",
+        "cannotDisableCurrencyWithActivity": "Не можна вимкнути валюту каси, якщо є операції або додатний залишок.",
         "transferCashboxesMustDiffer": "Каси для переказу мають бути різними.",
         "currencyNotAvailable": "Обрана валюта недоступна для цієї операції.",
         "amountMustBePositive": "Сума транзакції має бути більше 0.",
@@ -2455,8 +2579,11 @@
       "clearFilter": "Очистити фільтр"
     },
     "tables": {
+      "loadingDevices": "Завантаження пристроїв...",
       "loadingProducts": "Завантаження товарів...",
       "loadingServices": "Завантаження послуг...",
+      "noDevicesFound": "Пристроїв не знайдено.",
+      "noDevicesYet": "Пристроїв ще немає.",
       "noProductsFound": "Товарів не знайдено.",
       "noProductsYet": "Товарів ще немає.",
       "noServicesFound": "Послуг не знайдено.",
@@ -2471,6 +2598,8 @@
         "created": "Створено",
         "activity": "Активність",
         "date": "Дата",
+        "lastSeen": "Останнє",
+        "usage": "Використання",
         "price": "Ціна",
         "note": "Примітка",
         "updated": "Оновлено",
@@ -2499,6 +2628,8 @@
       "active": "Активний",
       "inactive": "Неактивний",
       "addNew": "Додати нового",
+      "addNewHint": "Створити ще одного постачальника. Телефон має бути унікальним.",
+      "addNewPhoneHint": "Вкажіть унікальний телефон, потім створіть.",
       "saving": "Збереження...",
       "save": "Зберегти",
       "create": "Створити",
@@ -2541,10 +2672,6 @@
       "copyFailed": "Не вдалося скопіювати",
       "printSerialNumber": "Друкувати серійний номер",
       "printSerialTitle": "Серійний номер складу",
-      "printSelectedCount": "Друк {{count}} обраних серійних номерів",
-      "selectSerialsToPrint": "Оберіть серійні номери для друку",
-      "selectAllSerials": "Обрати всі серійні номери для друку",
-      "selectSerialRow": "Обрати серійний номер {{serial}} для друку",
       "noStockRows": "Немає складських рядків для цієї точної назви товару.",
       "sections": {
         "main": "ОСНОВНА ІНФОРМАЦІЯ",
@@ -2561,8 +2688,14 @@
       "latestBatchSummary": "Остання партія: {{price}} · {{date}}",
       "serialNumber": "Серійний №",
       "purchaseDate": "Дата прийому",
+      "supplierOrder": "Замовлення постачальника",
       "serialMissing": "Без серійного №",
       "latestBatchBadge": "Остання",
+      "reservedBadge": "Резерв",
+      "selectAllSerials": "Обрати всі серійні номери",
+      "selectSerialRow": "Обрати серійний {{serial}}",
+      "printSelectedCount": "Друк {{count}} обраних серійних номерів",
+      "selectSerialsToPrint": "Оберіть серійні номери для друку",
       "purchasePriceReadOnlyHint": "Закупівельні ціни лише для перегляду і не змінюються в цьому вікні.",
       "matchingStockRows": "Відповідних складських рядків: {{count}}.",
       "lastBatchPrice": "Ціна останньої партії: {{price}}. Відповідних складських рядків: {{count}}.",
@@ -2609,7 +2742,80 @@
       "delete": "Видалити",
       "cannotDeleteSelf": "Ви не можете видалити власний обліковий запис.",
       "deleteEmployee": "Видалити співробітника",
-      "noPermission": "Лише власники можуть створювати, редагувати або видаляти співробітників."
+      "noPermission": "Лише власники можуть створювати, редагувати або видаляти співробітників.",
+      "addEmployee": "Додати співробітника",
+      "searchPlaceholder": "Ім'я, логін, email, телефон...",
+      "filterRole": "Роль",
+      "filterStatus": "Статус",
+      "allRoles": "Усі ролі",
+      "allStatuses": "Усі статуси",
+      "activeCount": "{{active}} активних · {{inactive}} неактивних",
+      "noMatches": "Немає співробітників за цими фільтрами.",
+      "metaLogin": "Логін",
+      "metaEmail": "Email",
+      "metaPhone": "Телефон"
+    },
+    "roles": {
+      "owner": "Власник",
+      "manager": "Менеджер",
+      "master": "Майстер",
+      "accountant": "Бухгалтер",
+      "warehouse": "Склад",
+      "sales": "Продажі",
+      "support": "Підтримка"
+    },
+    "permissions": {
+      "orders": {
+        "view": "Перегляд замовлень",
+        "manage": "Керування замовленнями",
+        "chat": "Чат замовлень"
+      },
+      "supplierOrders": {
+        "view": "Перегляд замовлень постачальникам",
+        "manage": "Керування замовленнями постачальникам"
+      },
+      "repairs": {
+        "execute": "Виконання ремонтів"
+      },
+      "sales": {
+        "manage": "Керування продажами"
+      },
+      "kanban": {
+        "use": "Використання канбану"
+      },
+      "clients": {
+        "manage": "Керування клієнтами"
+      },
+      "inventory": {
+        "manage": "Керування складом"
+      },
+      "finance": {
+        "view": "Перегляд фінансів",
+        "cashboxes": {
+          "view": "Перегляд кас",
+          "manage": "Керування касами"
+        },
+        "transactions": {
+          "deposit": "Внески в касу",
+          "withdraw": "Вилучення з каси",
+          "transfer": "Перекази між касами"
+        },
+        "supplierOrders": {
+          "pay": "Оплата замовлень постачальникам",
+          "issueWithoutPayment": "Видача замовлень постачальникам без оплати"
+        }
+      },
+      "employees": {
+        "manage": "Керування співробітниками"
+      },
+      "printForms": {
+        "manage": "Керування друкованими формами"
+      },
+      "system": {
+        "backups": {
+          "manage": "Керування резервними копіями"
+        }
+      }
     },
     "information": {
       "sectionLabel": "Аналітика співробітників",

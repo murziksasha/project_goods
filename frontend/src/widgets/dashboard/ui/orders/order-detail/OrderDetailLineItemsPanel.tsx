@@ -21,7 +21,10 @@ import type {
   Supplier,
   SupplierFormValues,
 } from '../../../../../entities/supplier/model/types';
-import type { SupplierOrderFormValues } from '../../../../../entities/supplier-order/model/types';
+import type {
+  SupplierOrder,
+  SupplierOrderFormValues,
+} from '../../../../../entities/supplier-order/model/types';
 import { createSupplierOrder } from '../../../../../entities/supplier-order/api/supplierOrderApi';
 import type {
   Product,
@@ -48,6 +51,7 @@ import { ProductSalePriceField } from '../../../../../shared/ui/ProductSalePrice
 import { ProductSalePriceTierToggle } from '../../../../../shared/ui/ProductSalePriceTierToggle';
 import { parseDecimal } from '../../../../../shared/lib/decimal';
 import { formatCurrency } from '../../../../../shared/lib/format';
+import { useDismissibleSuggestions } from '../../../../../shared/lib/useDismissibleSuggestions';
 import type { PrintForm } from '../../../../../entities/settings/model/types';
 import {
   SupplierOrderModal,
@@ -101,8 +105,10 @@ export type OrderDetailLineItemsPanelProps = {
   items: OrderLineItem[];
   allItems: OrderLineItem[];
   products: Product[];
+  supplierOrders?: SupplierOrder[];
   printForms: PrintForm[];
   catalogProducts: CatalogProduct[];
+  onOpenSupplierOrder?: (supplierOrderId: string, itemIndex: number) => void;
   onAddItem: (item: Omit<OrderLineItem, 'id'>) => void;
   onReplaceItem: (
     itemId: string,
@@ -160,8 +166,10 @@ export const OrderDetailLineItemsPanel = ({
   items,
   allItems,
   products,
+  supplierOrders,
   printForms,
   catalogProducts,
+  onOpenSupplierOrder,
   onAddItem,
   onReplaceItem,
   onRemoveItem,
@@ -225,6 +233,18 @@ export const OrderDetailLineItemsPanel = ({
     useState(false);
   const [isProductLookupLoading, setIsProductLookupLoading] =
     useState(false);
+  const {
+    rootRef: lineItemSuggestionsRootRef,
+    panelRef: lineItemSuggestionsPanelRef,
+    isVisible: isLineItemSuggestionsVisible,
+  } = useDismissibleSuggestions({
+    query: name,
+    isActive:
+      !isReadOnly &&
+      (kind === 'product'
+        ? productSuggestions.length > 0 || isProductLookupLoading
+        : serviceSuggestions.length > 0 || isServiceLookupLoading),
+  });
   const [selectedService, setSelectedService] =
     useState<ServiceCatalogItem | null>(null);
   const [serviceForm, setServiceForm] = useState(
@@ -1753,10 +1773,12 @@ export const OrderDetailLineItemsPanel = ({
             return header ? [header, ...rows] : rows;
           })
         )}
+        {isReadOnly ? null : (
         <div className='order-detail-table-entry-row'>
           <div
             className='order-line-item-name-entry order-detail-table-entry-cell'
             data-label={t('orders.detail.lineItems.name')}
+            ref={lineItemSuggestionsRootRef}
           >
             <input
               className='line-item-inline-input'
@@ -1864,11 +1886,14 @@ export const OrderDetailLineItemsPanel = ({
             </button>
           </div>
         </div>
+        )}
       </div>
       <div className='order-line-items-form'>
-        {kind === 'product' &&
-        (productSuggestions.length > 0 || isProductLookupLoading) ? (
-          <div className='create-suggestions line-item-suggestions'>
+        {kind === 'product' && isLineItemSuggestionsVisible ? (
+          <div
+            ref={lineItemSuggestionsPanelRef}
+            className='create-suggestions line-item-suggestions'
+          >
             {isProductLookupLoading ? (
               <p>{t('orders.detail.lineItems.searchingProducts')}</p>
             ) : null}
@@ -1932,9 +1957,11 @@ export const OrderDetailLineItemsPanel = ({
             })}
           </div>
         ) : null}
-        {kind === 'service' &&
-        (serviceSuggestions.length > 0 || isServiceLookupLoading) ? (
-          <div className='create-suggestions line-item-suggestions'>
+        {kind === 'service' && isLineItemSuggestionsVisible ? (
+          <div
+            ref={lineItemSuggestionsPanelRef}
+            className='create-suggestions line-item-suggestions'
+          >
             {isServiceLookupLoading ? (
               <p>{t('orders.detail.lineItems.searchingServices')}</p>
             ) : null}
@@ -1984,10 +2011,13 @@ export const OrderDetailLineItemsPanel = ({
           name={productModelContext.name}
           products={products}
           sales={sales}
+          supplierOrders={supplierOrders}
+          currentSaleId={currentSaleId}
           warehouses={productModelWarehouses}
           printForms={printForms}
           printProduct={productModelContext.printProduct}
           isSaving={isCatalogSaving}
+          onOpenSupplierOrder={onOpenSupplierOrder}
           onClose={() => setProductModelContext(null)}
           onSave={async (payload) => {
             setIsCatalogSaving(true);

@@ -120,7 +120,6 @@ describe('useAccountingPreferences', () => {
   it('initializes from URL first and persists preference changes', () => {
     const onNavigateAccountingTab = vi.fn();
     window.localStorage.setItem(accountingTabStorageKey, 'orders');
-    window.localStorage.setItem(accountingSettingsOpenStorageKey, 'true');
     window.localStorage.setItem(accountingFinanceSettingsTabStorageKey, 'currencies');
     window.localStorage.setItem(
       accountingExpandedFinanceSettingsCardStorageKey,
@@ -145,7 +144,7 @@ describe('useAccountingPreferences', () => {
     );
 
     expect(screen.getByTestId('active-tab')).toHaveTextContent('transactions');
-    expect(screen.getByTestId('settings-open')).toHaveTextContent('true');
+    expect(screen.getByTestId('settings-open')).toHaveTextContent('false');
     expect(screen.getByTestId('settings-tab')).toHaveTextContent('currencies');
     expect(screen.getByTestId('expanded')).toHaveTextContent('cashbox-card');
     expect(screen.getByTestId('memory')).toHaveTextContent(
@@ -178,9 +177,8 @@ describe('useAccountingPreferences', () => {
     fireEvent.click(screen.getByRole('button', { name: 'expand' }));
     fireEvent.click(screen.getByRole('button', { name: 'memory' }));
 
-    expect(window.localStorage.getItem(accountingSettingsOpenStorageKey)).toBe(
-      'false',
-    );
+    expect(screen.getByTestId('settings-open')).toHaveTextContent('true');
+    expect(window.localStorage.getItem(accountingSettingsOpenStorageKey)).toBeNull();
     expect(window.localStorage.getItem(accountingFinanceSettingsTabStorageKey)).toBe(
       'currencies',
     );
@@ -210,6 +208,24 @@ describe('useAccountingPreferences', () => {
     expect(
       window.localStorage.getItem(accountingExpandedFinanceSettingsCardStorageKey),
     ).toBeNull();
+  });
+
+  it('opens settings from the URL and syncs them on popstate', async () => {
+    window.history.replaceState(null, '', '/?accountingSettings=1');
+    render(<Harness />);
+    expect(screen.getByTestId('settings-open')).toHaveTextContent('true');
+
+    window.history.replaceState(null, '', '/');
+    window.dispatchEvent(new PopStateEvent('popstate'));
+    await waitFor(() =>
+      expect(screen.getByTestId('settings-open')).toHaveTextContent('false'),
+    );
+
+    window.history.replaceState(null, '', '/?accountingSettings=1');
+    window.dispatchEvent(new PopStateEvent('popstate'));
+    await waitFor(() =>
+      expect(screen.getByTestId('settings-open')).toHaveTextContent('true'),
+    );
   });
 
   it('falls back for invalid stored values and syncs from history callbacks', async () => {

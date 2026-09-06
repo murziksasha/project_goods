@@ -9,6 +9,7 @@ import { HttpError } from '../../shared/lib/errors';
 
 export type CashboxPayload = {
   name?: unknown;
+  enabledCurrencies?: unknown;
 };
 
 export type UpdateCashboxPayload = {
@@ -84,16 +85,17 @@ export const normalizeEnabledCurrencies = (value: unknown) => {
     throw new HttpError(400, 'Enabled currencies must be an object.');
   }
   const payload = value as Record<string, unknown>;
-  if (payload[baseFinanceCurrency] === false) {
-    throw new HttpError(400, 'UAH currency cannot be disabled.');
-  }
-
-  return Object.entries(payload).reduce<Record<string, boolean>>(
+  const normalized = Object.entries(payload).reduce<Record<string, boolean>>(
     (acc, [currencyCode, enabled]) => {
       const normalizedCode = normalizeCurrencyCode(currencyCode);
-      acc[normalizedCode] = normalizedCode === baseFinanceCurrency || enabled === true;
+      acc[normalizedCode] = enabled === true;
       return acc;
     },
-    { [baseFinanceCurrency]: true },
+    {},
   );
+  if (!Object.values(normalized).some(Boolean)) {
+    throw new HttpError(400, 'At least one cashbox currency must be enabled.');
+  }
+
+  return normalized;
 };

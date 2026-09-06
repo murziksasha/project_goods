@@ -1,23 +1,11 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type KeyboardEvent } from 'react';
 import { useTranslation } from 'react-i18next';
-import {
-  createBackup,
-  deleteBackup,
-  downloadBackup,
-  listBackups,
-  restoreBackup,
-  restoreBackupFromFile,
-} from '../../../../entities/backup/api/backupApi';
-import type { BackupMetadata } from '../../../../entities/backup/model/types';
 import type {
   AppSettingsFormValues,
-  DashboardPreferences,
   PrintForm,
-  RateProvider,
 } from '../../../../entities/settings/model/types';
 import { normalizePrintFormsForView } from '../../../../entities/settings/model/printForms';
 import { createNewPrintForm } from '../../model/print-form-builder';
-
 import {
   getCompanyValidation,
   getSettingsPreviewValues,
@@ -26,18 +14,14 @@ import {
   settingsTabStorageKey,
   type SettingsTab,
 } from '../../model/settings-panel';
-import { PaginationPanel } from '../../../../shared/ui/PaginationPanel';
 import { Button } from '../../../../shared/ui/Button';
-import { Modal } from '../../../../shared/ui/Modal';
+import { LoadingState } from '../../../../shared/ui/LoadingState';
 import { PageHeader } from '../../../../shared/ui/PageHeader';
-import {
-  readUiDensity,
-  writeUiDensity,
-  type UiDensity,
-} from '../../../../shared/lib/uiDensity';
-import { PrintFormBuilder } from './PrintFormBuilder';
+import { BackupsSection } from './BackupsSection';
+import { CompanySettingsSection } from './CompanySettingsSection';
+import { DashboardSettingsSection } from './DashboardSettingsSection';
 import { DatabaseReportSection } from './DatabaseReportSection';
-
+import { PrintFormsSection } from './PrintFormsSection';
 
 type SettingsPanelProps = {
   form: AppSettingsFormValues;
@@ -52,890 +36,6 @@ type SettingsPanelProps = {
     value: AppSettingsFormValues[K],
   ) => void;
   onSubmit: () => void;
-};
-
-type SettingsChangeHandler = SettingsPanelProps['onChange'];
-
-type CompanyValidation = ReturnType<typeof getCompanyValidation>;
-
-type CompanySettingsSectionProps = {
-  form: AppSettingsFormValues;
-  validation: CompanyValidation;
-  onChange: SettingsChangeHandler;
-};
-
-const AVAILABLE_CURRENCIES = ['USD', 'EUR', 'GBP', 'PLN'] as const;
-const AVAILABLE_RATE_PROVIDERS: RateProvider[] = ['nbu', 'privat', 'mono'];
-
-type DashboardSettingsSectionProps = {
-  preferences: DashboardPreferences;
-  onChange: (preferences: DashboardPreferences) => void;
-};
-
-const DashboardSettingsSection = ({
-  preferences,
-  onChange,
-}: DashboardSettingsSectionProps) => {
-  const { t } = useTranslation();
-
-  const toggleCurrency = (currency: string) => {
-    const next = preferences.currencies.includes(currency)
-      ? preferences.currencies.filter((item) => item !== currency)
-      : [...preferences.currencies, currency];
-    onChange({ ...preferences, currencies: next.length > 0 ? next : [currency] });
-  };
-
-  const toggleProvider = (provider: RateProvider) => {
-    const next = preferences.rateProviders.includes(provider)
-      ? preferences.rateProviders.filter((item) => item !== provider)
-      : [...preferences.rateProviders, provider];
-    onChange({
-      ...preferences,
-      rateProviders: next.length > 0 ? next : [provider],
-    });
-  };
-
-  return (
-    <section className="settings-section">
-      <div className="form-grid">
-        <label className="field field-wide market-weather-toggle">
-          <input
-            type="checkbox"
-            checked={preferences.marketWeatherEnabled}
-            onChange={(event) =>
-              onChange({ ...preferences, marketWeatherEnabled: event.target.checked })
-            }
-          />
-          <span>{t('settings.dashboard.marketWeatherEnabled')}</span>
-        </label>
-        <label className="field field-wide market-weather-toggle">
-          <input
-            type="checkbox"
-            checked={preferences.exchangeRatesEnabled}
-            onChange={(event) =>
-              onChange({ ...preferences, exchangeRatesEnabled: event.target.checked })
-            }
-          />
-          <span>{t('settings.dashboard.exchangeRatesEnabled')}</span>
-        </label>
-        <label className="field field-wide market-weather-toggle">
-          <input
-            type="checkbox"
-            checked={preferences.weatherEnabled}
-            onChange={(event) =>
-              onChange({ ...preferences, weatherEnabled: event.target.checked })
-            }
-          />
-          <span>{t('settings.dashboard.weatherEnabled')}</span>
-        </label>
-        <label className="field field-wide market-weather-toggle">
-          <input
-            type="checkbox"
-            checked={preferences.weatherAnimationEnabled}
-            onChange={(event) =>
-              onChange({
-                ...preferences,
-                weatherAnimationEnabled: event.target.checked,
-              })
-            }
-          />
-          <span>{t('settings.dashboard.weatherAnimationEnabled')}</span>
-        </label>
-        <div className="field field-wide">
-          <span>{t('settings.dashboard.currencies')}</span>
-          <div className="market-weather-chip-row">
-            {AVAILABLE_CURRENCIES.map((currency) => (
-              <button
-                key={currency}
-                type="button"
-                className={
-                  preferences.currencies.includes(currency)
-                    ? 'market-weather-chip market-weather-chip-active'
-                    : 'market-weather-chip'
-                }
-                onClick={() => toggleCurrency(currency)}
-              >
-                {currency}
-              </button>
-            ))}
-          </div>
-        </div>
-        <div className="field field-wide">
-          <span>{t('settings.dashboard.rateProviders')}</span>
-          <div className="market-weather-chip-row">
-            {AVAILABLE_RATE_PROVIDERS.map((provider) => (
-              <button
-                key={provider}
-                type="button"
-                className={
-                  preferences.rateProviders.includes(provider)
-                    ? 'market-weather-chip market-weather-chip-active'
-                    : 'market-weather-chip'
-                }
-                onClick={() => toggleProvider(provider)}
-              >
-                {t(`analytics.marketWeather.providerLabels.${provider}`)}
-              </button>
-            ))}
-          </div>
-        </div>
-        <label className="field field-wide">
-          <span>{t('settings.dashboard.defaultWeatherLocation')}</span>
-          <select
-            value={preferences.defaultWeatherLocation}
-            onChange={(event) =>
-              onChange({
-                ...preferences,
-                defaultWeatherLocation:
-                  event.target.value as DashboardPreferences['defaultWeatherLocation'],
-              })
-            }
-          >
-            <option value="chornomorsk">
-              {t('settings.dashboard.weatherLocations.chornomorsk')}
-            </option>
-            <option value="odesa">{t('settings.dashboard.weatherLocations.odesa')}</option>
-          </select>
-        </label>
-        <p className="field field-wide settings-hint">
-          {t('settings.dashboard.defaultWeatherHint')}
-        </p>
-        <label className="field">
-          <span>{t('settings.dashboard.weatherProvider')}</span>
-          <select
-            value={preferences.weatherProvider}
-            onChange={(event) =>
-              onChange({
-                ...preferences,
-                weatherProvider: event.target.value as DashboardPreferences['weatherProvider'],
-              })
-            }
-          >
-            <option value="open-meteo">{t('settings.dashboard.providers.openMeteo')}</option>
-            <option value="openweather">{t('settings.dashboard.providers.openWeather')}</option>
-          </select>
-        </label>
-        <label className="field">
-          <span>{t('settings.dashboard.defaultForecastView')}</span>
-          <select
-            value={preferences.defaultForecastView}
-            onChange={(event) =>
-              onChange({
-                ...preferences,
-                defaultForecastView:
-                  event.target.value as DashboardPreferences['defaultForecastView'],
-              })
-            }
-          >
-            <option value="today">{t('analytics.marketWeather.views.today')}</option>
-            <option value="tomorrow">{t('analytics.marketWeather.views.tomorrow')}</option>
-            <option value="fiveDay">{t('analytics.marketWeather.views.fiveDay')}</option>
-          </select>
-        </label>
-        <div className="field field-wide">
-          <span>{t('settings.dashboard.openWeatherApiKey')}</span>
-          <p className="empty-state" style={{ margin: 0, textAlign: 'left' }}>
-            {preferences.hasOpenWeatherApiKey
-              ? t('settings.dashboard.openWeatherApiKeyConfigured')
-              : t('settings.dashboard.openWeatherApiKeyServerOnly')}
-          </p>
-        </div>
-      </div>
-    </section>
-  );
-};
-
-const CompanySettingsSection = ({
-  form,
-  validation,
-  onChange,
-}: CompanySettingsSectionProps) => {
-  const { t } = useTranslation();
-  const [uiDensity, setUiDensity] = useState<UiDensity>(() => readUiDensity());
-
-  return (
-    <section className="settings-section">
-      <PageHeader
-        title={t('settings.tabs.company')}
-        subtitle={t('settings.ui.appearance')}
-      />
-      <div className="form-grid">
-        <label className="field field-wide">
-          <span>{t('settings.company.serviceNameInHeader')}</span>
-          <input
-            value={form.serviceName}
-            onChange={(event) => onChange('serviceName', event.target.value)}
-            placeholder={t('settings.company.serviceNamePlaceholder')}
-          />
-        </label>
-        <label className="field field-wide">
-          <span>{t('settings.ui.density')}</span>
-          <select
-            value={uiDensity}
-            onChange={(event) => {
-              const next = event.target.value as UiDensity;
-              setUiDensity(next);
-              writeUiDensity(next);
-            }}
-          >
-            <option value="comfortable">{t('settings.ui.densityComfortable')}</option>
-            <option value="compact">{t('settings.ui.densityCompact')}</option>
-          </select>
-          <small className="muted-copy">{t('settings.ui.densityHint')}</small>
-        </label>
-        <label className="field">
-          <span>{t('settings.company.companyName', { company: '{{company}}' })}</span>
-          <input
-            value={form.company}
-            onChange={(event) => onChange('company', event.target.value)}
-            placeholder={t('settings.company.companyNamePlaceholder')}
-            aria-invalid={!validation.isCompanyNameValid}
-          />
-          {!validation.isCompanyNameValid ? (
-            <small>{t('settings.company.companyNameMinLength')}</small>
-          ) : null}
-        </label>
-        <label className="field">
-          <span>{t('settings.company.companyId', { company_id: '{{company_id}}' })}</span>
-          <input
-            value={form.companyId}
-            onChange={(event) => onChange('companyId', event.target.value)}
-            placeholder={t('settings.company.companyIdPlaceholder')}
-            aria-invalid={!validation.isCompanyIdValid}
-          />
-          {!validation.isCompanyIdValid ? (
-            <small>{t('settings.company.companyIdFormat')}</small>
-          ) : null}
-        </label>
-        <label className="field field-wide">
-          <span>
-            {t('settings.company.companyAddress', { company_address: '{{company_address}}' })}
-          </span>
-          <input
-            value={form.companyAddress}
-            onChange={(event) => onChange('companyAddress', event.target.value)}
-            placeholder={t('settings.company.companyAddressPlaceholder')}
-            aria-invalid={!validation.isCompanyAddressValid}
-          />
-          {!validation.isCompanyAddressValid ? (
-            <small>{t('settings.company.companyAddressMinLength')}</small>
-          ) : null}
-        </label>
-        <label className="field field-wide">
-          <span>{t('settings.company.companyIban', { company_iban: '{{company_iban}}' })}</span>
-          <input
-            value={form.companyIban}
-            onChange={(event) => onChange('companyIban', event.target.value)}
-            placeholder={t('settings.company.companyIbanPlaceholder')}
-            aria-invalid={!validation.isCompanyIbanValid}
-          />
-          {!validation.isCompanyIbanValid ? (
-            <small>{t('settings.company.companyIbanFormat')}</small>
-          ) : null}
-        </label>
-        <label className="field">
-          <span>{t('settings.company.companyEmail', { company_email: '{{company_email}}' })}</span>
-          <input
-            value={form.companyEmail}
-            onChange={(event) => onChange('companyEmail', event.target.value)}
-            placeholder={t('settings.company.companyEmailPlaceholder')}
-          />
-        </label>
-        <label className="field">
-          <span>{t('settings.company.companySite', { company_site: '{{company_site}}' })}</span>
-          <input
-            value={form.companySite}
-            onChange={(event) => onChange('companySite', event.target.value)}
-            placeholder={t('settings.company.companySitePlaceholder')}
-          />
-        </label>
-      </div>
-    </section>
-  );
-};
-
-type PrintFormsSectionProps = {
-  printForms: PrintForm[];
-  selectedForm?: PrintForm;
-  previewValues: Record<string, string>;
-  onAddPrintForm: () => void;
-  onDuplicateSelectedForm: () => void;
-  onDeleteSelectedForm: () => void;
-  onSelectForm: (formId: string) => void;
-  onUpdateForm: (formId: string, patch: Partial<PrintForm>) => void;
-  onUpdateForms: (forms: PrintForm[]) => void;
-};
-
-const PrintFormsSection = ({
-  printForms,
-  selectedForm,
-  previewValues,
-  onAddPrintForm,
-  onDuplicateSelectedForm,
-  onDeleteSelectedForm,
-  onSelectForm,
-  onUpdateForm,
-  onUpdateForms,
-}: PrintFormsSectionProps) => {
-  const { t } = useTranslation();
-
-  return (
-    <section className="settings-section settings-print-section">
-      <div className="panel-header panel-header-row">
-        <div>
-          <p className="section-label">{t('settings.print.sectionLabel')}</p>
-          <div className="settings-print-title-row">
-            <h2>{t('settings.print.title')}</h2>
-            <label className="settings-print-document-select">
-              <span className="visually-hidden">{t('settings.print.documentTemplate')}</span>
-              <select
-                value={selectedForm?.id ?? ''}
-                onChange={(event) => onSelectForm(event.target.value)}
-              >
-                {printForms.map((printForm) => (
-                  <option key={printForm.id} value={printForm.id}>
-                    {printForm.title}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
-        </div>
-        <div className="settings-actions">
-          <button type="button" className="secondary-button" onClick={onAddPrintForm}>
-            {t('settings.print.add')}
-          </button>
-          <button
-            type="button"
-            className="secondary-button"
-            onClick={onDuplicateSelectedForm}
-            disabled={!selectedForm}
-          >
-            {t('settings.print.duplicate')}
-          </button>
-        </div>
-      </div>
-
-      <div className="settings-print-grid">
-        {selectedForm ? (
-          <PrintFormBuilder
-            key={selectedForm.id}
-            forms={printForms}
-            selectedForm={selectedForm}
-            previewValues={previewValues}
-            onSelectForm={onSelectForm}
-            onUpdateForms={onUpdateForms}
-            onUpdateForm={onUpdateForm}
-            onDeleteForm={onDeleteSelectedForm}
-          />
-        ) : null}
-      </div>
-    </section>
-  );
-};
-
-const formatBackupSize = (sizeBytes: number) => {
-  if (sizeBytes < 1024) return `${sizeBytes} B`;
-  const kilobytes = sizeBytes / 1024;
-  if (kilobytes < 1024) return `${kilobytes.toFixed(1)} KB`;
-  return `${(kilobytes / 1024).toFixed(1)} MB`;
-};
-
-const formatBackupDate = (value: string) => {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleString('uk-UA');
-};
-
-type BackupsSectionProps = {
-  canManageBackups: boolean;
-};
-
-const BackupsSection = ({ canManageBackups }: BackupsSectionProps) => {
-  const { t } = useTranslation();
-  const [backups, setBackups] = useState<BackupMetadata[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [isCreating, setIsCreating] = useState(false);
-  const [downloadingBackupId, setDownloadingBackupId] = useState('');
-  const [deletingBackupId, setDeletingBackupId] = useState('');
-  const [deleteTarget, setDeleteTarget] = useState<BackupMetadata | null>(null);
-  const [restoreTarget, setRestoreTarget] = useState<BackupMetadata | null>(null);
-  const [restoreConfirmation, setRestoreConfirmation] = useState('');
-  const [restoreFile, setRestoreFile] = useState<File | null>(null);
-  const [restoreFileConfirmation, setRestoreFileConfirmation] = useState('');
-  const [restoreFileError, setRestoreFileError] = useState('');
-  const [isRestoreFileModalOpen, setIsRestoreFileModalOpen] = useState(false);
-  const [isRestoring, setIsRestoring] = useState(false);
-  const [message, setMessage] = useState('');
-  const [error, setError] = useState('');
-
-  const [backupsPage, setBackupsPage] = useState(1);
-  const [backupsPageSize, setBackupsPageSize] = useState(30);
-
-  const refreshBackups = useCallback(async (opts?: { silent?: boolean }) => {
-    if (!opts?.silent) setIsLoading(true);
-    setError('');
-    try {
-      setBackups(await listBackups());
-    } catch (requestError) {
-      setError(
-        requestError instanceof Error
-          ? requestError.message
-          : t('settings.backups.messages.failedLoad'),
-      );
-    } finally {
-      if (!opts?.silent) setIsLoading(false);
-    }
-  }, [t]);
-
-  useEffect(() => {
-    if (!canManageBackups) return;
-    void refreshBackups();
-  }, [canManageBackups, refreshBackups]);
-
-  const paginatedBackups = useMemo(() => {
-    const start = (backupsPage - 1) * backupsPageSize;
-    return backups.slice(start, start + backupsPageSize);
-  }, [backups, backupsPage, backupsPageSize]);
-
-  useEffect(() => {
-    const pageCount = Math.max(1, Math.ceil(backups.length / backupsPageSize));
-    if (backupsPage > pageCount) {
-      setBackupsPage(pageCount);
-    }
-  }, [backups.length, backupsPage, backupsPageSize]);
-
-  const handleCreateBackup = async () => {
-    setIsCreating(true);
-    setMessage('');
-    setError('');
-    try {
-      const backup = await createBackup();
-      await refreshBackups({ silent: true });
-      setMessage(
-        backup.status === 'completed'
-          ? t('settings.backups.messages.created')
-          : backup.error || t('settings.backups.messages.finishedWithError'),
-      );
-    } catch (requestError) {
-      setError(
-        requestError instanceof Error
-          ? requestError.message
-          : t('settings.backups.messages.failedCreate'),
-      );
-    } finally {
-      setIsCreating(false);
-    }
-  };
-
-  const handleDownloadBackup = async (backup: BackupMetadata) => {
-    setDownloadingBackupId(backup.id);
-    setError('');
-    try {
-      const { blob, filename } = await downloadBackup(backup.id);
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = filename;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.URL.revokeObjectURL(url);
-    } catch (requestError) {
-      setError(
-        requestError instanceof Error
-          ? requestError.message
-          : t('settings.backups.messages.failedDownload'),
-      );
-    } finally {
-      setDownloadingBackupId('');
-    }
-  };
-
-  const handleDeleteBackup = async () => {
-    if (!deleteTarget) return;
-    const deletedId = deleteTarget.id;
-    setDeletingBackupId(deletedId);
-    setMessage('');
-    setError('');
-    try {
-      await deleteBackup(deletedId);
-      setBackups((prev) => prev.filter((backup) => backup.id !== deletedId));
-      setDeleteTarget(null);
-      setMessage(t('settings.backups.messages.deleted'));
-      void refreshBackups({ silent: true });
-    } catch (requestError) {
-      setError(
-        requestError instanceof Error
-          ? requestError.message
-          : t('settings.backups.messages.failedDelete'),
-      );
-    } finally {
-      setDeletingBackupId('');
-    }
-  };
-
-  const handleRestoreBackup = async () => {
-    if (!restoreTarget) return;
-    setIsRestoring(true);
-    setMessage('');
-    setError('');
-    try {
-      const result = await restoreBackup(restoreTarget.id, restoreConfirmation);
-      setRestoreTarget(null);
-      setRestoreConfirmation('');
-      await refreshBackups({ silent: true });
-      setMessage(
-        t('settings.backups.messages.restored', {
-          safetyBackupId: result.safetyBackupId,
-        }),
-      );
-    } catch (requestError) {
-      setError(
-        requestError instanceof Error
-          ? requestError.message
-          : t('settings.backups.messages.failedRestore'),
-      );
-    } finally {
-      setIsRestoring(false);
-    }
-  };
-
-  const closeRestoreFileModal = () => {
-    setIsRestoreFileModalOpen(false);
-    setRestoreFile(null);
-    setRestoreFileConfirmation('');
-    setRestoreFileError('');
-  };
-
-  const openRestoreFileModal = () => {
-    setRestoreFileError('');
-    setError('');
-    setIsRestoreFileModalOpen(true);
-  };
-
-  const handleRestoreBackupFromFile = async () => {
-    if (!restoreFile) return;
-    setIsRestoring(true);
-    setMessage('');
-    setError('');
-    setRestoreFileError('');
-    try {
-      const result = await restoreBackupFromFile(
-        restoreFile,
-        restoreFileConfirmation,
-      );
-      closeRestoreFileModal();
-      await refreshBackups({ silent: true });
-      setMessage(
-        t('settings.backups.messages.restoredFromFile', {
-          safetyBackupId: result.safetyBackupId,
-        }),
-      );
-    } catch (requestError) {
-      const messageText =
-        requestError instanceof Error
-          ? requestError.message
-          : t('settings.backups.messages.failedRestoreFromFile');
-      setRestoreFileError(messageText);
-      setError(messageText);
-    } finally {
-      setIsRestoring(false);
-    }
-  };
-
-  if (!canManageBackups) {
-    return (
-      <section className="settings-section">
-        <p className="empty-state">{t('settings.backups.noPermission')}</p>
-      </section>
-    );
-  }
-
-  return (
-    <section className="settings-section">
-      <div className="panel-header panel-header-row">
-        <div>
-          <p className="section-label">{t('settings.backups.sectionLabel')}</p>
-          <h2>{t('settings.backups.title')}</h2>
-          <p className="panel-subtitle">{t('settings.backups.subtitleCreate')}</p>
-          <p className="panel-subtitle">{t('settings.backups.subtitleSchedule')}</p>
-        </div>
-        <div className="settings-actions">
-          <button
-            type="button"
-            className="success-button"
-            onClick={openRestoreFileModal}
-            disabled={isCreating || isRestoring}
-          >
-            {t('settings.backups.restoreFromFile')}
-          </button>
-          <button
-            type="button"
-            className="primary-button"
-            onClick={() => void handleCreateBackup()}
-            disabled={isCreating || isRestoring}
-          >
-            {isCreating ? t('settings.backups.creating') : t('settings.backups.createBackup')}
-          </button>
-        </div>
-      </div>
-
-      {message ? <p className="success-message">{message}</p> : null}
-      {error && !isRestoreFileModalOpen ? (
-        <p className="empty-state">{error}</p>
-      ) : null}
-
-      {isLoading ? (
-        <p className="empty-state">{t('settings.backups.loading')}</p>
-      ) : backups.length === 0 ? (
-        <p className="empty-state">{t('settings.backups.empty')}</p>
-      ) : (
-        <div className="backup-list" aria-label={t('settings.backups.archivesAriaLabel')}>
-          {paginatedBackups.map((backup) => (
-            <article
-              key={backup.id}
-              className={`backup-card backup-card-${backup.status}`}
-            >
-              <div className="backup-card-main">
-                <div className="backup-created-cell">
-                  <strong>{formatBackupDate(backup.createdAt)}</strong>
-                  <span>{backup.id}</span>
-                </div>
-                <div className="backup-card-badges">
-                  <span className={`backup-badge backup-badge-${backup.status}`}>
-                    {t(`settings.backups.status.${backup.status}`)}
-                  </span>
-                  <span className={`backup-badge backup-badge-${backup.type}`}>
-                    {t(`settings.backups.type.${backup.type}`)}
-                  </span>
-                </div>
-                <dl className="backup-card-meta">
-                  <div>
-                    <dt>{t('settings.backups.size')}</dt>
-                    <dd>{formatBackupSize(backup.sizeBytes)}</dd>
-                  </div>
-                  <div>
-                    <dt>{t('settings.backups.author')}</dt>
-                    <dd>{backup.author || '-'}</dd>
-                  </div>
-                </dl>
-                <div className="card-actions backup-actions">
-                  <button
-                    type="button"
-                    className="ghost-button"
-                    onClick={() => void handleDownloadBackup(backup)}
-                    disabled={
-                      backup.status !== 'completed' ||
-                      downloadingBackupId === backup.id ||
-                      isRestoring
-                    }
-                  >
-                    {downloadingBackupId === backup.id
-                      ? t('settings.backups.downloading')
-                      : t('settings.backups.download')}
-                  </button>
-                  <button
-                    type="button"
-                    className="danger-button"
-                    onClick={() => setDeleteTarget(backup)}
-                    disabled={backup.status === 'running' || isCreating || isRestoring}
-                  >
-                    {t('settings.backups.delete')}
-                  </button>
-                  <button
-                    type="button"
-                    className="warning-button"
-                    onClick={() => {
-                      setRestoreTarget(backup);
-                      setRestoreConfirmation('');
-                    }}
-                    disabled={backup.status !== 'completed' || isCreating || isRestoring}
-                  >
-                    {t('settings.backups.restore')}
-                  </button>
-                </div>
-              </div>
-              {backup.error ? (
-                <div className="backup-error-panel">
-                  <strong>{t('settings.backups.error')}</strong>
-                  <p>{backup.error}</p>
-                </div>
-              ) : null}
-            </article>
-          ))}
-        </div>
-      )}
-
-      {backups.length > 0 ? (
-        <PaginationPanel
-          totalItems={backups.length}
-          page={backupsPage}
-          pageSize={backupsPageSize}
-          onPageChange={setBackupsPage}
-          onPageSizeChange={(nextPageSize) => {
-            setBackupsPageSize(nextPageSize);
-            setBackupsPage(1);
-          }}
-        />
-      ) : null}
-
-      {deleteTarget ? (
-        <Modal
-          isOpen
-          title={t('settings.backups.deleteTitle')}
-          onClose={() => setDeleteTarget(null)}
-          closeLabel={t('common.close')}
-          shellClassName="payment-modal payment-modal-message modal-dialog"
-          closeOnBackdrop={deletingBackupId !== deleteTarget.id}
-          closeOnEscape={deletingBackupId !== deleteTarget.id}
-          footer={
-            <footer className="payment-modal-footer">
-              <div className="payment-modal-actions">
-                <Button
-                  variant="secondary"
-                  onClick={() => setDeleteTarget(null)}
-                  disabled={deletingBackupId === deleteTarget.id}
-                >
-                  {t('common.cancel')}
-                </Button>
-                <Button
-                  variant="danger"
-                  onClick={() => void handleDeleteBackup()}
-                  disabled={deletingBackupId === deleteTarget.id}
-                >
-                  {deletingBackupId === deleteTarget.id
-                    ? t('settings.backups.deleting')
-                    : t('settings.backups.delete')}
-                </Button>
-              </div>
-            </footer>
-          }
-        >
-          <p>{t('settings.backups.deleteMessage', { id: deleteTarget.id })}</p>
-        </Modal>
-      ) : null}
-
-      {restoreTarget ? (
-        <Modal
-          isOpen
-          title={t('settings.backups.restoreTitle')}
-          onClose={() => {
-            setRestoreTarget(null);
-            setRestoreConfirmation('');
-          }}
-          closeLabel={t('common.close')}
-          shellClassName="payment-modal payment-modal-message modal-dialog"
-          closeOnBackdrop={!isRestoring}
-          closeOnEscape={!isRestoring}
-          footer={
-            <footer className="payment-modal-footer">
-              <div className="payment-modal-actions">
-                <Button
-                  variant="secondary"
-                  onClick={() => {
-                    setRestoreTarget(null);
-                    setRestoreConfirmation('');
-                  }}
-                  disabled={isRestoring}
-                >
-                  {t('common.cancel')}
-                </Button>
-                <Button
-                  variant="warning"
-                  onClick={() => void handleRestoreBackup()}
-                  disabled={isRestoring || restoreConfirmation !== 'RESTORE'}
-                >
-                  {isRestoring
-                    ? t('settings.backups.restoring')
-                    : t('settings.backups.restore')}
-                </Button>
-              </div>
-            </footer>
-          }
-        >
-          <p>{t('settings.backups.restoreMessage', { id: restoreTarget.id })}</p>
-          <label className="field field-wide">
-            <span>{t('settings.backups.typeRestoreToConfirm')}</span>
-            <input
-              value={restoreConfirmation}
-              onChange={(event) => setRestoreConfirmation(event.target.value)}
-              placeholder={t('settings.backups.restorePlaceholder')}
-            />
-          </label>
-        </Modal>
-      ) : null}
-
-      {isRestoreFileModalOpen ? (
-        <Modal
-          isOpen
-          title={t('settings.backups.restoreFromFileTitle')}
-          onClose={closeRestoreFileModal}
-          closeLabel={t('common.close')}
-          shellClassName="payment-modal payment-modal-message modal-dialog"
-          closeOnBackdrop={!isRestoring}
-          closeOnEscape={!isRestoring}
-          footer={
-            <footer className="payment-modal-footer">
-              <div className="payment-modal-actions">
-                <Button
-                  variant="secondary"
-                  onClick={closeRestoreFileModal}
-                  disabled={isRestoring}
-                >
-                  {t('common.cancel')}
-                </Button>
-                <Button
-                  variant="success"
-                  onClick={() => void handleRestoreBackupFromFile()}
-                  disabled={
-                    isRestoring ||
-                    !restoreFile ||
-                    restoreFileConfirmation !== 'RESTORE'
-                  }
-                >
-                  {isRestoring
-                    ? t('settings.backups.restoring')
-                    : t('settings.backups.restoreFromFileButton')}
-                </Button>
-              </div>
-            </footer>
-          }
-        >
-          <p>{t('settings.backups.restoreFromFileMessage')}</p>
-          {restoreFileError ? (
-            <p className="empty-state" role="alert">
-              {restoreFileError}
-            </p>
-          ) : null}
-          <label className="field field-wide">
-            <span>{t('settings.backups.backupArchiveFile')}</span>
-            <input
-              type="file"
-              accept=".gz,.archive.gz,application/gzip,application/octet-stream"
-              onChange={(event) => {
-                setRestoreFile(event.target.files?.[0] ?? null);
-                setRestoreFileError('');
-              }}
-            />
-          </label>
-          {restoreFile ? (
-            <p className="backup-file-selection">{restoreFile.name}</p>
-          ) : null}
-          <label className="field field-wide">
-            <span>{t('settings.backups.typeRestoreToConfirm')}</span>
-            <input
-              value={restoreFileConfirmation}
-              onChange={(event) =>
-                setRestoreFileConfirmation(event.target.value)
-              }
-              placeholder={t('settings.backups.restorePlaceholder')}
-            />
-          </label>
-        </Modal>
-      ) : null}
-    </section>
-  );
 };
 
 export const SettingsPanel = ({
@@ -973,14 +73,8 @@ export const SettingsPanel = ({
   const selectedForm =
     printForms.find((printForm) => printForm.id === selectedFormId) ??
     printForms[0];
-  const previewValues = useMemo(
-    () => getSettingsPreviewValues(form),
-    [form],
-  );
-  const companyValidation = useMemo(
-    () => getCompanyValidation(form),
-    [form],
-  );
+  const previewValues = useMemo(() => getSettingsPreviewValues(form), [form]);
+  const companyValidation = useMemo(() => getCompanyValidation(form), [form]);
   const hasInvalidPrintForms = printForms.some(
     (printForm) => !printForm.title.trim() || !printForm.content.trim(),
   );
@@ -1057,35 +151,46 @@ export const SettingsPanel = ({
     setSelectedFormId(printForms[0].id);
   }, [printForms, selectedFormId]);
 
+  const handleTabKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+    const keys = visibleSettingsTabs.map((tab) => tab.key);
+    const index = keys.indexOf(activeTab);
+    if (index < 0) return;
+    const delta = event.key === 'ArrowRight' ? 1 : -1;
+    const next = keys[(index + delta + keys.length) % keys.length];
+    event.preventDefault();
+    setActiveTab(next);
+  };
+
   return (
     <section className="panel settings-page">
-      <div className="panel-header panel-header-row">
-        <div>
-          <p className="section-label">{t('settings.panel.sectionLabel')}</p>
-          <h2>{t('settings.panel.title')}</h2>
-          <p className="panel-subtitle">{t('settings.panel.subtitle')}</p>
-        </div>
-        {canSaveActiveTab ? (
-          <button
-            className="primary-button"
-            type="button"
-            onClick={onSubmit}
-            disabled={isSaveDisabled}
-          >
-            {isSaving ? t('settings.panel.saving') : t('settings.panel.saveSettings')}
-          </button>
-        ) : null}
-      </div>
+      <PageHeader
+        title={t('settings.panel.title')}
+        subtitle={t('settings.panel.subtitle')}
+        actions={
+          canSaveActiveTab ? (
+            <Button onClick={onSubmit} disabled={isSaveDisabled}>
+              {isSaving ? t('settings.panel.saving') : t('settings.panel.saveSettings')}
+            </Button>
+          ) : null
+        }
+      />
 
       <div
         className="settings-tabs"
         role="tablist"
         aria-label={t('settings.tabsAriaLabel')}
+        onKeyDown={handleTabKeyDown}
       >
         {visibleSettingsTabs.map((tab) => (
           <button
             key={tab.key}
             type="button"
+            role="tab"
+            id={`settings-tab-${tab.key}`}
+            aria-selected={tab.key === activeTab}
+            aria-controls={`settings-panel-${tab.key}`}
+            tabIndex={tab.key === activeTab ? 0 : -1}
             className={
               tab.key === activeTab
                 ? 'settings-tab settings-tab-active'
@@ -1099,60 +204,85 @@ export const SettingsPanel = ({
       </div>
 
       {activeTab === 'company' && canEditSettings ? (
-        showCompanyLoading ? (
-          <section className="settings-section">
-            <p className="empty-state" role="status" aria-live="polite">
-              {t('settings.panel.loading')}
-            </p>
-          </section>
-        ) : (
-          <CompanySettingsSection
-            form={form}
-            validation={companyValidation}
-            onChange={onChange}
-          />
-        )
+        <div
+          role="tabpanel"
+          id="settings-panel-company"
+          aria-labelledby="settings-tab-company"
+        >
+          {showCompanyLoading ? (
+            <section className="settings-section">
+              <LoadingState>{t('settings.panel.loading')}</LoadingState>
+            </section>
+          ) : (
+            <CompanySettingsSection
+              form={form}
+              validation={companyValidation}
+              onChange={onChange}
+            />
+          )}
+        </div>
       ) : null}
 
       {activeTab === 'dashboard' && canEditSettings ? (
-        isSettingsReady ? (
-          <DashboardSettingsSection
-            preferences={form.dashboardPreferences}
-            onChange={(dashboardPreferences) =>
-              onChange('dashboardPreferences', dashboardPreferences)
-            }
-          />
-        ) : (
-          <section className="settings-section">
-            <p className="empty-state" role="status" aria-live="polite">
-              {t('settings.panel.loading')}
-            </p>
-          </section>
-        )
+        <div
+          role="tabpanel"
+          id="settings-panel-dashboard"
+          aria-labelledby="settings-tab-dashboard"
+        >
+          {isSettingsReady ? (
+            <DashboardSettingsSection
+              preferences={form.dashboardPreferences}
+              onChange={(dashboardPreferences) =>
+                onChange('dashboardPreferences', dashboardPreferences)
+              }
+            />
+          ) : (
+            <section className="settings-section">
+              <LoadingState>{t('settings.panel.loading')}</LoadingState>
+            </section>
+          )}
+        </div>
       ) : null}
 
       {activeTab === 'print' && canEditPrintForms ? (
-        <PrintFormsSection
-          printForms={printForms}
-          selectedForm={selectedForm}
-          previewValues={previewValues}
-          onAddPrintForm={addPrintForm}
-          onDuplicateSelectedForm={duplicateSelectedForm}
-          onDeleteSelectedForm={deleteSelectedForm}
-          onSelectForm={setSelectedFormId}
-          onUpdateForm={updateFormById}
-          onUpdateForms={updatePrintForms}
-        />
+        <div
+          role="tabpanel"
+          id="settings-panel-print"
+          aria-labelledby="settings-tab-print"
+        >
+          <PrintFormsSection
+            printForms={printForms}
+            selectedForm={selectedForm}
+            previewValues={previewValues}
+            onAddPrintForm={addPrintForm}
+            onDuplicateSelectedForm={duplicateSelectedForm}
+            onDeleteSelectedForm={deleteSelectedForm}
+            onSelectForm={setSelectedFormId}
+            onUpdateForm={updateFormById}
+            onUpdateForms={updatePrintForms}
+          />
+        </div>
       ) : null}
 
       {activeTab === 'backups' ? (
-        <BackupsSection canManageBackups={canManageBackups} />
+        <div
+          role="tabpanel"
+          id="settings-panel-backups"
+          aria-labelledby="settings-tab-backups"
+        >
+          <BackupsSection canManageBackups={canManageBackups} />
+        </div>
       ) : null}
 
       {activeTab === 'database' ? (
-        <DatabaseReportSection canManageBackups={canManageBackups} />
+        <div
+          role="tabpanel"
+          id="settings-panel-database"
+          aria-labelledby="settings-tab-database"
+        >
+          <DatabaseReportSection canManageBackups={canManageBackups} />
+        </div>
       ) : null}
-
     </section>
   );
 };

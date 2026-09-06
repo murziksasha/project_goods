@@ -182,12 +182,16 @@ describe('employee information', () => {
     expect(masterOne?.username).toBe('master');
   });
 
-  it('filters by today date range', () => {
+  it('filters by today date range using saleDate', () => {
     const employees = [baseEmployee()];
     const sales = [
-      baseSale({ createdAt: '2026-07-07T10:00:00.000Z' }),
+      baseSale({
+        saleDate: '2026-07-07T10:00:00.000Z',
+        createdAt: '2026-07-07T10:00:00.000Z',
+      }),
       baseSale({
         id: 'sale-2',
+        saleDate: '2026-07-06T10:00:00.000Z',
         createdAt: '2026-07-06T10:00:00.000Z',
         manager: { id: 'employee-1', name: 'Manager One', role: 'manager' },
       }),
@@ -211,9 +215,13 @@ describe('employee information', () => {
   it('filters by date range', () => {
     const employees = [baseEmployee()];
     const sales = [
-      baseSale({ createdAt: '2026-05-01T10:00:00.000Z' }),
+      baseSale({
+        saleDate: '2026-05-01T10:00:00.000Z',
+        createdAt: '2026-05-01T10:00:00.000Z',
+      }),
       baseSale({
         id: 'sale-2',
+        saleDate: '2026-06-01T10:00:00.000Z',
         createdAt: '2026-06-01T10:00:00.000Z',
         manager: { id: 'employee-1', name: 'Manager One', role: 'manager' },
       }),
@@ -292,5 +300,29 @@ describe('employee information', () => {
 
     expect(report.rows[0]?.id).toBe('employee-2');
     expect(report.rows[1]?.id).toBe('employee-1');
+  });
+
+  it('uses saleDate for period filter even when createdAt is outside the range', () => {
+    const employees = [baseEmployee()];
+    const sales = [
+      baseSale({
+        saleDate: '2026-07-07T08:00:00.000Z',
+        createdAt: '2026-05-12T10:00:00.000Z',
+      }),
+    ];
+
+    const report = buildEmployeeInformationReport({
+      employees,
+      sales,
+      view: 'orders',
+      filters: {
+        ...defaultFilters,
+        dateFrom: '2026-07-07',
+        dateTo: '2026-07-07',
+      },
+    });
+
+    expect(report.summary.ordersInPeriod).toBe(1);
+    expect(report.rows[0]?.count).toBe(1);
   });
 });

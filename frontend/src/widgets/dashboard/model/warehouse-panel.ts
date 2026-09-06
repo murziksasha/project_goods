@@ -29,6 +29,8 @@ export type WarehouseTab =
   | 'transfers'
   | 'information'
   | 'settings';
+export type StockViewMode = 'units' | 'models';
+export type ReceiptsViewMode = 'orders' | 'lines';
 export type WarehouseColumnsTab = 'stock' | 'receipts';
 export type StockColumnKey =
   | 'select'
@@ -273,6 +275,65 @@ export const emptySupplierOrders: SupplierOrder[] = [];
 export const transferPageSize = 8;
 export const warehouseFiltersStorageKey = 'project-goods.warehouse-filters';
 export const warehouseColumnsStorageKey = 'project-goods.warehouse-columns';
+export const warehouseStockNameWidthStorageKey =
+  'project-goods.warehouse-stock-name-width';
+export const warehouseStockNameWidthMin = 180;
+export const warehouseStockNameWidthMax = 720;
+export const warehouseStockNameWidthDefault = 320;
+export const warehouseStockColumnWidths: Record<StockColumnKey, number> = {
+  select: 44,
+  name: warehouseStockNameWidthDefault,
+  serial: 130,
+  article: 130,
+  date: 100,
+  purchase: 118,
+  warehouse: 160,
+  location: 150,
+  clientOrder: 168,
+  supplierOrder: 188,
+  supplier: 148,
+  note: 160,
+  action: 76,
+};
+
+export const getWarehouseStockTableMinWidth = (
+  visibleColumns: StockColumnKey[],
+  nameColumnWidth = warehouseStockNameWidthDefault,
+) =>
+  visibleColumns.reduce((sum, columnKey) => {
+    if (columnKey === 'name') return sum + nameColumnWidth;
+    return sum + warehouseStockColumnWidths[columnKey];
+  }, 0);
+
+export const clampWarehouseStockNameWidth = (value: number) =>
+  Math.min(
+    warehouseStockNameWidthMax,
+    Math.max(warehouseStockNameWidthMin, Math.round(value)),
+  );
+
+export const readWarehouseStockNameWidth = () => {
+  try {
+    const parsed = Number(
+      window.localStorage.getItem(warehouseStockNameWidthStorageKey),
+    );
+    return Number.isFinite(parsed) && parsed > 0
+      ? clampWarehouseStockNameWidth(parsed)
+      : warehouseStockNameWidthDefault;
+  } catch {
+    return warehouseStockNameWidthDefault;
+  }
+};
+
+export const writeWarehouseStockNameWidth = (value: number) => {
+  try {
+    window.localStorage.setItem(
+      warehouseStockNameWidthStorageKey,
+      String(clampWarehouseStockNameWidth(value)),
+    );
+  } catch {
+    return;
+  }
+};
 export const savedWarehouseFiltersStorageKey =
   'project-goods.saved-warehouse-filters';
 export const initialWarehouseFilters: WarehouseFilters = {
@@ -349,7 +410,10 @@ export const warehouseFilterIconOptions = [
   '\u2606',
   '\u2728',
 ];
-export const defaultWarehouseVisibleColumns: WarehouseColumnVisibility = {
+export const availableWarehouseColumns: {
+  stock: StockColumnKey[];
+  receipts: ReceiptsColumnKey[];
+} = {
   stock: [
     'select',
     'name',
@@ -380,12 +444,26 @@ export const defaultWarehouseVisibleColumns: WarehouseColumnVisibility = {
     'payment',
   ],
 };
-export const availableWarehouseColumns: {
-  stock: StockColumnKey[];
-  receipts: ReceiptsColumnKey[];
-} = {
-  stock: [...defaultWarehouseVisibleColumns.stock],
-  receipts: [...defaultWarehouseVisibleColumns.receipts],
+export const defaultWarehouseVisibleColumns: WarehouseColumnVisibility = {
+  stock: [
+    'select',
+    'name',
+    'serial',
+    'date',
+    'purchase',
+    'warehouse',
+    'supplierOrder',
+    'supplier',
+    'action',
+  ],
+  receipts: [
+    'number',
+    'product',
+    'quantity',
+    'price',
+    'amount',
+    'supplier',
+  ],
 };
 export const lockedWarehouseColumns: {
   stock: StockColumnKey[];
@@ -490,6 +568,73 @@ export const filterReceiptRows = ({
     return true;
   });
 };
+
+export type ReceiptOrderGroup = {
+  id: string;
+  number: string;
+  receipts: ReceiptRow[];
+};
+
+export const groupReceiptRowsByOrder = (
+  receipts: ReceiptRow[],
+): ReceiptOrderGroup[] => {
+  const order: string[] = [];
+  const groups = new Map<string, ReceiptOrderGroup>();
+
+  receipts.forEach((receipt) => {
+    const id = receipt.supplierOrderId || receipt.id;
+    const existing = groups.get(id);
+    if (existing) {
+      existing.receipts.push(receipt);
+      return;
+    }
+    groups.set(id, {
+      id,
+      number: receipt.number,
+      receipts: [receipt],
+    });
+    order.push(id);
+  });
+
+  return order.map((id) => groups.get(id)!);
+};
+
+const receiptStatusRank: Record<ReceiptStatus, number> = {
+  received: 1,
+  approved: 2,
+  new: 3,
+  cancelled: 4,
+};
+
+export const getReceiptGroupStatus = (
+  receipts: ReceiptRow[],
+): ReceiptStatus =>
+  receipts.reduce<ReceiptStatus>((worst, receipt) => {
+    return receiptStatusRank[receipt.status] > receiptStatusRank[worst]
+      ? receipt.status
+      : worst;
+  }, receipts[0]?.status ?? 'new');
+
+export const getReceiptGroupTotals = (receipts: ReceiptRow[]) => {
+  const quantity = receipts.reduce((sum, receipt) => sum + receipt.quantity, 0);
+  const amount = receipts.reduce((sum, receipt) => sum + receipt.amount, 0);
+  const paid = receipts[0]?.paid ?? 0;
+  return {
+    quantity,
+    amount,
+    paid,
+    unpaid: Math.max(0, amount - paid),
+  };
+};
+
+export const getReceiptStatusClassName = (status: ReceiptStatus) =>
+  status === 'cancelled'
+    ? 'receipt-status receipt-status-cancelled'
+    : status === 'received'
+      ? 'receipt-status receipt-status-received'
+      : status === 'new'
+        ? 'receipt-status receipt-status-new'
+        : 'receipt-status receipt-status-approved';
 
 const hexColorToRgb = (value: string) => {
   const normalized = value.trim().replace(/^#/, '');

@@ -1,36 +1,45 @@
-FROM node:20-bookworm-slim AS base
+FROM mongo:7 AS mongo-tools
 
-ARG MONGODB_DATABASE_TOOLS_VERSION=100.17.0
-ARG BUILD_SHA=dev
+FROM node:20-bookworm-slim AS with-mongo-tools
 
+# libgssapi-krb5-2: mongodump/mongorestore from mongo:7 link against Kerberos.
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends ca-certificates curl tar \
+  && apt-get install -y --no-install-recommends ca-certificates curl libgssapi-krb5-2 \
   && rm -rf /var/lib/apt/lists/*
 
-# fastdl.mongodb.org often resets HTTP/2 streams (curl 18). Force HTTP/1.1 + retries.
-RUN set -eux; \
-  url="https://fastdl.mongodb.org/tools/db/mongodb-database-tools-debian12-x86_64-${MONGODB_DATABASE_TOOLS_VERSION}.tgz"; \
-  i=0; \
-  until curl --http1.1 --fail --location --retry 5 --retry-all-errors --retry-delay 3 \
-      --connect-timeout 30 --max-time 180 \
-      "$url" -o /tmp/mongodb-database-tools.tgz; do \
-    i=$((i + 1)); \
-    if [ "$i" -ge 5 ]; then exit 18; fi; \
-    sleep 4; \
-  done; \
-  test -s /tmp/mongodb-database-tools.tgz; \
-  tar -tzf /tmp/mongodb-database-tools.tgz >/dev/null; \
-  tar -xzf /tmp/mongodb-database-tools.tgz -C /tmp; \
-  cp /tmp/mongodb-database-tools-*/bin/mongodump /usr/local/bin/mongodump; \
-  cp /tmp/mongodb-database-tools-*/bin/mongorestore /usr/local/bin/mongorestore; \
-  chmod +x /usr/local/bin/mongodump /usr/local/bin/mongorestore; \
-  rm -rf /tmp/mongodb-database-tools*
+# Copy dump/restore from the same mongo:7 image Compose already pulls.
+# Avoids fastdl.mongodb.org (connect timeouts / blocked CDN during docker:up).
+COPY --from=mongo-tools /usr/bin/mongodump /usr/local/bin/mongodump
+COPY --from=mongo-tools /usr/bin/mongorestore /usr/local/bin/mongorestore
+RUN chmod +x /usr/local/bin/mongodump /usr/local/bin/mongorestore \
+  && mongodump --version \
+  && mongorestore --version
+
+FROM with-mongo-tools AS base
+
+ARG BUILD_SHA=dev
 
 WORKDIR /app
 
-COPY package*.json ./
-COPY backend/package*.json ./backend/
-RUN npm install && npm install --prefix backend
+ENV NPM_CONFIG_FETCH_RETRIES=10 \
+    NPM_CONFIG_FETCH_RETRY_MINTIMEOUT=20000 \
+    NPM_CONFIG_FETCH_RETRY_MAXTIMEOUT=120000 \
+    NPM_CONFIG_FETCH_TIMEOUT=300000 \
+    NPM_CONFIG_UPDATE_NOTIFIER=false
+
+COPY package.json package-lock.json ./
+COPY backend/package.json backend/package-lock.json ./backend/
+# Root package is only `file:..` for backend; skip root `npm install` (concurrently).
+# Cache + retries: registry.npmjs.org often ETIMEDOUT during docker:up.
+RUN --mount=type=cache,target=/root/.npm \
+    set -eux; \
+    i=0; \
+    until npm install --prefix backend --no-audit --no-fund; do \
+      i=$((i + 1)); \
+      if [ "$i" -ge 5 ]; then exit 1; fi; \
+      echo "npm install failed (attempt $i), retrying in 8s..."; \
+      sleep 8; \
+    done
 
 COPY . .
 

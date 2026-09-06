@@ -1,69 +1,22 @@
-import { useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type {
   Employee,
   EmployeeFormValues,
-  EmployeePermission,
+  EmployeeRole,
 } from '../../../../entities/employee/model/types';
-import {
-  defaultEmployeePermissionsByRole,
-  employeeRoleOptions,
-} from '../../../../entities/employee/model/types';
-import { Modal } from '../../../../shared/ui/Modal';
+import { employeeRoleOptions } from '../../../../entities/employee/model/types';
 import { Button } from '../../../../shared/ui/Button';
+import { EmptyState } from '../../../../shared/ui/EmptyState';
+import { LoadingState } from '../../../../shared/ui/LoadingState';
+import { Modal } from '../../../../shared/ui/Modal';
+import { PageHeader } from '../../../../shared/ui/PageHeader';
+import { StatusBadge } from '../../../../shared/ui/StatusBadge';
+import { PhoneNumber } from '../shared/PhoneNumber';
+import { EmployeeFormModal } from './EmployeeFormModal';
+import { employeeRoleLabelKey, employeeRoleTone } from './employee-ui';
 
-const permissionGroups: Array<{
-  titleKey: string;
-  permissions: EmployeePermission[];
-}> = [
-  {
-    titleKey: 'employees.permissionGroups.orders',
-    permissions: [
-      'orders.view',
-      'orders.manage',
-      'orders.chat',
-      'repairs.execute',
-      'sales.manage',
-    ],
-  },
-  {
-    titleKey: 'employees.permissionGroups.kanban',
-    permissions: ['kanban.use'],
-  },
-  {
-    titleKey: 'employees.permissionGroups.supplierOrders',
-    permissions: ['supplierOrders.view', 'supplierOrders.manage'],
-  },
-  {
-    titleKey: 'employees.permissionGroups.clients',
-    permissions: ['clients.manage'],
-  },
-  {
-    titleKey: 'employees.permissionGroups.inventory',
-    permissions: ['inventory.manage'],
-  },
-  {
-    titleKey: 'employees.permissionGroups.finance',
-    permissions: [
-      'finance.view',
-      'finance.cashboxes.view',
-      'finance.cashboxes.manage',
-      'finance.transactions.deposit',
-      'finance.transactions.withdraw',
-      'finance.transactions.transfer',
-      'finance.supplierOrders.pay',
-      'finance.supplierOrders.issueWithoutPayment',
-    ],
-  },
-  {
-    titleKey: 'employees.permissionGroups.employees',
-    permissions: ['employees.manage'],
-  },
-  {
-    titleKey: 'employees.permissionGroups.system',
-    permissions: ['printForms.manage', 'system.backups.manage'],
-  },
-];
+type EmployeeStatusFilter = 'all' | 'active' | 'inactive';
 
 type EmployeeManagementPanelProps = {
   employees: Employee[];
@@ -78,10 +31,31 @@ type EmployeeManagementPanelProps = {
     field: K,
     value: EmployeeFormValues[K],
   ) => void;
-  onSubmit: () => void;
+  onSubmit: () => void | Promise<boolean | void>;
   onCancelEdit: () => void;
   onEdit: (employee: Employee) => void;
   onDelete: (employee: Employee) => void;
+};
+
+const matchesEmployeeSearch = (
+  employee: Employee,
+  query: string,
+  roleLabel: string,
+) => {
+  if (!query) {
+    return true;
+  }
+  const haystack = [
+    employee.name,
+    employee.username,
+    employee.email,
+    employee.phone,
+    employee.role,
+    roleLabel,
+  ]
+    .join(' ')
+    .toLowerCase();
+  return haystack.includes(query);
 };
 
 export const EmployeeManagementPanel = ({
@@ -100,100 +74,219 @@ export const EmployeeManagementPanel = ({
   onDelete,
 }: EmployeeManagementPanelProps) => {
   const { t } = useTranslation();
-  const formTopRef = useRef<HTMLDivElement | null>(null);
-  const [employeeToDelete, setEmployeeToDelete] = useState<Employee | null>(null);
-  const isOwnerRoleSelected = form.role === 'owner';
+  const [employeeToDelete, setEmployeeToDelete] = useState<Employee | null>(
+    null,
+  );
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const [roleFilter, setRoleFilter] = useState<EmployeeRole | 'all'>('all');
+  const [statusFilter, setStatusFilter] =
+    useState<EmployeeStatusFilter>('all');
 
-  const togglePermission = (permission: EmployeePermission) => {
-    if (isOwnerRoleSelected && permission === 'employees.manage') {
-      return;
-    }
-    if (
-      (permission === 'employees.manage' ||
-        permission === 'system.backups.manage') &&
-      !canManageOwnerAccounts
-    ) {
-      return;
-    }
-    if (form.permissions.includes(permission)) {
-      onChange(
-        'permissions',
-        form.permissions.filter((item) => item !== permission),
-      );
-      return;
-    }
-    onChange('permissions', [...form.permissions, permission]);
+  const activeCount = employees.filter((employee) => employee.isActive).length;
+  const inactiveCount = employees.length - activeCount;
+  const normalizedSearch = search.trim().toLowerCase();
+
+  const visibleEmployees = useMemo(
+    () =>
+      employees.filter((employee) => {
+        if (statusFilter === 'active' && !employee.isActive) {
+          return false;
+        }
+        if (statusFilter === 'inactive' && employee.isActive) {
+          return false;
+        }
+        if (roleFilter !== 'all' && employee.role !== roleFilter) {
+          return false;
+        }
+        return matchesEmployeeSearch(
+          employee,
+          normalizedSearch,
+          t(employeeRoleLabelKey(employee.role)),
+        );
+      }),
+    [employees, normalizedSearch, roleFilter, statusFilter, t],
+  );
+
+  const closeForm = () => {
+    setIsFormOpen(false);
+    onCancelEdit();
   };
 
-  const handleRoleChange = (role: EmployeeFormValues['role']) => {
-    onChange('role', role);
-    onChange('permissions', defaultEmployeePermissionsByRole[role]);
+  const openCreate = () => {
+    onCancelEdit();
+    setIsFormOpen(true);
+  };
+
+  const handleEdit = (employee: Employee) => {
+    if (!canManageEmployees) {
+      return;
+    }
+    if (employee.role === 'owner' && !canManageOwnerAccounts) {
+      return;
+    }
+    onEdit(employee);
+    setIsFormOpen(true);
+  };
+
+  const handleSubmit = async () => {
+    const result = await onSubmit();
+    if (result !== false) {
+      setIsFormOpen(false);
+    }
+    return result;
   };
 
   const confirmDelete = () => {
     if (!employeeToDelete) {
       return;
     }
-
     onDelete(employeeToDelete);
     setEmployeeToDelete(null);
   };
 
-  const handleEdit = (employee: Employee) => {
-    if (employee.role === 'owner' && !canManageOwnerAccounts) {
-      return;
-    }
-    onEdit(employee);
-    window.requestAnimationFrame(() => {
-      formTopRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    });
-  };
-
   return (
-    <section className="panel">
-            <div className="panel-header" style={{ marginTop: 20 }}>
-        <div>
-          <p className="section-label">{t('employees.list.sectionLabel')}</p>
-          <h2>{t('employees.list.title')}</h2>
-        </div>
-      </div>
+    <section className="panel employees-management">
+      <PageHeader
+        title={t('employees.list.title')}
+        subtitle={t('employees.list.activeCount', {
+          active: activeCount,
+          inactive: inactiveCount,
+        })}
+        actions={
+          canManageEmployees ? (
+            <Button variant="primary" onClick={openCreate}>
+              {t('employees.list.addEmployee')}
+            </Button>
+          ) : null
+        }
+        toolbar={
+          <div className="employees-toolbar">
+            <label className="field employees-toolbar-search">
+              <span className="visually-hidden">
+                {t('employees.information.filters.search')}
+              </span>
+              <input
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder={t('employees.list.searchPlaceholder')}
+              />
+            </label>
+            <label className="field">
+              <span>{t('employees.list.filterRole')}</span>
+              <select
+                value={roleFilter}
+                onChange={(event) =>
+                  setRoleFilter(event.target.value as EmployeeRole | 'all')
+                }
+              >
+                <option value="all">{t('employees.list.allRoles')}</option>
+                {employeeRoleOptions.map((role) => (
+                  <option key={role} value={role}>
+                    {t(employeeRoleLabelKey(role))}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="field">
+              <span>{t('employees.list.filterStatus')}</span>
+              <select
+                value={statusFilter}
+                onChange={(event) =>
+                  setStatusFilter(event.target.value as EmployeeStatusFilter)
+                }
+              >
+                <option value="all">{t('employees.list.allStatuses')}</option>
+                <option value="active">{t('employees.list.active')}</option>
+                <option value="inactive">{t('employees.list.inactive')}</option>
+              </select>
+            </label>
+          </div>
+        }
+      />
+
+      {!canManageEmployees ? (
+        <EmptyState>{t('employees.list.noPermission')}</EmptyState>
+      ) : null}
 
       {isLoading ? (
-        <p className="empty-state">{t('employees.list.loading')}</p>
+        <LoadingState>{t('employees.list.loading')}</LoadingState>
       ) : employees.length === 0 ? (
-        <p className="empty-state">{t('employees.list.empty')}</p>
+        <EmptyState>{t('employees.list.empty')}</EmptyState>
+      ) : visibleEmployees.length === 0 ? (
+        <EmptyState>{t('employees.list.noMatches')}</EmptyState>
       ) : (
         <div className="stack-list">
-          {employees.map((employee) => {
+          {visibleEmployees.map((employee) => {
             const isCurrentEmployee = employee.id === currentEmployeeId;
-            const canWriteThisEmployee = employee.role !== 'owner' || canManageOwnerAccounts;
+            const canWriteThisEmployee =
+              employee.role !== 'owner' || canManageOwnerAccounts;
 
             return (
-              <article key={employee.id} className="list-card">
+              <article
+                key={employee.id}
+                className="list-card employee-card"
+                onClick={() => handleEdit(employee)}
+              >
                 <div className="list-card-row">
-                  <div>
-                    <h3>
-                      {employee.name}
+                  <div className="employee-card-main">
+                    <div className="employee-card-title-row">
+                      <button
+                        type="button"
+                        className="catalog-name-button"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          handleEdit(employee);
+                        }}
+                      >
+                        {employee.name}
+                      </button>
+                      <StatusBadge
+                        label={t(employeeRoleLabelKey(employee.role))}
+                        tone={employeeRoleTone[employee.role]}
+                      />
                       {!employee.isActive ? (
                         <span className="catalog-inactive-badge">
                           {t('employees.list.inactiveBadge')}
                         </span>
                       ) : null}
-                    </h3>
-                    <p>
-                      {employee.email || t('employees.list.noEmail')} |{' '}
-                      {employee.phone || t('employees.list.noPhone')} | {employee.role}
-                    </p>
-                    <p>
-                      {employee.username || t('employees.list.noLogin')}
-                      {isCurrentEmployee ? ` | ${t('employees.list.currentUser')}` : ''}
-                    </p>
+                      {isCurrentEmployee ? (
+                        <span className="employee-current-badge">
+                          {t('employees.list.currentUser')}
+                        </span>
+                      ) : null}
+                    </div>
+                    <dl className="employee-card-meta">
+                      <div>
+                        <dt>{t('employees.list.metaLogin')}</dt>
+                        <dd>
+                          {employee.username || t('employees.list.noLogin')}
+                        </dd>
+                      </div>
+                      <div>
+                        <dt>{t('employees.list.metaEmail')}</dt>
+                        <dd>{employee.email || t('employees.list.noEmail')}</dd>
+                      </div>
+                      <div>
+                        <dt>{t('employees.list.metaPhone')}</dt>
+                        <dd>
+                          {employee.phone ? (
+                            <PhoneNumber value={employee.phone} />
+                          ) : (
+                            t('employees.list.noPhone')
+                          )}
+                        </dd>
+                      </div>
+                    </dl>
                   </div>
                   <div className="card-actions">
                     <button
                       className="ghost-button"
                       type="button"
-                      onClick={() => handleEdit(employee)}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        handleEdit(employee);
+                      }}
                       disabled={!canManageEmployees || !canWriteThisEmployee}
                     >
                       {t('employees.list.edit')}
@@ -201,8 +294,15 @@ export const EmployeeManagementPanel = ({
                     <button
                       className="danger-button"
                       type="button"
-                      onClick={() => setEmployeeToDelete(employee)}
-                      disabled={!canManageEmployees || isCurrentEmployee || !canWriteThisEmployee}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        setEmployeeToDelete(employee);
+                      }}
+                      disabled={
+                        !canManageEmployees ||
+                        isCurrentEmployee ||
+                        !canWriteThisEmployee
+                      }
                       title={
                         isCurrentEmployee
                           ? t('employees.list.cannotDeleteSelf')
@@ -218,155 +318,18 @@ export const EmployeeManagementPanel = ({
           })}
         </div>
       )}
-      <div ref={formTopRef} />
-      {!canManageEmployees ? (
-        <p className="empty-state">{t('employees.list.noPermission')}</p>
-      ) : null}
 
-      <div className="panel-header" style={{marginTop:80}}>
-        <div>
-          <p className="section-label">{t('employees.form.sectionLabel')}</p>
-          <h2>
-            {isEditing ? t('employees.form.editTitle') : t('employees.form.createTitle')}
-          </h2>
-        </div>
-        {isEditing ? (
-          <button className="ghost-button" type="button" onClick={onCancelEdit}>
-            {t('common.cancel')}
-          </button>
-        ) : null}
-      </div>
-
-      <div className="form-grid">
-        <label className="field">
-          <span>{t('employees.form.name')}</span>
-          <input
-            value={form.name}
-            onChange={(event) => onChange('name', event.target.value)}
-            placeholder={t('employees.form.fullNamePlaceholder')}
-          />
-        </label>
-        <label className="field">
-          <span>{t('employees.form.phone')}</span>
-          <input
-            value={form.phone}
-            onChange={(event) => onChange('phone', event.target.value)}
-            placeholder={t('employees.form.phonePlaceholder')}
-          />
-        </label>
-        <label className="field">
-          <span>{t('employees.form.email')}</span>
-          <input
-            type="email"
-            value={form.email}
-            onChange={(event) => onChange('email', event.target.value)}
-            placeholder={t('employees.form.emailPlaceholder')}
-          />
-        </label>
-        <label className="field">
-          <span>{t('employees.form.login')}</span>
-          <input
-            value={form.username}
-            onChange={(event) => onChange('username', event.target.value)}
-            placeholder={t('employees.form.loginPlaceholder')}
-          />
-        </label>
-        <label className="field">
-          <span>
-            {isEditing ? t('employees.form.newPassword') : t('employees.form.password')}
-          </span>
-          <input
-            type="password"
-            value={form.password}
-            onChange={(event) => onChange('password', event.target.value)}
-            placeholder={
-              isEditing
-                ? t('employees.form.passwordKeepCurrent')
-                : t('employees.form.passwordPlaceholder')
-            }
-          />
-        </label>
-        <label className="field">
-          <span>{t('employees.form.role')}</span>
-          <select
-            value={form.role}
-            onChange={(event) => handleRoleChange(event.target.value as EmployeeFormValues['role'])}
-          >
-            {employeeRoleOptions
-              .filter((role) => canManageOwnerAccounts || role !== 'owner')
-              .map((role) => (
-              <option key={role} value={role}>
-                {role}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="field">
-          <span>{t('employees.form.status')}</span>
-          <select
-            value={form.isActive ? 'active' : 'inactive'}
-            onChange={(event) => onChange('isActive', event.target.value === 'active')}
-          >
-            <option value="active">{t('employees.form.active')}</option>
-            <option value="inactive">{t('employees.form.inactive')}</option>
-          </select>
-        </label>
-        <label className="field field-wide">
-          <span>{t('employees.form.note')}</span>
-          <textarea
-            rows={3}
-            value={form.note}
-            onChange={(event) => onChange('note', event.target.value)}
-          />
-        </label>
-      </div>
-
-      <div className="employee-permissions">
-        {permissionGroups.map((group) => (
-          <section key={group.titleKey} className="employee-permission-group">
-            <h3>{t(group.titleKey)}</h3>
-            {group.permissions.map((permission) => (
-              <label key={permission} className="create-inline-checkbox">
-                <input
-                  type="checkbox"
-                  checked={
-                    form.permissions.includes(permission) ||
-                    (isOwnerRoleSelected && permission === 'employees.manage')
-                  }
-                  disabled={
-                    (isOwnerRoleSelected && permission === 'employees.manage') ||
-                    ((permission === 'employees.manage' ||
-                      permission === 'system.backups.manage') &&
-                    !canManageOwnerAccounts)
-                  }
-                  onChange={() => togglePermission(permission)}
-                />
-                <span>{permission}</span>
-              </label>
-            ))}
-          </section>
-        ))}
-      </div>
-
-      <button
-        className="primary-button"
-        type="button"
-        onClick={onSubmit}
-        disabled={
-          !canManageEmployees ||
-          isSaving ||
-          !form.name.trim() ||
-          !form.username.trim() ||
-          form.permissions.length === 0 ||
-          (!isEditing && form.password.trim().length < 3)
-        }
-      >
-        {isSaving
-          ? t('employees.form.saving')
-          : isEditing
-            ? t('employees.form.updateEmployee')
-            : t('employees.form.saveEmployee')}
-      </button>
+      <EmployeeFormModal
+        form={form}
+        isOpen={isFormOpen}
+        isSaving={isSaving}
+        isEditing={isEditing}
+        canManageEmployees={canManageEmployees}
+        canManageOwnerAccounts={canManageOwnerAccounts}
+        onChange={onChange}
+        onSubmit={handleSubmit}
+        onClose={closeForm}
+      />
 
       {employeeToDelete ? (
         <Modal

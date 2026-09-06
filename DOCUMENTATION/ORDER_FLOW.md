@@ -1,6 +1,6 @@
 # Order Creation Rules
 
-Related: [ORDER_CARD.md](./ORDER_CARD.md) · [SALE_FLOW.md](./SALE_FLOW.md) · [WAREHOUSE_FLOW.md](./WAREHOUSE_FLOW.md) · [index](./README.md)
+Related: [ORDER_CARD.md](./ORDER_CARD.md) · [SALE_FLOW.md](./SALE_FLOW.md) · [WAREHOUSE_FLOW.md](./WAREHOUSE_FLOW.md) · [SPEC_SUGGESTIONS_BEHAVIOR.md](./SPEC_SUGGESTIONS_BEHAVIOR.md) · [index](./README.md)
 
 ## Create Order Modal
 
@@ -8,7 +8,7 @@ Related: [ORDER_CARD.md](./ORDER_CARD.md) · [SALE_FLOW.md](./SALE_FLOW.md) · [
 - Entry points:
   - Orders/Sales toolbar `Create order`;
   - Order/sale detail card header `Create order` (after status dropdown, before close).
-- `Client phone` + `Client name` perform lookup in clients.
+- `Client phone` + `Client name` perform lookup in clients. Suggestion dismiss/re-open: [SPEC_SUGGESTIONS_BEHAVIOR.md](./SPEC_SUGGESTIONS_BEHAVIOR.md#dismiss-without-select-rule).
 - On blur, client phone is masked (`+380 …`). For a **new** client draft (not found in DB), if digit length is not a full UA mobile (`+380` + 9 digits), the phone field shows a soft red border and hint. **Phone length alone does not block Save** (soft only).
 - **Hard Save validation** (order is not created; error toast):
   - **Client required:** non-empty phone (not bare country code) + name ≥ 2 characters.
@@ -31,6 +31,7 @@ Related: [ORDER_CARD.md](./ORDER_CARD.md) · [SALE_FLOW.md](./SALE_FLOW.md) · [
 - Left-click navigation inside the dashboard (sidebar, orders tabs, open/close cards) uses client-side History API (`pushState`) and does **not** reload the page.
 - Browser **Back** / **Forward** restore the previous in-app view (page, tab, open card) from the URL query string.
 - Opening an order/sale card from the orders workspace, client card, or warehouse stock table updates `saleId` in the URL and pushes a history entry; closing the card clears `saleId` so Back can reopen the card.
+- Client card `Orders` / `Sales` numbers are real `getOrderLink()` hrefs. Left click opens the card in-app (closes the client modal). Right-click / middle-click / Ctrl+click opens a new browser tab. Spec: [BROWSER_NAVIGATION.md](./BROWSER_NAVIGATION.md) · [CLIENTS_RULES.md](./CLIENTS_RULES.md).
 - Create-order `Client requests` links remain `target="_blank"` (new tab) — they are intentionally outside the in-app history stack.
 - URL helpers: `getOrderLink()` / `buildDashboardHref()` in `frontend/src/pages/dashboard/model/dashboard-navigation.ts`.
 - See [BROWSER_NAVIGATION.md](./BROWSER_NAVIGATION.md).
@@ -53,11 +54,13 @@ Related: [ORDER_CARD.md](./ORDER_CARD.md) · [SALE_FLOW.md](./SALE_FLOW.md) · [
 - Search returns only active client devices.
 - Device suggestions in `Create order` are deduplicated by canonical device name (case-insensitive).
 - If current `Device #1` value already exactly matches a suggested device name, that suggestion is hidden (no repeated selected item in dropdown).
+- Prefix matches stay in the list (example: typed `Телевізор Samsung` still lists `Телевізор Samsung 32`). Operator may keep the typed prefix: click outside the list or Escape hides suggestions without changing the field; lookup returns only after an edit. Rule: [SPEC_SUGGESTIONS_BEHAVIOR.md](./SPEC_SUGGESTIONS_BEHAVIOR.md#dismiss-without-select-rule).
 - `Create new` button is visible but disabled until:
   - tab is `Repair order`
   - a client is selected from suggestions (required only for creating a new device card)
   - device name has at least 2 chars
   - no active matches are found
+- Dismissing the suggestion list does **not** enable `Create new`. Active catalog matches still block it. Save still accepts the typed device name.
 - New device is created in `client-devices` collection, not in warehouse products.
 
 ## Urgent Term
@@ -126,6 +129,7 @@ Related: [ORDER_CARD.md](./ORDER_CARD.md) · [SALE_FLOW.md](./SALE_FLOW.md) · [
 - Successful payment modal actions close the modal. `Print` opens print preview only and does not close the payment modal.
 - Repair orders support status `paid` in the `Orders` tab status dropdown and filters.
 - When repair order status is changed to `paid`, the system opens `Accept payment` modal if `To pay > 0`.
+- Repair **order card** **Save changes** to `issued` or `paid` uses the same rule as the list/Kanban status dropdown: if `To pay > 0`, open `Accept payment` (do not persist `issued`/`paid` until a modal action). If `To pay = 0`, persist the status.
 - In repair order card, the `Payment -> Accept payment` button opens the same modal with target status `issued`.
 - For repair order card issue target, payment modal actions follow the same issue behavior as sale card:
   - `Accept to cashbox` adds a deposit without issuing.
@@ -203,7 +207,7 @@ Related: [ORDER_CARD.md](./ORDER_CARD.md) · [SALE_FLOW.md](./SALE_FLOW.md) · [
 - Device `Name` must be unique in `Clients goods` list view (case-insensitive).
 - When creating an order, if a device with the same canonical name already exists in `Clients goods`, it must be reused from suggestions and no duplicate record is created.
 - Serial numbers are not stored or edited in `Clients goods`; they are handled in order card context/history only.
-- Clicking `Name` opens edit modal.
+- Clicking `Name` opens edit modal. Hover on `Name` shows a copy icon (icon-only copy). Spec: [UI_DESIGN_SYSTEM.md — Hover copy icon](./UI_DESIGN_SYSTEM.md#hover-copy-icon).
 - Create/Edit modals for `Clients goods` include only device name, note and activity.
 - Modal allows toggling `active/inactive`.
 - Inactive devices are excluded from order device lookup.
@@ -380,14 +384,15 @@ Related: [ORDER_CARD.md](./ORDER_CARD.md) · [SALE_FLOW.md](./SALE_FLOW.md) · [
   - `Cancel item` calls `POST /supplier-orders/:supplierOrderId/cancel-item`
   - item cancel recalculates order `total` from non-cancelled lines; on paid orders `paid` stays at the amount actually paid
   - cancelled item product names render in red in Supplier Order and Warehouse Receipts
-  - whole-order `Delete` stays available only outside item-scoped multi-item view and only while `paymentStatus = pending`
+  - whole-order `Cancel order` stays available only outside item-scoped multi-item view and only while `paymentStatus = pending`
+  - `Cancel item` is shown whenever the modal has one unreceived line (1-line order or item-scoped child), including `approved` + `paid` / `without_payment`
 - If `paymentStatus = cancelled`, or `status = cancelled`, or `status = unavailable`, the row status button is disabled and the status window cannot be opened.
 - Clicking a supplier order number must always open the supplier order modal when the employee has supplier-order read access.
 - If the order is locked by receipt/final status (`stocked`, `receiptStatus = received`, `cancelled`, or `unavailable`), the opened modal is read-only instead of blocked.
 - For `status = approved` that is not yet stocked/received, the modal must allow take-on-charge (`Оприбуткувати`) regardless of `paymentStatus` (`pending`, `paid`, `without_payment`) when the employee has `supplierOrders.manage`.
-- Cancel (`Скасувати`) in `SupplierOrderModal` is allowed only while `paymentStatus = pending`.
-- If `paymentStatus = paid` or `without_payment`, the Delete button in `SupplierOrderModal` must not be rendered, and `POST /supplier-orders/:supplierOrderId/cancel` must be rejected by backend with `Оплачений заказ не можна скасувати.`
-- On `approved` orders, `paid` / `without_payment` lock order content fields (supplier, items, prices) and cancel, but must not hide or disable take-on-charge when the employee has `supplierOrders.manage`.
+- Cancel order (`Скасувати замовлення`) in `SupplierOrderModal` is allowed only while `paymentStatus = pending`.
+- If `paymentStatus = paid` or `without_payment`, the Cancel order button in `SupplierOrderModal` must not be rendered, and `POST /supplier-orders/:supplierOrderId/cancel` must be rejected by backend with `Оплачений заказ не можна скасувати.`
+- On `approved` orders, `paid` / `without_payment` lock order content fields (supplier, items, prices) and whole-order cancel, but must not hide take-on-charge or **Cancel item** while the line is unreceived.
 - Editable content fields remain available only when the employee has `supplierOrders.manage` and the order is not locked by the supplier-order content lock rules.
 
 ## Supplier Order Modal Price/Qty Steppers (2026-07-12)
@@ -537,6 +542,7 @@ Scope: `Orders -> Supplier Order` table only. Warehouse receipts, Accounting pay
 - The tooltip must remain open while the pointer moves from the truncated value into the tooltip.
 - Tooltip text must be selectable so the operator can copy names, order numbers, serial numbers, notes, and other clipped values.
 - The same behavior should be reusable across orders, sales, supplier orders, warehouse tables, accounting tables, and compact cards.
+- Order number and client phone in the `Orders` / `Sales` tables also expose a hover copy icon. Icon-only copy; number/phone clicks stay unchanged. Spec: [UI_DESIGN_SYSTEM.md — Hover copy icon](./UI_DESIGN_SYSTEM.md#hover-copy-icon).
 
 ## Supplier Order Information Tab (2026-05-29)
 

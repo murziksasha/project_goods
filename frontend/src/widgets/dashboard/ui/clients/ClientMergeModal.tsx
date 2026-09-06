@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import type { Client } from '../../../../entities/client/model/types';
 import { formatClientPhonesLabel } from '../../../../entities/client/lib/phone-match';
+import { useDismissibleSuggestions } from '../../../../shared/lib/useDismissibleSuggestions';
 import { Modal } from '../../../../shared/ui/Modal';
 import { Button } from '../../../../shared/ui/Button';
 
@@ -104,32 +105,41 @@ const ClientMergeInput = ({
   showSuggestions: boolean;
   onQueryChange: (value: string) => void;
   onSelectClient: (client: Client) => void;
-}) => (
-  <>
-    <label className="field field-wide modal-suggestions-anchor">
+}) => {
+  const { rootRef, isVisible } = useDismissibleSuggestions({
+    query,
+    isActive: showSuggestions && options.length > 0,
+  });
+
+  return (
+    <label
+      ref={rootRef}
+      className="field field-wide modal-suggestions-anchor"
+    >
       <span>{label}</span>
       <input
         value={query}
         placeholder={searchPlaceholder}
+        aria-label={label}
         onChange={(event) => onQueryChange(event.target.value)}
       />
+      {isVisible ? (
+        <div className="suggestions-panel">
+          {options.map((client) => (
+            <button
+              key={client.id}
+              type="button"
+              className="suggestion-item"
+              onClick={() => onSelectClient(client)}
+            >
+              <strong>{client.name}</strong>
+              <span>{formatClientPhonesLabel(client)}</span>
+            </button>
+          ))}
+        </div>
+      ) : null}
     </label>
-    {showSuggestions && options.length > 0 ? (
-      <div className="suggestions-panel">
-        {options.map((client) => (
-          <button
-            key={client.id}
-            type="button"
-            className="suggestion-item"
-            onClick={() => onSelectClient(client)}
-          >
-            <strong>{client.name}</strong>
-            <span>{formatClientPhonesLabel(client)}</span>
-          </button>
-        ))}
-      </div>
-    ) : null}
-  </>
-);
+  );
+};
 
 export type { ClientMergeField };

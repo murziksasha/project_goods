@@ -57,6 +57,9 @@
     "saving": "Saving...",
     "export": "Export",
     "exporting": "Exporting...",
+    "copy": "Copy",
+    "copied": "Copied",
+    "copyFailed": "Copy failed",
     "pagination": {
       "previousPage": "Previous page",
       "nextPage": "Next page",
@@ -149,8 +152,13 @@
       "backups": "Backups",
       "database": "Database"
     },
-
     "dashboard": {
+      "subtitle": "Defaults for the home-page market, rates and weather widget.",
+      "groups": {
+        "widgets": "Widget visibility",
+        "rates": "Exchange rates",
+        "weather": "Weather"
+      },
       "marketWeatherEnabled": "Show market & weather widget",
       "exchangeRatesEnabled": "Show exchange rates",
       "weatherEnabled": "Show weather forecast",
@@ -184,28 +192,32 @@
       "loading": "Loading settings..."
     },
     "company": {
+      "appearanceTitle": "Appearance",
+      "identityTitle": "Company identity",
+      "identitySubtitle": "These values fill print-form tokens on documents.",
       "serviceNameInHeader": "Service name in header",
       "serviceNamePlaceholder": "Service CRM",
-      "companyName": "Company name ({{company}})",
+      "companyName": "Company name",
       "companyNamePlaceholder": "Company name",
       "companyNameMinLength": "Company name must be at least 2 characters.",
-      "companyId": "Company ID ({{company_id}})",
+      "companyId": "Company ID",
       "companyIdPlaceholder": "Company registration ID",
       "companyIdFormat": "Company ID must be 8-12 characters (letters, digits, dash).",
-      "companyAddress": "Company address ({{company_address}})",
+      "companyAddress": "Company address",
       "companyAddressPlaceholder": "Company address",
       "companyAddressMinLength": "Company address must be at least 5 characters.",
-      "companyIban": "Company IBAN ({{company_iban}})",
+      "companyIban": "Company IBAN",
       "companyIbanPlaceholder": "UA00 0000 0000 0000 0000 0000 0000 000",
       "companyIbanFormat": "IBAN must match UA + 27 digits (spaces are allowed).",
-      "companyEmail": "Company e-mail ({{company_email}})",
+      "companyEmail": "Company e-mail",
       "companyEmailPlaceholder": "service@example.com",
-      "companySite": "Company site ({{company_site}})",
+      "companySite": "Company site",
       "companySitePlaceholder": "https://example.com"
     },
     "print": {
       "sectionLabel": "Print forms",
       "title": "Order documents",
+      "subtitle": "Templates used in order, sale and warehouse print menus.",
       "documentTemplate": "Document template",
       "add": "Add",
       "duplicate": "Duplicate",
@@ -524,13 +536,14 @@
       "master": "Master",
       "status": "Status",
       "device": "Device",
+      "product": "Product",
       "serviceCenter": "Service center",
       "price": "Price",
       "paid": "Paid",
       "client": "Client",
       "term": "Term",
       "warehouse": "Warehouse",
-      "createdAt": "Add",
+      "createdAt": "Created",
       "readyDate": "Ready date"
     },
     "warranty": {
@@ -682,6 +695,7 @@
       "searchOrders": "Search orders",
       "clearSearch": "Clear search text",
       "toggleColumns": "Toggle table columns",
+      "resetColumns": "Reset columns",
       "toggleTabs": "Choose visible tabs",
       "lastVisibleTab": "Keep at least one tab visible",
       "orderCategories": "Order categories",
@@ -692,8 +706,8 @@
       "starOrder": "Star {{orderNumber}}",
       "unstarOrder": "Remove star from {{orderNumber}}",
       "searchPlaceholder": {
-        "orders": "Search by order, client or device",
-        "sales": "Search by order, client or manager"
+        "orders": "Order, client, phone or device",
+        "sales": "Order, client, phone, product or manager"
       },
       "loading": "Loading orders...",
       "empty": {
@@ -705,6 +719,7 @@
         "nonUrgent": "Non-urgent"
       },
       "serialPrefix": "S/N: {{serial}}",
+      "extraLines": "+{{count}}",
       "warehouseLabel": "Warehouse: Service center",
       "assignee": {
         "master": "{{name}} (Master)",
@@ -728,8 +743,12 @@
       "clientPlaceholder": "Client name or phone",
       "assignee": "Master / manager",
       "master": "Master",
+      "manager": "Manager",
       "warehouse": "Warehouse",
       "repairType": "Repair type",
+      "saleType": "Sale type",
+      "saleTypeRapid": "Rapid sale",
+      "saleTypeRegular": "Regular",
       "repairTypePaid": "Paid",
       "repairTypeWarranty": "Warranty",
       "dateFrom": "Date from",
@@ -1014,7 +1033,7 @@
         "action": "Action",
         "noProductsAdded": "No products added.",
         "noServicesAdded": "No services added.",
-        "groupedCount": "\u00d7{{quantity}}",
+        "groupedCount": "×{{quantity}}",
         "toggleGroup": "Toggle {{name}} group ({{quantity}})",
         "return": "Return",
         "remove": "Remove",
@@ -1054,9 +1073,10 @@
       "toolbar": {
         "data": "Data",
         "createOrder": "Order from supplier",
-        "searchPlaceholder": "Search by number, product, supplier",
+        "searchPlaceholder": "Search by number, product, supplier, author or note",
         "orderStatus": "Order status",
         "orderStatusesCount": "{{count}} order statuses",
+        "paymentStatusesCount": "{{count}} payment statuses",
         "allPaymentStatuses": "All payment statuses",
         "showAllOrders": "Show all supplier orders",
         "showStarredOrders": "Show starred supplier orders",
@@ -1072,6 +1092,7 @@
         "paid": "Paid",
         "supplier": "Supplier",
         "createdAt": "Order date",
+        "createdBy": "Created by",
         "deliveryDate": "Delivery date",
         "status": "Status",
         "paymentStatus": "Payment status"
@@ -1079,7 +1100,18 @@
       "filters": {
         "dateFrom": "Date from",
         "dateTo": "Date to",
-        "clearDates": "Clear dates"
+        "clearDates": "Clear dates",
+        "orderStatus": "Order status",
+        "paymentStatus": "Payment status",
+        "supplier": "Supplier",
+        "createdBy": "Created by",
+        "product": "Product",
+        "productPlaceholder": "Product name",
+        "orderNumber": "No.",
+        "orderNumberPlaceholder": "Order number",
+        "dateField": "Date field",
+        "dateFieldDelivery": "Delivery date",
+        "dateFieldCreated": "Order date"
       },
       "table": {
         "starOrder": "Star {{id}}",
@@ -1090,7 +1122,12 @@
         "itemsCount": "{{count}} items",
         "expandOrder": "Expand order {{id}}",
         "collapseOrder": "Collapse order {{id}}",
-        "statusNotApplicable": "—"
+        "statusNotApplicable": "—",
+        "totalsOrders": "{{count}} orders",
+        "totalsPcs": "{{count}} pcs",
+        "totalsAmount": "Total {{amount}}",
+        "totalsPaid": "Paid {{amount}}",
+        "totalsOutstanding": "Outstanding {{amount}}"
       },
       "statusMenu": {
         "orderLabel": "Order {{id}}"
@@ -1166,7 +1203,11 @@
       },
       "modal": {
         "title": "Order from supplier",
-        "delete": "Delete",
+        "delete": "Cancel order",
+        "cancelOrder": "Cancel order",
+        "cancelOrderTitle": "Cancel order",
+        "cancelOrderConfirm": "Cancel this supplier order? Unreceived items will be cancelled. The order is not permanently deleted.",
+        "cancelOrderConfirmAction": "Cancel order",
         "cancelItem": "Cancel item",
         "cancelItemTitle": "Cancel item",
         "cancelItemConfirm": "Cancel this item in the supplier order? Payment and order total are not adjusted automatically.",
@@ -1243,6 +1284,7 @@
           "itemReceivedNotCancellable": "Received items cannot be cancelled.",
           "itemAlreadyCancelled": "This item is already cancelled.",
           "failedCancelItem": "Failed to cancel supplier order item.",
+          "failedCancelOrder": "Failed to cancel supplier order.",
           "alreadyPaid": "Supplier order is already paid.",
           "alreadyIssuedWithoutPayment": "Supplier order is already issued without payment.",
           "payStatusNotAllowed": "Payment is available only for approved, overdue, stocked, or partially received supplier orders.",
@@ -1312,6 +1354,7 @@
         "cannotReturnUnpaid": "Cannot return a sale without received payment. Use another status for unpaid cancellation.",
         "refundBeforeRemoveLine": "Refund the line item amount before removing it from the order.",
         "statusBlocksRemoval": "This order status does not allow line item removal.",
+        "statusBlocksEdit": "This order status does not allow changing line items or discount.",
         "oneSerialPerLine": "Serialized products are sold one serial per line. Add another serial instead.",
         "paymentExceedsBalance": "Payment amount cannot exceed the remaining balance.",
         "issuedRequiresPayment": "Issued status requires payment to cashbox. Use payment action or keep unpaid status.",
@@ -1426,7 +1469,8 @@
       "information": "Information",
       "clientsAndSuppliers": "Clients and suppliers",
       "clients": "Clients",
-      "suppliers": "Suppliers"
+      "suppliers": "Suppliers",
+      "withCount": "{{label}} ({{count}})"
     },
     "toolbar": {
       "filter": "Filter",
@@ -1438,7 +1482,9 @@
       "exportXls": "Export XLS",
       "exporting": "Exporting...",
       "merge": "Merge",
-      "createClient": "Create client"
+      "createClient": "Create client",
+      "totalCount_one": "{{count}} record",
+      "totalCount_other": "{{count}} records"
     },
     "table": {
       "title": "Client list",
@@ -1499,8 +1545,8 @@
       "searchAriaLabel": "Search in client list",
       "clearSearchAriaLabel": "Clear search text",
       "searchPlaceholder": {
-        "orders": "Search by number, service, status",
-        "sales": "Search by number, product, status",
+        "orders": "Search by number, device, serial, status",
+        "sales": "Search by number, product, serial, status",
         "devices": "Search by name, note"
       },
       "filters": {
@@ -1553,11 +1599,12 @@
       "removePhoneAriaLabel": "Remove phone",
       "saveClient": "Save client",
       "saving": "Saving...",
+      "statusAutoHint": "Auto: {{status}}",
       "history": {
         "columns": {
           "number": "No.",
           "date": "Date",
-          "service": "Service",
+          "device": "Device",
           "sale": "Sale",
           "status": "Status",
           "amount": "Amount"
@@ -1609,6 +1656,7 @@
       "toolbar": {
         "filter": "Filter",
         "searchPlaceholder": "Search by name, phone or supplier order",
+        "searchAriaLabel": "Search supplier",
         "clearSearchAriaLabel": "Clear search text",
         "merge": "Merge",
         "createSupplier": "Create supplier"
@@ -1649,7 +1697,7 @@
         "fields": {
           "name": "Name",
           "phone": "Phone",
-          "supplierOrder": "Supplier order",
+          "supplierOrder": "Default PO / order ref",
           "note": "Note",
           "status": "Status"
         },
@@ -1750,19 +1798,24 @@
         "quantityPcs": "{{count}} pcs",
         "removeStarAriaLabel": "Remove star from {{number}}",
         "starAriaLabel": "Star {{number}}",
+        "expandOrder": "Show lines for {{number}}",
+        "collapseOrder": "Hide lines for {{number}}",
+        "moreProducts": "+{{count}}",
         "columns": {
           "number": "#",
           "product": "Product",
           "quantity": "Quantity",
           "price": "Price",
-          "amount": "Amount",
+          "amount": "Total",
           "paid": "Paid",
           "supplier": "Supplier",
           "receiptDate": "Receipt Date",
           "acceptedBy": "Accepted By",
           "approvedBy": "Approved By",
           "status": "Status",
-          "payment": "Payment"
+          "payment": "Payment",
+          "money": "Paid / Amount",
+          "by": "By"
         },
         "status": {
           "cancelled": "Cancelled",
@@ -1783,6 +1836,10 @@
         "emptyHint": "Adjust search or filters to see available stock.",
         "selectAllAriaLabel": "Select all stock rows",
         "selectRowAriaLabel": "Select {{name}}",
+        "selectModelAriaLabel": "Select all units of {{name}}",
+        "expandModel": "Show serials for {{name}}",
+        "collapseModel": "Hide serials for {{name}}",
+        "resizeNameColumn": "Resize name column",
         "columns": {
           "select": "Select",
           "name": "Name",
@@ -1801,18 +1858,31 @@
       }
     },
     "settings": {
+      "title": "Warehouse settings",
+      "subtitle": "Service centers, warehouses, locations, and administrator access.",
       "tabsAriaLabel": "Warehouse settings sections",
       "tabs": {
         "serviceCenters": "Service Centers",
         "warehouses": "Warehouses",
         "administrators": "Administrators"
       },
+      "kpi": {
+        "serviceCenters": "Service centers",
+        "warehouses": "Warehouses",
+        "locations": "Locations",
+        "administrators": "Administrators"
+      },
+      "warehousesActiveTotal": "{{active}} / {{total}}",
+      "empty": {
+        "serviceCenters": "No service centers yet.",
+        "warehouses": "No warehouses match this filter.",
+        "administrators": "No administrators to configure."
+      },
       "serviceCenters": {
         "create": "Create",
         "editAriaLabel": "Edit {{name}}",
         "columns": {
           "name": "Name",
-          "color": "color",
           "address": "Address",
           "phone": "Phone",
           "warehouses": "Warehouses"
@@ -1820,12 +1890,12 @@
       },
       "warehouses": {
         "statusFilter": "Status",
-        "createWarehouse": "Create Warehouse",
+        "createWarehouse": "Create warehouse",
         "columns": {
-          "id": "Id",
+          "id": "ID",
           "name": "Name",
           "status": "Status",
-          "location": "Location",
+          "location": "Service center",
           "address": "Address",
           "phone": "Phone",
           "locations": "Locations",
@@ -1835,44 +1905,44 @@
       },
       "administrators": {
         "administrator": "Administrator",
-        "viewWarehouses": "View Warehouses, to which the administrator has access",
-        "viewDefaultLocation": "View Warehouse and Location, to which the administrator has access",
+        "viewWarehouses": "Accessible warehouses",
+        "viewDefaultLocation": "Default warehouse and location",
         "allSelected": "All ({{count}})",
-        "selectWarehouses": "Select Warehouses",
+        "selectWarehouses": "Select warehouses",
         "searchPlaceholder": "Search",
-        "selectAll": "Select All",
-        "selectLocation": "Select Location"
+        "selectAll": "Select all",
+        "selectLocation": "Select location"
       }
     },
     "modals": {
       "serviceCenter": {
-        "createTitle": "create service center",
-        "editTitle": "edit service center",
-        "nameLabel": "name:",
-        "namePlaceholder": "name",
-        "colorLabel": "color (#000000):",
+        "createTitle": "Create service center",
+        "editTitle": "Edit service center",
+        "nameLabel": "Name",
+        "namePlaceholder": "Name",
+        "colorLabel": "Color",
         "colorPlaceholder": "#000000",
-        "colorAriaLabel": "color",
-        "addressLabel": "address:",
-        "addressPlaceholder": "address",
-        "phoneLabel": "phone:",
+        "colorAriaLabel": "Color",
+        "addressLabel": "Address",
+        "addressPlaceholder": "Address",
+        "phoneLabel": "Phone",
         "phonePlaceholder": "+380"
       },
       "warehouse": {
-        "createTitle": "create warehouse",
-        "editTitle": "edit warehouse",
-        "nameLabel": "name:",
-        "namePlaceholder": "name",
-        "active": "active",
-        "serviceCenterLabel": "Location to Service Center:",
-        "selectServiceCenter": "select service center",
-        "receiptAddressLabel": "address for suppliers:",
-        "receiptPhoneLabel": "phone for suppliers:",
-        "locationsLabel": "locations:",
-        "locationNamePlaceholder": "enter location name",
+        "createTitle": "Create warehouse",
+        "editTitle": "Edit warehouse",
+        "nameLabel": "Name",
+        "namePlaceholder": "Name",
+        "active": "Active",
+        "serviceCenterLabel": "Service center",
+        "selectServiceCenter": "Select service center",
+        "receiptAddressLabel": "Address for suppliers",
+        "receiptPhoneLabel": "Phone for suppliers",
+        "locationsLabel": "Locations",
+        "locationNamePlaceholder": "Enter location name",
         "locationUsageTitle": "Products referencing this location",
         "duplicateLocationsError": "Location names must be unique inside a warehouse.",
-        "addLocation": "location"
+        "addLocation": "Add location"
       },
       "createReceiptOrder": "Create receipt order",
       "create": "Create",
@@ -2027,6 +2097,8 @@
       }
     },
     "transfer": {
+      "title": "Stock transfers",
+      "subtitle": "Move a unit from its current location to another warehouse or bin.",
       "product": "Product",
       "selectStockItem": "Select stock item",
       "currentLocation": "Current location",
@@ -2039,7 +2111,22 @@
       "notePlaceholder": "Reason or document number",
       "transferring": "Transferring...",
       "transferStock": "Transfer stock",
+      "kpi": {
+        "movable": "Movable items",
+        "session": "This session",
+        "destinations": "Destinations"
+      },
+      "route": {
+        "from": "From",
+        "to": "To",
+        "empty": "Not selected"
+      },
+      "warnings": {
+        "selectProduct": "Select a stock item to transfer."
+      },
+      "destinationsTitle": "Session destinations",
       "stockTable": {
+        "title": "Stock to move",
         "columns": {
           "product": "Product",
           "serial": "Serial #",
@@ -2050,6 +2137,7 @@
         "empty": "No stock rows found."
       },
       "historyTable": {
+        "title": "Session history",
         "columns": {
           "date": "Date",
           "product": "Product",
@@ -2113,7 +2201,16 @@
     "summary": {
       "stockRows": "{{count}} stock rows",
       "movableRows": "{{count}} movable rows",
-      "receiptRows": "{{count}} receipt rows"
+      "receiptRows": "{{count}} receipt rows",
+      "unitsModelsValue": "{{units}} units · {{models}} models · {{value}}",
+      "linesOrdersUnpaid": "{{lines}} lines · {{orders}} orders · {{unpaid}} unpaid"
+    },
+    "view": {
+      "units": "Units",
+      "models": "Models",
+      "orders": "Orders",
+      "lines": "Lines",
+      "ariaLabel": "Warehouse table view"
     },
     "filters": {
       "byName": "By name",
@@ -2141,7 +2238,14 @@
       "showStarredReceiptOrders": "Show starred receipt orders only",
       "filter": "Filter",
       "filterWithCount": "Filter ({{count}})",
-      "clearSearch": "Clear search"
+      "clearSearch": "Clear search",
+      "searchModeAria": "Search by",
+      "statusAll": "All"
+    },
+    "actions": {
+      "more": "More actions",
+      "delete": "Delete",
+      "transfer": "Transfer"
     },
     "messages": {
       "errors": {
@@ -2219,7 +2323,16 @@
       "comment": "Comment",
       "emptyOption": "-",
       "saving": "Saving...",
-      "saveOperation": "Save operation"
+      "confirmOperation": "Confirm",
+      "confirmAndClose": "Confirm and close",
+      "searchPlaceholder": "Search cashboxes",
+      "hideEmpty": "Hide empty",
+      "empty": "No cashboxes yet. Create one in Accounting settings.",
+      "searchNoResults": "No cashboxes match the search.",
+      "cashboxCount": "{{count}} cashboxes",
+      "remainingBalance": "Available: {{amount}}",
+      "insufficientBalance": "Amount exceeds the available balance.",
+      "reorderHint": "Drag to reorder"
     },
     "transactions": {
       "loading": "Loading finance data...",
@@ -2259,6 +2372,7 @@
       "cancelled": "Cancelled",
       "cancellation": "Cancellation",
       "editNoteTitle": "Edit note",
+      "addNote": "Add note",
       "cancelDeposit": "Cancel deposit",
       "cancelWithdraw": "Cancel withdraw",
       "cancelTransfer": "Cancel transfer",
@@ -2273,6 +2387,7 @@
       "cashboxes": "Cashboxes",
       "currencies": "Currencies",
       "createCashbox": "Create cashbox",
+      "receiveCurrencies": "Receive currencies",
       "name": "Name",
       "enterCashboxNamePlaceholder": "Enter cashbox name",
       "create": "Create",
@@ -2282,6 +2397,7 @@
       "inactive": "Inactive",
       "withdrawOnly": "Withdraw only",
       "withdrawOnlyCashboxTitle": "Currency is inactive for receiving, but cashbox still has balance. Withdraw is allowed.",
+      "cannotUncheckCurrencyTitle": "This currency cannot be disabled because the cashbox has operations or a positive balance.",
       "inactiveForCashboxTitle": "Currency is inactive for this cashbox.",
       "globallyInactiveTitle": "Currency is globally inactive and cannot be received.",
       "save": "Save",
@@ -2320,6 +2436,8 @@
       "cashbox": "Cashbox",
       "pay": "Pay",
       "paying": "Paying...",
+      "search": "Search",
+      "searchPlaceholder": "Number or supplier",
       "issueWithoutPayment": "Issue without payment",
       "openSupplierOrderAriaLabel": "Open supplier order {{orderNumber}}",
       "paymentNote": "Payment for order {{orderNumber}}"
@@ -2368,6 +2486,9 @@
       "issueWithoutPaymentTitle": "Confirm issue without payment",
       "issueWithoutPaymentDescription": "Order {{orderNumber}} will be marked as issued without payment.",
       "issueWithoutPaymentConfirm": "No finance transaction will be created. Continue?",
+      "payOrderTitle": "Pay supplier order",
+      "payOrderDescription": "Pay {{amount}} for {{orderNumber}} ({{supplier}}) from {{cashbox}}.",
+      "payOrderBalance": "Cashbox balance: {{amount}}",
       "confirm": "Confirm"
     },
     "messages": {
@@ -2378,6 +2499,9 @@
         "currencyAlreadyExists": "Currency already exists.",
         "uahCannotBeArchived": "UAH is the main currency and cannot be archived.",
         "uahAlwaysActive": "UAH is always active.",
+        "defaultCashboxUahRequired": "The default cashbox must keep UAH enabled.",
+        "atLeastOneCurrencyRequired": "At least one cashbox currency must stay enabled.",
+        "cannotDisableCurrencyWithActivity": "Cannot disable a cashbox currency that has operations or a positive balance.",
         "transferCashboxesMustDiffer": "Transfer cashboxes must be different.",
         "currencyNotAvailable": "Selected currency is not available for this operation.",
         "amountMustBePositive": "Transaction amount must be greater than 0.",
@@ -2418,7 +2542,7 @@
   },
   "catalog": {
     "tabs": {
-      "products": "Clients Device",
+      "products": "Client devices",
       "catalogProducts": "Products",
       "services": "Services",
       "suppliers": "Suppliers"
@@ -2455,8 +2579,11 @@
       "clearFilter": "Clear filter"
     },
     "tables": {
+      "loadingDevices": "Loading devices...",
       "loadingProducts": "Loading products...",
       "loadingServices": "Loading services...",
+      "noDevicesFound": "No devices found.",
+      "noDevicesYet": "No devices yet.",
       "noProductsFound": "No products found.",
       "noProductsYet": "No products yet.",
       "noServicesFound": "No services found.",
@@ -2471,6 +2598,8 @@
         "created": "Created",
         "activity": "Activity",
         "date": "Date",
+        "lastSeen": "Last seen",
+        "usage": "Usage",
         "price": "Price",
         "note": "Note",
         "updated": "Updated",
@@ -2499,6 +2628,8 @@
       "active": "Active",
       "inactive": "Inactive",
       "addNew": "Add new",
+      "addNewHint": "Create another supplier. Phone must be unique.",
+      "addNewPhoneHint": "Enter a unique phone number, then create.",
       "saving": "Saving...",
       "save": "Save",
       "create": "Create",
@@ -2541,10 +2672,6 @@
       "copyFailed": "Copy failed",
       "printSerialNumber": "Print serial number",
       "printSerialTitle": "Warehouse serial number",
-      "printSelectedCount": "Print {{count}} selected serial numbers",
-      "selectSerialsToPrint": "Select serial numbers to print",
-      "selectAllSerials": "Select all serial numbers for print",
-      "selectSerialRow": "Select serial {{serial}} for print",
       "noStockRows": "No stock rows exist for this exact product name.",
       "sections": {
         "main": "MAIN INFORMATION",
@@ -2561,8 +2688,14 @@
       "latestBatchSummary": "Latest batch: {{price}} · {{date}}",
       "serialNumber": "Serial #",
       "purchaseDate": "Receipt date",
+      "supplierOrder": "Supplier order",
       "serialMissing": "No serial",
       "latestBatchBadge": "Latest",
+      "reservedBadge": "Reserved",
+      "selectAllSerials": "Select all serials",
+      "selectSerialRow": "Select serial {{serial}}",
+      "printSelectedCount": "Print {{count}} selected serial numbers",
+      "selectSerialsToPrint": "Select serials to print",
       "purchasePriceReadOnlyHint": "Purchase prices are read-only and cannot be changed here.",
       "matchingStockRows": "Matching stock rows: {{count}}.",
       "lastBatchPrice": "Last batch price: {{price}}. Matching stock rows: {{count}}.",
@@ -2609,7 +2742,80 @@
       "delete": "Delete",
       "cannotDeleteSelf": "You cannot delete your own account.",
       "deleteEmployee": "Delete employee",
-      "noPermission": "Only owners can create, edit, or delete employees."
+      "noPermission": "Only owners can create, edit, or delete employees.",
+      "addEmployee": "Add employee",
+      "searchPlaceholder": "Name, login, email, phone...",
+      "filterRole": "Role",
+      "filterStatus": "Status",
+      "allRoles": "All roles",
+      "allStatuses": "All statuses",
+      "activeCount": "{{active}} active · {{inactive}} inactive",
+      "noMatches": "No employees match the filters.",
+      "metaLogin": "Login",
+      "metaEmail": "Email",
+      "metaPhone": "Phone"
+    },
+    "roles": {
+      "owner": "Owner",
+      "manager": "Manager",
+      "master": "Master",
+      "accountant": "Accountant",
+      "warehouse": "Warehouse",
+      "sales": "Sales",
+      "support": "Support"
+    },
+    "permissions": {
+      "orders": {
+        "view": "View orders",
+        "manage": "Manage orders",
+        "chat": "Order chat"
+      },
+      "supplierOrders": {
+        "view": "View supplier orders",
+        "manage": "Manage supplier orders"
+      },
+      "repairs": {
+        "execute": "Execute repairs"
+      },
+      "sales": {
+        "manage": "Manage sales"
+      },
+      "kanban": {
+        "use": "Use Kanban"
+      },
+      "clients": {
+        "manage": "Manage clients"
+      },
+      "inventory": {
+        "manage": "Manage inventory"
+      },
+      "finance": {
+        "view": "View finance",
+        "cashboxes": {
+          "view": "View cashboxes",
+          "manage": "Manage cashboxes"
+        },
+        "transactions": {
+          "deposit": "Cash deposits",
+          "withdraw": "Cash withdrawals",
+          "transfer": "Cash transfers"
+        },
+        "supplierOrders": {
+          "pay": "Pay supplier orders",
+          "issueWithoutPayment": "Issue supplier orders without payment"
+        }
+      },
+      "employees": {
+        "manage": "Manage employees"
+      },
+      "printForms": {
+        "manage": "Manage print forms"
+      },
+      "system": {
+        "backups": {
+          "manage": "Manage backups"
+        }
+      }
     },
     "information": {
       "sectionLabel": "Employee analytics",

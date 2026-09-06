@@ -46,6 +46,7 @@ const ORDER_LINKED_NOTE_PATTERNS = [
   /Payment for order\s+[\p{L}\p{N}-]+/iu,
   /Refund for order\s+[\p{L}\p{N}-]+/iu,
   /Оплата (?:за )?замовлення\s+[\p{L}\p{N}-]+/iu,
+  /(?:Serial return|Full return|Return) for sale\s+/i,
   /^Supplier order payment:/i,
 ];
 

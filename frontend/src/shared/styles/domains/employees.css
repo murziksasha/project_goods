@@ -1,0 +1,153 @@
+.employees-panel {
+  min-width: 0;
+}
+
+.employees-management {
+  min-width: 0;
+}
+
+.employees-toolbar {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(140px, 0.7fr) minmax(140px, 0.7fr);
+  gap: 10px 12px;
+  align-items: end;
+}
+
+.employees-toolbar .field {
+  margin: 0;
+}
+
+.employees-toolbar-search input {
+  width: 100%;
+}
+
+.employee-card {
+  cursor: pointer;
+}
+
+.employee-card .card-actions {
+  margin-top: 0;
+  flex-shrink: 0;
+}
+
+.employee-card-main {
+  min-width: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.employee-card-title-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.employee-card-meta {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px 16px;
+  margin: 0;
+}
+
+.employee-card-meta div {
+  min-width: 0;
+}
+
+.employee-card-meta dt {
+  margin: 0;
+  color: var(--color-text-label);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.employee-card-meta dd {
+  margin: 2px 0 0;
+  color: var(--color-text-body);
+  font-size: 0.9rem;
+  overflow-wrap: anywhere;
+}
+
+.employee-current-badge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 2px 8px;
+  background: var(--bg-soft-primary);
+  color: var(--color-primary);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.employees-form-modal {
+  width: min(880px, calc(100vw - 28px));
+}
+
+.employees-form-modal .employee-permissions {
+  margin-top: 16px;
+}
+
+.employee-permission-group {
+  min-width: 0;
+  border: 1px solid var(--color-line-panel);
+  border-radius: 8px;
+  background: var(--bg-surface-subtle);
+  padding: 10px 12px;
+  display: grid;
+  gap: 6px;
+}
+
+.employee-permission-group h3 {
+  margin: 0 0 4px;
+  color: var(--color-text-heading);
+  font-size: 0.86rem;
+}
+
+.employee-permission-group .create-inline-checkbox {
+  color: var(--color-text-body);
+}
+
+.employees-information-kpis .analytics-kpi-money {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.employees-information-name {
+  min-width: 180px;
+}
+
+.employees-information-name strong {
+  display: block;
+  color: var(--color-text-body-strong);
+}
+
+@media (max-width: 1024px) {
+  .employees-toolbar,
+  .employee-card-meta {
+    grid-template-columns: 1fr;
+  }
+
+  .employees-information-kpis .analytics-kpi-money,
+  .employees-information-kpis .analytics-kpi-volume {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .employees-information-kpis .analytics-kpi-money,
+  .employees-information-kpis .analytics-kpi-volume {
+    grid-template-columns: 1fr;
+  }
+
+  .employee-card .card-actions {
+    width: 100%;
+  }
+
+  .employee-card .card-actions .ghost-button,
+  .employee-card .card-actions .danger-button {
+    flex: 1 1 auto;
+  }
+}

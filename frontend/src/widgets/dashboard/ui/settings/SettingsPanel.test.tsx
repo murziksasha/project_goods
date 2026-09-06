@@ -166,10 +166,11 @@ describe('SettingsPanel', () => {
   it('shows company, print form, backup and database settings tabs', async () => {
     render(<SettingsPanelHarness />);
 
-    expect(screen.getByRole('button', { name: 'Company' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Print forms' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Backups' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Database' })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Company' })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Print forms' })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Dashboard' })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Backups' })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Database' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Orders' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Numbering' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Finance' })).not.toBeInTheDocument();
@@ -180,18 +181,18 @@ describe('SettingsPanel', () => {
   it('allows saving default optional company print fields', async () => {
     render(<SettingsPanelHarness />);
 
-    expect(screen.getByLabelText('Company address ({{company_address}})')).toHaveValue('');
-    expect(screen.getByLabelText('Company ID ({{company_id}})')).toHaveValue('');
-    expect(screen.getByLabelText('Company IBAN ({{company_iban}})')).toHaveValue('');
-    expect(screen.getByLabelText('Company e-mail ({{company_email}})')).toHaveValue('');
-    expect(screen.getByLabelText('Company site ({{company_site}})')).toHaveValue('');
+    expect(screen.getByLabelText('Company address')).toHaveValue('');
+    expect(screen.getByLabelText('Company ID')).toHaveValue('');
+    expect(screen.getByLabelText('Company IBAN')).toHaveValue('');
+    expect(screen.getByLabelText('Company e-mail')).toHaveValue('');
+    expect(screen.getByLabelText('Company site')).toHaveValue('');
     expect(screen.getByRole('button', { name: 'Save settings' })).toBeEnabled();
   });
 
   it('disables save when an optional company field is filled with an invalid value', async () => {
     render(<SettingsPanelHarness />);
 
-    fireEvent.change(screen.getByLabelText('Company IBAN ({{company_iban}})'), {
+    fireEvent.change(screen.getByLabelText('Company IBAN'), {
       target: { value: 'bad-iban' },
     });
 
@@ -201,34 +202,34 @@ describe('SettingsPanel', () => {
   it('keeps valid company print fields in form state', async () => {
     render(<SettingsPanelHarness />);
 
-    fireEvent.change(screen.getByLabelText('Company address ({{company_address}})'), {
+    fireEvent.change(screen.getByLabelText('Company address'), {
       target: { value: 'Kyiv, Main street 1' },
     });
-    fireEvent.change(screen.getByLabelText('Company ID ({{company_id}})'), {
+    fireEvent.change(screen.getByLabelText('Company ID'), {
       target: { value: '12345678' },
     });
-    fireEvent.change(screen.getByLabelText('Company IBAN ({{company_iban}})'), {
+    fireEvent.change(screen.getByLabelText('Company IBAN'), {
       target: { value: 'UA123456789123456789123456789' },
     });
-    fireEvent.change(screen.getByLabelText('Company e-mail ({{company_email}})'), {
+    fireEvent.change(screen.getByLabelText('Company e-mail'), {
       target: { value: 'billing@example.com' },
     });
-    fireEvent.change(screen.getByLabelText('Company site ({{company_site}})'), {
+    fireEvent.change(screen.getByLabelText('Company site'), {
       target: { value: 'https://example.com' },
     });
 
-    expect(screen.getByLabelText('Company address ({{company_address}})')).toHaveValue('Kyiv, Main street 1');
-    expect(screen.getByLabelText('Company ID ({{company_id}})')).toHaveValue('12345678');
-    expect(screen.getByLabelText('Company IBAN ({{company_iban}})')).toHaveValue('UA123456789123456789123456789');
-    expect(screen.getByLabelText('Company e-mail ({{company_email}})')).toHaveValue('billing@example.com');
-    expect(screen.getByLabelText('Company site ({{company_site}})')).toHaveValue('https://example.com');
+    expect(screen.getByLabelText('Company address')).toHaveValue('Kyiv, Main street 1');
+    expect(screen.getByLabelText('Company ID')).toHaveValue('12345678');
+    expect(screen.getByLabelText('Company IBAN')).toHaveValue('UA123456789123456789123456789');
+    expect(screen.getByLabelText('Company e-mail')).toHaveValue('billing@example.com');
+    expect(screen.getByLabelText('Company site')).toHaveValue('https://example.com');
     expect(screen.getByRole('button', { name: 'Save settings' })).toBeEnabled();
   });
 
   it('supports print form add, duplicate, delete and live preview', async () => {
     render(<SettingsPanelHarness />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Print forms' }));
+    fireEvent.click(screen.getByRole('tab', { name: 'Print forms' }));
     expect(screen.getByLabelText('Document template')).toHaveValue('receipt');
     expect(document.body.textContent).toContain('Receipt');
     expect(document.body.textContent).toContain('Services');
@@ -256,7 +257,7 @@ describe('SettingsPanel', () => {
   it('persists print layout overrides only after Save settings', async () => {
     render(<SettingsPanelHarness />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Print forms' }));
+    fireEvent.click(screen.getByRole('tab', { name: 'Print forms' }));
     fireEvent.change(screen.getByLabelText('Document template'), {
       target: { value: 'barcode' },
     });
@@ -284,7 +285,7 @@ describe('SettingsPanel', () => {
   it('switches between built-in print templates in the builder', async () => {
     render(<SettingsPanelHarness />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Print forms' }));
+    fireEvent.click(screen.getByRole('tab', { name: 'Print forms' }));
     const templateSelect = screen.getByLabelText('Document template');
 
     expect(templateSelect).toHaveValue('receipt');
@@ -321,10 +322,10 @@ describe('SettingsPanel', () => {
   it('shows only backups and database to a backup-only employee', async () => {
     render(<BackupOnlySettingsPanelHarness />);
 
-    expect(screen.queryByRole('button', { name: 'Company' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Print forms' })).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Backups' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Database' })).toBeInTheDocument();
+    expect(screen.queryByRole('tab', { name: 'Company' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('tab', { name: 'Print forms' })).not.toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Backups' })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Database' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Save settings' })).not.toBeInTheDocument();
     expect(await screen.findByText('project-goods-20260607-100000')).toBeInTheDocument();
   });
@@ -332,17 +333,17 @@ describe('SettingsPanel', () => {
   it('shows only print forms to a print-only employee', () => {
     render(<PrintOnlySettingsPanelHarness />);
 
-    expect(screen.queryByRole('button', { name: 'Company' })).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Print forms' })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Backups' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Database' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('tab', { name: 'Company' })).not.toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Print forms' })).toBeInTheDocument();
+    expect(screen.queryByRole('tab', { name: 'Backups' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('tab', { name: 'Database' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Save settings' })).toBeInTheDocument();
   });
 
   it('loads database report when Database tab is opened', async () => {
     render(<BackupOnlySettingsPanelHarness />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Database' }));
+    fireEvent.click(screen.getByRole('tab', { name: 'Database' }));
 
     expect(await screen.findByText('Healthy')).toBeInTheDocument();
     expect(screen.getByText('sales')).toBeInTheDocument();
@@ -356,9 +357,7 @@ describe('SettingsPanel', () => {
     render(<BackupOnlySettingsPanelHarness />);
 
     expect(
-      screen.getByText(
-        'Automatic backup: daily at 15:00 UTC / 18:00 Kyiv time, scheduled copies kept for 14 days.',
-      ),
+      screen.getByText(/Automatic backup: daily at 15:00 UTC \/ 18:00 Kyiv time/),
     ).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Restore from file' })).toHaveClass(
       'success-button',

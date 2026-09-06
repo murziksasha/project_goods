@@ -17,6 +17,7 @@ Related: [SALE_CARD.md](./SALE_CARD.md) · [ORDER_FLOW.md](./ORDER_FLOW.md) · [
 - The blacklist warning must include the client name/phone and must not prevent saving the sales order.
 - Clicking the blacklist warning opens the matched client card so the operator can read the client note/reason before continuing.
 - If client does not exist and phone+name are provided, a new client is created only when the operator presses `Save order` and hard validation passes (same rule as repair orders). Lookup/suggestions for existing clients are unchanged.
+- Client card `Sales` numbers use the same `getOrderLink(saleId, 'sale')` pattern as Orders: left click opens the sale card in-app; right-click / middle-click / Ctrl+click opens a new browser tab. Spec: [BROWSER_NAVIGATION.md](./BROWSER_NAVIGATION.md) · [CLIENTS_RULES.md](./CLIENTS_RULES.md).
 
 ## Rapid Sale (2026-06-24, UX updates 2026-06-30)
 
@@ -46,7 +47,7 @@ Compact counter-sale flow for walk-in customers: no client form, warehouse stock
   - **`<=1024px`:** two columns; search and add action span full width
   - **`<=480px`:** single column stack; footer buttons full width
 - Price grid column: `minmax(120px, 1.15fr)` so the stepper stays readable on desktop/tablet.
-- Product suggestion lists (`.rapid-sale-suggestions`) keep fixed max height with internal scroll (no layout jump in the entry panel).
+- Product suggestion lists (`.rapid-sale-suggestions`) keep fixed max height with internal scroll (no layout jump in the entry panel). Dismiss without select still applies (click outside the list / Escape; re-open on edit): [SPEC_SUGGESTIONS_BEHAVIOR.md](./SPEC_SUGGESTIONS_BEHAVIOR.md#dismiss-without-select-rule).
 
 ### Product Entry (Stock Only)
 
@@ -198,7 +199,7 @@ Related: [BROWSER_NAVIGATION.md](./BROWSER_NAVIGATION.md) (URL behavior), [API.m
   - `Warranty`
   - `Add product`
 - `Shipping status` control is removed from `Create order -> Sales order`.
-- Search suggestions are rendered in a separate block below the entry row.
+- Search suggestions are rendered in a separate block below the entry row. Click outside the list / Escape hides them without applying a row; they return only after the operator edits the field ([SPEC_SUGGESTIONS_BEHAVIOR.md](./SPEC_SUGGESTIONS_BEHAVIOR.md#dismiss-without-select-rule)).
 - Suggestions must not push controls inside the entry row (no layout jump).
 - Suggestions list has internal scroll with fixed max height.
 - In `Sales order`, `Product search` uses the same split lookup rules as opened sale/repair cards (see [SPEC_SUGGESTIONS_BEHAVIOR.md](./SPEC_SUGGESTIONS_BEHAVIOR.md)):
@@ -348,7 +349,22 @@ Suggestion rows may show the resolved retail price before click when matching st
 - Successful payment modal actions close the modal. `Print` opens print preview only and does not close the payment modal.
 - Printed product tables collapse identical products **only when unit price matches** (`groupPrintProductLineItems`). Same name with different prices stay separate rows. Card accordion grouping (no price in the key) is documented in [SALE_CARD.md](./SALE_CARD.md). Print spec: [PRINT_FORMS_SPEC.md](./PRINT_FORMS_SPEC.md#line-items-grouping-products).
 - In `Orders -> Sales` list, if sale has paid amount and latest deposit method is `non-cash`, columns `Price` and `Paid` are shown in red.
+- If remaining to pay is greater than `0` and the latest deposit is not non-cash, `Paid` uses unpaid styling (amber), so unpaid new sales stay visible next to fully paid issued rows.
 - Filters include `Payment method` dropdown: `All`, `Cash`, `Non-cash`.
+
+## Sales List Columns (`Orders -> Sales`)
+
+- Default visible columns: `Order #`, `Client`, `Product`, `Status`, `Price`, `Paid`, `Manager`, `Created`.
+- Column picker extras: `Issued` (`issuedBy`). Repair-only columns stay off this tab: `Term`, `Master`, `Warehouse`, `Ready date`.
+- Saved 6-column sales layouts (`Order #`, `Client`, `Status`, `Price`, `Paid`, `Created`) migrate to the default set; `Reset columns` restores defaults.
+- `Product` shows `getSaleProductName` (first product, else first service). Serial subtitle uses `S/N:`; extra lines show `+N` when more than one line item exists.
+- Rapid sales keep the Client label **`Rapid sale`** (see Rapid Sale → Sales List Display And Search). The Product column still shows the sold item.
+- Toolbar search placeholder: `Order, client, phone, product or manager`. Server `q` already matches record number, client, product snapshot (name/serial/article), line names, and manager.
+- Filters on this tab:
+  - hide `Repair type`
+  - assignee is **Manager** (active managers/owners/`sales.manage`/`orders.manage`)
+  - **Sale type**: `All` / `Rapid sale` / `Regular` (wired to `GET /sales?isRapidSale=`)
+  - product, service, payment method, and dates stay available
 
 ## Status Change: Paid
 
@@ -364,6 +380,7 @@ Suggestion rows may show the resolved retail price before click when matching st
 ## Status Change: Issued In Sales List
 
 - In `Orders -> Sales` list, when user selects status `issued`, `Accept payment` modal is opened if `To pay > 0`.
+- Sale **card** **Save changes** to `issued` or `paid` uses the same rule: if `To pay > 0`, open `Accept payment` and do not persist `issued`/`paid` until a modal action.
 - If in this modal user clicks `Accept to cashbox` and enters full or partial payment:
   - payment is added to cashbox
   - if `To pay` becomes `0`, sale status may be auto-changed to `paid`
@@ -374,6 +391,10 @@ Suggestion rows may show the resolved retail price before click when matching st
   - exception: `issued` is allowed when final order total is `0`
 - Backend validation mirrors this rule: sale cannot be persisted in `issued`/`paid` with unpaid product amount.
 - Exception for **workspace/line-item edits** on an already-`paid` sale: if the new total leaves product lines underpaid, status is auto-reopened to **`new`** instead of rejecting the edit (see Rapid Sale → **Opened Rapid Sale Card** / `resolveEditableSaleStatus`). Explicit issue paths and `issued` status still reject unpaid products.
+
+## Sales list copy
+
+- In `Orders -> Sales`, hover on the sale number and client phone shows a copy icon. Only the icon copies; number click still opens the sale card. Spec: [UI_DESIGN_SYSTEM.md — Hover copy icon](./UI_DESIGN_SYSTEM.md#hover-copy-icon).
 
 ## Status Dropdown UX
 

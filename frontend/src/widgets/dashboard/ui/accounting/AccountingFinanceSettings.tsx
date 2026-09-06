@@ -1,6 +1,7 @@
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Cashbox } from '../../../../entities/finance/model/types';
+import { isCashboxCurrencyUncheckLocked } from '../../model/accounting';
 
 type FinanceSettingsTab = 'cashboxes' | 'currencies';
 
@@ -19,7 +20,10 @@ type AccountingFinanceSettingsProps = {
   isGlobalCurrencyActive: (currencyCode: string) => boolean;
   onAddCurrency: () => void;
   onCancelCashboxEdit: () => void;
-  onCreateCashbox: () => void;
+  onCreateCashbox: (
+    name?: string,
+    enabledCurrencies?: Record<string, boolean>,
+  ) => void;
   onEditingCashboxNameChange: (value: string) => void;
   onNewCashboxNameChange: (value: string) => void;
   onNewCurrencyCodeChange: (value: string) => void;
@@ -174,6 +178,20 @@ const CashboxSettings = ({
   onToggleCashboxCurrencyActivity,
 }: CashboxSettingsProps) => {
   const { t } = useTranslation();
+  const [createEnabledCurrencies, setCreateEnabledCurrencies] = useState<
+    Record<string, boolean>
+  >({ UAH: true });
+
+  const toggleCreateCurrency = (currencyCode: string) => {
+    setCreateEnabledCurrencies((current) => {
+      const next = {
+        ...current,
+        [currencyCode]: current[currencyCode] !== true,
+      };
+      if (!Object.values(next).some(Boolean)) return current;
+      return next;
+    });
+  };
 
   return (
     <div className='finance-settings-body'>
@@ -192,13 +210,38 @@ const CashboxSettings = ({
               placeholder={t('accounting.financeSettings.enterCashboxNamePlaceholder')}
             />
           </label>
+          <p className='section-label'>
+            {t('accounting.financeSettings.receiveCurrencies')}
+          </p>
+          <div className='finance-currency-activity-list'>
+            {allCurrencyCodes.map((currencyCode) => (
+              <label
+                key={`create-${currencyCode}`}
+                className='field-inline finance-currency-activity-toggle'
+              >
+                <input
+                  type='checkbox'
+                  checked={createEnabledCurrencies[currencyCode] === true}
+                  onChange={() => toggleCreateCurrency(currencyCode)}
+                />
+                <span>{currencyCode}</span>
+              </label>
+            ))}
+          </div>
         </div>
         <footer className='catalog-edit-footer'>
           <button
             type='button'
             className='primary-button'
             disabled={isSaving || newCashboxName.trim().length < 2}
-            onClick={onCreateCashbox}
+            onClick={() =>
+              onCreateCashbox(newCashboxName, {
+                ...Object.fromEntries(
+                  allCurrencyCodes.map((code) => [code, false]),
+                ),
+                ...createEnabledCurrencies,
+              })
+            }
           >
             {t('common.create')}
           </button>
@@ -365,6 +408,10 @@ const CashboxCurrencyToggle = ({
   const isAcceptActive = isGloballyActive && isCashboxActive;
   const balance = getCurrencyBalance(cashbox, currencyCode);
   const canWithdrawOnly = !isAcceptActive && balance > 0;
+  const isUncheckLocked =
+    isCashboxActive && isCashboxCurrencyUncheckLocked(cashbox, currencyCode);
+  const isToggleDisabled =
+    (cashbox.isDefault && currencyCode === 'UAH') || isUncheckLocked;
 
   return (
     <div className='finance-currency-activity-item'>
@@ -372,7 +419,12 @@ const CashboxCurrencyToggle = ({
         <input
           type='checkbox'
           checked={isAcceptActive}
-          disabled={currencyCode === 'UAH'}
+          disabled={isToggleDisabled}
+          title={
+            isUncheckLocked
+              ? t('accounting.financeSettings.cannotUncheckCurrencyTitle')
+              : undefined
+          }
           onChange={() => onToggleCashboxCurrencyActivity(cashbox.id, currencyCode)}
         />
         <span>{currencyCode}</span>

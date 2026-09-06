@@ -19,6 +19,30 @@ export const catalogActiveFiltersStorageKey =
   'project-goods.catalog-active-filters';
 export const catalogSavedFiltersStorageKey =
   'project-goods.catalog-saved-filters';
+export const catalogSearchStorageKey = 'project-goods.catalog-search';
+
+export const emptyCatalogSearch = (): Record<CatalogTab, string> => ({
+  products: '',
+  catalogProducts: '',
+  services: '',
+  suppliers: '',
+});
+
+export const readCatalogSearch = (): Record<CatalogTab, string> => {
+  try {
+    const raw = JSON.parse(
+      window.localStorage.getItem(catalogSearchStorageKey) ?? '{}',
+    ) as Partial<Record<CatalogTab, string>>;
+    return {
+      products: String(raw.products ?? ''),
+      catalogProducts: String(raw.catalogProducts ?? ''),
+      services: String(raw.services ?? ''),
+      suppliers: String(raw.suppliers ?? ''),
+    };
+  } catch {
+    return emptyCatalogSearch();
+  }
+};
 
 export const tabs: Array<{ key: CatalogTab; labelKey: string }> = [
   { key: 'products', labelKey: 'catalog.tabs.products' },

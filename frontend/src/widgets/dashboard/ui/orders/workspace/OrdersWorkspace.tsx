@@ -87,6 +87,7 @@ import {
 import {
   activeOrdersFiltersStorageKey,
   availableColumnsByTab,
+  defaultVisibleColumns,
   buildOrderNumber,
   canRefundFromStatus,
   emptyOrdersFilters,
@@ -94,6 +95,7 @@ import {
   formatReadyDate,
 
   getCreatedTime,
+  getOrdersTableMinWidth,
   getDefaultLineItems,
   getDiscount,
   getIsoDatePart,
@@ -106,6 +108,7 @@ import {
   getPrimaryDeviceName,
   getPrimaryDeviceSerial,
   getPrimaryItemCellContent,
+  getPrimaryItemExtraLineCount,
   getRepairCompletionDate,
   getRemainingPayment,
   getSalePaidAmount,
@@ -117,7 +120,6 @@ import {
   buildUpdatedMainInfoTimelineMessage,
   buildUpdatedUserNoteTimelineMessage,
   getStatusLabel,
-
   getWarehouseLabel,
   hasNonCashPayment,
   hasSaleReturnObligations,
@@ -131,6 +133,7 @@ import {
   isRepairOrdersTab,
   isRepairStatusChangeLockedByStock,
   isSalePaymentStatus,
+  shouldOpenPaymentModalForStatusChange,
   isUrgentRepairOrder,
   lockedColumnsByTab,
   computeOrderStatusMenuPosition,
@@ -163,6 +166,7 @@ import {
   type TimelineEntry,
 } from './orders-workspace-shared';
 
+import { CopyableValue } from '../../../../../shared/ui/CopyableValue';
 import { PhoneNumber } from '../../shared/PhoneNumber';
 
 const isSaleResponse = (value: unknown): value is Sale => {
@@ -328,6 +332,15 @@ export const OrdersWorkspace = ({
   const [warningMessage, setWarningMessage] = useState<string | null>(
     null,
   );
+  const [debouncedSearchValue, setDebouncedSearchValue] =
+    useState(searchValue);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setDebouncedSearchValue(searchValue);
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [searchValue]);
   const columnsMenuRef = useRef<HTMLDivElement | null>(null);
   const statusFilterRef = useRef<HTMLDivElement | null>(null);
   const canManageSavedFilters = Boolean(currentEmployee?.id);
@@ -347,7 +360,7 @@ export const OrdersWorkspace = ({
     [activeTab, employeeSavedFilters],
   );
   const visibleColumnKeys = visibleColumns[activeTab];
-  const tableMinWidth = Math.max(720, visibleColumnKeys.length * 104);
+  const tableMinWidth = getOrdersTableMinWidth(visibleColumnKeys);
   const currentPage = pageByTab[activeTab];
   const currentPageSize = pageSizeByTab[activeTab];
   const usesServerList =
@@ -357,11 +370,17 @@ export const OrdersWorkspace = ({
       buildOrdersSalesListParams({
         tab: activeTab,
         filters: appliedFilters,
-        searchValue,
+        searchValue: debouncedSearchValue,
         page: currentPage,
         pageSize: currentPageSize,
       }),
-    [activeTab, appliedFilters, currentPage, currentPageSize, searchValue],
+    [
+      activeTab,
+      appliedFilters,
+      currentPage,
+      currentPageSize,
+      debouncedSearchValue,
+    ],
   );
   const salesPageQuery = useSalesPageQuery(usesServerList, salesListParams, {
     poll: true,
@@ -390,44 +409,42 @@ export const OrdersWorkspace = ({
     [statusOptionsForActiveTab],
   );
   const assigneeOptions = useMemo(() => {
+    const activeEmployees = employees.filter((employee) => employee.isActive);
     if (activeTab === 'kanban') {
-      return employees
+      return activeEmployees
         .filter(
           (employee) =>
-            employee.isActive &&
-            (employee.role === 'master' ||
-              hasEmployeePermission(employee, 'repairs.execute')),
+            employee.role === 'master' ||
+            hasEmployeePermission(employee, 'repairs.execute'),
         )
         .map((employee) => ({ id: employee.id, label: employee.name }))
         .sort((first, second) => first.label.localeCompare(second.label));
     }
-    const map = new Map<string, string>();
-    tabSales.forEach((sale) => {
-      if (sale.master) {
-        map.set(
-          sale.master.id,
-          t('orders.toolbar.assignee.master', { name: sale.master.name }),
-        );
-      }
-      if (sale.manager) {
-        map.set(
-          sale.manager.id,
-          t('orders.toolbar.assignee.manager', { name: sale.manager.name }),
-        );
-      }
-    });
-    return Array.from(map.entries())
-      .map(([id, label]) => ({ id, label }))
-      .sort((first, second) =>
-        first.label.localeCompare(second.label),
-      );
-  }, [activeTab, employees, tabSales, t]);
-  const warehouseOptions = useMemo(() => {
-    const values = new Set(
-      tabSales.map((sale) => getWarehouseLabel(sale)),
-    );
-    return Array.from(values).sort((a, b) => a.localeCompare(b));
-  }, [tabSales]);
+    if (activeTab === 'sales') {
+      return activeEmployees
+        .filter(
+          (employee) =>
+            employee.role === 'manager' ||
+            employee.role === 'owner' ||
+            hasAnyEmployeePermission(employee, [
+              'sales.manage',
+              'orders.manage',
+            ]),
+        )
+        .map((employee) => ({ id: employee.id, label: employee.name }))
+        .sort((first, second) => first.label.localeCompare(second.label));
+    }
+    return activeEmployees
+      .map((employee) => ({
+        id: employee.id,
+        label:
+          employee.role === 'master' ||
+          hasEmployeePermission(employee, 'repairs.execute')
+            ? t('orders.toolbar.assignee.master', { name: employee.name })
+            : t('orders.toolbar.assignee.manager', { name: employee.name }),
+      }))
+      .sort((first, second) => first.label.localeCompare(second.label));
+  }, [activeTab, employees, t]);
   const activeFiltersCount = useMemo(() => {
     if (activeTab === 'kanban') {
       return (
@@ -442,8 +459,13 @@ export const OrdersWorkspace = ({
       (appliedFilters.orderNumber.trim() ? 1 : 0) +
       (appliedFilters.client.trim() ? 1 : 0) +
       (appliedFilters.assigneeId ? 1 : 0) +
-      (appliedFilters.warehouse ? 1 : 0) +
-      (appliedFilters.repairType !== 'all' ? 1 : 0) +
+      (activeTab === 'sales'
+        ? appliedFilters.saleType !== 'all'
+          ? 1
+          : 0
+        : appliedFilters.repairType !== 'all'
+          ? 1
+          : 0) +
       (appliedFilters.paymentMethod ? 1 : 0) +
       (appliedFilters.dateFrom ? 1 : 0) +
       (appliedFilters.dateTo ? 1 : 0) +
@@ -486,6 +508,7 @@ export const OrdersWorkspace = ({
         isRepairOrdersTab(activeTab)
           ? [getPrimaryDeviceName(sale), ...clientSearchValues, ...salePhones]
           : [
+              getPrimaryItemCellContent(sale, activeTab),
               ...clientSearchValues,
               ...salePhones,
               sale.manager?.name ?? '',
@@ -547,22 +570,23 @@ export const OrdersWorkspace = ({
         const matchesAssignee =
           activeTab === 'kanban'
             ? saleMatchesKanbanMasterFilter(sale, appliedFilters.assigneeId)
-            : sale.master?.id === appliedFilters.assigneeId ||
-              sale.manager?.id === appliedFilters.assigneeId;
+            : activeTab === 'sales'
+              ? sale.manager?.id === appliedFilters.assigneeId
+              : sale.master?.id === appliedFilters.assigneeId ||
+                sale.manager?.id === appliedFilters.assigneeId;
         if (!matchesAssignee) {
           return false;
         }
       }
-      if (
-        appliedFilters.warehouse &&
-        getWarehouseLabel(sale) !== appliedFilters.warehouse
-      ) {
-        return false;
+      if (activeTab === 'sales' && appliedFilters.saleType !== 'all') {
+        const isRapidSale = sale.isRapidSale === true;
+        if (appliedFilters.saleType === 'rapid' && !isRapidSale) return false;
+        if (appliedFilters.saleType === 'regular' && isRapidSale) return false;
       }
-      if (appliedFilters.repairType === 'warranty') {
+      if (activeTab !== 'sales' && appliedFilters.repairType === 'warranty') {
         if (!hasWarrantyService) return false;
       }
-      if (appliedFilters.repairType === 'paid') {
+      if (activeTab !== 'sales' && appliedFilters.repairType === 'paid') {
         if (hasWarrantyService) return false;
       }
       if (
@@ -741,7 +765,7 @@ export const OrdersWorkspace = ({
 
   useEffect(() => {
     setPageByTab((current) => ({ ...current, [activeTab]: 1 }));
-  }, [activeTab, searchValue]);
+  }, [activeTab, debouncedSearchValue]);
 
   useEffect(() => {
     const pageCount = Math.max(
@@ -801,6 +825,10 @@ export const OrdersWorkspace = ({
           }
         : {
             ...draftFilters,
+            warehouse: '',
+            repairType:
+              activeTab === 'sales' ? 'all' : draftFilters.repairType,
+            saleType: activeTab === 'sales' ? draftFilters.saleType : 'all',
             orderNumber: draftFilters.orderNumber.trim(),
             client: draftFilters.client.trim(),
             product: draftFilters.product.trim(),
@@ -831,11 +859,12 @@ export const OrdersWorkspace = ({
   };
 
   const applyFiltersPatch = (nextFilters: OrdersFilters) => {
-    setDraftFilters(nextFilters);
-    setAppliedFilters(nextFilters);
+    const sanitized = { ...nextFilters, warehouse: '' };
+    setDraftFilters(sanitized);
+    setAppliedFilters(sanitized);
     setStoredActiveFilters((current) => ({
       ...current,
-      [activeTab]: nextFilters,
+      [activeTab]: sanitized,
     }));
     setPageByTab((current) => ({ ...current, [activeTab]: 1 }));
   };
@@ -946,6 +975,10 @@ export const OrdersWorkspace = ({
         ? toKanbanSavedFilters(draftFilters)
         : {
             ...draftFilters,
+            warehouse: '',
+            repairType:
+              activeTab === 'sales' ? 'all' : draftFilters.repairType,
+            saleType: activeTab === 'sales' ? draftFilters.saleType : 'all',
             orderNumber: draftFilters.orderNumber.trim(),
             client: draftFilters.client.trim(),
             product: draftFilters.product.trim(),
@@ -1411,9 +1444,6 @@ export const OrdersWorkspace = ({
       }
 
       const remainingPayment = getOrderRemainingPayment(sale);
-      const isZeroTotalSale =
-        !isRepairOrder(sale) &&
-        getOrderTotal(sale, getLineItems(sale)) <= 0;
 
       if (!isRepairOrder(sale) && status === 'returned') {
         setOpenStatusSaleId(null);
@@ -1444,42 +1474,30 @@ export const OrdersWorkspace = ({
         return;
       }
 
-      if (
-        (isRepairOrder(sale) && status === 'issued') ||
-        (isRepairOrder(sale) && isSalePaymentStatus(status)) ||
-        (!isRepairOrder(sale) &&
-          (isSalePaymentStatus(status) || status === 'issued'))
-      ) {
+      if (status === 'issued' || isSalePaymentStatus(status)) {
         setOpenStatusSaleId(null);
-        if (remainingPayment <= 0) {
-          await persistSaleWorkspace(sale, {
-            status,
-            issuedById: shouldCaptureReceivedBy(sale, status)
-              ? currentEmployee?.id
-              : '',
-            timeline: [
-              appendTimelineEntry(
-                buildChangedStatusTimelineMessage(currentEmployeeName, sale, status),
-              ),
-              ...sale.timeline,
-            ],
-          });
-          return;
-        }
-
         if (
-          !isRepairOrder(sale) &&
-          status === 'issued' &&
-          !isZeroTotalSale
+          shouldOpenPaymentModalForStatusChange(status, remainingPayment)
         ) {
-          await openPaymentModal(sale, 'issued');
+          await openPaymentModal(
+            sale,
+            status as Extract<OrderStatus, PaymentTargetStatus>,
+          );
           return;
         }
 
-        await openPaymentModal(
-          sale,
-          status as Extract<OrderStatus, PaymentTargetStatus>,
-        );
+        await persistSaleWorkspace(sale, {
+          status,
+          issuedById: shouldCaptureReceivedBy(sale, status)
+            ? currentEmployee?.id
+            : '',
+          timeline: [
+            appendTimelineEntry(
+              buildChangedStatusTimelineMessage(currentEmployeeName, sale, status),
+            ),
+            ...sale.timeline,
+          ],
+        });
         return;
       }
 
@@ -1594,6 +1612,14 @@ export const OrdersWorkspace = ({
     });
   };
 
+  const resetVisibleColumns = () => {
+    setVisibleColumns((current) => ({
+      ...current,
+      [activeTab]: defaultVisibleColumns[activeTab],
+    }));
+    setIsColumnsMenuOpen(false);
+  };
+
   const renderOrdersCell = (
     sale: Sale,
     columnKey: OrdersColumnKey,
@@ -1601,7 +1627,8 @@ export const OrdersWorkspace = ({
     const status = getStatus(sale);
 
     switch (columnKey) {
-      case 'orderNumber':
+      case 'orderNumber': {
+        const orderNumber = buildOrderNumber(sale);
         return (
           <div className='supplier-order-number-cell'>
             <button
@@ -1614,10 +1641,10 @@ export const OrdersWorkspace = ({
               aria-label={
                 sale.isFavorite
                   ? t('orders.toolbar.unstarOrder', {
-                      orderNumber: buildOrderNumber(sale),
+                      orderNumber,
                     })
                   : t('orders.toolbar.starOrder', {
-                      orderNumber: buildOrderNumber(sale),
+                      orderNumber,
                     })
               }
               aria-pressed={sale.isFavorite}
@@ -1629,19 +1656,22 @@ export const OrdersWorkspace = ({
             >
               {sale.isFavorite ? '★' : '☆'}
             </button>
-            <a
-              className='order-number-button'
-              href={getOrderLink(sale.id, sale.kind)}
-              onClick={(event) => {
-                if (!isPlainLeftClick(event)) return;
-                event.preventDefault();
-                openSaleCard(sale);
-              }}
-            >
-              {buildOrderNumber(sale)}
-            </a>
+            <CopyableValue value={orderNumber}>
+              <a
+                className='order-number-button'
+                href={getOrderLink(sale.id, sale.kind)}
+                onClick={(event) => {
+                  if (!isPlainLeftClick(event)) return;
+                  event.preventDefault();
+                  openSaleCard(sale);
+                }}
+              >
+                {orderNumber}
+              </a>
+            </CopyableValue>
           </div>
         );
+      }
       case 'manager':
         return (
           <TruncatedTextTooltip
@@ -1679,6 +1709,9 @@ export const OrdersWorkspace = ({
           activeTab,
         );
         const primaryDeviceSerial = getPrimaryDeviceSerial(sale);
+        const extraLineCount = isRepairOrdersTab(activeTab)
+          ? 0
+          : getPrimaryItemExtraLineCount(sale);
         return (
           <button
             type='button'
@@ -1686,18 +1719,22 @@ export const OrdersWorkspace = ({
             onClick={() => openSaleCard(sale)}
             title={primaryItemText}
           >
-            <span>{primaryItemText}</span>
-            {isRepairOrdersTab(activeTab) ? (
-              primaryDeviceSerial ? (
-                <small title={primaryDeviceSerial}>
-                  {t('orders.toolbar.serialPrefix', {
-                    serial: primaryDeviceSerial,
-                  })}
-                </small>
-              ) : null
-            ) : (
-              <small>{t('orders.toolbar.warehouseLabel')}</small>
-            )}
+            <TruncatedTextTooltip
+              text={primaryItemText}
+              className="orders-table-cell-truncate"
+            />
+            {primaryDeviceSerial ? (
+              <small title={primaryDeviceSerial}>
+                {t('orders.toolbar.serialPrefix', {
+                  serial: primaryDeviceSerial,
+                })}
+              </small>
+            ) : null}
+            {extraLineCount > 0 ? (
+              <small>
+                {t('orders.toolbar.extraLines', { count: extraLineCount })}
+              </small>
+            ) : null}
           </button>
         );
       }
@@ -1711,16 +1748,26 @@ export const OrdersWorkspace = ({
             {formatCurrency(getOrderTotal(sale, getLineItems(sale)))}
           </span>
         );
-      case 'paid':
+      case 'paid': {
+        const remainingPayment = getRemainingPayment(
+          sale,
+          getPaidAmount(sale),
+          getLineItems(sale),
+        );
         return (
           <span
             className={
-              hasNonCashPayment(sale) ? 'orders-money-non-cash' : ''
+              hasNonCashPayment(sale)
+                ? 'orders-money-non-cash'
+                : remainingPayment > 0
+                  ? 'orders-money-unpaid'
+                  : ''
             }
           >
             {formatCurrency(getPaidAmount(sale))}
           </span>
         );
+      }
       case 'client': {
         const clientDisplayName = getSaleClientDisplayName(sale, t);
         const isRapidSale = isRapidSaleClientLinkDisabled(sale);
@@ -1747,9 +1794,11 @@ export const OrdersWorkspace = ({
             )}
             <small>
               {!isRapidSale ? (
-                <span title={sale.client.phone}>
-                  <PhoneNumber value={sale.client.phone} />
-                </span>
+                <CopyableValue value={sale.client.phone}>
+                  <span title={sale.client.phone}>
+                    <PhoneNumber value={sale.client.phone} />
+                  </span>
+                </CopyableValue>
               ) : null}
               {!isRapidSale && effectiveStatus ? (
                 <span
@@ -1775,7 +1824,7 @@ export const OrdersWorkspace = ({
             {t('orders.toolbar.term.urgent')}
           </span>
         ) : (
-          t('orders.toolbar.term.nonUrgent')
+          '—'
         );
       case 'warehouse':
         return (
@@ -1792,9 +1841,19 @@ export const OrdersWorkspace = ({
           />
         );
       case 'createdAt':
-        return formatReadyDate(sale.createdAt);
+        return (
+          <TruncatedTextTooltip
+            text={formatReadyDate(sale.createdAt)}
+            className="orders-table-cell-truncate"
+          />
+        );
       case 'readyDate':
-        return formatReadyDate(getRepairCompletionDate(sale));
+        return (
+          <TruncatedTextTooltip
+            text={formatReadyDate(getRepairCompletionDate(sale))}
+            className="orders-table-cell-truncate"
+          />
+        );
       default:
         return null;
     }
@@ -1815,6 +1874,10 @@ export const OrdersWorkspace = ({
     sale: Sale,
     discount: { mode: 'percent' | 'amount'; value: number },
   ) => {
+    if (!isOrderEditableStatus(sale, normalizeOrderStatus(sale.status))) {
+      onError(t('orders.messages.errors.statusBlocksEdit'));
+      return;
+    }
     const normalizedValue =
       Number.isFinite(discount.value) && discount.value > 0
         ? Math.round(discount.value * 100) / 100
@@ -2112,6 +2175,10 @@ export const OrdersWorkspace = ({
     sale: Sale,
     item: Omit<OrderLineItem, 'id'>,
   ) => {
+    if (!isOrderEditableStatus(sale, normalizeOrderStatus(sale.status))) {
+      onError(t('orders.messages.errors.statusBlocksEdit'));
+      return;
+    }
     const nextItem = {
       ...item,
       quantity:
@@ -2298,6 +2365,16 @@ export const OrdersWorkspace = ({
       onError(
         t('orders.messages.errors.oneSerialPerLine'),
       );
+      return;
+    }
+    const isSerialOnlyPatch =
+      Object.keys(patch).length > 0 &&
+      Object.keys(patch).every((key) => key === 'serialNumbers');
+    if (
+      !isSerialOnlyPatch &&
+      !isOrderEditableStatus(sale, normalizeOrderStatus(sale.status))
+    ) {
+      onError(t('orders.messages.errors.statusBlocksEdit'));
       return;
     }
     queueSaleWorkspaceUpdate(sale, (latest) => {
@@ -2664,15 +2741,45 @@ export const OrdersWorkspace = ({
         throw new Error(message);
       }
       const lineItems = getLineItems(sale);
+      const remainingPayment = getRemainingPayment(
+        sale,
+        getPaidAmount(sale),
+        lineItems,
+      );
       if (
-        isRepairOrder(sale) &&
-        payload.status === 'issued' &&
-        lineItems.some((item) => item.kind === 'product') &&
-        getRemainingPayment(sale, getPaidAmount(sale), lineItems) > 0
+        shouldOpenPaymentModalForStatusChange(
+          payload.status,
+          remainingPayment,
+        )
       ) {
-        const message = t('orders.messages.errors.fullPaymentBeforeIssue');
-        onError(message);
-        throw new Error(message);
+        const currentStatus = normalizeOrderStatus(sale.status);
+        const deviceChanged =
+          payload.deviceName.trim() !==
+            getPrimaryDeviceName(sale).trim() ||
+          payload.serialNumber.trim().toUpperCase() !==
+            getPrimaryDeviceSerial(sale).trim().toUpperCase() ||
+          payload.masterId !== (sale.master?.id ?? '');
+        let latest = sale;
+        if (deviceChanged) {
+          latest = await persistSaleWorkspace(sale, {
+            status: currentStatus,
+            masterId: payload.masterId,
+            deviceName: payload.deviceName,
+            serialNumber: payload.serialNumber,
+            timeline: [
+              appendTimelineEntry(
+                buildUpdatedMainInfoTimelineMessage(currentEmployeeName),
+              ),
+              ...sale.timeline,
+            ],
+          });
+          onSuccess(t('orders.messages.success.mainInfoUpdated'));
+        }
+        await openPaymentModal(
+          latest,
+          payload.status as PaymentTargetStatus,
+        );
+        return;
       }
       if (
         !isRepairOrder(sale) &&
@@ -2902,6 +3009,7 @@ export const OrdersWorkspace = ({
           setIsColumnsMenuOpen((current) => !current)
         }
         onToggleColumnVisibility={toggleColumnVisibility}
+        onResetColumns={resetVisibleColumns}
         onToggleFavoritesOnly={toggleFavoritesOnly}
         onOpenSingleMatch={
           searchValue.trim() &&
@@ -2922,11 +3030,16 @@ export const OrdersWorkspace = ({
         draftFilters={draftFilters}
         statusOptionsForActiveTab={statusOptionsForActiveTab}
         assigneeOptions={assigneeOptions}
-        warehouseOptions={warehouseOptions}
         newFilterName={newFilterName}
         newFilterIcon={newFilterIcon}
         statusFilterRef={statusFilterRef}
-        variant={activeTab === 'kanban' ? 'kanban' : 'full'}
+        variant={
+          activeTab === 'kanban'
+            ? 'kanban'
+            : activeTab === 'sales'
+              ? 'sales'
+              : 'full'
+        }
         setDraftFilters={setDraftFilters}
         setIsStatusFilterOpen={setIsStatusFilterOpen}
         setIsSaveFilterDrawerOpen={setIsSaveFilterDrawerOpen}
@@ -2947,7 +3060,9 @@ export const OrdersWorkspace = ({
         assigneeFieldLabel={
           activeTab === 'kanban'
             ? t('orders.filters.master')
-            : undefined
+            : activeTab === 'sales'
+              ? t('orders.filters.manager')
+              : undefined
         }
         onChangeFilters={applyFiltersPatch}
         onClearAll={resetFilters}
@@ -2996,6 +3111,8 @@ export const OrdersWorkspace = ({
           statusMenuOptionsRef={statusMenuOptionsRef}
           getStatus={getStatus}
           renderOrdersCell={renderOrdersCell}
+          totalItems={visibleOrdersCount}
+          selectedSaleId={selectedSaleId}
           onPageChange={(page) =>
             setPageByTab((current) => ({
               ...current,
@@ -3010,6 +3127,7 @@ export const OrdersWorkspace = ({
             setPageByTab((current) => ({ ...current, [activeTab]: 1 }));
           }}
           onUpdateStatus={updateStatus}
+          onOpenSale={openSaleCard}
         />
       )}
 

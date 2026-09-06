@@ -4,12 +4,15 @@ import type { Product, ProductModelUpdatePayload } from '../../../../../entities
 import type { Sale } from '../../../../../entities/sale/model/types';
 import type { PrintForm } from '../../../../../entities/settings/model/types';
 import { defaultPrintForms } from '../../../../../entities/settings/model/printForms';
+import type { SupplierOrder } from '../../../../../entities/supplier-order/model/types';
 import type { WarehouseItem } from '../../../../../entities/warehouse-settings/model/types';
 import { formatCurrency, formatDate } from '../../../../../shared/lib/format';
 import { normalizeDecimalInput } from '../../../../../shared/lib/decimal';
+import { getOccupiedSerialNumbers } from '../../../../../entities/sale/api/saleApi';
 import { printWarehouseSerialLabels } from '../workspace/orders-workspace-shared';
 import { Modal } from '../../../../../shared/ui/Modal';
 import { Button } from '../../../../../shared/ui/Button';
+import { CopyableValue } from '../../../../../shared/ui/CopyableValue';
 import { PrinterIcon } from './PrinterIcon';
 import {
   aggregateProductModelStock,
@@ -18,22 +21,30 @@ import {
   getLatestBatchProduct,
   getActiveStockProductsByExactModelName,
   getProductModelInitialForm,
+  getReservedProductIdsFromOccupiedSerials,
+  getReservedProductIdsOnOtherSales,
 } from '../../../model/product-model';
+import { buildSupplierOrdersByProductId } from '../../../model/stock-balance';
 
 type ProductModelSection = 'main' | 'prices' | 'stock';
 
 const EMPTY_SALES: Sale[] = [];
+const EMPTY_SUPPLIER_ORDERS: SupplierOrder[] = [];
+const EMPTY_VALUE = '\u2014';
 
 type ProductModelModalProps = {
   name: string;
   products: Product[];
   sales?: Sale[];
+  supplierOrders?: SupplierOrder[];
+  currentSaleId?: string;
   warehouses: WarehouseItem[];
   printForms?: PrintForm[];
   printProduct?: Product | null;
   isSaving?: boolean;
   onClose: () => void;
   onSave: (payload: ProductModelUpdatePayload) => Promise<boolean>;
+  onOpenSupplierOrder?: (supplierOrderId: string, itemIndex: number) => void;
 };
 
 const getInitialSelectedPrintIds = (
@@ -55,12 +66,15 @@ export const ProductModelModal = ({
   name,
   products,
   sales = EMPTY_SALES,
+  supplierOrders = EMPTY_SUPPLIER_ORDERS,
+  currentSaleId,
   warehouses,
   printForms = defaultPrintForms,
   printProduct = null,
   isSaving = false,
   onClose,
   onSave,
+  onOpenSupplierOrder,
 }: ProductModelModalProps) => {
   const { t } = useTranslation();
   const matchingProducts = useMemo(
@@ -78,10 +92,70 @@ export const ProductModelModal = ({
     () => aggregateProductModelStock(matchingProducts, warehouses),
     [matchingProducts, warehouses],
   );
-  const serialPurchases = useMemo(
-    () => buildProductModelSerialPurchases(matchingProducts),
-    [matchingProducts],
+  const [occupiedProductIds, setOccupiedProductIds] = useState(
+    () => new Set<string>(),
   );
+  const reservedProductIds = useMemo(() => {
+    const merged = new Set(
+      getReservedProductIdsOnOtherSales(
+        matchingProducts,
+        sales,
+        currentSaleId,
+      ),
+    );
+    occupiedProductIds.forEach((productId) => merged.add(productId));
+    return merged;
+  }, [currentSaleId, matchingProducts, occupiedProductIds, sales]);
+  const supplierOrdersByProductId = useMemo(
+    () =>
+      buildSupplierOrdersByProductId({
+        products: matchingProducts,
+        supplierOrders,
+      }),
+    [matchingProducts, supplierOrders],
+  );
+  const serialPurchases = useMemo(
+    () =>
+      buildProductModelSerialPurchases(
+        matchingProducts,
+        reservedProductIds,
+        supplierOrdersByProductId,
+      ),
+    [matchingProducts, reservedProductIds, supplierOrdersByProductId],
+  );
+
+  useEffect(() => {
+    const serials = matchingProducts
+      .map((product) => product.serialNumber)
+      .filter((serial) => serial.trim());
+    if (serials.length === 0) {
+      setOccupiedProductIds(new Set());
+      return;
+    }
+
+    let isActive = true;
+    void getOccupiedSerialNumbers({
+      excludeSaleId: currentSaleId,
+      serials,
+    })
+      .then((response) => {
+        if (!isActive) return;
+        setOccupiedProductIds(
+          getReservedProductIdsFromOccupiedSerials(
+            matchingProducts,
+            response.occupied,
+          ),
+        );
+      })
+      .catch(() => {
+        if (!isActive) return;
+        setOccupiedProductIds(new Set());
+      });
+
+    return () => {
+      isActive = false;
+    };
+  }, [currentSaleId, matchingProducts]);
   const printableSerialRows = useMemo(
     () => serialPurchases.filter((row) => row.serialNumber.trim()),
     [serialPurchases],
@@ -418,6 +492,7 @@ export const ProductModelModal = ({
                           <th>{t('catalog.productModel.serialNumber')}</th>
                           <th>{t('catalog.productModel.purchasePrice')}</th>
                           <th>{t('catalog.productModel.purchaseDate')}</th>
+                          <th>{t('catalog.productModel.supplierOrder')}</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -428,10 +503,19 @@ export const ProductModelModal = ({
                             selectedPrintProductIds.includes(row.productId);
                           const isOpenedSerial =
                             printProduct?.id === row.productId;
+                          const supplierOrderId = row.supplierOrderId;
+                          const supplierOrderItemIndex =
+                            row.supplierOrderItemIndex;
+                          const canOpenSupplierOrder =
+                            onOpenSupplierOrder &&
+                            supplierOrderId &&
+                            typeof supplierOrderItemIndex === 'number';
                           const rowClassName = [
-                            row.isLatestBatch
-                              ? 'product-model-serial-row-latest'
-                              : '',
+                            row.isReserved
+                              ? 'product-model-serial-row-reserved'
+                              : row.isLatestBatch
+                                ? 'product-model-serial-row-latest'
+                                : '',
                             isChecked || isOpenedSerial
                               ? 'product-model-serial-row-selected'
                               : '',
@@ -464,17 +548,58 @@ export const ProductModelModal = ({
                               </td>
                               <td>
                                 <span className='product-model-serial-cell'>
-                                  {row.serialNumber ||
-                                    t('catalog.productModel.serialMissing')}
+                                  <CopyableValue value={row.serialNumber}>
+                                    {row.serialNumber ||
+                                      t('catalog.productModel.serialMissing')}
+                                  </CopyableValue>
                                   {row.isLatestBatch ? (
                                     <span className='product-model-latest-batch-badge'>
                                       {t('catalog.productModel.latestBatchBadge')}
+                                    </span>
+                                  ) : null}
+                                  {row.isReserved ? (
+                                    <span className='product-model-reserved-badge'>
+                                      {t('catalog.productModel.reservedBadge')}
                                     </span>
                                   ) : null}
                                 </span>
                               </td>
                               <td>{formatCurrency(row.price)}</td>
                               <td>{formatDate(row.purchaseDate)}</td>
+                              <td>
+                                {row.supplierOrderNumber ? (
+                                  <CopyableValue value={row.supplierOrderNumber}>
+                                    {canOpenSupplierOrder ? (
+                                      <button
+                                        type='button'
+                                        className='supplier-order-number-button'
+                                        onClick={() => {
+                                          if (
+                                            !onOpenSupplierOrder ||
+                                            !supplierOrderId ||
+                                            typeof supplierOrderItemIndex !==
+                                              'number'
+                                          ) {
+                                            return;
+                                          }
+                                          onOpenSupplierOrder(
+                                            supplierOrderId,
+                                            supplierOrderItemIndex,
+                                          );
+                                        }}
+                                      >
+                                        {row.supplierOrderNumber}
+                                      </button>
+                                    ) : (
+                                      <span>{row.supplierOrderNumber}</span>
+                                    )}
+                                  </CopyableValue>
+                                ) : (
+                                  <span className='product-model-serial-empty'>
+                                    {EMPTY_VALUE}
+                                  </span>
+                                )}
+                              </td>
                             </tr>
                           );
                         })}

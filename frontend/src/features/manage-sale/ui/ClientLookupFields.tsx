@@ -1,33 +1,36 @@
 import { useTranslation } from 'react-i18next';
 import type { Client } from '../../../entities/client/model/types';
+import { useDismissibleSuggestions } from '../../../shared/lib/useDismissibleSuggestions';
 
 type ClientLookupFieldsProps = {
   clientNameInput: string;
   clientPhoneInput: string;
   clientSuggestions: Client[];
-  showClientSuggestions: boolean;
+  isBound: boolean;
   onNameChange: (value: string) => void;
   onPhoneChange: (value: string) => void;
   onPickClient: (client: Client) => void;
-  onShowSuggestions: () => void;
-  onHideSuggestions: () => void;
 };
 
 export const ClientLookupFields = ({
   clientNameInput,
   clientPhoneInput,
   clientSuggestions,
-  showClientSuggestions,
+  isBound,
   onNameChange,
   onPhoneChange,
   onPickClient,
-  onShowSuggestions,
-  onHideSuggestions,
 }: ClientLookupFieldsProps) => {
   const { t } = useTranslation();
+  const { rootRef, isVisible } = useDismissibleSuggestions({
+    query: `${clientNameInput}\n${clientPhoneInput}`,
+    isActive:
+      !isBound &&
+      (clientNameInput.trim().length > 0 || clientPhoneInput.trim().length > 0),
+  });
 
   return (
-    <div className="field field-wide modal-suggestions-anchor">
+    <div ref={rootRef} className="field field-wide modal-suggestions-anchor">
       <span>{t('legacy.saleForm.lookup.client')}</span>
       <div className="form-grid compact-form-grid">
         <label className="field">
@@ -35,8 +38,6 @@ export const ClientLookupFields = ({
           <input
             value={clientNameInput}
             placeholder={t('legacy.saleForm.lookup.clientPlaceholder')}
-            onFocus={onShowSuggestions}
-            onBlur={() => window.setTimeout(onHideSuggestions, 120)}
             onChange={(event) => onNameChange(event.target.value)}
           />
         </label>
@@ -46,14 +47,12 @@ export const ClientLookupFields = ({
           <input
             value={clientPhoneInput}
             placeholder={t('legacy.saleForm.lookup.phonePlaceholder')}
-            onFocus={onShowSuggestions}
-            onBlur={() => window.setTimeout(onHideSuggestions, 120)}
             onChange={(event) => onPhoneChange(event.target.value)}
           />
         </label>
       </div>
 
-      {showClientSuggestions ? (
+      {isVisible ? (
         <div className="suggestions-panel">
           {clientSuggestions.length > 0 ? (
             clientSuggestions.map((client) => (
@@ -62,10 +61,7 @@ export const ClientLookupFields = ({
                 className="suggestion-item"
                 type="button"
                 onMouseDown={(event) => event.preventDefault()}
-                onClick={() => {
-                  onPickClient(client);
-                  onHideSuggestions();
-                }}
+                onClick={() => onPickClient(client)}
               >
                 <strong>{client.name}</strong>
                 <span>

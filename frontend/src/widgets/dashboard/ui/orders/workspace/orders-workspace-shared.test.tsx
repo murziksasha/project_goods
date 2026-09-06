@@ -2,21 +2,37 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Sale } from '../../../../../entities/sale/model/types';
 import type { SupplierOrder } from '../../../../../entities/supplier-order/model/types';
 import { defaultPrintForms } from '../../../../../entities/settings/model/printForms';
+import i18n from '../../../../../shared/i18n/config';
 import {
+  allOrdersColumnKeys,
   buildOrderPrintBody,
   buildOrderPrintHtml,
   buildSupplierOrderLinkNote,
   computeOrderStatusMenuPosition,
+  availableColumnsByTab,
+  defaultVisibleColumns,
+  formatReadyDate,
+  getPrimaryItemCellContent,
+  getPrimaryItemColumnLabel,
+  getPrimaryItemExtraLineCount,
   getLineItemsQuantity,
   getLineItemsTotal,
+  getOrdersColumnClassName,
+  getOrdersTableMinWidth,
   getPrintTemplateData,
   getReopenedSaleStatusForLineItems,
   getProductLinesMissingWarehouseSerials,
   isIssueWithoutPaymentBlockedForSale,
+  isLegacyFullOrdersColumnSet,
+  isLegacySalesColumnSet,
+  legacySalesDefaultColumnKeys,
   isRepairStatusChangeLockedByStock,
   isSupplierOrderLinkedToSale,
   normalizeOrderStatus,
+  ordersColumnsStorageKey,
   printWarehouseSerialLabels,
+  readVisibleColumns,
+  shouldOpenPaymentModalForStatusChange,
   type OrderLineItem,
 } from './orders-workspace-shared';
 
@@ -828,5 +844,96 @@ describe('line item totals', () => {
 
     expect(getLineItemsQuantity(items)).toBe(3);
     expect(getLineItemsTotal(items)).toBe(226);
+  });
+});
+
+describe('orders list dates and columns', () => {
+  afterEach(async () => {
+    window.localStorage.clear();
+    await i18n.changeLanguage('en');
+  });
+
+  it('formats ready dates in the active UI language with a year', async () => {
+    await i18n.changeLanguage('en');
+    const english = formatReadyDate('2026-08-29T12:00:00.000Z');
+    expect(english).toMatch(/2026/);
+    expect(english.toLowerCase()).not.toMatch(/серп/);
+
+    await i18n.changeLanguage('uk');
+    const ukrainian = formatReadyDate('2026-08-29T12:00:00.000Z');
+    expect(ukrainian).toMatch(/2026/);
+    expect(ukrainian.toLowerCase()).toMatch(/серп/);
+  });
+
+  it('maps every orders column to a width class', () => {
+    expect(getOrdersColumnClassName('createdAt')).toBe('orders-col-created-at');
+    expect(getOrdersColumnClassName('term')).toBe('orders-col-term');
+    expect(getOrdersTableMinWidth(['orderNumber', 'client', 'status'])).toBe(720);
+    expect(getOrdersTableMinWidth(allOrdersColumnKeys)).toBeGreaterThan(720);
+  });
+
+  it('migrates the legacy full column set to the lean default', () => {
+    expect(isLegacyFullOrdersColumnSet(allOrdersColumnKeys)).toBe(true);
+    window.localStorage.setItem(
+      ordersColumnsStorageKey,
+      JSON.stringify({ orders: allOrdersColumnKeys }),
+    );
+    expect(readVisibleColumns().orders).toEqual(defaultVisibleColumns.orders);
+  });
+
+  it('uses product columns on the sales tab and migrates the old lean set', () => {
+    expect(defaultVisibleColumns.sales).toEqual([
+      'orderNumber',
+      'client',
+      'primaryItem',
+      'status',
+      'price',
+      'paid',
+      'manager',
+      'createdAt',
+    ]);
+    expect(availableColumnsByTab.sales).toEqual([
+      ...defaultVisibleColumns.sales,
+      'received',
+    ]);
+    expect(isLegacySalesColumnSet(legacySalesDefaultColumnKeys)).toBe(true);
+    window.localStorage.setItem(
+      ordersColumnsStorageKey,
+      JSON.stringify({ sales: legacySalesDefaultColumnKeys }),
+    );
+    expect(readVisibleColumns().sales).toEqual(defaultVisibleColumns.sales);
+  });
+
+  it('labels primary item as Device on orders and Product on sales', () => {
+    expect(getPrimaryItemColumnLabel('orders')).toBe('Device');
+    expect(getPrimaryItemColumnLabel('sales')).toBe('Product');
+  });
+
+  it('shows the sold product name in the sales primary item cell', () => {
+    const saleRow = repairSale({
+      kind: 'sale',
+      product: {
+        id: 'product-1',
+        article: 'ART-1',
+        name: 'Wireless mouse M22',
+        serialNumber: 'S000003',
+      },
+    });
+    expect(getPrimaryItemCellContent(saleRow, 'sales')).toBe(
+      'Wireless mouse M22',
+    );
+    expect(getPrimaryItemCellContent(saleRow, 'orders')).toBe(
+      'Wireless mouse M22',
+    );
+    expect(getPrimaryItemExtraLineCount(saleRow)).toBe(1);
+  });
+});
+
+describe('shouldOpenPaymentModalForStatusChange', () => {
+  it('opens the payment modal for issued or paid while remaining is due', () => {
+    expect(shouldOpenPaymentModalForStatusChange('issued', 100)).toBe(true);
+    expect(shouldOpenPaymentModalForStatusChange('paid', 1)).toBe(true);
+    expect(shouldOpenPaymentModalForStatusChange('issued', 0)).toBe(false);
+    expect(shouldOpenPaymentModalForStatusChange('ready', 50)).toBe(false);
   });
 });

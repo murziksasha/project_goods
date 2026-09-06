@@ -1,6 +1,6 @@
 # CLIENTS RULES
 
-Related: [ORDER_FLOW.md](./ORDER_FLOW.md) · [SALE_FLOW.md](./SALE_FLOW.md) · [index](./README.md)
+Related: [ORDER_FLOW.md](./ORDER_FLOW.md) · [SALE_FLOW.md](./SALE_FLOW.md) · [SPEC_SUGGESTIONS_BEHAVIOR.md](./SPEC_SUGGESTIONS_BEHAVIOR.md) · [index](./README.md)
 
 ## Client Status Localization Rule
 - Keep client status values in original English.
@@ -31,20 +31,30 @@ Related: [ORDER_FLOW.md](./ORDER_FLOW.md) · [SALE_FLOW.md](./SALE_FLOW.md) · [
 ## Client Card Tabs
 
 - In `Clients & suppliers -> Clients`, opening a client card shows **5 header tabs** (always visible under the title row):
-  1. `Main` — editable client form (name, phones, status, IBAN, note, save).
+  1. `Main` — editable client form (name, phones, status, IBAN, note). Save/Cancel live in a sticky footer.
   2. `Orders` — repair orders for this client (`sale.kind === 'repair'`).
   3. `Sales` — sales for this client (`sale.kind === 'sale'`).
   4. `Client devices` — active client devices + Unbind.
   5. `Information` — aggregate stats (orders/sales counts and amounts, total, first/last contact).
 - Tab strip uses dedicated `clients-card-tabs` styles (sale-card related-tabs pattern), not body-only scroll content.
-- Layout shell is always 2 rows (`header` + scrollable `body`); tabs live in the header extra row so they stay visible while the body scrolls.
+- Layout shell is 3 rows (`header` + scrollable `body` + optional `footer` on Main). Tabs live in the header extra row so they stay visible while the body scrolls.
+- Clients / Suppliers list tables lead with **Name** (no truncated `Id` column). ID remains in the Filter drawer.
+- Hover on **Name** and **Phone** in both `Clients & suppliers` list tables shows a copy icon. Only the icon copies; row click still opens the card and phone `tel:` stays on the number. The client card header phone (blue `tel:` link) uses the same icon. Catalog **Products & Services → Suppliers** phone is the same control (that table lives in the catalog, not this workspace). Spec: [UI_DESIGN_SYSTEM.md — Hover copy icon](./UI_DESIGN_SYSTEM.md#hover-copy-icon).
+- Status select on Main stores the raw value: `-` (`''`, auto) plus pinned `ok` / `opt` / `vip` / `blacklist`. It must not bind to effective status. Auto mode shows `Auto: {effective}` (status words stay English per the localization rule above).
 - Responsive:
   - tabs scroll horizontally on narrow widths;
   - phone + “total for client” share one meta row (desktop/tablet); stack vertically under ~530px;
   - history table becomes label/value cards under ~720px (same pattern as other orders tables);
   - modal uses `100dvh` / full-width near phone widths so content is not clipped.
 - Default tab on open: `Main`. Last tab is persisted in `localStorage` (`project-goods.client-card-tab`); legacy `services` migrates to `orders`.
-- On `Orders` / `Sales`, row click or order number opens that sale/order card for the client.
+- On `Orders`, the item column is **Device** (repair device name from the sale `product` snapshot / product line). It must not list service line items.
+- On `Sales`, the item column remains **Sale** (product line items).
+- On `Orders` / `Sales`, hover on the order/sale number (`r000768`) shows a copy icon. Only the icon copies; a plain left-click on the number still opens the card. Spec: [UI_DESIGN_SYSTEM.md — Hover copy icon](./UI_DESIGN_SYSTEM.md#hover-copy-icon).
+- On `Orders` / `Sales`, a bound serial shows as `S/N: {serial}` under the item names. Hover on that serial shows a copy icon. Only the icon copies the serial (`SN-1`, not the `S/N:` prefix). Empty / whitespace / repair-placeholder serials have no line and no icon. Row click still opens the sale/order card. Spec: [UI_DESIGN_SYSTEM.md — Hover copy icon](./UI_DESIGN_SYSTEM.md#hover-copy-icon).
+- Search on `Orders` matches number, device, serial, and status (placeholder: “Search by number, device, serial, status”).
+- Search on `Sales` matches number, product, serial, and status (placeholder: “Search by number, product, serial, status”).
+- On `Orders` / `Sales`, row click or a plain left-click on the number opens that sale/order card in-app (closes the client modal).
+- Order/sale numbers are real links (`<a href={getOrderLink(id, kind)}>`) so the browser context menu offers **Open link in new tab**. Middle-click / Ctrl+click opens the deep link in a new tab. Spec: [BROWSER_NAVIGATION.md](./BROWSER_NAVIGATION.md).
 - On `Orders` / `Sales`, total is inline next to the phone (`label — amount`); the list starts directly below.
 - `Client devices` lists active `Clients goods` records for the selected client only.
 - Each device row shows device name, note, activity, and an `Unbind` action.
@@ -58,6 +68,7 @@ Related: [ORDER_FLOW.md](./ORDER_FLOW.md) · [SALE_FLOW.md](./SALE_FLOW.md) · [
 - `blacklist` is a manual priority client status and must not be replaced by automatic visit-based status logic.
 - Clients list rows with `blacklist` status must be visually marked with a red warning treatment and the `blacklist` badge.
 - Client lookup suggestions in order creation must visually mark `blacklist` clients before the operator selects them.
+- Create-order client lookup and client/supplier merge search follow the dismiss-without-select rule: [SPEC_SUGGESTIONS_BEHAVIOR.md](./SPEC_SUGGESTIONS_BEHAVIOR.md#dismiss-without-select-rule).
 - The blacklist warning in order creation must open the matched client card when clicked, so the operator can inspect the note/reason.
 - `blacklist` is a warning state, not a hard validation block: creating repair and sale orders remains allowed.
 

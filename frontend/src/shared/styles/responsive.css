@@ -11,14 +11,8 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .warehouse-transfer-grid,
-  .settings-print-builder,
-  .print-builder-workspace {
+  .warehouse-transfer-grid {
     grid-template-columns: 1fr;
-  }
-
-  .settings-print-preview {
-    position: static;
   }
 }
 
@@ -372,7 +366,8 @@
     min-width: min(100%, 180px);
   }
 
-  .order-detail-create-button {
+  .order-detail-header-actions .order-detail-header-pay-button,
+  .order-detail-header-actions .order-detail-create-button {
     white-space: normal;
   }
 
@@ -661,11 +656,6 @@
     flex-wrap: wrap;
   }
 
-  .supplier-orders-quick-filters {
-    flex-wrap: wrap;
-    overflow-x: visible;
-  }
-
   .finance-transactions-toolbar-left {
     flex-wrap: wrap;
   }
@@ -678,8 +668,10 @@
   }
 
   .orders-search-group {
-    grid-template-columns: minmax(0, 1fr) 92px;
     width: 100%;
+    max-width: none;
+    min-width: 0;
+    flex: 1 1 100%;
   }
 
   .warehouse-search-group {
@@ -905,16 +897,6 @@
     justify-content: flex-start;
   }
 
-  .catalog-table-services td[data-label='Select'] {
-    grid-template-columns: minmax(92px, 0.36fr) minmax(0, 1fr);
-    align-items: center;
-  }
-
-  .catalog-table-services td[data-label='Select'] input {
-    justify-self: start;
-    margin: 0;
-  }
-
   .finance-transactions-table .finance-day-separator-row {
     border: 0;
     border-radius: 0;
@@ -972,9 +954,7 @@
   }
 
   .clients-toolbar-actions .toolbar-filter-button,
-  .clients-toolbar-actions .clients-import-button,
-  .clients-toolbar-actions .clients-export-button,
-  .clients-toolbar-actions .orders-create-button {
+  .clients-toolbar-actions button {
     flex: 1;
     width: 100%;
   }
@@ -985,7 +965,7 @@
     height: min(760px, calc(100dvh - 16px), calc(100vh - 16px));
     max-height: min(calc(100dvh - 16px), calc(100vh - 16px));
     display: grid;
-    grid-template-rows: auto minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr) auto;
     overflow: hidden;
   }
 
@@ -1018,11 +998,6 @@
   .clients-card-total-inline {
     white-space: normal;
     line-height: 1.35;
-  }
-
-  .clients-card-body .clients-main-save {
-    max-width: none;
-    width: 100%;
   }
 
   .clients-card-list-toolbar {
@@ -1314,15 +1289,13 @@
 
   .catalog-tabs,
   .warehouse-tabs,
-  .clients-modal-tabs,
-  .settings-tabs {
+  .clients-modal-tabs {
     overflow-x: auto;
     flex-wrap: nowrap;
   }
 
   .catalog-tab,
-  .warehouse-tab,
-  .settings-tab {
+  .warehouse-tab {
     flex: 0 0 auto;
     white-space: nowrap;
   }
@@ -1361,7 +1334,6 @@
   .create-checks-grid,
   .sale-item-row,
   .rapid-sale-entry-row,
-  .settings-print-options-row,
   .print-builder-field-row,
   .print-builder-custom-row {
     grid-template-columns: 1fr;
@@ -1679,11 +1651,13 @@
     gap: 8px;
   }
 
-  .order-detail-create-button {
+  .order-detail-header-actions .order-detail-header-pay-button,
+  .order-detail-header-actions .order-detail-create-button {
     flex: 0 1 auto;
-    white-space: nowrap;
+    min-height: 36px;
     padding: 8px 10px;
     font-size: 0.88rem;
+    white-space: nowrap;
   }
 
   .order-detail-main-panel .order-detail-list {
@@ -1787,17 +1761,6 @@
     flex-wrap: wrap;
   }
 
-  .settings-print-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .settings-print-builder {
-    grid-template-columns: 1fr;
-  }
-
-  .settings-print-preview {
-    position: static;
-  }
 }
 
 @media (max-width: 530px) {
@@ -2023,7 +1986,10 @@
   }
 
   .orders-search-group {
-    grid-template-columns: minmax(0, 1fr) 48px;
+    width: 100%;
+    max-width: none;
+    min-width: 0;
+    flex: 1 1 100%;
   }
 
   .orders-search-group button {
@@ -2032,7 +1998,6 @@
 
   .orders-toolbar-actions,
   .catalog-toolbar-actions,
-  .warehouse-toolbar,
   .finance-toolbar,
   .payment-modal-actions,
   .catalog-edit-footer,
@@ -2042,7 +2007,6 @@
 
   .orders-toolbar-actions button,
   .catalog-toolbar-actions button,
-  .warehouse-toolbar button,
   .finance-toolbar button,
   .catalog-edit-footer button,
   .rapid-sale-footer button {
@@ -2091,10 +2055,12 @@
   }
 
   .order-detail-header-actions {
+    width: 100%;
     gap: 8px;
   }
 
-  .order-detail-create-button {
+  .order-detail-header-actions .order-detail-header-pay-button,
+  .order-detail-header-actions .order-detail-create-button {
     flex: 1 1 auto;
     min-width: 0;
   }
@@ -2150,7 +2116,8 @@
   .supplier-orders-table td,
   .finance-transactions-table td,
   .finance-orders-table td,
-  .catalog-card-table td {
+  .catalog-card-table td,
+  .table-card-stack td {
     grid-template-columns: minmax(0, 1fr);
     gap: 4px;
     align-items: start;
@@ -2162,7 +2129,8 @@
   .supplier-orders-table td::before,
   .finance-transactions-table td::before,
   .finance-orders-table td::before,
-  .catalog-card-table td::before {
+  .catalog-card-table td::before,
+  .table-card-stack td::before {
     font-size: 0.72rem;
   }
 

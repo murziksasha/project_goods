@@ -4,6 +4,7 @@ import {
   type OrdersFilters,
   type PaymentMethod,
   type RepairTypeFilter,
+  type SaleTypeFilter,
 } from './orders-workspace-shared';
 
 export type OrdersFilterChip = {
@@ -31,6 +32,9 @@ export const buildOrdersFilterChips = (
     repairType: string;
     repairPaid: string;
     repairWarranty: string;
+    saleType: string;
+    saleTypeRapid: string;
+    saleTypeRegular: string;
     payment: string;
     paymentCash: string;
     paymentNonCash: string;
@@ -95,6 +99,18 @@ export const buildOrdersFilterChips = (
           : labels.repairPaid
       }`,
       clear: clearField('repairType', 'all' as RepairTypeFilter),
+    });
+  }
+
+  if (filters.saleType !== 'all') {
+    chips.push({
+      id: 'saleType',
+      label: `${labels.saleType}: ${
+        filters.saleType === 'rapid'
+          ? labels.saleTypeRapid
+          : labels.saleTypeRegular
+      }`,
+      clear: clearField('saleType', 'all' as SaleTypeFilter),
     });
   }
 

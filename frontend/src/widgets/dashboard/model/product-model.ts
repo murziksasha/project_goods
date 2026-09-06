@@ -1,8 +1,12 @@
 import type { Product } from '../../../entities/product/model/types';
 import type { WarehouseItem } from '../../../entities/warehouse-settings/model/types';
+import { normalizeSerialNumber } from './order-line-serials';
 import {
   getIssuedSaleProductIds,
+  getStockProductIdsLinkedToSale,
+  isIssuedSaleStatus,
   type StockSaleLink,
+  type StockSupplierOrderLink,
 } from './stock-balance';
 
 export type ProductModelPriceForm = {
@@ -18,7 +22,13 @@ export type ProductModelSerialPurchaseRow = {
   price: number;
   purchaseDate: string | null;
   isLatestBatch: boolean;
+  isReserved: boolean;
+  supplierOrderId?: string;
+  supplierOrderItemIndex?: number;
+  supplierOrderNumber: string;
 };
+
+export type ProductModelSaleLink = StockSaleLink & { id?: string };
 
 const getBatchTimestamp = (product: Product) => {
   const raw = product.purchaseDate ?? product.createdAt;
@@ -40,8 +50,52 @@ export const getLatestBatchProduct = (products: Product[]): Product | null => {
 const getBatchKey = (product: Product) =>
   `${getBatchTimestamp(product)}::${product.price}`;
 
+export const getReservedProductIdsOnOtherSales = (
+  products: Product[],
+  sales: ProductModelSaleLink[],
+  currentSaleId?: string,
+) => {
+  const reservedProductIds = new Set<string>();
+  const currentId = currentSaleId?.trim() ?? '';
+
+  sales.forEach((sale) => {
+    if (isIssuedSaleStatus(sale.status)) return;
+    if (currentId && sale.id === currentId) return;
+
+    getStockProductIdsLinkedToSale(sale, products).forEach((productId) =>
+      reservedProductIds.add(productId),
+    );
+  });
+
+  return reservedProductIds;
+};
+
+export const getReservedProductIdsFromOccupiedSerials = (
+  products: Product[],
+  occupiedSerials: Iterable<string>,
+) => {
+  const occupied = new Set(
+    [...occupiedSerials].map(normalizeSerialNumber).filter(Boolean),
+  );
+  const reservedProductIds = new Set<string>();
+
+  products.forEach((product) => {
+    const serial = normalizeSerialNumber(product.serialNumber);
+    if (serial && occupied.has(serial)) {
+      reservedProductIds.add(product.id);
+    }
+  });
+
+  return reservedProductIds;
+};
+
 export const buildProductModelSerialPurchases = (
   products: Product[],
+  reservedProductIds: ReadonlySet<string> = new Set(),
+  supplierOrdersByProductId: Record<
+    string,
+    StockSupplierOrderLink[]
+  > = {},
 ): ProductModelSerialPurchaseRow[] => {
   const latestBatchProduct = getLatestBatchProduct(products);
   const latestBatchKey = latestBatchProduct
@@ -60,13 +114,24 @@ export const buildProductModelSerialPurchases = (
       if (serialDiff !== 0) return serialDiff;
       return first.createdAt.localeCompare(second.createdAt);
     })
-    .map((product) => ({
-      productId: product.id,
-      serialNumber: product.serialNumber.trim(),
-      price: product.price,
-      purchaseDate: product.purchaseDate ?? product.createdAt ?? null,
-      isLatestBatch: getBatchKey(product) === latestBatchKey,
-    }));
+    .map((product) => {
+      const link = supplierOrdersByProductId[product.id]?.[0];
+      return {
+        productId: product.id,
+        serialNumber: product.serialNumber.trim(),
+        price: product.price,
+        purchaseDate: product.purchaseDate ?? product.createdAt ?? null,
+        isLatestBatch: getBatchKey(product) === latestBatchKey,
+        isReserved: reservedProductIds.has(product.id),
+        supplierOrderNumber: link?.displayNumber ?? '',
+        ...(link
+          ? {
+              supplierOrderId: link.order.id,
+              supplierOrderItemIndex: link.itemIndex,
+            }
+          : {}),
+      };
+    });
 };
 
 export type ProductModelWarehouseSummary = {

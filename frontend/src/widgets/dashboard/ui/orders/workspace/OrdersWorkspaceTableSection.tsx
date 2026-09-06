@@ -31,9 +31,12 @@ type OrdersWorkspaceTableSectionProps = {
   statusMenuOptionsRef: RefObject<HTMLDivElement | null>;
   getStatus: (sale: Sale) => OrderStatus;
   renderOrdersCell: (sale: Sale, columnKey: OrdersColumnKey) => ReactNode;
+  totalItems: number;
+  selectedSaleId: string | null;
   onPageChange: (page: number) => void;
   onPageSizeChange: (pageSize: number) => void;
   onUpdateStatus: (sale: Sale, status: OrderStatus) => void | Promise<void>;
+  onOpenSale: (sale: Sale) => void;
 };
 
 export const OrdersWorkspaceTableSection = ({
@@ -51,9 +54,12 @@ export const OrdersWorkspaceTableSection = ({
   statusMenuOptionsRef,
   getStatus,
   renderOrdersCell,
+  totalItems,
+  selectedSaleId,
   onPageChange,
   onPageSizeChange,
   onUpdateStatus,
+  onOpenSale,
 }: OrdersWorkspaceTableSectionProps) => {
   const { t } = useTranslation();
 
@@ -99,11 +105,26 @@ export const OrdersWorkspaceTableSection = ({
               paginatedOrders.map((sale) => (
                 <tr
                   key={sale.id}
-                  className={
+                  className={[
+                    'orders-table-row',
                     activeTab === 'orders' && isUrgentRepairOrder(sale)
-                      ? 'orders-table-row orders-table-row-urgent'
-                      : 'orders-table-row'
-                  }
+                      ? 'orders-table-row-urgent'
+                      : '',
+                    selectedSaleId === sale.id ? 'orders-table-row-selected' : '',
+                  ]
+                    .filter(Boolean)
+                    .join(' ')}
+                  onClick={(event) => {
+                    const target = event.target as HTMLElement | null;
+                    if (
+                      target?.closest(
+                        'a, button, input, select, textarea, .order-status-menu, .orders-client-link',
+                      )
+                    ) {
+                      return;
+                    }
+                    onOpenSale(sale);
+                  }}
                 >
                   {visibleColumnKeys.map((columnKey) => (
                     <td
@@ -122,7 +143,7 @@ export const OrdersWorkspaceTableSection = ({
       </div>
 
       <PaginationPanel
-        totalItems={filteredOrders.length}
+        totalItems={totalItems}
         page={currentPage}
         pageSize={currentPageSize}
         onPageChange={onPageChange}

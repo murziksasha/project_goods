@@ -6,11 +6,11 @@ import {
   accountingFinanceSettingsTabStorageKey,
   accountingLastOperationByCashboxStorageKey,
   accountingLastTargetCashboxByTypeStorageKey,
-  accountingSettingsOpenStorageKey,
   accountingTabStorageKey,
+  getAccountingSettingsOpenFromUrl,
   getAccountingTabFromUrl,
-  getStoredAccountingSettingsOpen,
   getStoredAccountingTab,
+  writeAccountingSettingsOpenToUrl,
   getStoredExpandedFinanceSettingsCard,
   migrateLastTargetCashboxToOperationMemory,
   parseStoredLastOperationByCashbox,
@@ -61,7 +61,7 @@ export const useAccountingPreferences = ({
     () => getAccountingTabFromUrl() ?? getStoredAccountingTab(),
   );
   const [isFinanceSettingsOpen, setIsFinanceSettingsOpen] = useState(
-    getStoredAccountingSettingsOpen,
+    getAccountingSettingsOpenFromUrl,
   );
   const [financeSettingsTab, setFinanceSettingsTab] =
     useState<FinanceSettingsTab>(() => {
@@ -156,15 +156,14 @@ export const useAccountingPreferences = ({
   }, [financeSettingsTab]);
 
   useEffect(() => {
-    try {
-      window.localStorage.setItem(
-        accountingSettingsOpenStorageKey,
-        String(isFinanceSettingsOpen),
-      );
-    } catch {
-      // Ignore localStorage write errors.
-    }
-  }, [isFinanceSettingsOpen]);
+    const syncSettingsFromUrl = () => {
+      setIsFinanceSettingsOpen(getAccountingSettingsOpenFromUrl());
+    };
+    window.addEventListener('popstate', syncSettingsFromUrl);
+    return () => {
+      window.removeEventListener('popstate', syncSettingsFromUrl);
+    };
+  }, []);
 
   useEffect(() => {
     try {
@@ -188,6 +187,16 @@ export const useAccountingPreferences = ({
     onNavigateAccountingTab?.(tab);
   };
 
+  const changeFinanceSettingsOpen = (
+    value: boolean | ((current: boolean) => boolean),
+  ) => {
+    setIsFinanceSettingsOpen((current) => {
+      const next = typeof value === 'function' ? value(current) : value;
+      writeAccountingSettingsOpenToUrl(next);
+      return next;
+    });
+  };
+
   return {
     activeTab,
     expandedFinanceSettingsCard,
@@ -197,7 +206,7 @@ export const useAccountingPreferences = ({
     setActiveTab: changeActiveTab,
     setExpandedFinanceSettingsCard,
     setFinanceSettingsTab,
-    setIsFinanceSettingsOpen,
+    setIsFinanceSettingsOpen: changeFinanceSettingsOpen,
     setLastOperationByCashbox,
   };
 };

@@ -33,6 +33,7 @@ import {
   resolveSupplierOrderModalLocks,
 } from '../../../model/supplier-order-utils';
 import { useModalBackgroundScrollLock } from '../../../../../shared/lib/useModalBackgroundScrollLock';
+import { useDismissibleSuggestions } from '../../../../../shared/lib/useDismissibleSuggestions';
 import { SupplierChooseModal } from './SupplierChooseModal';
 import { shouldAdvanceAfterSerialBulkInput } from './serial-input-auto-advance';
 
@@ -157,6 +158,7 @@ export const SupplierOrderModal = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isActionSubmitting, setIsActionSubmitting] = useState(false);
   const [isCancelItemDialogOpen, setIsCancelItemDialogOpen] = useState(false);
+  const [isCancelOrderDialogOpen, setIsCancelOrderDialogOpen] = useState(false);
   const [cancelItemReason, setCancelItemReason] = useState('');
   const [isSerialModalOpen, setIsSerialModalOpen] = useState(false);
   const [isAutoSerialEnabled, setIsAutoSerialEnabled] = useState(true);
@@ -197,19 +199,24 @@ export const SupplierOrderModal = ({
       itemReceiptStatus: selectedItemReceiptStatus,
     });
   const isFormDisabled = forceReadOnly || isContentLocked;
-  const canCancelItem =
-    isEditing &&
-    Boolean(onCancelItem) &&
-    !forceReadOnly &&
-    editingOrder?.items.length === 1 &&
-    selectedItemReceiptStatus !== 'received' &&
-    selectedItemReceiptStatus !== 'cancelled';
+  const isFinalClosed =
+    editingOrder?.status === 'cancelled' ||
+    editingOrder?.status === 'unavailable' ||
+    editingOrder?.paymentStatus === 'cancelled';
   const showCancelOrderButton =
     isEditing &&
     Boolean(onCancelOrder) &&
     !forceReadOnly &&
     !isCancelLocked &&
     !isItemScopedView;
+  const canCancelItem =
+    isEditing &&
+    Boolean(onCancelItem) &&
+    !forceReadOnly &&
+    !isFinalClosed &&
+    editingOrder?.items.length === 1 &&
+    selectedItemReceiptStatus !== 'received' &&
+    selectedItemReceiptStatus !== 'cancelled';
 
   useEffect(() => {
     if (!isOpen) return;
@@ -293,6 +300,9 @@ export const SupplierOrderModal = ({
       note: editingOrder?.note ?? '',
     });
     setIsSerialModalOpen(false);
+    setIsCancelItemDialogOpen(false);
+    setIsCancelOrderDialogOpen(false);
+    setCancelItemReason('');
     setIsAutoSerialEnabled(true);
     setManualSerialNumbers([]);
     setIsAutoArticleEnabled(false);
@@ -352,6 +362,22 @@ export const SupplierOrderModal = ({
       debouncedSupplierSearch,
     );
   }, [debouncedSupplierSearch, suppliers]);
+  const {
+    rootRef: supplierSuggestionsRootRef,
+    isVisible: isSupplierSuggestionsVisible,
+  } = useDismissibleSuggestions({
+    query: supplierSearch,
+    isActive: showSupplierSuggestions && supplierOptions.length > 0,
+  });
+  const {
+    rootRef: productSuggestionsRootRef,
+    isVisible: isProductSuggestionsVisible,
+  } = useDismissibleSuggestions({
+    query: productSearch,
+    isActive:
+      showProductSuggestions &&
+      (productSuggestions.length > 0 || isProductLookupLoading),
+  });
 
   const selectedSupplier = useMemo(() => {
     if (!supplierSearch.trim()) return null;
@@ -570,21 +596,13 @@ export const SupplierOrderModal = ({
               type='button'
               className='danger-button'
               disabled={isActionSubmitting}
-              onClick={async () => {
-                setIsActionSubmitting(true);
-                try {
-                  await onCancelOrder?.();
-                  onClose();
-                } finally {
-                  setIsActionSubmitting(false);
-                }
-              }}
+              onClick={() => setIsCancelOrderDialogOpen(true)}
               style={{
                 marginLeft: canCancelItem ? 0 : 'auto',
                 marginRight: 12,
               }}
             >
-              {t('orders.supplier.modal.delete')}
+              {t('orders.supplier.modal.cancelOrder')}
             </button>
           ) : null}
           <button type='button' className='create-order-close' onClick={onClose} aria-label={t('common.close')}>
@@ -592,7 +610,10 @@ export const SupplierOrderModal = ({
           </button>
         </header>
         <div className='catalog-edit-body supplier-order-modal-body'>
-          <div className='create-device-search supplier-order-supplier-field modal-suggestions-anchor'>
+          <div
+            ref={supplierSuggestionsRootRef}
+            className='create-device-search supplier-order-supplier-field modal-suggestions-anchor'
+          >
             <label className='field supplier-search-field'>
               <span>{t('common.supplier')}</span>
               <span className='supplier-search-input-wrap supplier-search-input-wrap-with-actions'>
@@ -600,10 +621,8 @@ export const SupplierOrderModal = ({
                   className={supplierInvalid ? 'supplier-order-invalid-input' : ''}
                   value={supplierSearch}
                   disabled={isFormDisabled}
-                  onFocus={() => setShowSupplierSuggestions(true)}
                   onBlur={() => {
                     setSupplierTouched(true);
-                    window.setTimeout(() => setShowSupplierSuggestions(false), 120);
                   }}
                   onChange={(event) => {
                     setSupplierSearch(event.target.value);
@@ -638,7 +657,7 @@ export const SupplierOrderModal = ({
                 </button>
               </span>
             </label>
-            {showSupplierSuggestions && supplierOptions.length > 0 ? (
+            {isSupplierSuggestionsVisible ? (
               <div className='create-suggestions field-wide'>
                 {supplierOptions.map((supplier) => (
                   <button
@@ -685,21 +704,23 @@ export const SupplierOrderModal = ({
 
           <div className='supplier-order-product-row field-wide'>
             <div className='supplier-order-product-index'>{basketItems.length + 1}</div>
-            <label className='field supplier-order-product-name modal-suggestions-anchor'>
+            <label
+              ref={productSuggestionsRootRef}
+              className='field supplier-order-product-name modal-suggestions-anchor'
+            >
               <span>{t('orders.supplier.modal.product')}</span>
               <span className='supplier-search-input-wrap'>
                 <input
                   className={productInvalid ? 'supplier-order-invalid-input' : ''}
                   value={productSearch}
                   disabled={isFormDisabled}
-                  onFocus={() => setShowProductSuggestions(true)}
                   onBlur={() => {
                     setProductTouched(true);
-                    window.setTimeout(() => setShowProductSuggestions(false), 120);
                   }}
                   onChange={(event) => {
                     setProductSearch(event.target.value);
                     setSelectedCatalogProductId('');
+                    setShowProductSuggestions(true);
                   }}
                   placeholder={t('orders.supplier.modal.productPlaceholder')}
                 />
@@ -717,7 +738,7 @@ export const SupplierOrderModal = ({
                   +
                 </button>
               </span>
-              {showProductSuggestions && (productSuggestions.length > 0 || isProductLookupLoading) ? (
+              {isProductSuggestionsVisible ? (
                 <div className='create-suggestions field-wide'>
                   {isProductLookupLoading ? <p>{t('orders.supplier.modal.searchingProducts')}</p> : null}
                   {productSuggestions.map((product) => (
@@ -1322,6 +1343,70 @@ export const SupplierOrderModal = ({
                 {isActionSubmitting
                   ? t('orders.supplier.editModal.saving')
                   : t('orders.supplier.modal.cancelItemConfirmAction')}
+              </button>
+            </footer>
+          </section>
+        </div>
+      ) : null}
+
+      {isCancelOrderDialogOpen ? (
+        <div className='supplier-order-inline-backdrop' role='presentation'>
+          <section
+            className='catalog-edit-modal supplier-order-cancel-order-modal'
+            role='dialog'
+            aria-modal='true'
+          >
+            <header className='catalog-edit-header'>
+              <div className='catalog-edit-title'>
+                <h2>{t('orders.supplier.modal.cancelOrderTitle')}</h2>
+              </div>
+              <button
+                type='button'
+                className='create-order-close'
+                onClick={() => setIsCancelOrderDialogOpen(false)}
+                aria-label={t('common.close')}
+              >
+                &times;
+              </button>
+            </header>
+            <div className='catalog-edit-body'>
+              <p>{t('orders.supplier.modal.cancelOrderConfirm')}</p>
+            </div>
+            <footer className='catalog-edit-footer'>
+              <button
+                type='button'
+                className='secondary-button'
+                disabled={isActionSubmitting}
+                onClick={() => setIsCancelOrderDialogOpen(false)}
+              >
+                {t('common.cancel')}
+              </button>
+              <button
+                type='button'
+                className='danger-button'
+                disabled={isActionSubmitting}
+                onClick={async () => {
+                  setIsActionSubmitting(true);
+                  try {
+                    await onCancelOrder?.();
+                    setIsCancelOrderDialogOpen(false);
+                    onClose();
+                  } catch (error) {
+                    onError(
+                      resolveSupplierOrderErrorMessage(
+                        error,
+                        t,
+                        'orders.supplier.messages.errors.failedCancelOrder',
+                      ),
+                    );
+                  } finally {
+                    setIsActionSubmitting(false);
+                  }
+                }}
+              >
+                {isActionSubmitting
+                  ? t('orders.supplier.editModal.saving')
+                  : t('orders.supplier.modal.cancelOrderConfirmAction')}
               </button>
             </footer>
           </section>

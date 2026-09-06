@@ -4,6 +4,9 @@ import * as XLSX from 'xlsx';
 import type { Employee } from '../../../../entities/employee/model/types';
 import type { Sale } from '../../../../entities/sale/model/types';
 import { formatCurrency, formatDate } from '../../../../shared/lib/format';
+import { EmptyState } from '../../../../shared/ui/EmptyState';
+import { LoadingState } from '../../../../shared/ui/LoadingState';
+import { StatusBadge } from '../../../../shared/ui/StatusBadge';
 import { formatPercent } from '../../model/accounting';
 import {
   buildEmployeeInformationReport,
@@ -24,18 +27,16 @@ import {
   type StatsPeriod,
 } from '../../model/stats-period';
 import { StatsPeriodToggle } from '../analytics/StatsPeriodToggle';
+import { employeeRoleLabelKey, employeeRoleTone } from './employee-ui';
 
-const createDefaultFilters = (): EmployeeInformationFilters => {
-  const todayRange = getStatsPeriodDateRange('today') ?? { dateFrom: '', dateTo: '' };
-  return {
-    search: '',
-    role: 'all',
-    sort: 'orders',
-    sortDirection: 'desc',
-    dateFrom: todayRange.dateFrom,
-    dateTo: todayRange.dateTo,
-  };
-};
+const createDefaultFilters = (): EmployeeInformationFilters => ({
+  search: '',
+  role: 'all',
+  sort: 'orders',
+  sortDirection: 'desc',
+  dateFrom: '',
+  dateTo: '',
+});
 
 const viewLabelKeys: Record<EmployeeInformationView, string> = {
   achievements: 'employees.information.views.achievements',
@@ -137,11 +138,11 @@ export const EmployeeInformationPanel = ({
 }: EmployeeInformationPanelProps) => {
   const { t, i18n } = useTranslation();
   const [view, setView] = useState<EmployeeInformationView>('achievements');
-  const [statsPeriod, setStatsPeriod] = useState<StatsPeriod>('today');
+  const [statsPeriod, setStatsPeriod] = useState<StatsPeriod>('whole');
   const [filters, setFilters] = useState<EmployeeInformationFilters>(createDefaultFilters);
-  const [draftDateFilters, setDraftDateFilters] = useState(() => {
-    const todayRange = getStatsPeriodDateRange('today') ?? { dateFrom: '', dateTo: '' };
-    return todayRange;
+  const [draftDateFilters, setDraftDateFilters] = useState({
+    dateFrom: '',
+    dateTo: '',
   });
   const [isDateFilterOpen, setIsDateFilterOpen] = useState(false);
 
@@ -253,7 +254,9 @@ export const EmployeeInformationPanel = ({
     }
     if (filters.role !== 'all') {
       activeFilters.push(
-        t('employees.information.filters.roleActive', { value: filters.role }),
+        t('employees.information.filters.roleActive', {
+          value: t(employeeRoleLabelKey(filters.role)),
+        }),
       );
     }
     activeFilters.push(t('employees.information.filters.activeOnlyScope'));
@@ -299,7 +302,7 @@ export const EmployeeInformationPanel = ({
       view === 'achievements'
         ? [
             row.name,
-            row.role,
+            t(employeeRoleLabelKey(row.role)),
             row.achievements.ordersCreated,
             row.achievements.repairsAsMaster,
             row.achievements.repairsCompleted,
@@ -310,7 +313,7 @@ export const EmployeeInformationPanel = ({
           ]
         : [
             row.name,
-            row.role,
+            t(employeeRoleLabelKey(row.role)),
             row.count,
             row.revenue,
             ...(view === 'repairs' ? [row.completedCount] : []),
@@ -341,7 +344,7 @@ export const EmployeeInformationPanel = ({
   };
 
   const clearDateFilters = () => {
-    handleStatsPeriodChange('today');
+    handleStatsPeriodChange('whole');
   };
 
   const metricValueForRow = (row: EmployeeInformationRow) =>
@@ -447,43 +450,55 @@ export const EmployeeInformationPanel = ({
         </div>
       </section>
 
-      <div className="finance-report-grid finance-report-grid-wide warehouse-information-summary">
-        <article className="analytics-summary-card">
-          <span className="metric-label">
-            {t('employees.information.summary.activeEmployees')}
-          </span>
-          <strong>{formatMetric(report.summary.activeEmployees)}</strong>
-        </article>
-        <article className="analytics-summary-card">
-          <span className="metric-label">
-            {t('employees.information.summary.ordersInPeriod')}
-          </span>
-          <strong>{formatMetric(report.summary.ordersInPeriod)}</strong>
-        </article>
-        <article className="analytics-summary-card">
-          <span className="metric-label">
-            {t('employees.information.summary.repairsInPeriod')}
-          </span>
-          <strong>{formatMetric(report.summary.repairsInPeriod)}</strong>
-        </article>
-        <article className="analytics-summary-card">
-          <span className="metric-label">
-            {t('employees.information.summary.salesInPeriod')}
-          </span>
-          <strong>{formatMetric(report.summary.salesInPeriod)}</strong>
-        </article>
-        <article className="analytics-summary-card">
-          <span className="metric-label">
-            {t('employees.information.summary.salesRevenue')}
-          </span>
-          <strong>{formatCurrency(report.summary.salesRevenue)}</strong>
-        </article>
-        <article className="analytics-summary-card">
-          <span className="metric-label">
-            {t('employees.information.summary.repairsRevenue')}
-          </span>
-          <strong>{formatCurrency(report.summary.repairsRevenue)}</strong>
-        </article>
+      <div className="analytics-kpi-board employees-information-kpis">
+        <div className="analytics-kpi-money">
+          <article className="analytics-kpi-card analytics-kpi-card-hero">
+            <div className="analytics-kpi-card-top">
+              <span className="metric-label">
+                {t('employees.information.summary.salesRevenue')}
+              </span>
+            </div>
+            <strong className="analytics-kpi-good">
+              {formatCurrency(report.summary.salesRevenue)}
+            </strong>
+          </article>
+          <article className="analytics-kpi-card analytics-kpi-card-hero">
+            <div className="analytics-kpi-card-top">
+              <span className="metric-label">
+                {t('employees.information.summary.repairsRevenue')}
+              </span>
+            </div>
+            <strong className="analytics-kpi-good">
+              {formatCurrency(report.summary.repairsRevenue)}
+            </strong>
+          </article>
+        </div>
+        <div className="analytics-kpi-volume">
+          <article className="analytics-kpi-card">
+            <span className="metric-label">
+              {t('employees.information.summary.activeEmployees')}
+            </span>
+            <strong>{formatMetric(report.summary.activeEmployees)}</strong>
+          </article>
+          <article className="analytics-kpi-card">
+            <span className="metric-label">
+              {t('employees.information.summary.ordersInPeriod')}
+            </span>
+            <strong>{formatMetric(report.summary.ordersInPeriod)}</strong>
+          </article>
+          <article className="analytics-kpi-card">
+            <span className="metric-label">
+              {t('employees.information.summary.repairsInPeriod')}
+            </span>
+            <strong>{formatMetric(report.summary.repairsInPeriod)}</strong>
+          </article>
+          <article className="analytics-kpi-card">
+            <span className="metric-label">
+              {t('employees.information.summary.salesInPeriod')}
+            </span>
+            <strong>{formatMetric(report.summary.salesInPeriod)}</strong>
+          </article>
+        </div>
       </div>
 
       <div className="warehouse-information-controls">
@@ -551,7 +566,7 @@ export const EmployeeInformationPanel = ({
               .filter((role) => role !== 'all')
               .map((role) => (
                 <option key={role} value={role}>
-                  {role}
+                  {t(employeeRoleLabelKey(role))}
                 </option>
               ))}
           </select>
@@ -612,7 +627,7 @@ export const EmployeeInformationPanel = ({
       </div>
 
       {isLoading ? (
-        <p className="empty-state">{t('employees.information.loading')}</p>
+        <LoadingState>{t('employees.information.loading')}</LoadingState>
       ) : (
         <>
           <div className="finance-information-grid">
@@ -625,7 +640,7 @@ export const EmployeeInformationPanel = ({
               </div>
               <div className="finance-cashbox-distribution">
                 {topChartRows.length === 0 ? (
-                  <p className="empty-state">{t('employees.information.table.empty')}</p>
+                  <EmptyState>{t('employees.information.table.empty')}</EmptyState>
                 ) : (
                   topChartRows.map((row) => (
                     <div key={row.id} className="finance-distribution-row">
@@ -651,7 +666,7 @@ export const EmployeeInformationPanel = ({
                 </div>
               </div>
               {topBarRows.length === 0 ? (
-                <p className="empty-state">{t('employees.information.table.empty')}</p>
+                <EmptyState>{t('employees.information.table.empty')}</EmptyState>
               ) : (
                 <div className="bar-chart">
                   {topBarRows.map((row, index) => {
@@ -679,7 +694,7 @@ export const EmployeeInformationPanel = ({
           </div>
 
           <div className="catalog-table-wrap">
-            <table className="catalog-table warehouse-information-table">
+            <table className="catalog-table table-card-stack employees-information-table">
               <thead>
                 <tr>
                   <th>{t('employees.information.table.columns.employee')}</th>
@@ -719,36 +734,68 @@ export const EmployeeInformationPanel = ({
                 ) : (
                   report.rows.map((row) => (
                     <tr key={row.id}>
-                      <td className="catalog-name-cell">
+                      <td
+                        className="employees-information-name"
+                        data-label={t('employees.information.table.columns.employee')}
+                      >
                         <strong>{row.name}</strong>
                         {row.username ? (
                           <p className="employee-information-login">{row.username}</p>
                         ) : null}
                       </td>
-                      <td>{row.role}</td>
+                      <td data-label={t('employees.information.table.columns.role')}>
+                        <StatusBadge
+                          label={t(employeeRoleLabelKey(row.role))}
+                          tone={employeeRoleTone[row.role]}
+                        />
+                      </td>
                       {view === 'achievements' ? (
                         <>
-                          <td>{formatMetric(row.achievements.ordersCreated)}</td>
-                          <td>{formatMetric(row.achievements.repairsAsMaster)}</td>
-                          <td>{formatMetric(row.achievements.repairsCompleted)}</td>
-                          <td>{formatMetric(row.achievements.salesAsManager)}</td>
-                          <td>{formatCurrency(row.achievements.salesRevenue)}</td>
-                          <td>{formatCurrency(row.achievements.repairsRevenue)}</td>
+                          <td data-label={t('employees.information.table.columns.ordersCreated')}>
+                            {formatMetric(row.achievements.ordersCreated)}
+                          </td>
+                          <td data-label={t('employees.information.table.columns.repairs')}>
+                            {formatMetric(row.achievements.repairsAsMaster)}
+                          </td>
+                          <td data-label={t('employees.information.table.columns.repairsCompleted')}>
+                            {formatMetric(row.achievements.repairsCompleted)}
+                          </td>
+                          <td data-label={t('employees.information.table.columns.sales')}>
+                            {formatMetric(row.achievements.salesAsManager)}
+                          </td>
+                          <td data-label={t('employees.information.table.columns.salesRevenue')}>
+                            {formatCurrency(row.achievements.salesRevenue)}
+                          </td>
+                          <td data-label={t('employees.information.table.columns.repairsRevenue')}>
+                            {formatCurrency(row.achievements.repairsRevenue)}
+                          </td>
                         </>
                       ) : (
                         <>
-                          <td>{formatMetric(row.count)}</td>
-                          <td>{formatCurrency(row.revenue)}</td>
+                          <td data-label={t('employees.information.table.columns.count')}>
+                            {formatMetric(row.count)}
+                          </td>
+                          <td data-label={t('employees.information.table.columns.revenue')}>
+                            {formatCurrency(row.revenue)}
+                          </td>
                           {view === 'repairs' ? (
-                            <td>{formatMetric(row.completedCount)}</td>
+                            <td data-label={t('employees.information.table.columns.completed')}>
+                              {formatMetric(row.completedCount)}
+                            </td>
                           ) : null}
                           {view === 'sales' ? (
-                            <td>{formatCurrency(row.avgTicket)}</td>
+                            <td data-label={t('employees.information.table.columns.avgTicket')}>
+                              {formatCurrency(row.avgTicket)}
+                            </td>
                           ) : null}
-                          <td>{formatPercent(row.sharePercent)}</td>
+                          <td data-label={t('employees.information.table.columns.share')}>
+                            {formatPercent(row.sharePercent)}
+                          </td>
                         </>
                       )}
-                      <td>{formatDate(row.latestActivityDate)}</td>
+                      <td data-label={t('employees.information.table.columns.latest')}>
+                        {formatDate(row.latestActivityDate)}
+                      </td>
                     </tr>
                   ))
                 )}

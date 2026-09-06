@@ -12,6 +12,7 @@ import {
   PaginationPanel,
 } from '../../../../shared/ui/PaginationPanel';
 import {
+  canEditAccountingTransactionNote,
   formatDateDdMmYyyy,
   formatMoney,
   formatTransactionDayLabel,
@@ -532,6 +533,10 @@ export const AccountingTransactionsView = ({
                             return transaction.note?.trim() ? transaction.note : '-';
                           }
 
+                          if (!canEditAccountingTransactionNote(transaction)) {
+                            return transaction.note?.trim() ? transaction.note : '-';
+                          }
+
                           if (transaction.note?.trim()) {
                             return (
                               <button
@@ -547,7 +552,18 @@ export const AccountingTransactionsView = ({
                             );
                           }
 
-                          return '-';
+                          return (
+                            <button
+                              type='button'
+                              className='catalog-name-button'
+                              title={t('accounting.transactions.editNoteTitle')}
+                              onClick={() =>
+                                onEditTransactionNote?.(transaction)
+                              }
+                            >
+                              {t('accounting.transactions.addNote')}
+                            </button>
+                          );
                         })()}
                       </td>
                       <td

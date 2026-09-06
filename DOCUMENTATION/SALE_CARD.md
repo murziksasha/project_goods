@@ -1,12 +1,12 @@
 # Sale Card Rules
 
-Related: [SALE_FLOW.md](./SALE_FLOW.md) · [ORDER_CARD.md](./ORDER_CARD.md) · [WAREHOUSE_FLOW.md](./WAREHOUSE_FLOW.md) · [index](./README.md)
+Related: [SALE_FLOW.md](./SALE_FLOW.md) · [ORDER_CARD.md](./ORDER_CARD.md) · [WAREHOUSE_FLOW.md](./WAREHOUSE_FLOW.md) · [SPEC_SUGGESTIONS_BEHAVIOR.md](./SPEC_SUGGESTIONS_BEHAVIOR.md) · [index](./README.md)
 
 ## Rapid Sale Display
 
 - Rapid sales (`isRapidSale: true`) are created from the compact rapid-sale modal (full creation UX: [SALE_FLOW.md](./SALE_FLOW.md#rapid-sale-2026-06-24-ux-updates-2026-06-30)) and may still be opened later as a normal sale card from the sales list.
 - Creation-time retail/wholesale selection happens in the **product entry row** only (`ProductSalePriceField`, R/W badges in the Price label). Post-add price edits use the pinned **draft items table** (plain `NumberStepper` per line before `Issued`). After the sale exists, line-item price rules follow the normal sale card sections below.
-- In the sales list client column only, rapid sales display `Rapid sale` instead of the linked system client name; phone shows `-`.
+- In the sales list client column only, rapid sales display `Rapid sale` instead of the linked system client name; phone shows `-`. The Product column still shows the sold item (`getSaleProductName`).
 - Client card link is disabled in the list for rapid sales (`isRapidSaleClientLinkDisabled`).
 - Inside an opened sale card, client fields continue to use stored system-client snapshot data (not the `Rapid sale` list label).
 - Post-create edit from the sales list (including after **Accept to cashbox** without issue) follows normal sale-card field rules; see [SALE_FLOW.md → Opened Rapid Sale Card](./SALE_FLOW.md#opened-rapid-sale-card-post-create-edit).
@@ -47,7 +47,7 @@ Related: [SALE_FLOW.md](./SALE_FLOW.md) · [ORDER_CARD.md](./ORDER_CARD.md) · [
 ## Add Line Item UX
 
 - Entry controls stay in one fixed row.
-- Search suggestions are always shown below the row.
+- Search suggestions are shown below the row while the add-row lookup is active. Click outside the list / Escape hides them without applying a row; they return only after the operator edits the field ([SPEC_SUGGESTIONS_BEHAVIOR.md](./SPEC_SUGGESTIONS_BEHAVIOR.md#dismiss-without-select-rule)).
 - Suggestion list has fixed max height and internal vertical scroll.
 - Long suggestion result sets must not shift `Price/Qty/Warranty/Add` controls.
 
@@ -64,6 +64,7 @@ Related: [SALE_FLOW.md](./SALE_FLOW.md) · [ORDER_CARD.md](./ORDER_CARD.md) · [
 - Stock suggestion click with a bound `serialNumber` auto-adds one atomic product row; catalog suggestion click or stock suggestion without `serialNumber` pre-fills the entry row and waits for `Add product`; serial binding uses the `Serials` modal.
 - In create-order sales flow, clicking the name of an already selected product row opens the shared product model modal; suggestion clicks still only select products.
 - In an existing sale card, clicking a product line item name opens the same exact-name product model modal for `lineItems[].name`.
+- That modal's `Purchase by serial` table is `Serial # | Purchase | Receipt date | Supplier order`. `Latest` marks the newest receipt batch and red `Reserved` marks units bound on another order (not this card). Serial # and supplier-order number have the hover copy icon; supplier-order click still opens the related supplier-order modal. Spec: [WAREHOUSE_FLOW.md §4.4](./WAREHOUSE_FLOW.md#44-product-model-detail-modal).
 - The modal updates matching stock `Product` rows only and never creates missing stock or updates `CatalogProduct`.
 
 ## Identical Product Grouping
@@ -162,9 +163,9 @@ Related: [SALE_FLOW.md](./SALE_FLOW.md) · [ORDER_CARD.md](./ORDER_CARD.md) · [
 
 - Status `paid` is a payment state and may be selected from the list or sale card.
 - If `paid` is selected while `To pay > 0`, the `Accept payment` modal is opened.
-- Status `issued` is allowed only when `To pay = 0`.
-- If `issued` is selected while `To pay > 0`, payment must be accepted first; accepting money without issuing leaves the status as `paid`.
-- Before the sale card **Save changes** persists status `issued`, if any product line has no warehouse `serialNumbers`, show the same unbound-serial confirm as repair cards (`orders.serialIssueWarning.*`). **Cancel** does not persist. **Continue** saves `issued`. Service-only sales skip the alert.
+- Status `issued` is allowed only when `To pay = 0` (or final total is `0`).
+- If `issued` or `paid` is selected on **Save changes** while `To pay > 0`, open the same **Accept payment** modal as the Sales list status dropdown. Do not persist `issued`/`paid` until a modal action. Accepting money without issuing leaves the status as `paid`.
+- Before the sale card **Save changes** persists status `issued` when `To pay = 0`, if any product line has no warehouse `serialNumbers`, show the same unbound-serial confirm as repair cards (`orders.serialIssueWarning.*`). **Cancel** does not persist. **Continue** saves `issued`. Service-only sales skip the alert. When `To pay > 0`, the payment modal shows that confirm on **Accept and issue**.
 - `Issue without payment` is blocked for `issued` sales while `To pay > 0`, except when final sale total is `0`.
 - Status `returned` must not be set manually while any product line remains attached or while client payment is not fully refunded.
 - While status is `paid`, the card stays editable. If a line-item or discount workspace update would leave **product** lines with `paidAmount < total`, the save **reopens** status to **`new`** (backend `resolveEditableSaleStatus`, frontend `getReopenedSaleStatusForLineItems`). Status `issued` is not auto-reopened.

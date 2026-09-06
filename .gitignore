@@ -9,6 +9,12 @@ frontend/coverage/
 frontend/*-out*.txt
 frontend/stdout.txt
 frontend/tmp-*.spec.ts
+frontend/test-results/
+frontend/playwright-report/
+frontend/blob-report/
+frontend/playwright/.cache/
+test-results/
+playwright-report/
 frontend-test-out.txt
 frontend-test-output.txt
 backend/backend-test-out.txt

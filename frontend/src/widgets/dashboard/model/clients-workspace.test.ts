@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import type { Sale } from '../../../entities/sale/model/types';
-import { getClientStatsMap, getStoredClientCardTab } from './clients-workspace';
+import {
+  collectClientHistorySerials,
+  formatItemList,
+  getClientStatsMap,
+  getStoredClientCardTab,
+} from './clients-workspace';
 
 const baseSale: Sale = {
   id: 'sale-1',
@@ -97,5 +102,128 @@ describe('getClientStatsMap', () => {
 
     expect(stats?.visits).toBe(2);
     expect(stats?.income).toBe(230);
+  });
+});
+
+describe('formatItemList', () => {
+  it('shows the repair device on Orders, not joined services', () => {
+    const repair: Sale = {
+      ...baseSale,
+      kind: 'repair',
+      product: {
+        id: 'device-1',
+        article: '',
+        name: 'Dell monitor',
+        serialNumber: 'SN-1',
+      },
+      lineItems: [
+        {
+          id: 'line-device',
+          kind: 'product',
+          name: 'Dell monitor',
+          price: 0,
+          quantity: 1,
+          warrantyPeriod: 0,
+        },
+        {
+          id: 'line-service',
+          kind: 'service',
+          name: 'BIOS flash',
+          price: 400,
+          quantity: 1,
+          warrantyPeriod: 0,
+        },
+      ],
+    };
+
+    expect(formatItemList(repair, 'orders')).toBe('Dell monitor');
+    expect(formatItemList(repair, 'orders')).not.toContain('BIOS flash');
+  });
+
+  it('keeps product line items on Sales', () => {
+    expect(formatItemList(baseSale, 'sales')).toBe('Part x2');
+  });
+});
+
+describe('collectClientHistorySerials', () => {
+  it('uses the repair device serial on Orders and skips services', () => {
+    const repair: Sale = {
+      ...baseSale,
+      kind: 'repair',
+      product: {
+        id: 'device-1',
+        article: '',
+        name: 'Dell monitor',
+        serialNumber: 'SN-1',
+      },
+      lineItems: [
+        {
+          id: 'line-device',
+          kind: 'product',
+          name: 'Dell monitor',
+          price: 0,
+          quantity: 1,
+          warrantyPeriod: 0,
+          serialNumbers: ['PART-SN'],
+        },
+      ],
+    };
+
+    expect(collectClientHistorySerials(repair, 'orders')).toEqual(['SN-1']);
+  });
+
+  it('hides repair placeholder serials', () => {
+    const repair: Sale = {
+      ...baseSale,
+      kind: 'repair',
+      product: {
+        id: 'device-1',
+        article: '',
+        name: 'Dell monitor',
+        serialNumber: 'REPAIR-PLACEHOLDER',
+      },
+    };
+
+    expect(collectClientHistorySerials(repair, 'orders')).toEqual([]);
+  });
+
+  it('collects unique product serials on Sales', () => {
+    const sale: Sale = {
+      ...baseSale,
+      lineItems: [
+        {
+          id: 'line-1',
+          kind: 'product',
+          name: 'TV box',
+          price: 100,
+          quantity: 1,
+          warrantyPeriod: 0,
+          serialNumbers: ['S000001', '  ', 'S000001'],
+        },
+        {
+          id: 'line-2',
+          kind: 'product',
+          name: 'Cable',
+          price: 50,
+          quantity: 1,
+          warrantyPeriod: 0,
+          serialNumbers: ['S000002'],
+        },
+        {
+          id: 'line-3',
+          kind: 'service',
+          name: 'Setup',
+          price: 40,
+          quantity: 1,
+          warrantyPeriod: 0,
+          serialNumbers: ['SVC-1'],
+        },
+      ],
+    };
+
+    expect(collectClientHistorySerials(sale, 'sales')).toEqual([
+      'S000001',
+      'S000002',
+    ]);
   });
 });

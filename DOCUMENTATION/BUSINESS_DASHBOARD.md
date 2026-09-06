@@ -289,7 +289,7 @@ flowchart LR
 
 ### Layer 1 — Settings → Dashboard tab → **MongoDB**
 
-**UI:** `SettingsPanel` → tab **Dashboard** (`DashboardSettingsSection`)
+**UI:** `SettingsPanel` → tab **Dashboard** (`DashboardSettingsSection.tsx`). Layout: [SETTINGS_SPEC.md](./SETTINGS_SPEC.md).
 
 **Storage:** MongoDB collection `settings`, nested field `dashboardPreferences` (Mongoose model `Settings`).
 
@@ -363,7 +363,7 @@ Legacy settings that stored manual latitude/longitude are migrated to the neares
 
 | Key | Purpose |
 |-----|---------|
-| `project-goods.settings-tab` | Last active tab in Settings page (`company` / `print` / `dashboard` / `backups`) |
+| `project-goods.settings-tab` | Last active tab in Settings page (`company` / `print` / `dashboard` / `backups` / `database`) |
 | `project-goods.analytics-date-range` | Custom date filter on business home analytics |
 | `project-goods.dashboard-widget-overrides` | Widget display overrides (see Layer 2) |
 

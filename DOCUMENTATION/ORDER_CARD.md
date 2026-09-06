@@ -1,6 +1,6 @@
 # Order Card Rules
 
-Related: [ORDER_FLOW.md](./ORDER_FLOW.md) · [SALE_CARD.md](./SALE_CARD.md) · [WAREHOUSE_FLOW.md](./WAREHOUSE_FLOW.md) · [index](./README.md)
+Related: [ORDER_FLOW.md](./ORDER_FLOW.md) · [SALE_CARD.md](./SALE_CARD.md) · [WAREHOUSE_FLOW.md](./WAREHOUSE_FLOW.md) · [SPEC_SUGGESTIONS_BEHAVIOR.md](./SPEC_SUGGESTIONS_BEHAVIOR.md) · [index](./README.md)
 
 ## Header
 
@@ -52,9 +52,10 @@ Related: [ORDER_FLOW.md](./ORDER_FLOW.md) · [SALE_CARD.md](./SALE_CARD.md) · [
   - `client rejected`
   - `issued without repair`
 - For any other saved status, `Issued` employee is cleared.
-- If attached product line items are not fully paid, saving status `issued` is blocked.
+- **Save changes** to `issued` or `paid` while `To pay > 0` opens the same **Accept payment** modal as the Orders list / Kanban status dropdown. Device / S/N / master are persisted first if dirty; status stays unchanged until a modal issue/paid action. `Issue without payment` still requires attached products to be fully paid.
+- If `To pay = 0`, **Save changes** persists `issued`/`paid` without the payment modal.
 - If product line items still have bound warehouse serials, saving status `client rejected` or `issued without repair` is blocked until the client is refunded for those serials and the serials are returned/unbound to stock.
-- Before **Save changes** persists status `issued`, if any product line (not the repair device placeholder) has no warehouse `serialNumbers`, show a confirm alert (`orders.serialIssueWarning.*`) listing those product names. **Cancel** does not persist. **Continue** saves `issued` as today. Service-only cards skip the alert. List / Kanban / Rapid Sale `Issued` are unchanged.
+- Before **Save changes** persists status `issued` when `To pay = 0`, if any product line (not the repair device placeholder) has no warehouse `serialNumbers`, show a confirm alert (`orders.serialIssueWarning.*`) listing those product names. **Cancel** does not persist. **Continue** saves `issued` as today. Service-only cards skip the alert. When `To pay > 0`, skip this card alert — the payment modal shows it on **Accept and issue**. List / Kanban status `Issued` already open the payment modal.
 
 ## Live Feed
 
@@ -75,7 +76,7 @@ Related: [ORDER_FLOW.md](./ORDER_FLOW.md) · [SALE_CARD.md](./SALE_CARD.md) · [
 - **Section header summary (`Products` and `Services`):** when the section has line items, the collapse header shows collapsed quantity (`×N` = sum of `quantity`) and the pre-discount line total (`sum(price × qty)`, `formatCurrency`). Empty sections keep title + chevron only. Amounts are **not** reduced by order discount; they sum to Payment `Repair cost` (`getOrderBaseTotal`). Discount stays only in Payment.
 - Sale cards keep Products open by default (see [SALE_CARD.md](./SALE_CARD.md)).
 - Add-row product input placeholder: `Name, serial or article` (`orders.detail.lineItems.addProductPlaceholder`).
-- Product search in the add-row input uses `buildOrderDetailProductSuggestions` (card-specific rules; see [SPEC_SUGGESTIONS_BEHAVIOR.md](./SPEC_SUGGESTIONS_BEHAVIOR.md)).
+- Product search in the add-row input uses `buildOrderDetailProductSuggestions` (card-specific rules; see [SPEC_SUGGESTIONS_BEHAVIOR.md](./SPEC_SUGGESTIONS_BEHAVIOR.md)). Dismiss without select applies to product and service add-row lists.
 - Lookup must **never** match `note` on stock or catalog rows.
 - Serial/article query (exact or partial) shows warehouse stock suggestions only (`serialNumber`, `article`); all other queries show `catalog-products` by `name` only.
 - Stock suggestion rows show **warehouse name in bold**, then `price / article / serial / availability`; catalog rows show `price / Product List`.
@@ -99,6 +100,7 @@ Related: [ORDER_FLOW.md](./ORDER_FLOW.md) · [SALE_CARD.md](./SALE_CARD.md) · [
   - Print forms group the same products **only when unit price also matches**; spec: [PRINT_FORMS_SPEC.md](./PRINT_FORMS_SPEC.md#line-items-grouping-products).
 - Clicking a product line item name opens the shared product model modal for `lineItems[].name`.
 - The product model modal is exact-name only, shows warehouse stock summary, and saves shared stock-row fields to matching `Product` rows only.
+- In that modal's `Purchase by serial` table, columns are `Serial # | Purchase | Receipt date | Supplier order`. `Latest` marks the newest receipt batch and red `Reserved` marks units already bound on another order. Serials bound only on the opened card stay unmarked. Serial # and supplier-order number have the hover copy icon; supplier-order click still opens the related supplier-order modal. Same rules: [WAREHOUSE_FLOW.md §4.4](./WAREHOUSE_FLOW.md#44-product-model-detail-modal).
 - Serial binding/removal controls keep their existing behavior and are separate from opening the product model modal.
 - **Serial bind modal** (Products action column → `Serials`): warehouse dropdown + `Auto-select oldest` (oldest `purchaseDate`, fallback `createdAt`, selected warehouse only, up to line qty). Occupancy spec: [WAREHOUSE_FLOW.md §4.3.0](./WAREHOUSE_FLOW.md#430-bind-modal-occupancy-opened-repair-and-sale-cards). Changing warehouse clears selections not visible in the new warehouse.
 

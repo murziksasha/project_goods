@@ -252,10 +252,6 @@ export const backfillCashboxEnabledCurrencies = async () => {
     { enabledCurrencies: { $exists: false } },
     { $set: { enabledCurrencies: buildCurrencyDefaults(currencyCodes).enabledCurrencies } },
   );
-  await Cashbox.updateMany(
-    { 'enabledCurrencies.UAH': { $ne: true } },
-    { $set: { 'enabledCurrencies.UAH': true } },
-  );
   await Promise.all(
     currencyCodes.map((currency) =>
       Promise.all([

@@ -3,16 +3,31 @@ import type { SupplierOrder } from '../../../entities/supplier-order/model/types
 import {
   areAllSupplierOrderItemsCancelled,
   buildSupplierOrderTableRows,
+  buildSupplierOrdersFilterChips,
   computeSupplierOrderStatusMenuPosition,
+  emptySupplierOrdersFilters,
   filterSupplierOrders,
   getActiveSupplierOrderItems,
+  getActiveSupplierOrdersFiltersCount,
+  isSupplierOrderDeliveryOverdue,
   isSupplierOrderHiddenFromList,
+  isSupplierOrderPaidAmountUnpaid,
   matchesSupplierOrderStatusFilter,
   normalizeSupplierOrdersColumns,
   parseSupplierOrdersFilters,
+  summarizeFilteredSupplierOrders,
   summarizeSupplierOrderItems,
   supplierOrdersAllColumns,
+  supplierOrdersDefaultColumns,
+  type SupplierOrdersFilters,
 } from './supplier-orders-workspace';
+
+const filters = (
+  patch: Partial<SupplierOrdersFilters> = {},
+): SupplierOrdersFilters => ({
+  ...emptySupplierOrdersFilters,
+  ...patch,
+});
 
 const makeOrder = (patch: Partial<SupplierOrder> = {}): SupplierOrder => ({
   id: 'so-1',
@@ -58,23 +73,32 @@ describe('supplier-orders-workspace', () => {
         }),
       ),
     ).toEqual({
+      ...emptySupplierOrdersFilters,
       query: 'hub',
       selectedStatuses: ['approved'],
-      paymentStatus: 'paid',
-      deliveryDateFrom: '2026-05-19',
-      deliveryDateTo: '2026-05-19',
+      paymentStatuses: ['paid'],
+      dateFrom: '2026-05-19',
+      dateTo: '2026-05-19',
       favoritesOnly: true,
     });
   });
 
   it('falls back to default filters for invalid persisted JSON', () => {
-    expect(parseSupplierOrdersFilters('{')).toEqual({
-      query: '',
-      selectedStatuses: [],
-      paymentStatus: 'all',
-      deliveryDateFrom: '',
-      deliveryDateTo: '',
-      favoritesOnly: false,
+    expect(parseSupplierOrdersFilters('{')).toEqual(emptySupplierOrdersFilters);
+  });
+
+  it('migrates split deliveryDateFrom/To without collapsing to one day', () => {
+    expect(
+      parseSupplierOrdersFilters(
+        JSON.stringify({
+          deliveryDateFrom: '2026-05-01',
+          deliveryDateTo: '2026-05-19',
+        }),
+      ),
+    ).toEqual({
+      ...emptySupplierOrdersFilters,
+      dateFrom: '2026-05-01',
+      dateTo: '2026-05-19',
     });
   });
 
@@ -85,7 +109,7 @@ describe('supplier-orders-workspace', () => {
       ),
     ).toEqual(['number', 'supplier']);
     expect(normalizeSupplierOrdersColumns('[]')).toEqual(
-      supplierOrdersAllColumns,
+      supplierOrdersDefaultColumns,
     );
   });
 
@@ -125,15 +149,17 @@ describe('supplier-orders-workspace', () => {
     ];
 
     expect(
-      filterSupplierOrders(orders, {
-        query: 'adapter',
-        selectedStatuses: ['ordered'],
-      paymentStatus: 'paid',
-      deliveryDateFrom: '2026-05-20',
-      deliveryDateTo: '2026-05-30',
-      favoritesOnly: false,
-    }).map((order) => order.id),
-  ).toEqual(['so-2']);
+      filterSupplierOrders(
+        orders,
+        filters({
+          query: 'adapter',
+          selectedStatuses: ['ordered'],
+          paymentStatuses: ['paid'],
+          dateFrom: '2026-05-20',
+          dateTo: '2026-05-30',
+        }),
+      ).map((order) => order.id),
+    ).toEqual(['so-2']);
   });
 
   it('hides partially_stocked orders when only approved status filter is active', () => {
@@ -164,22 +190,12 @@ describe('supplier-orders-workspace', () => {
 
     expect(
       filterSupplierOrders(orders, {
-        query: '',
-        selectedStatuses: ['approved'],
-        paymentStatus: 'all',
-        deliveryDateFrom: '',
-        deliveryDateTo: '',
-        favoritesOnly: false,
+        ...filters({ selectedStatuses: ['approved'] }),
       }).map((order) => order.id),
     ).toEqual([]);
     expect(
       filterSupplierOrders(orders, {
-        query: '',
-        selectedStatuses: ['partially_stocked'],
-        paymentStatus: 'all',
-        deliveryDateFrom: '',
-        deliveryDateTo: '',
-        favoritesOnly: false,
+        ...filters({ selectedStatuses: ['partially_stocked'] }),
       }).map((order) => order.id),
     ).toEqual(['so-partial']);
   });
@@ -214,32 +230,17 @@ describe('supplier-orders-workspace', () => {
     ).toBe(true);
     expect(
       isSupplierOrderHiddenFromList(fullyCancelled, {
-        query: '',
-        selectedStatuses: [],
-        paymentStatus: 'all',
-        deliveryDateFrom: '',
-        deliveryDateTo: '',
-        favoritesOnly: false,
+        ...emptySupplierOrdersFilters,
       }),
     ).toBe(true);
     expect(
       filterSupplierOrders([fullyCancelled], {
-        query: '',
-        selectedStatuses: [],
-        paymentStatus: 'all',
-        deliveryDateFrom: '',
-        deliveryDateTo: '',
-        favoritesOnly: false,
+        ...emptySupplierOrdersFilters,
       }),
     ).toEqual([]);
     expect(
       filterSupplierOrders([fullyCancelled], {
-        query: '',
-        selectedStatuses: ['cancelled'],
-        paymentStatus: 'all',
-        deliveryDateFrom: '',
-        deliveryDateTo: '',
-        favoritesOnly: false,
+        ...filters({ selectedStatuses: ['cancelled'] }),
       }).map((order) => order.id),
     ).toEqual(['so-hidden']);
   });
@@ -263,22 +264,12 @@ describe('supplier-orders-workspace', () => {
 
     expect(
       isSupplierOrderHiddenFromList(paidCancelled, {
-        query: '',
-        selectedStatuses: [],
-        paymentStatus: 'all',
-        deliveryDateFrom: '',
-        deliveryDateTo: '',
-        favoritesOnly: false,
+        ...emptySupplierOrdersFilters,
       }),
     ).toBe(false);
     expect(
       filterSupplierOrders([paidCancelled], {
-        query: '',
-        selectedStatuses: [],
-        paymentStatus: 'all',
-        deliveryDateFrom: '',
-        deliveryDateTo: '',
-        favoritesOnly: false,
+        ...emptySupplierOrdersFilters,
       }).map((order) => order.id),
     ).toEqual(['so-paid-cancelled']);
   });
@@ -321,12 +312,7 @@ describe('supplier-orders-workspace', () => {
 
     expect(
       filterSupplierOrders(orders, {
-        query: '',
-        selectedStatuses: [],
-        paymentStatus: 'all',
-        deliveryDateFrom: '',
-        deliveryDateTo: '',
-        favoritesOnly: true,
+        ...filters({ favoritesOnly: true }),
       }).map((order) => order.id),
     ).toEqual(['so-2']);
   });
@@ -345,12 +331,7 @@ describe('supplier-orders-workspace', () => {
 
     expect(
       filterSupplierOrders(orders, {
-        query: '',
-        selectedStatuses: [],
-        paymentStatus: 'all',
-        deliveryDateFrom: '',
-        deliveryDateTo: '',
-        favoritesOnly: true,
+        ...filters({ favoritesOnly: true }),
       }).map((order) => order.id),
     ).toEqual(['so-starred']);
   });
@@ -526,5 +507,173 @@ describe('supplier-orders-workspace', () => {
 
     expect(position.left).toBeLessThan(1200);
     expect(position.left + 210).toBeLessThanOrEqual(1280 - 8);
+  });
+
+  it('filters by supplier, createdBy, product, order number, and created date field', () => {
+    const orders = [
+      makeOrder(),
+      makeOrder({
+        id: 'so-2',
+        number: 'PO-99',
+        orderBaseId: 'SO-2',
+        supplierId: 'sup-2',
+        supplierName: 'Cable World',
+        createdBy: 'Olex',
+        createdAt: '2026-05-25T10:00:00.000Z',
+        deliveryDate: '2026-06-01T10:00:00.000Z',
+        items: [
+          {
+            lineId: 'line-2',
+            itemIndex: 0,
+            productName: 'HDMI adapter',
+            quantity: 2,
+            price: 200,
+          },
+        ],
+      }),
+    ];
+
+    expect(
+      filterSupplierOrders(
+        orders,
+        filters({
+          supplierId: 'sup-2',
+          createdBy: 'Olex',
+          product: 'hdmi',
+          orderNumber: 'po-99',
+          dateField: 'created',
+          dateFrom: '2026-05-20',
+          dateTo: '2026-05-30',
+        }),
+      ).map((order) => order.id),
+    ).toEqual(['so-2']);
+  });
+
+  it('matches toolbar query against createdBy and note', () => {
+    const orders = [
+      makeOrder({ note: 'urgent board' }),
+      makeOrder({
+        id: 'so-2',
+        createdBy: 'Maria',
+        note: '',
+      }),
+    ];
+
+    expect(
+      filterSupplierOrders(orders, filters({ query: 'maria' })).map(
+        (order) => order.id,
+      ),
+    ).toEqual(['so-2']);
+    expect(
+      filterSupplierOrders(orders, filters({ query: 'board' })).map(
+        (order) => order.id,
+      ),
+    ).toEqual(['so-1']);
+  });
+
+  it('counts active drawer filters and builds removable chips', () => {
+    const applied = filters({
+      query: 'hub',
+      selectedStatuses: ['approved', 'ordered'],
+      paymentStatuses: ['pending'],
+      supplierId: 'sup-1',
+      dateFrom: '2026-05-01',
+      dateField: 'created',
+      favoritesOnly: true,
+    });
+
+    expect(getActiveSupplierOrdersFiltersCount(applied)).toBe(7);
+
+    const chips = buildSupplierOrdersFilterChips(applied, {
+      status: (status) => status,
+      payment: (status) => status,
+      supplier: (id) => `Supplier ${id}`,
+      createdBy: 'Created by',
+      product: 'Product',
+      orderNumber: 'No.',
+      dateFrom: 'From',
+      dateTo: 'To',
+      dateFieldCreated: 'By order date',
+      query: 'Search',
+      favorites: 'Starred',
+    });
+
+    expect(chips.map((chip) => chip.id)).toEqual([
+      'status-approved',
+      'status-ordered',
+      'payment-pending',
+      'supplierId',
+      'dateFrom',
+      'dateField',
+      'query',
+      'favoritesOnly',
+    ]);
+    expect(chips[0]?.clear(applied).selectedStatuses).toEqual(['ordered']);
+  });
+
+  it('summarizes filtered orders without double-counting items', () => {
+    expect(
+      summarizeFilteredSupplierOrders([
+        makeOrder({ total: 500, paid: 100 }),
+        makeOrder({
+          id: 'so-2',
+          total: 200,
+          paid: 200,
+          items: [
+            {
+              lineId: 'line-2',
+              itemIndex: 0,
+              productName: 'A',
+              quantity: 2,
+              price: 50,
+            },
+            {
+              lineId: 'line-3',
+              itemIndex: 1,
+              productName: 'B',
+              quantity: 3,
+              price: 30,
+            },
+          ],
+        }),
+      ]),
+    ).toEqual({
+      orderCount: 2,
+      pcs: 10,
+      total: 700,
+      paid: 300,
+      outstanding: 400,
+    });
+  });
+
+  it('marks leftover pending paid amounts and past open deliveries', () => {
+    expect(
+      isSupplierOrderPaidAmountUnpaid(
+        makeOrder({ paymentStatus: 'pending', total: 500, paid: 100 }),
+      ),
+    ).toBe(true);
+    expect(
+      isSupplierOrderPaidAmountUnpaid(
+        makeOrder({ paymentStatus: 'paid', total: 500, paid: 500 }),
+      ),
+    ).toBe(false);
+    expect(
+      isSupplierOrderDeliveryOverdue(
+        makeOrder({
+          status: 'approved',
+          deliveryDate: '2026-05-01T10:00:00.000Z',
+        }),
+        new Date('2026-05-20T12:00:00.000Z'),
+      ),
+    ).toBe(true);
+    expect(
+      isSupplierOrderDeliveryOverdue(
+        makeOrder({
+          status: 'stocked',
+          deliveryDate: '2026-05-01T10:00:00.000Z',
+        }),
+        new Date('2026-05-20T12:00:00.000Z'),
+      ),
+    ).toBe(false);
   });
 });

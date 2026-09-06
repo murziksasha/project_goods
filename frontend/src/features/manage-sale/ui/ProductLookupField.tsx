@@ -1,39 +1,38 @@
 import { useTranslation } from 'react-i18next';
 import type { Product } from '../../../entities/product/model/types';
+import { useDismissibleSuggestions } from '../../../shared/lib/useDismissibleSuggestions';
 
 type ProductLookupFieldProps = {
   productInput: string;
   productSuggestions: Product[];
-  showProductSuggestions: boolean;
+  isBound: boolean;
   onProductChange: (value: string) => void;
   onPickProduct: (product: Product) => void;
-  onShowSuggestions: () => void;
-  onHideSuggestions: () => void;
 };
 
 export const ProductLookupField = ({
   productInput,
   productSuggestions,
-  showProductSuggestions,
+  isBound,
   onProductChange,
   onPickProduct,
-  onShowSuggestions,
-  onHideSuggestions,
 }: ProductLookupFieldProps) => {
   const { t } = useTranslation();
+  const { rootRef, isVisible } = useDismissibleSuggestions({
+    query: productInput,
+    isActive: !isBound && productInput.trim().length > 0,
+  });
 
   return (
-    <div className="field field-wide modal-suggestions-anchor">
+    <div ref={rootRef} className="field field-wide modal-suggestions-anchor">
       <span>{t('legacy.saleForm.lookup.product')}</span>
       <input
         value={productInput}
         placeholder={t('legacy.saleForm.lookup.productPlaceholder')}
-        onFocus={onShowSuggestions}
-        onBlur={() => window.setTimeout(onHideSuggestions, 120)}
         onChange={(event) => onProductChange(event.target.value)}
       />
 
-      {showProductSuggestions ? (
+      {isVisible ? (
         <div className="suggestions-panel">
           {productSuggestions.length > 0 ? (
             productSuggestions.map((product) => (
@@ -42,10 +41,7 @@ export const ProductLookupField = ({
                 className="suggestion-item"
                 type="button"
                 onMouseDown={(event) => event.preventDefault()}
-                onClick={() => {
-                  onPickProduct(product);
-                  onHideSuggestions();
-                }}
+                onClick={() => onPickProduct(product)}
               >
                 <strong>{product.name}</strong>
                 <span>

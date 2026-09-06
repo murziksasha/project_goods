@@ -1,13 +1,24 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import * as clipboard from '../../../../shared/lib/clipboard';
 import type { Product } from '../../../../entities/product/model/types';
-import type { ReceiptRow, StockColumnKey } from '../../model/warehouse-panel';
+import type { Sale } from '../../../../entities/sale/model/types';
+import type { SupplierOrder } from '../../../../entities/supplier-order/model/types';
+import {
+  getWarehouseStockTableMinWidth,
+  warehouseStockNameWidthDefault,
+  warehouseStockNameWidthStorageKey,
+  type ReceiptRow,
+  type StockColumnKey,
+  type SupplierOrderLink,
+} from '../../model/warehouse-panel';
 import { ReceiptsTable, StockTable } from './WarehouseTables';
 
 afterEach(() => {
   cleanup();
   vi.clearAllMocks();
   vi.restoreAllMocks();
+  window.localStorage.clear();
 });
 
 const receipt: ReceiptRow = {
@@ -54,6 +65,7 @@ const product: Product = {
 
 const stockTableProps = {
   products: [product],
+  view: 'units' as const,
   isLoading: false,
   visibleColumns: ['name', 'serial', 'article'] as StockColumnKey[],
   selectedProductIds: [],
@@ -64,6 +76,7 @@ const stockTableProps = {
   productWarehouseMetaById: {},
   onToggleProductSelection: vi.fn(),
   onTogglePageSelection: vi.fn(),
+  onToggleGroupSelection: vi.fn(),
   onEdit: vi.fn(),
   onOpenModel: vi.fn(),
   onOpenSerial: vi.fn(),
@@ -77,6 +90,7 @@ describe('ReceiptsTable favorites', () => {
     render(
       <ReceiptsTable
         receipts={[receipt]}
+        view='lines'
         visibleColumns={['number', 'product']}
         canManageSupplierOrders={true}
         onToggleFavorite={onToggleFavorite}
@@ -103,6 +117,7 @@ describe('ReceiptsTable favorites', () => {
             supplierOrderIsFavorite: undefined,
           },
         ]}
+        view='lines'
         visibleColumns={['number']}
         canManageSupplierOrders={true}
         onToggleFavorite={vi.fn()}
@@ -113,6 +128,32 @@ describe('ReceiptsTable favorites', () => {
     );
 
     expect(screen.queryByRole('button', { name: 'Star R-1' })).not.toBeInTheDocument();
+  });
+
+  it('copies the receipt number without opening the order', async () => {
+    const onOpenOrder = vi.fn();
+    const copySpy = vi
+      .spyOn(clipboard, 'copyTextToClipboard')
+      .mockResolvedValue(true);
+
+    render(
+      <ReceiptsTable
+        receipts={[receipt]}
+        view='lines'
+        visibleColumns={['number', 'product']}
+        canManageSupplierOrders={true}
+        onToggleFavorite={vi.fn()}
+        onOpenOrder={onOpenOrder}
+        onOpenProduct={vi.fn()}
+        onOpenSupplier={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Copy' }));
+    await waitFor(() => {
+      expect(copySpy).toHaveBeenCalledWith('SO-1');
+    });
+    expect(onOpenOrder).not.toHaveBeenCalled();
   });
 });
 
@@ -169,5 +210,333 @@ describe('StockTable selectable links', () => {
 
     expect(onOpenModel).not.toHaveBeenCalled();
     expect(onOpenSerial).not.toHaveBeenCalled();
+  });
+
+  it('copies name and serial from the hover icon without opening cards', async () => {
+    const onOpenModel = vi.fn();
+    const onOpenSerial = vi.fn();
+    const copySpy = vi
+      .spyOn(clipboard, 'copyTextToClipboard')
+      .mockResolvedValue(true);
+
+    render(
+      <StockTable
+        {...stockTableProps}
+        onOpenModel={onOpenModel}
+        onOpenSerial={onOpenSerial}
+      />,
+    );
+
+    const copyButtons = screen.getAllByRole('button', { name: 'Copy' });
+    expect(copyButtons).toHaveLength(2);
+
+    fireEvent.click(copyButtons[0]);
+    await waitFor(() => {
+      expect(copySpy).toHaveBeenCalledWith('iPhone 15');
+    });
+
+    fireEvent.click(copyButtons[1]);
+    await waitFor(() => {
+      expect(copySpy).toHaveBeenCalledWith('SN-12345');
+    });
+    expect(onOpenModel).not.toHaveBeenCalled();
+    expect(onOpenSerial).not.toHaveBeenCalled();
+  });
+});
+
+const linkedSale = {
+  id: 'sale-1',
+  kind: 'repair',
+  status: 'in_progress',
+  recordNumber: 'r000762',
+} as Sale;
+
+const linkedSupplierOrder: SupplierOrderLink = {
+  order: {
+    id: 'so-1',
+    orderBaseId: 'SO-1',
+    supplierId: 'supplier-1',
+    supplierName: 'AliExpress',
+    deliveryDate: '2026-06-01T00:00:00.000Z',
+    supplyType: 'Local',
+    number: 'SO-1786596067633',
+    note: '',
+    createdBy: 'Owner',
+    status: 'stocked',
+    paymentStatus: 'pending',
+    receiptStatus: 'received',
+    total: 100,
+    paid: 0,
+    isFavorite: false,
+    items: [
+      {
+        lineId: 'line-1',
+        itemIndex: 0,
+        productName: 'iPhone 15',
+        quantity: 1,
+        price: 500,
+        receiptStatus: 'received',
+      },
+    ],
+    createdAt: '2026-06-01T00:00:00.000Z',
+    updatedAt: '2026-06-01T00:00:00.000Z',
+  } as SupplierOrder,
+  itemIndex: 0,
+  displayNumber: 'SO-1786596067633',
+};
+
+describe('StockTable client and supplier order copy', () => {
+  const orderColumns = ['clientOrder', 'supplierOrder'] as StockColumnKey[];
+
+  it('copies client and supplier order numbers without opening cards', async () => {
+    const onOpenSaleCard = vi.fn();
+    const onOpenSupplierOrder = vi.fn();
+    const copySpy = vi
+      .spyOn(clipboard, 'copyTextToClipboard')
+      .mockResolvedValue(true);
+
+    render(
+      <StockTable
+        {...stockTableProps}
+        visibleColumns={orderColumns}
+        salesByProductId={{ [product.id]: [linkedSale] }}
+        supplierOrdersByProductId={{ [product.id]: [linkedSupplierOrder] }}
+        onOpenSaleCard={onOpenSaleCard}
+        onOpenSupplierOrder={onOpenSupplierOrder}
+      />,
+    );
+
+    const copyButtons = screen.getAllByRole('button', { name: 'Copy' });
+    expect(copyButtons).toHaveLength(2);
+
+    fireEvent.click(copyButtons[0]);
+    await waitFor(() => {
+      expect(copySpy).toHaveBeenCalledWith('r000762');
+    });
+
+    fireEvent.click(copyButtons[1]);
+    await waitFor(() => {
+      expect(copySpy).toHaveBeenCalledWith('SO-1786596067633');
+    });
+    expect(onOpenSaleCard).not.toHaveBeenCalled();
+    expect(onOpenSupplierOrder).not.toHaveBeenCalled();
+  });
+
+  it('keeps badge click flows for client and supplier orders', () => {
+    const onOpenSaleCard = vi.fn();
+    const onOpenSupplierOrder = vi.fn();
+    const copySpy = vi
+      .spyOn(clipboard, 'copyTextToClipboard')
+      .mockResolvedValue(true);
+
+    render(
+      <StockTable
+        {...stockTableProps}
+        visibleColumns={orderColumns}
+        salesByProductId={{ [product.id]: [linkedSale] }}
+        supplierOrdersByProductId={{ [product.id]: [linkedSupplierOrder] }}
+        onOpenSaleCard={onOpenSaleCard}
+        onOpenSupplierOrder={onOpenSupplierOrder}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('link', { name: 'r000762' }));
+    fireEvent.click(
+      screen.getByRole('button', { name: 'SO-1786596067633' }),
+    );
+
+    expect(onOpenSaleCard).toHaveBeenCalledWith(linkedSale);
+    expect(onOpenSupplierOrder).toHaveBeenCalledWith('so-1', 0);
+    expect(copySpy).not.toHaveBeenCalled();
+  });
+
+  it('hides the copy icon when client and supplier order cells are empty', () => {
+    render(
+      <StockTable
+        {...stockTableProps}
+        visibleColumns={orderColumns}
+      />,
+    );
+
+    expect(screen.queryByRole('button', { name: 'Copy' })).not.toBeInTheDocument();
+    expect(screen.getAllByText('\u2014')).toHaveLength(2);
+  });
+});
+
+describe('StockTable models view', () => {
+  it('groups matching products and expands serials', () => {
+    const second: Product = {
+      ...product,
+      id: 'product-2',
+      serialNumber: 'SN-99999',
+    };
+    const onToggleGroupSelection = vi.fn();
+    render(
+      <StockTable
+        {...stockTableProps}
+        products={[product, second]}
+        groups={[
+          {
+            id: 'iphone-15::art-001',
+            name: 'iPhone 15',
+            article: 'ART-001',
+            products: [product, second],
+          },
+        ]}
+        view='models'
+        visibleColumns={['select', 'name', 'serial']}
+        onToggleGroupSelection={onToggleGroupSelection}
+      />,
+    );
+
+    expect(screen.getAllByText('iPhone 15')).toHaveLength(1);
+    expect(screen.queryByText('SN-12345')).not.toBeInTheDocument();
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Show serials for iPhone 15' }),
+    );
+
+    expect(screen.getByText('SN-12345')).toBeInTheDocument();
+    expect(screen.getByText('SN-99999')).toBeInTheDocument();
+
+    fireEvent.click(
+      screen.getByRole('checkbox', { name: 'Select all units of iPhone 15' }),
+    );
+    expect(onToggleGroupSelection).toHaveBeenCalledWith([
+      'product-1',
+      'product-2',
+    ]);
+  });
+
+  it('resizes the name column from the header handle', () => {
+    HTMLElement.prototype.setPointerCapture = vi.fn();
+    HTMLElement.prototype.releasePointerCapture = vi.fn();
+
+    const { container } = render(
+      <StockTable {...stockTableProps} visibleColumns={['name']} />,
+    );
+    const handle = screen.getByRole('separator', {
+      name: 'Resize name column',
+    });
+    const table = container.querySelector(
+      '.warehouse-stock-table',
+    ) as HTMLElement;
+
+    fireEvent.pointerDown(handle, { clientX: 300, pointerId: 1 });
+    fireEvent.pointerMove(handle, { clientX: 420, pointerId: 1 });
+    fireEvent.pointerUp(handle, { pointerId: 1 });
+
+    expect(table.style.getPropertyValue('--warehouse-name-col-width')).toBe(
+      '440px',
+    );
+    expect(
+      window.localStorage.getItem(warehouseStockNameWidthStorageKey),
+    ).toBe('440');
+  });
+
+  it('restores the name column width from this device on remount', () => {
+    window.localStorage.setItem(warehouseStockNameWidthStorageKey, '512');
+
+    const firstRender = render(
+      <StockTable {...stockTableProps} visibleColumns={['name']} />,
+    );
+    const firstTable = firstRender.container.querySelector(
+      '.warehouse-stock-table',
+    ) as HTMLElement;
+    expect(firstTable.style.getPropertyValue('--warehouse-name-col-width')).toBe(
+      '512px',
+    );
+    firstRender.unmount();
+
+    const secondRender = render(
+      <StockTable {...stockTableProps} visibleColumns={['name']} />,
+    );
+    const secondTable = secondRender.container.querySelector(
+      '.warehouse-stock-table',
+    ) as HTMLElement;
+    expect(
+      secondTable.style.getPropertyValue('--warehouse-name-col-width'),
+    ).toBe('512px');
+  });
+
+  it('sets a table min-width that fits supplier order and supplier headers', () => {
+    const visibleColumns: StockColumnKey[] = [
+      'select',
+      'name',
+      'serial',
+      'article',
+      'date',
+      'purchase',
+      'warehouse',
+      'clientOrder',
+      'supplierOrder',
+      'supplier',
+      'note',
+      'action',
+    ];
+    const { container } = render(
+      <StockTable {...stockTableProps} visibleColumns={visibleColumns} />,
+    );
+    const table = container.querySelector(
+      '.warehouse-stock-table',
+    ) as HTMLElement;
+
+    expect(table.style.minWidth).toBe(
+      `max(100%, ${getWarehouseStockTableMinWidth(
+        visibleColumns,
+        warehouseStockNameWidthDefault,
+      )}px)`,
+    );
+    expect(
+      container.querySelector('th.warehouse-stock-cell-supplierOrder'),
+    ).toHaveTextContent('Supplier order');
+    expect(
+      container.querySelector('th.warehouse-stock-cell-supplier'),
+    ).toHaveTextContent('Supplier');
+  });
+});
+
+describe('ReceiptsTable orders view', () => {
+  it('groups line items from the same supplier order', () => {
+    const second: ReceiptRow = {
+      ...receipt,
+      id: 'receipt-2',
+      productName: 'HDMI cable',
+      quantity: 3,
+      amount: 300,
+    };
+    render(
+      <ReceiptsTable
+        receipts={[receipt, second]}
+        groups={[
+          {
+            id: 'so-1',
+            number: 'SO-1',
+            receipts: [receipt, second],
+          },
+        ]}
+        view='orders'
+        visibleColumns={['number', 'product', 'price', 'amount']}
+        canManageSupplierOrders={true}
+        onToggleFavorite={vi.fn()}
+        onOpenOrder={vi.fn()}
+        onOpenProduct={vi.fn()}
+        onOpenSupplier={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText('USB hub')).toBeInTheDocument();
+    expect(screen.queryByText('HDMI cable')).not.toBeInTheDocument();
+    expect(screen.getByText('+1')).toBeInTheDocument();
+    expect(screen.getByText('Price')).toBeInTheDocument();
+    expect(screen.getByText('Total')).toBeInTheDocument();
+    expect(screen.queryByText('Paid / Amount')).not.toBeInTheDocument();
+    expect(screen.queryByText('Quantity')).not.toBeInTheDocument();
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Show lines for SO-1' }),
+    );
+
+    expect(screen.getByText('HDMI cable')).toBeInTheDocument();
   });
 });

@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next';
+import { Button } from '../../../../shared/ui/Button';
 import { CompactPaginationPanel } from '../../../../shared/ui/PaginationPanel';
 import { PageHeader } from '../../../../shared/ui/PageHeader';
 
@@ -46,7 +47,7 @@ export const ClientsToolbar = ({
   return (
     <div className='clients-toolbar-shell'>
       <PageHeader
-        title={t('nav.clients')}
+        title={t('clients.tabs.clients')}
         subtitle={t('clients.toolbar.totalCount', {
           count: filteredClientsCount,
           defaultValue: '{{count}} records',
@@ -100,42 +101,39 @@ export const ClientsToolbar = ({
         </div>
       </div>
       <div className='orders-toolbar-actions clients-toolbar-actions'>
-        <button
-          type='button'
-          className='clients-import-button'
+        <Button
+          variant='success'
           onClick={onOpenImport}
           disabled={isBusy || isImporting || isExporting}
         >
           {isImporting
             ? t('clients.toolbar.importing')
             : t('clients.toolbar.importXls')}
-        </button>
-        <button
-          type='button'
-          className='clients-export-button'
+        </Button>
+        <Button
+          variant='secondary'
           onClick={onOpenExport}
           disabled={isBusy || isImporting || isExporting}
         >
           {isExporting
             ? t('clients.toolbar.exporting')
             : t('clients.toolbar.exportXls')}
-        </button>
-        <button
-          type='button'
-          className='toolbar-filter-button'
+        </Button>
+        <Button
+          variant='ghost'
           onClick={onOpenMergeModal}
           disabled={isBusy || isImporting}
         >
           {t('clients.toolbar.merge')}
-        </button>
-        <button
-          type='button'
+        </Button>
+        <Button
+          variant='success'
           className='orders-create-button'
           onClick={onOpenCreateModal}
           disabled={isBusy || isImporting}
         >
           {t('clients.toolbar.createClient')}
-        </button>
+        </Button>
       </div>
     </div>
     </div>

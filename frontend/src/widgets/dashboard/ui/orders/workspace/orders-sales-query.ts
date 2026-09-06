@@ -28,6 +28,12 @@ export const buildOrdersSalesListParams = ({
     dateFrom: filters.dateFrom || undefined,
     dateTo: filters.dateTo || undefined,
     isFavorite: filters.favoritesOnly ? true : undefined,
+    isRapidSale:
+      !isRepair && filters.saleType === 'rapid'
+        ? true
+        : !isRepair && filters.saleType === 'regular'
+          ? false
+          : undefined,
     statuses: isKanban
       ? [...kanbanVisibleRepairStatuses]
       : filters.statuses.length > 0
@@ -35,7 +41,8 @@ export const buildOrdersSalesListParams = ({
         : undefined,
     masterId: isKanban && filters.assigneeId ? filters.assigneeId : undefined,
     assigneeId: !isKanban && filters.assigneeId ? filters.assigneeId : undefined,
-    repairType: filters.repairType !== 'all' ? filters.repairType : undefined,
+    repairType:
+      isRepair && filters.repairType !== 'all' ? filters.repairType : undefined,
     paymentMethod: filters.paymentMethod || undefined,
     q: searchValue.trim() || undefined,
     recordNumber: filters.orderNumber.trim() || undefined,

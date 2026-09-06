@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { ClientDevice } from '../../../../entities/client-device/model/types';
 import type { CatalogProduct } from '../../../../entities/catalog-product/model/types';
 import type { Employee } from '../../../../entities/employee/model/types';
+import type { ServiceCatalogItem } from '../../../../entities/service-catalog/model/types';
 import type { Supplier } from '../../../../entities/supplier/model/types';
 import { ProductCatalogPanel } from './ProductCatalogPanel';
 
@@ -86,16 +87,39 @@ const supplier = (patch: Partial<Supplier> = {}): Supplier => ({
   ...patch,
 });
 
+const serviceItem = (
+  patch: Partial<ServiceCatalogItem> = {},
+): ServiceCatalogItem => ({
+  id: 'service-1',
+  name: 'Ремонт системного блоку',
+  price: 500,
+  salePriceOptions: [],
+  note: 'Board repair',
+  isActive: true,
+  createdAt: '2026-06-13T00:00:00.000Z',
+  updatedAt: '2026-06-13T00:00:00.000Z',
+  ...patch,
+});
+
+const typeCatalogSearch = (value: string) => {
+  const input = document.querySelector(
+    '.catalog-search-group input',
+  ) as HTMLInputElement;
+  fireEvent.change(input, { target: { value } });
+};
+
 const renderPanel = ({
   catalogProducts = [],
   clientDevices = [],
   suppliers = [],
+  services = [],
   searchQuery = '',
   onServiceCancelEdit = vi.fn<() => void>(),
 }: {
   catalogProducts?: CatalogProduct[];
   clientDevices?: ClientDevice[];
   suppliers?: Supplier[];
+  services?: ServiceCatalogItem[];
   searchQuery?: string;
   onServiceCancelEdit?: () => void;
 } = {}) =>
@@ -129,7 +153,7 @@ const renderPanel = ({
       onProductCancelEdit={vi.fn()}
       onArchiveProduct={vi.fn()}
       onActivateProduct={vi.fn()}
-      services={[]}
+      services={services}
       serviceForm={{
         name: '',
         price: '',
@@ -170,7 +194,6 @@ afterEach(() => {
 describe('ProductCatalogPanel client devices search', () => {
   it('filters clients devices only by visible device name', () => {
     renderPanel({
-      searchQuery: 'кавома',
       clientDevices: [
         clientDevice({
           id: 'coffee-1',
@@ -188,14 +211,15 @@ describe('ProductCatalogPanel client devices search', () => {
       ],
     });
 
+    typeCatalogSearch('кавома');
+
     expect(screen.getByText('Кавомашина Delonghi')).toBeInTheDocument();
     expect(screen.getByText('Кавомашина Saeco incanto Sirius')).toBeInTheDocument();
     expect(screen.queryByText('Робот пилосос RoboRock')).not.toBeInTheDocument();
   });
 
-  it('keeps the no products state for unmatched device names', () => {
+  it('keeps the no devices state for unmatched device names', () => {
     renderPanel({
-      searchQuery: 'кавома',
       clientDevices: [
         clientDevice({
           id: 'robot-1',
@@ -205,7 +229,9 @@ describe('ProductCatalogPanel client devices search', () => {
       ],
     });
 
-    expect(screen.getByText('No products found.')).toBeInTheDocument();
+    typeCatalogSearch('кавома');
+
+    expect(screen.getByText('No devices found.')).toBeInTheDocument();
   });
 
   it('applies and saves filters only for the active catalog tab', async () => {
@@ -318,5 +344,53 @@ describe('ProductCatalogPanel client devices search', () => {
 
     expect(screen.getByText('Fresh Supplier')).toBeInTheDocument();
     expect(screen.queryByText('Old Supplier')).not.toBeInTheDocument();
+  });
+
+  it('keeps search queries isolated across catalog tabs', () => {
+    renderPanel({
+      clientDevices: [
+        clientDevice({ id: 'device-coffee', name: 'Coffee machine' }),
+        clientDevice({ id: 'device-robot', name: 'Robot vacuum' }),
+      ],
+      catalogProducts: [
+        catalogProduct({ id: 'product-filter', name: 'Coffee filter' }),
+        catalogProduct({ id: 'product-cable', name: 'Power cable' }),
+      ],
+    });
+
+    typeCatalogSearch('Coffee');
+    expect(screen.getByText('Coffee machine')).toBeInTheDocument();
+    expect(screen.queryByText('Robot vacuum')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Products' }));
+    expect(screen.getByText('Coffee filter')).toBeInTheDocument();
+    expect(screen.getByText('Power cable')).toBeInTheDocument();
+  });
+
+  it('renders useful columns and drops dummy service checkboxes', () => {
+    renderPanel({
+      clientDevices: [clientDevice({ name: 'Coffee machine', note: 'Kitchen' })],
+      catalogProducts: [catalogProduct({ name: 'Coffee filter', note: 'Mesh' })],
+      suppliers: [supplier({ name: 'Fresh Supplier', note: 'Main parts' })],
+      services: [serviceItem()],
+    });
+
+    expect(screen.getByRole('columnheader', { name: 'Usage' })).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: 'Note' })).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: 'Status' })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Products' }));
+    expect(screen.getByRole('columnheader', { name: 'Last seen' })).toBeInTheDocument();
+    expect(screen.getByText('Mesh')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Services' }));
+    expect(screen.getByRole('columnheader', { name: 'Price' })).toBeInTheDocument();
+    expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'x' })).not.toBeInTheDocument();
+    expect(screen.getByText('Board repair')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Suppliers' }));
+    expect(screen.getByRole('columnheader', { name: 'Phone' })).toBeInTheDocument();
+    expect(screen.getByText('Main parts')).toBeInTheDocument();
   });
 });

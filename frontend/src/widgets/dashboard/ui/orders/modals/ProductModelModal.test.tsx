@@ -1,10 +1,20 @@
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Product } from '../../../../../entities/product/model/types';
+import type { Sale } from '../../../../../entities/sale/model/types';
+import type { SupplierOrder } from '../../../../../entities/supplier-order/model/types';
+import { getOccupiedSerialNumbers } from '../../../../../entities/sale/api/saleApi';
 import { defaultPrintForms } from '../../../../../entities/settings/model/printForms';
 import i18n from '../../../../../shared/i18n/config';
+import * as clipboard from '../../../../../shared/lib/clipboard';
 import * as ordersWorkspaceShared from '../workspace/orders-workspace-shared';
 import { ProductModelModal } from './ProductModelModal';
+
+vi.mock('../../../../../entities/sale/api/saleApi', () => ({
+  getOccupiedSerialNumbers: vi.fn(async () => ({ occupied: [] as string[] })),
+}));
+
+const getOccupiedSerialNumbersMock = vi.mocked(getOccupiedSerialNumbers);
 
 const createProduct = (patch: Partial<Product>): Product => ({
   id: 'product-1',
@@ -51,13 +61,70 @@ const serialPurchaseProducts = () => {
   };
 };
 
+const createSupplierOrder = (
+  patch: Partial<SupplierOrder> = {},
+): SupplierOrder => ({
+  id: 'so-1',
+  orderBaseId: 'SO-1',
+  supplierId: 'supplier-1',
+  supplierName: 'Linked supplier',
+  deliveryDate: '2026-01-01T00:00:00.000Z',
+  supplyType: 'Local',
+  number: 'SO-1',
+  note: '',
+  createdBy: 'Owner',
+  status: 'stocked',
+  paymentStatus: 'pending',
+  receiptStatus: 'received',
+  total: 200,
+  paid: 0,
+  isFavorite: false,
+  items: [
+    {
+      lineId: 'line-1',
+      itemIndex: 0,
+      productName: 'БЖ Meanwell 9V 1.66A',
+      quantity: 1,
+      price: 200,
+      receiptStatus: 'received',
+    },
+  ],
+  createdAt: '2026-01-01T00:00:00.000Z',
+  updatedAt: '2026-01-01T00:00:00.000Z',
+  ...patch,
+});
+
 const getPrintButton = () =>
   screen.getByRole('button', {
     name: /print|друк|select serial|оберіть серійні/i,
   });
 
+const saleBindingProduct = (
+  saleId: string,
+  product: Product,
+  status = 'new',
+): Sale =>
+  ({
+    id: saleId,
+    status,
+    product: { id: '', article: '', name: '', serialNumber: '' },
+    lineItems: [
+      {
+        id: `${saleId}-line`,
+        kind: 'product',
+        productId: product.id,
+        name: product.name,
+        price: product.price,
+        quantity: 1,
+        warrantyPeriod: 0,
+        serialNumbers: [product.serialNumber],
+      },
+    ],
+  }) as Sale;
+
 afterEach(async () => {
   vi.clearAllMocks();
+  getOccupiedSerialNumbersMock.mockResolvedValue({ occupied: [] });
   await i18n.changeLanguage('en');
 });
 
@@ -315,6 +382,9 @@ describe('ProductModelModal serial printing', () => {
       screen.getByText(i18n.t('catalog.productModel.purchaseDate')),
     ).toBeInTheDocument();
     expect(
+      screen.getByText(i18n.t('catalog.productModel.supplierOrder')),
+    ).toBeInTheDocument();
+    expect(
       screen.getByText(
         i18n.t('catalog.productModel.latestBatchSummary', {
           price: '250,00 ₴',
@@ -358,5 +428,221 @@ describe('ProductModelModal serial printing', () => {
         name: /print|друк|select serial|оберіть серійні/i,
       }),
     ).not.toBeInTheDocument();
+  });
+
+  it('marks serials bound on other orders as reserved', () => {
+    const { clickedProduct, products } = serialPurchaseProducts();
+    const reservedProduct = products[0];
+
+    render(
+      <ProductModelModal
+        name='БЖ Meanwell 9V 1.66A'
+        products={products}
+        sales={[saleBindingProduct('sale-other', reservedProduct)]}
+        currentSaleId='sale-current'
+        warehouses={[]}
+        printForms={defaultPrintForms}
+        printProduct={clickedProduct}
+        onClose={vi.fn()}
+        onSave={vi.fn(async () => true)}
+      />,
+    );
+
+    expect(
+      screen.getByText(i18n.t('catalog.productModel.reservedBadge')),
+    ).toBeInTheDocument();
+    expect(
+      document.querySelector('.product-model-serial-row-reserved'),
+    ).not.toBeNull();
+    expect(
+      document.querySelector('.product-model-serial-row-reserved'),
+    ).toHaveTextContent('R0000001');
+  });
+
+  it('does not mark serials bound only on the opened order as reserved', () => {
+    const { clickedProduct, products } = serialPurchaseProducts();
+
+    render(
+      <ProductModelModal
+        name='БЖ Meanwell 9V 1.66A'
+        products={products}
+        sales={[saleBindingProduct('sale-current', clickedProduct)]}
+        currentSaleId='sale-current'
+        warehouses={[]}
+        printForms={defaultPrintForms}
+        printProduct={clickedProduct}
+        onClose={vi.fn()}
+        onSave={vi.fn(async () => true)}
+      />,
+    );
+
+    expect(
+      screen.queryByText(i18n.t('catalog.productModel.reservedBadge')),
+    ).not.toBeInTheDocument();
+    expect(
+      document.querySelector('.product-model-serial-row-reserved'),
+    ).toBeNull();
+  });
+
+  it('marks occupied serials from the occupancy api as reserved', async () => {
+    const { clickedProduct, products } = serialPurchaseProducts();
+    getOccupiedSerialNumbersMock.mockResolvedValue({
+      occupied: ['R0000001'],
+    });
+
+    render(
+      <ProductModelModal
+        name='БЖ Meanwell 9V 1.66A'
+        products={products}
+        warehouses={[]}
+        printForms={defaultPrintForms}
+        printProduct={clickedProduct}
+        onClose={vi.fn()}
+        onSave={vi.fn(async () => true)}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(i18n.t('catalog.productModel.reservedBadge')),
+      ).toBeInTheDocument();
+    });
+    expect(
+      document.querySelector('.product-model-serial-row-reserved'),
+    ).toHaveTextContent('R0000001');
+    expect(getOccupiedSerialNumbersMock).toHaveBeenCalledWith({
+      excludeSaleId: undefined,
+      serials: expect.arrayContaining(['R0000001', 'R0000002']),
+    });
+  });
+
+  it('shows latest and reserved badges on the same serial', () => {
+    const { products } = serialPurchaseProducts();
+    const latestProduct = products[1];
+
+    render(
+      <ProductModelModal
+        name='БЖ Meanwell 9V 1.66A'
+        products={products}
+        sales={[saleBindingProduct('sale-other', latestProduct)]}
+        warehouses={[]}
+        printForms={defaultPrintForms}
+        onClose={vi.fn()}
+        onSave={vi.fn(async () => true)}
+      />,
+    );
+
+    const reservedRow = document.querySelector(
+      '.product-model-serial-row-reserved',
+    );
+    expect(reservedRow).not.toBeNull();
+    expect(reservedRow).toHaveTextContent('R0000002');
+    expect(reservedRow).toHaveTextContent(
+      i18n.t('catalog.productModel.latestBatchBadge'),
+    );
+    expect(reservedRow).toHaveTextContent(
+      i18n.t('catalog.productModel.reservedBadge'),
+    );
+  });
+
+  it('shows receipt date and a clickable copyable supplier order number', () => {
+    const onOpenSupplierOrder = vi.fn();
+    const { clickedProduct, products } = serialPurchaseProducts();
+    const linkedProducts = products.map((product, index) =>
+      index === 0
+        ? {
+            ...product,
+            supplierOrderId: 'so-1',
+            supplierOrderItemIndex: 0,
+          }
+        : product,
+    );
+
+    render(
+      <ProductModelModal
+        name='БЖ Meanwell 9V 1.66A'
+        products={linkedProducts}
+        supplierOrders={[createSupplierOrder()]}
+        warehouses={[]}
+        printForms={defaultPrintForms}
+        printProduct={clickedProduct}
+        onClose={vi.fn()}
+        onSave={vi.fn(async () => true)}
+        onOpenSupplierOrder={onOpenSupplierOrder}
+      />,
+    );
+
+    expect(screen.getByText('10.01.2026')).toBeInTheDocument();
+    expect(screen.getByText('15.03.2026')).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'SO-1' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getAllByRole('button', { name: i18n.t('common.copy') }),
+    ).toHaveLength(3);
+
+    fireEvent.click(screen.getByRole('button', { name: 'SO-1' }));
+    expect(onOpenSupplierOrder).toHaveBeenCalledWith('so-1', 0);
+  });
+
+  it('renders an empty supplier order cell without copy or click', () => {
+    const onOpenSupplierOrder = vi.fn();
+    const { clickedProduct, products } = serialPurchaseProducts();
+
+    render(
+      <ProductModelModal
+        name='БЖ Meanwell 9V 1.66A'
+        products={products}
+        warehouses={[]}
+        printForms={defaultPrintForms}
+        printProduct={clickedProduct}
+        onClose={vi.fn()}
+        onSave={vi.fn(async () => true)}
+        onOpenSupplierOrder={onOpenSupplierOrder}
+      />,
+    );
+
+    expect(screen.getAllByText('\u2014').length).toBeGreaterThan(0);
+    expect(screen.queryByRole('button', { name: 'SO-1' })).toBeNull();
+    expect(
+      screen.getAllByRole('button', { name: i18n.t('common.copy') }),
+    ).toHaveLength(2);
+    expect(onOpenSupplierOrder).not.toHaveBeenCalled();
+  });
+
+  it('copies serial from the hover icon', async () => {
+    const copySpy = vi
+      .spyOn(clipboard, 'copyTextToClipboard')
+      .mockResolvedValue(true);
+    const { clickedProduct, products } = serialPurchaseProducts();
+
+    render(
+      <ProductModelModal
+        name='БЖ Meanwell 9V 1.66A'
+        products={products}
+        warehouses={[]}
+        printForms={defaultPrintForms}
+        printProduct={clickedProduct}
+        onClose={vi.fn()}
+        onSave={vi.fn(async () => true)}
+      />,
+    );
+
+    const copyButtons = screen.getAllByRole('button', {
+      name: i18n.t('common.copy'),
+    });
+    expect(copyButtons).toHaveLength(2);
+
+    fireEvent.click(copyButtons[0]);
+    await waitFor(() => {
+      expect(copySpy).toHaveBeenCalledWith('R0000002');
+    });
+
+    fireEvent.click(copyButtons[1]);
+    await waitFor(() => {
+      expect(copySpy).toHaveBeenCalledWith('R0000001');
+    });
+
+    copySpy.mockRestore();
   });
 });

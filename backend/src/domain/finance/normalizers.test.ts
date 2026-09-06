@@ -18,9 +18,13 @@ describe('finance normalizers', () => {
       UAH: true,
       USD: true,
     });
-    expect(normalizeEnabledCurrencies({ USD: false })).toEqual({
+    expect(normalizeEnabledCurrencies({ USD: false, UAH: true })).toEqual({
       UAH: true,
       USD: false,
+    });
+    expect(normalizeEnabledCurrencies({ UAH: false, USD: true })).toEqual({
+      UAH: false,
+      USD: true,
     });
     expect(normalizeType('transfer')).toBe('transfer');
     expect(normalizeDate('2026-01-02').toISOString()).toBe('2026-01-02T00:00:00.000Z');
@@ -31,7 +35,9 @@ describe('finance normalizers', () => {
     expect(() => normalizeAmount('1,2,3')).toThrow('Transaction amount must be greater than 0.');
     expect(() => normalizeCurrency('EU')).toThrow('Currency code must be 3-6 latin letters.');
     expect(() => normalizeEnabledCurrencies(null)).toThrow('Enabled currencies must be an object.');
-    expect(() => normalizeEnabledCurrencies({ UAH: false })).toThrow('UAH currency cannot be disabled.');
+    expect(() => normalizeEnabledCurrencies({ UAH: false, USD: false })).toThrow(
+      'At least one cashbox currency must be enabled.',
+    );
     expect(() => normalizeType('refund')).toThrow('Unsupported transaction type.');
     expect(() => normalizeDate('bad')).toThrow('Invalid transaction date.');
   });

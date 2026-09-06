@@ -1,10 +1,18 @@
 # Catalog Product Create Modal Spec
 
-Related: [WAREHOUSE_FLOW.md](./WAREHOUSE_FLOW.md) · [SERIAL_NUMBER_SEQUENCE_SPEC.md](./SERIAL_NUMBER_SEQUENCE_SPEC.md) · [index](./README.md)
+Related: [WAREHOUSE_FLOW.md](./WAREHOUSE_FLOW.md) · [SERIAL_NUMBER_SEQUENCE_SPEC.md](./SERIAL_NUMBER_SEQUENCE_SPEC.md) · [UI_DESIGN_SYSTEM.md](./UI_DESIGN_SYSTEM.md) · [index](./README.md)
 
 ## Scope
 - Products & Services page, `Products` tab (`catalogProducts`).
 - Supplier order modal product search field (`SupplierOrderModal`).
+
+## Catalog list hover copy
+
+Canonical rules: [UI_DESIGN_SYSTEM.md — Hover copy icon](./UI_DESIGN_SYSTEM.md#hover-copy-icon).
+
+- `Products & Services` name cells (Client devices, Products, Services, Suppliers) use `CatalogCopyableName` → `CopyableValue`. Name click still opens the row editor.
+- **Suppliers** tab **Phone** also uses `CopyableValue`. Hover shows the copy icon after the number. Only the icon copies the stored phone (`+380…`). The number stays a `tel:` link (`stopPropagation` so row click does not open the supplier). Empty phone: no icon.
+- Implementation: `frontend/src/widgets/dashboard/ui/product-catalog/ProductCatalogTables.tsx` (`SuppliersTable`).
 
 ## UI Contract
 - Modal title: `Product`.

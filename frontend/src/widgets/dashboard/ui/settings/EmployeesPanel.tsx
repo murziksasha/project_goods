@@ -27,7 +27,7 @@ type EmployeesPanelProps = {
     field: K,
     value: EmployeeFormValues[K],
   ) => void;
-  onSubmit: () => void;
+  onSubmit: () => void | Promise<boolean | void>;
   onCancelEdit: () => void;
   onEdit: (employee: Employee) => void;
   onDelete: (employee: Employee) => void;

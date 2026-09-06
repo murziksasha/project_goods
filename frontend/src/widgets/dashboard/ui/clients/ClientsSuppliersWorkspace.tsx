@@ -2,9 +2,6 @@ import {
   useEffect,
   useMemo,
   useState,
-  type Dispatch,
-  type ReactNode,
-  type SetStateAction,
 } from 'react';
 import { useTranslation } from 'react-i18next';
 import { formatDateTime } from '../../../../shared/lib/format';
@@ -33,11 +30,16 @@ import {
   toSupplierForm,
   type SupplierFormState,
 } from '../../../../entities/supplier/model/forms';
-import { hasDuplicatePhones } from '../../../../shared/lib/phones';
-import { isValidUkrainianPhone } from '../../../../shared/lib/phoneFormatter';
-import { PhonesField } from '../../../../shared/ui/PhonesField';
 import type { Employee } from '../../../../entities/employee/model/types';
+import { useDismissibleSuggestions } from '../../../../shared/lib/useDismissibleSuggestions';
+import { Button } from '../../../../shared/ui/Button';
+import { Modal } from '../../../../shared/ui/Modal';
+import { PageHeader } from '../../../../shared/ui/PageHeader';
+import { StatusBadge } from '../../../../shared/ui/StatusBadge';
+import { CopyableValue } from '../../../../shared/ui/CopyableValue';
+import { PhoneNumber } from '../shared/PhoneNumber';
 import { ClientsWorkspace } from './ClientsWorkspace';
+import { SupplierEditorModal } from './SupplierEditorModal';
 import { filterIconOptions } from '../orders/workspace/orders-workspace-shared';
 import {
   clientsSuppliersSavedFiltersStorageKey,
@@ -660,7 +662,12 @@ export const ClientsSuppliersWorkspace = ({
 
   return (
     <section className='panel clients-workspace'>
-      <ClientsSuppliersTabs activeTab={activeTab} onChange={setActiveTab} />
+      <ClientsSuppliersTabs
+        activeTab={activeTab}
+        clientsCount={clients.length}
+        suppliersCount={suppliers.length}
+        onChange={setActiveTab}
+      />
 
       {activeTab === 'clients' ? (
         <ClientsWorkspace
@@ -764,12 +771,20 @@ export const ClientsSuppliersWorkspace = ({
 
 const ClientsSuppliersTabs = ({
   activeTab,
+  clientsCount,
+  suppliersCount,
   onChange,
 }: {
   activeTab: TabKey;
+  clientsCount: number;
+  suppliersCount: number;
   onChange: (tab: TabKey) => void;
 }) => {
   const { t } = useTranslation();
+  const counts: Record<TabKey, number> = {
+    clients: clientsCount,
+    suppliers: suppliersCount,
+  };
 
   return (
     <div
@@ -781,6 +796,8 @@ const ClientsSuppliersTabs = ({
         <button
           key={tab.key}
           type='button'
+          role='tab'
+          aria-selected={activeTab === tab.key}
           className={
             activeTab === tab.key
               ? 'orders-tab orders-tab-active'
@@ -788,7 +805,10 @@ const ClientsSuppliersTabs = ({
           }
           onClick={() => onChange(tab.key)}
         >
-          {t(tab.labelKey)}
+          {t('clients.tabs.withCount', {
+            label: t(tab.labelKey),
+            count: counts[tab.key],
+          })}
         </button>
       ))}
     </div>
@@ -852,7 +872,7 @@ const SuppliersWorkspace = ({
   onToggleFilters: () => void;
   onUpdateFilters: (filters: SupplierFilters) => void;
 }) => (
-  <>
+  <section className='panel clients-workspace'>
     <SuppliersToolbar
       activeFiltersCount={activeFiltersCount}
       isFilterOpen={isFilterOpen}
@@ -890,7 +910,7 @@ const SuppliersWorkspace = ({
       onPageChange={onPageChange}
       onPageSizeChange={onPageSizeChange}
     />
-  </>
+  </section>
 );
 
 const SuppliersToolbar = ({
@@ -921,6 +941,14 @@ const SuppliersToolbar = ({
   const { t } = useTranslation();
 
   return (
+    <div className='clients-toolbar-shell'>
+      <PageHeader
+        title={t('clients.tabs.suppliers')}
+        subtitle={t('clients.toolbar.totalCount', {
+          count: totalSuppliersCount,
+          defaultValue: '{{count}} records',
+        })}
+      />
     <div className='orders-toolbar clients-toolbar'>
       <div className='orders-toolbar-left'>
         <CompactPaginationPanel
@@ -947,6 +975,7 @@ const SuppliersToolbar = ({
             value={query}
             onChange={(event) => onQueryChange(event.target.value)}
             placeholder={t('clients.suppliers.toolbar.searchPlaceholder')}
+            aria-label={t('clients.suppliers.toolbar.searchAriaLabel')}
           />
           {query ? (
             <span
@@ -968,21 +997,18 @@ const SuppliersToolbar = ({
         </div>
       </div>
       <div className='orders-toolbar-actions clients-toolbar-actions'>
-        <button
-          type='button'
-          className='secondary-button'
-          onClick={onOpenMergeModal}
-        >
+        <Button variant='ghost' onClick={onOpenMergeModal}>
           {t('clients.suppliers.toolbar.merge')}
-        </button>
-        <button
-          type='button'
-          className='primary-button'
+        </Button>
+        <Button
+          variant='success'
+          className='orders-create-button'
           onClick={onOpenCreateModal}
         >
           {t('clients.suppliers.toolbar.createSupplier')}
-        </button>
+        </Button>
       </div>
+    </div>
     </div>
   );
 };
@@ -1146,179 +1172,70 @@ const SuppliersTable = ({
 
   return (
     <div className='orders-table-wrap'>
-      <table className='orders-table clients-table'>
+      <table className='orders-table clients-table suppliers-table'>
         <thead>
           <tr>
-            <th>{columns.id}</th>
             <th>{columns.name}</th>
-            <th>{columns.phone}</th>
             <th>{columns.status}</th>
+            <th>{columns.phone}</th>
             <th>{columns.created}</th>
           </tr>
         </thead>
         <tbody>
-          {suppliers.map((supplier) => (
-            <tr
-              key={supplier.id}
-              className='clients-table-row'
-              onClick={() => onOpenEditModal(supplier)}
-            >
-              <td data-label={columns.id}>{supplier.id.slice(-6)}</td>
-              <td data-label={columns.name}>{supplier.name}</td>
-              <td data-label={columns.phone}>
-                {getPrimarySupplierPhone(supplier)}
-              </td>
-              <td data-label={columns.status}>
-                {supplier.isActive
-                  ? t('clients.suppliers.table.statusActive')
-                  : t('clients.suppliers.table.statusInactive')}
-              </td>
-              <td data-label={columns.created}>
-                {formatDateTime(supplier.createdAt)}
+          {suppliers.length === 0 ? (
+            <tr>
+              <td colSpan={4} className='orders-empty'>
+                {t('clients.suppliers.table.empty')}
               </td>
             </tr>
-          ))}
+          ) : (
+            suppliers.map((supplier) => {
+              const phone = getPrimarySupplierPhone(supplier);
+              return (
+                <tr
+                  key={supplier.id}
+                  className='clients-table-row'
+                  onClick={() => onOpenEditModal(supplier)}
+                >
+                  <td data-label={columns.name}>
+                    <CopyableValue value={supplier.name}>
+                      {supplier.name}
+                    </CopyableValue>
+                  </td>
+                  <td data-label={columns.status}>
+                    <StatusBadge
+                      tone={supplier.isActive ? 'success' : 'gray'}
+                      label={
+                        supplier.isActive
+                          ? t('clients.suppliers.table.statusActive')
+                          : t('clients.suppliers.table.statusInactive')
+                      }
+                    />
+                  </td>
+                  <td data-label={columns.phone}>
+                    {phone ? (
+                      <CopyableValue value={phone}>
+                        <a
+                          href={`tel:${phone}`}
+                          onClick={(event) => event.stopPropagation()}
+                        >
+                          <PhoneNumber value={phone} />
+                        </a>
+                      </CopyableValue>
+                    ) : (
+                      '-'
+                    )}
+                  </td>
+                  <td data-label={columns.created}>
+                    {formatDateTime(supplier.createdAt)}
+                  </td>
+                </tr>
+              );
+            })
+          )}
         </tbody>
       </table>
-      {suppliers.length === 0 ? (
-        <p className='empty-state'>{t('clients.suppliers.table.empty')}</p>
-      ) : null}
     </div>
-  );
-};
-
-const SupplierEditorModal = ({
-  duplicateSupplier,
-  editingSupplierId,
-  form,
-  isSaving,
-  onChange,
-  onClose,
-  onSave,
-}: {
-  duplicateSupplier?: Supplier;
-  editingSupplierId: string | null;
-  form: SupplierFormState;
-  isSaving: boolean;
-  onChange: Dispatch<SetStateAction<SupplierFormState>>;
-  onClose: () => void;
-  onSave: () => void;
-}) => {
-  const { t } = useTranslation();
-  const [phoneError, setPhoneError] = useState<string | null>(null);
-  const isEditing = Boolean(editingSupplierId);
-  const phoneRows = form.phones?.length ? form.phones : [form.phone || ''];
-  const canSave =
-    !isSaving &&
-    !duplicateSupplier &&
-    Boolean(form.name.trim()) &&
-    Boolean(form.phone.trim()) &&
-    phoneRows.some((phone) => (phone || '').trim()) &&
-    phoneRows.every(
-      (phone) => !(phone || '').trim() || isValidUkrainianPhone(phone || ''),
-    ) &&
-    !hasDuplicatePhones(phoneRows);
-  const updateForm = <K extends keyof SupplierFormState>(
-    field: K,
-    value: SupplierFormState[K],
-  ) => onChange((current) => ({ ...current, [field]: value }));
-  const validatePhone = (phone: string) => {
-    const phoneFormatError = t('clients.messages.errors.invalidPhoneFormat');
-    if (!phone.trim() || !isValidUkrainianPhone(phone)) {
-      setPhoneError(phoneFormatError);
-      return false;
-    }
-    setPhoneError(null);
-    return true;
-  };
-
-  return (
-    <ModalShell
-      title={
-        isEditing
-          ? t('clients.suppliers.create.editTitle')
-          : t('clients.suppliers.create.title')
-      }
-      onClose={onClose}
-    >
-      <div className='catalog-edit-body clients-modal-body'>
-        <label className='field field-wide'>
-          <span>{t('clients.suppliers.create.fields.name')}</span>
-          <input
-            value={form.name}
-            onChange={(event) => updateForm('name', event.target.value)}
-          />
-        </label>
-        <PhonesField
-          phone={form.phone}
-          phones={form.phones}
-          phoneError={phoneError}
-          onPhonesUpdate={(next) =>
-            onChange((current) => ({
-              ...current,
-              phone: next.phone,
-              phones: next.phones,
-            }))
-          }
-          onClearPhoneError={() => setPhoneError(null)}
-          onValidatePhone={validatePhone}
-        />
-        <label className='field field-wide'>
-          <span>{t('clients.suppliers.create.fields.supplierOrder')}</span>
-          <input
-            value={form.supplierOrder}
-            onChange={(event) =>
-              updateForm('supplierOrder', event.target.value)
-            }
-          />
-        </label>
-        <label className='field field-wide'>
-          <span>{t('clients.suppliers.create.fields.note')}</span>
-          <textarea
-            rows={4}
-            value={form.note}
-            onChange={(event) => updateForm('note', event.target.value)}
-          />
-        </label>
-        <label className='field field-wide'>
-          <span>{t('clients.suppliers.create.fields.status')}</span>
-          <select
-            value={form.isActive ? 'active' : 'inactive'}
-            onChange={(event) =>
-              updateForm('isActive', event.target.value === 'active')
-            }
-          >
-            <option value='active'>
-              {t('clients.suppliers.create.statusActive')}
-            </option>
-            <option value='inactive'>
-              {t('clients.suppliers.create.statusInactive')}
-            </option>
-          </select>
-        </label>
-        {duplicateSupplier ? (
-          <p className='error-message'>
-            {t('clients.suppliers.create.duplicateError', {
-              name: duplicateSupplier.name,
-            })}
-          </p>
-        ) : null}
-      </div>
-      <footer className='catalog-edit-footer'>
-        <button
-          type='button'
-          className='primary-button'
-          disabled={!canSave}
-          onClick={onSave}
-        >
-          {isSaving
-            ? t('clients.suppliers.create.saving')
-            : isEditing
-              ? t('clients.suppliers.create.save')
-              : t('clients.suppliers.create.create')}
-        </button>
-      </footer>
-    </ModalShell>
   );
 };
 
@@ -1359,41 +1276,48 @@ const SupplierMergeModal = ({
     !isSaving && Boolean(targetId) && Boolean(sourceId) && targetId !== sourceId;
 
   return (
-    <ModalShell title={t('clients.suppliers.merge.title')} onClose={onClose}>
-      <div className='catalog-edit-body clients-modal-body'>
-        <p className='muted-copy'>
-          {t('clients.suppliers.merge.description')}
-        </p>
-        <SupplierMergeField
-          label={t('clients.suppliers.merge.supplier1')}
-          options={targetOptions}
-          query={targetQuery}
-          showSuggestions={showTargetSuggestions}
-          onQueryChange={(value) => onQueryChange('target', value)}
-          onSelectSupplier={(supplier) => onSelectSupplier('target', supplier)}
-        />
-        <SupplierMergeField
-          label={t('clients.suppliers.merge.supplier2')}
-          options={sourceOptions}
-          query={sourceQuery}
-          showSuggestions={showSourceSuggestions}
-          onQueryChange={(value) => onQueryChange('source', value)}
-          onSelectSupplier={(supplier) => onSelectSupplier('source', supplier)}
-        />
-      </div>
-      <footer className='catalog-edit-footer'>
-        <button
-          type='button'
-          className='primary-button'
-          disabled={!canMerge}
-          onClick={onMerge}
-        >
-          {isSaving
-            ? t('clients.suppliers.merge.merging')
-            : t('clients.suppliers.merge.mergeSuppliers')}
-        </button>
-      </footer>
-    </ModalShell>
+    <Modal
+      isOpen
+      title={t('clients.suppliers.merge.title')}
+      onClose={onClose}
+      closeLabel={t('common.close')}
+      closeOnBackdrop={!isSaving}
+      closeOnEscape={!isSaving}
+      className='clients-modal'
+      bodyClassName='clients-modal-body'
+      footer={
+        <footer className='catalog-edit-footer clients-modal-footer'>
+          <Button variant='secondary' onClick={onClose} disabled={isSaving}>
+            {t('common.cancel')}
+          </Button>
+          <Button variant='primary' disabled={!canMerge} onClick={onMerge}>
+            {isSaving
+              ? t('clients.suppliers.merge.merging')
+              : t('clients.suppliers.merge.mergeSuppliers')}
+          </Button>
+        </footer>
+      }
+    >
+      <p className='muted-copy'>
+        {t('clients.suppliers.merge.description')}
+      </p>
+      <SupplierMergeField
+        label={t('clients.suppliers.merge.supplier1')}
+        options={targetOptions}
+        query={targetQuery}
+        showSuggestions={showTargetSuggestions}
+        onQueryChange={(value) => onQueryChange('target', value)}
+        onSelectSupplier={(supplier) => onSelectSupplier('target', supplier)}
+      />
+      <SupplierMergeField
+        label={t('clients.suppliers.merge.supplier2')}
+        options={sourceOptions}
+        query={sourceQuery}
+        showSuggestions={showSourceSuggestions}
+        onQueryChange={(value) => onQueryChange('source', value)}
+        onSelectSupplier={(supplier) => onSelectSupplier('source', supplier)}
+      />
+    </Modal>
   );
 };
 
@@ -1413,24 +1337,29 @@ const SupplierMergeField = ({
   onSelectSupplier: (supplier: Supplier) => void;
 }) => {
   const { t } = useTranslation();
+  const { rootRef, isVisible } = useDismissibleSuggestions({
+    query,
+    isActive: showSuggestions && options.length > 0,
+  });
 
   return (
-    <>
-      <label className='field field-wide modal-suggestions-anchor'>
-        <span>{label}</span>
-        <input
-          value={query}
-          placeholder={t('clients.suppliers.merge.searchPlaceholder')}
-          onChange={(event) => onQueryChange(event.target.value)}
-        />
-      </label>
-      {showSuggestions && options.length > 0 ? (
+    <label
+      ref={rootRef}
+      className='field field-wide modal-suggestions-anchor'
+    >
+      <span>{label}</span>
+      <input
+        value={query}
+        placeholder={t('clients.suppliers.merge.searchPlaceholder')}
+        onChange={(event) => onQueryChange(event.target.value)}
+      />
+      {isVisible ? (
         <SupplierSuggestions
           options={options}
           onSelectSupplier={onSelectSupplier}
         />
       ) : null}
-    </>
+    </label>
   );
 };
 
@@ -1456,29 +1385,4 @@ const SupplierSuggestions = ({
   </div>
 );
 
-const ModalShell = ({
-  children,
-  title,
-  onClose,
-}: {
-  children: ReactNode;
-  title: string;
-  onClose: () => void;
-}) => (
-  <div className='modal-backdrop' role='presentation' onClick={onClose}>
-    <article
-      className='catalog-edit-modal clients-modal'
-      role='dialog'
-      aria-modal='true'
-      onClick={(event) => event.stopPropagation()}
-    >
-      <header className='catalog-edit-header'>
-        <h2>{title}</h2>
-        <button type='button' className='ghost-button' onClick={onClose}>
-          x
-        </button>
-      </header>
-      {children}
-    </article>
-  </div>
-);
+

@@ -37,8 +37,11 @@
     "clearFilter": "Очистити фільтр"
   },
   "tables": {
+    "loadingDevices": "Завантаження пристроїв...",
     "loadingProducts": "Завантаження товарів...",
     "loadingServices": "Завантаження послуг...",
+    "noDevicesFound": "Пристроїв не знайдено.",
+    "noDevicesYet": "Пристроїв ще немає.",
     "noProductsFound": "Товарів не знайдено.",
     "noProductsYet": "Товарів ще немає.",
     "noServicesFound": "Послуг не знайдено.",
@@ -53,6 +56,8 @@
       "created": "Створено",
       "activity": "Активність",
       "date": "Дата",
+      "lastSeen": "Останнє",
+      "usage": "Використання",
       "price": "Ціна",
       "note": "Примітка",
       "updated": "Оновлено",
@@ -60,7 +65,10 @@
     },
     "selectAllServices": "Вибрати всі послуги",
     "selectService": "Вибрати {{name}}",
-    "inactiveBadge": "Неактивний"
+    "inactiveBadge": "Неактивний",
+    "copyName": "Копіювати назву",
+    "copied": "Скопійовано",
+    "copyFailed": "Не вдалося скопіювати"
   },
   "modals": {
     "close": "Закрити",
@@ -78,6 +86,8 @@
     "active": "Активний",
     "inactive": "Неактивний",
     "addNew": "Додати нового",
+    "addNewHint": "Створити ще одного постачальника. Телефон має бути унікальним.",
+    "addNewPhoneHint": "Вкажіть унікальний телефон, потім створіть.",
     "saving": "Збереження...",
     "save": "Зберегти",
     "create": "Створити",
@@ -136,8 +146,14 @@
     "latestBatchSummary": "Остання партія: {{price}} · {{date}}",
     "serialNumber": "Серійний №",
     "purchaseDate": "Дата прийому",
+    "supplierOrder": "Замовлення постачальника",
     "serialMissing": "Без серійного №",
     "latestBatchBadge": "Остання",
+    "reservedBadge": "Резерв",
+    "selectAllSerials": "Обрати всі серійні номери",
+    "selectSerialRow": "Обрати серійний {{serial}}",
+    "printSelectedCount": "Друк {{count}} обраних серійних номерів",
+    "selectSerialsToPrint": "Оберіть серійні номери для друку",
     "purchasePriceReadOnlyHint": "Закупівельні ціни лише для перегляду і не змінюються в цьому вікні.",
     "matchingStockRows": "Відповідних складських рядків: {{count}}.",
     "lastBatchPrice": "Ціна останньої партії: {{price}}. Відповідних складських рядків: {{count}}.",
@@ -158,5 +174,7 @@
     "pricePlaceholder": "700",
     "notePlaceholder": "Типовий опис або внутрішня примітка",
     "updateService": "Оновити послугу"
-  }
+  },
+  "pageTitle": "Товари та послуги",
+  "pageSubtitle": "{{count}} записів"
 }

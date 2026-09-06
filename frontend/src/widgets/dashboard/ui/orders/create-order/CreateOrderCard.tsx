@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useDismissibleSuggestions } from '../../../../../shared/lib/useDismissibleSuggestions';
 import { useTranslation } from 'react-i18next';
 import { getClients, getClientHistory } from '../../../../../entities/client/api/clientApi';
 import type { Client, ClientHistory } from '../../../../../entities/client/model/types';
@@ -959,6 +960,15 @@ export const CreateOrderCard = ({
           : item.unitPrice,
     });
   };
+  const {
+    rootRef: clientSuggestionsRootRef,
+    isVisible: isClientSuggestionsVisible,
+  } = useDismissibleSuggestions({
+    query: `${clientPhone}\n${clientName}`,
+    isActive:
+      visibleClientSuggestions.length > 0 || isClientLookupLoading,
+  });
+
   const onClientPhoneChange = (value: string) => {
     setClientPhone(value.replace(/[^\d+\s()-]/g, ''));
     setSelectedClientId(null);
@@ -1191,6 +1201,10 @@ export const CreateOrderCard = ({
         <div className="create-order-grid">
           <div className="create-order-left">
             <h3 className="create-section-title">{t('orders.create.client')}</h3>
+            <div
+              ref={clientSuggestionsRootRef}
+              className="modal-suggestions-anchor"
+            >
             <div className="create-row-2">
               <label className="field">
                 <span>{t('orders.create.clientData')}</span>
@@ -1224,7 +1238,7 @@ export const CreateOrderCard = ({
                 </p>
               ) : null}
             </div>
-            {(visibleClientSuggestions.length > 0 || isClientLookupLoading) ? (
+            {isClientSuggestionsVisible ? (
               <div className="create-suggestions">
                 {isClientLookupLoading ? <p>{t('orders.create.searchingClients')}</p> : null}
                 {visibleClientSuggestions.map((client) => {
@@ -1259,6 +1273,7 @@ export const CreateOrderCard = ({
                 })}
               </div>
             ) : null}
+            </div>
             {blacklistClientMatch ? (
               <button
                 type="button"

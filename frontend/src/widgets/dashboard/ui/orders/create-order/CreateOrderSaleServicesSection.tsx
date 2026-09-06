@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next';
+import { useDismissibleSuggestions } from '../../../../../shared/lib/useDismissibleSuggestions';
 import type { ServiceCatalogItem } from '../../../../../entities/service-catalog/model/types';
 import {
   PRICE_STEPPER_PRECISION,
@@ -57,6 +58,15 @@ export const CreateOrderSaleServicesSection = ({
   const warrantyOptions = getWarrantyOptions();
   const visibleServiceSuggestions =
     serviceQuery.trim().length >= 2 ? serviceSuggestions : [];
+  const {
+    rootRef: serviceSuggestionsRootRef,
+    panelRef: serviceSuggestionsPanelRef,
+    isVisible: isServiceSuggestionsVisible,
+  } = useDismissibleSuggestions({
+    query: serviceQuery,
+    isActive:
+      visibleServiceSuggestions.length > 0 || isServiceLookupLoading,
+  });
 
   return (
     <section className="create-order-sale-section create-order-sale-services-section">
@@ -75,7 +85,10 @@ export const CreateOrderSaleServicesSection = ({
       {isOpen ? (
         <>
           <div className="create-order-service-entry-row">
-            <label className="field create-order-service-search">
+            <label
+              className="field create-order-service-search"
+              ref={serviceSuggestionsRootRef}
+            >
               <span>{t('orders.detail.lineItems.addServicePlaceholder')}</span>
               <input
                 value={serviceQuery}
@@ -127,8 +140,11 @@ export const CreateOrderSaleServicesSection = ({
             </label>
           </div>
 
-          {visibleServiceSuggestions.length > 0 || isServiceLookupLoading ? (
-            <div className="create-suggestions create-order-service-suggestions">
+          {isServiceSuggestionsVisible ? (
+            <div
+              ref={serviceSuggestionsPanelRef}
+              className="create-suggestions create-order-service-suggestions"
+            >
               {isServiceLookupLoading ? (
                 <p>{t('orders.detail.lineItems.searchingServices')}</p>
               ) : null}

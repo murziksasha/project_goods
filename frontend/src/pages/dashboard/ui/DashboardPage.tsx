@@ -1400,6 +1400,7 @@ export const DashboardPage = () => {
                   suppliers={state.suppliers}
                   catalogProducts={state.catalogProducts}
                   currentEmployeeName={currentEmployee.name}
+                  currentEmployeeId={currentEmployee.id}
                   canViewSupplierOrders={canViewSupplierOrders}
                   canManageSupplierOrders={canManageSupplierOrders}
                   onCreateSupplier={actions.createSupplierCard}

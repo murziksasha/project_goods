@@ -194,7 +194,8 @@ See also: [SECURITY.md](./SECURITY.md) for auth model and LAN deployment notes.
 - Sidebar shows `Settings` when employee is `owner` or has `system.backups.manage` or `printForms.manage`.
 - Settings `Company` and `Dashboard` tabs require `owner`.
 - Settings `Print forms` tab requires `owner` or `printForms.manage`.
-- Settings `Backups` tab requires `system.backups.manage`.
+- Settings `Backups` and `Database` tabs require `system.backups.manage`.
+- Settings UI structure: [SETTINGS_SPEC.md](./SETTINGS_SPEC.md).
 - Main `Erase all data` is visible only to Temporary Admin.
 - Main product export is visible only to `owner` or employees with `inventory.manage`.
 - Accounting cashbox settings gear, create cashbox, edit cashbox, and archive/reactivate controls require `finance.cashboxes.manage`.

@@ -2,8 +2,39 @@
   "tabs": {
     "company": "Компанія",
     "print": "Друковані форми",
+    "dashboard": "Головна",
     "backups": "Резервні копії",
     "database": "База даних"
+  },
+  "dashboard": {
+    "subtitle": "Типові параметри віджета курсу та погоди на головній.",
+    "groups": {
+      "widgets": "Видимість віджета",
+      "rates": "Курси валют",
+      "weather": "Погода"
+    },
+    "marketWeatherEnabled": "Показувати блок курсу та погоди",
+    "exchangeRatesEnabled": "Показувати курси валют",
+    "weatherEnabled": "Показувати прогноз погоди",
+    "weatherAnimationEnabled": "Увімкнути анімацію погоди",
+    "currencies": "Валюти",
+    "rateProviders": "Джерела курсу",
+    "weatherProvider": "API погоди",
+    "defaultForecastView": "Стандартний вигляд прогнозу",
+    "defaultWeatherLocation": "Локація погоди",
+    "defaultWeatherHint": "Погода та анімація використовують це місто. Геолокація пристрою не потрібна.",
+    "weatherLocations": {
+      "chornomorsk": "Чорноморськ",
+      "odesa": "Одеса"
+    },
+    "openWeatherApiKey": "API-ключ OpenWeatherMap",
+    "openWeatherApiKeyPlaceholder": "Потрібен при виборі OpenWeatherMap",
+    "openWeatherApiKeyConfigured": "Налаштовано на сервері (OPENWEATHER_API_KEY).",
+    "openWeatherApiKeyServerOnly": "Вкажіть OPENWEATHER_API_KEY на backend-хості. Ключі не зберігаються в налаштуваннях.",
+    "providers": {
+      "openMeteo": "Open-Meteo (без ключа)",
+      "openWeather": "OpenWeatherMap"
+    }
   },
   "tabsAriaLabel": "Розділи налаштувань",
   "panel": {
@@ -11,31 +42,36 @@
     "title": "Конфігурація сервісу",
     "subtitle": "Глобальні налаштування CRM для замовлень, друкованих форм, фінансів та майбутніх сповіщень клієнтів.",
     "saveSettings": "Зберегти налаштування",
-    "saving": "Збереження..."
+    "saving": "Збереження...",
+    "loading": "Завантаження налаштувань..."
   },
   "company": {
+    "appearanceTitle": "Вигляд",
+    "identityTitle": "Реквізити компанії",
+    "identitySubtitle": "Ці значення підставляються в змінні друкованих форм.",
     "serviceNameInHeader": "Назва сервісу в шапці",
     "serviceNamePlaceholder": "Service CRM",
-    "companyName": "Назва компанії ({{company}})",
+    "companyName": "Назва компанії",
     "companyNamePlaceholder": "Назва компанії",
     "companyNameMinLength": "Назва компанії має містити щонайменше 2 символи.",
-    "companyId": "ЄДРПОУ / ID компанії ({{company_id}})",
+    "companyId": "ЄДРПОУ / ID компанії",
     "companyIdPlaceholder": "Реєстраційний номер компанії",
     "companyIdFormat": "ID компанії має містити 8–12 символів (літери, цифри, дефіс).",
-    "companyAddress": "Адреса компанії ({{company_address}})",
+    "companyAddress": "Адреса компанії",
     "companyAddressPlaceholder": "Адреса компанії",
     "companyAddressMinLength": "Адреса компанії має містити щонайменше 5 символів.",
-    "companyIban": "IBAN компанії ({{company_iban}})",
+    "companyIban": "IBAN компанії",
     "companyIbanPlaceholder": "UA00 0000 0000 0000 0000 0000 0000 000",
     "companyIbanFormat": "IBAN має відповідати формату UA + 27 цифр (пробіли дозволені).",
-    "companyEmail": "E-mail компанії ({{company_email}})",
+    "companyEmail": "E-mail компанії",
     "companyEmailPlaceholder": "service@example.com",
-    "companySite": "Сайт компанії ({{company_site}})",
+    "companySite": "Сайт компанії",
     "companySitePlaceholder": "https://example.com"
   },
   "print": {
     "sectionLabel": "Друковані форми",
     "title": "Документи замовлень",
+    "subtitle": "Шаблони для меню друку замовлень, продажів і складу.",
     "documentTemplate": "Шаблон документа",
     "add": "Додати",
     "duplicate": "Дублювати",
@@ -56,6 +92,11 @@
     "custom": "Власний",
     "widthMm": "Ширина, мм",
     "heightMm": "Висота, мм",
+    "contentMargins": "Відступи вмісту",
+    "marginTopMm": "Зверху, мм",
+    "marginRightMm": "Справа, мм",
+    "marginBottomMm": "Знизу, мм",
+    "marginLeftMm": "Зліва, мм",
     "legacyHtmlForm": "Застаріла HTML-форма",
     "duplicateAsBlockLayout": "Дублювати як блочний макет",
     "layoutSuffix": "{{title}} (макет)",
@@ -68,6 +109,10 @@
     "alignCenter": "по центру",
     "alignRight": "праворуч",
     "level": "Рівень",
+    "weight": "Жирність",
+    "weightLight": "Легкий",
+    "weightNormal": "Звичайний",
+    "weightBold": "Жирний",
     "columns": "Стовпці",
     "fieldLabel": "Підпис поля {{index}}",
     "fieldValue": "Значення поля {{index}}",
@@ -288,5 +333,12 @@
       "indexCount": "Індексів",
       "share": "Частка"
     }
+  },
+  "ui": {
+    "appearance": "Вигляд інтерфейсу",
+    "density": "Щільність таблиць",
+    "densityComfortable": "Звичайна",
+    "densityCompact": "Компактна",
+    "densityHint": "Застосовується до таблиць і панелей у цьому браузері."
   }
 }

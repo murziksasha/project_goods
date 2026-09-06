@@ -7,6 +7,12 @@ import type {
   DatabaseHealth,
   DatabaseStorageStats,
 } from '../../../../entities/backup/model/dbReportTypes';
+import { Button } from '../../../../shared/ui/Button';
+import { EmptyState } from '../../../../shared/ui/EmptyState';
+import { InlineError } from '../../../../shared/ui/InlineError';
+import { LoadingState } from '../../../../shared/ui/LoadingState';
+import { PageHeader } from '../../../../shared/ui/PageHeader';
+import { StatusBadge } from '../../../../shared/ui/StatusBadge';
 
 type DatabaseReportSectionProps = {
   canManageBackups: boolean;
@@ -159,37 +165,29 @@ export const DatabaseReportSection = ({
   if (!canManageBackups) {
     return (
       <section className="settings-section">
-        <p className="empty-state">{t('settings.database.noPermission')}</p>
+        <EmptyState>{t('settings.database.noPermission')}</EmptyState>
       </section>
     );
   }
 
   return (
     <section className="settings-section">
-      <div className="panel-header panel-header-row">
-        <div>
-          <p className="section-label">{t('settings.database.sectionLabel')}</p>
-          <h2>{t('settings.database.title')}</h2>
-          <p className="panel-subtitle">{t('settings.database.subtitle')}</p>
-        </div>
-        <div className="settings-actions">
-          <button
-            type="button"
-            className="primary-button"
-            onClick={() => void refresh()}
-            disabled={isLoading}
-          >
+      <PageHeader
+        title={t('settings.database.title')}
+        subtitle={t('settings.database.subtitle')}
+        actions={
+          <Button onClick={() => void refresh()} disabled={isLoading}>
             {isLoading
               ? t('settings.database.refreshing')
               : t('settings.database.refresh')}
-          </button>
-        </div>
-      </div>
+          </Button>
+        }
+      />
 
-      {error ? <p className="empty-state">{error}</p> : null}
+      {error ? <InlineError>{error}</InlineError> : null}
 
       {isLoading && !health && !stats ? (
-        <p className="empty-state">{t('settings.database.loading')}</p>
+        <LoadingState>{t('settings.database.loading')}</LoadingState>
       ) : null}
 
       {health ? (
@@ -198,9 +196,10 @@ export const DatabaseReportSection = ({
           aria-label={t('settings.database.healthAriaLabel')}
         >
           <div className="db-health-main">
-            <span className={`db-health-badge db-health-badge-${health.status}`}>
-              {t(`settings.database.status.${health.status}`)}
-            </span>
+            <StatusBadge
+              tone={health.status === 'ok' ? 'success' : 'danger'}
+              label={t(`settings.database.status.${health.status}`)}
+            />
             <dl className="db-health-meta">
               <div>
                 <dt>{t('settings.database.latency')}</dt>
@@ -296,14 +295,14 @@ export const DatabaseReportSection = ({
           ) : null}
 
           {sortedCollections.length === 0 ? (
-            <p className="empty-state">{t('settings.database.collectionsEmpty')}</p>
+            <EmptyState>{t('settings.database.collectionsEmpty')}</EmptyState>
           ) : (
             <div className="db-collections-wrap">
               <p className="section-label">
                 {t('settings.database.collectionsTitle')}
               </p>
-              <div className="db-collections-table-scroll">
-                <table className="db-collections-table">
+              <div className="db-collections-table-scroll catalog-table-wrap">
+                <table className="catalog-table db-collections-table table-card-stack">
                   <thead>
                     <tr>
                       <th>{t('settings.database.table.name')}</th>
@@ -327,21 +326,30 @@ export const DatabaseReportSection = ({
                           : 0;
                       return (
                         <tr key={collection.name}>
-                          <td>
+                          <td data-label={t('settings.database.table.name')}>
                             <strong>{collection.name}</strong>
                           </td>
-                          <td>{collection.count.toLocaleString('uk-UA')}</td>
-                          <td>{formatBytes(collection.sizeBytes)}</td>
-                          <td>{formatBytes(collection.storageSizeBytes)}</td>
-                          <td>{formatBytes(collection.totalIndexSizeBytes)}</td>
-                          <td>{formatBytes(collection.avgObjSizeBytes)}</td>
-                          <td>{collection.nindexes}</td>
-                          <td>
+                          <td data-label={t('settings.database.table.documents')}>
+                            {collection.count.toLocaleString('uk-UA')}
+                          </td>
+                          <td data-label={t('settings.database.table.data')}>
+                            {formatBytes(collection.sizeBytes)}
+                          </td>
+                          <td data-label={t('settings.database.table.storage')}>
+                            {formatBytes(collection.storageSizeBytes)}
+                          </td>
+                          <td data-label={t('settings.database.table.indexes')}>
+                            {formatBytes(collection.totalIndexSizeBytes)}
+                          </td>
+                          <td data-label={t('settings.database.table.avgObj')}>
+                            {formatBytes(collection.avgObjSizeBytes)}
+                          </td>
+                          <td data-label={t('settings.database.table.indexCount')}>
+                            {collection.nindexes}
+                          </td>
+                          <td data-label={t('settings.database.table.share')}>
                             <div className="db-share-cell">
-                              <div
-                                className="db-share-bar"
-                                aria-hidden
-                              >
+                              <div className="db-share-bar" aria-hidden>
                                 <span style={{ width: `${share.toFixed(1)}%` }} />
                               </div>
                               <span>{share.toFixed(1)}%</span>

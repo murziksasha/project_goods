@@ -142,6 +142,90 @@ describe('filterClientHistoryRows', () => {
     );
     expect(filtered.map((s) => s.id)).toEqual(['s2']);
   });
+
+  it('matches Orders search by device name, not service lines', () => {
+    const repair = baseSale({
+      id: 'r1',
+      kind: 'repair',
+      recordNumber: 'r000770',
+      product: {
+        id: 'device-1',
+        article: '',
+        name: 'Dell monitor',
+        serialNumber: '',
+      },
+      lineItems: [
+        {
+          id: 'l-service',
+          kind: 'service',
+          name: 'BIOS flash',
+          price: 400,
+          quantity: 1,
+          warrantyPeriod: 0,
+        },
+      ],
+    });
+
+    const byDevice = filterClientHistoryRows(
+      [repair],
+      { query: 'dell', status: 'all', dateFrom: '', dateTo: '' },
+      'orders',
+    );
+    expect(byDevice.map((s) => s.id)).toEqual(['r1']);
+
+    const byService = filterClientHistoryRows(
+      [repair],
+      { query: 'BIOS', status: 'all', dateFrom: '', dateTo: '' },
+      'orders',
+    );
+    expect(byService).toEqual([]);
+  });
+
+  it('matches Orders and Sales search by serial', () => {
+    const repair = baseSale({
+      id: 'r-serial',
+      kind: 'repair',
+      recordNumber: 'r000771',
+      product: {
+        id: 'device-1',
+        article: '',
+        name: 'Dell monitor',
+        serialNumber: 'SN-DEVICE',
+      },
+      lineItems: [],
+    });
+    const sale = baseSale({
+      id: 's-serial',
+      recordNumber: 's000534',
+      lineItems: [
+        {
+          id: 'l-serial',
+          kind: 'product',
+          name: 'TV box',
+          price: 100,
+          quantity: 1,
+          warrantyPeriod: 0,
+          serialNumbers: ['S000680'],
+        },
+      ],
+    });
+
+    expect(
+      filterClientHistoryRows(
+        [repair, sale],
+        { query: 'sn-device', status: 'all', dateFrom: '', dateTo: '' },
+        'orders',
+      ).map((row) => row.id),
+    ).toEqual(['r-serial']);
+
+    expect(
+      filterClientHistoryRows(
+        [repair, sale],
+        { query: 's000680', status: 'all', dateFrom: '', dateTo: '' },
+        'sales',
+      ).map((row) => row.id),
+    ).toEqual(['s-serial']);
+  });
 });
 
 describe('collectHistoryStatuses', () => {

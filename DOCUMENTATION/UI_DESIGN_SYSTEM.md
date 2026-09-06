@@ -83,9 +83,67 @@ CRM client palette (aligned with [`entities/client/model/constants.ts`](../front
 
 React: `StatusBadge` with `clientStatus` or `tone` prop.
 
+Product model serial table (`ProductModelModal`, `layout.css`):
+
+| Class | Role |
+|-------|------|
+| `.product-model-serial-purchases-table` | Compact `Purchase by serial` table: Serial #, Purchase, Receipt date, Supplier order |
+| `.product-model-latest-batch-badge` | Newest receipt batch (`--bg-soft-primary-strong`) |
+| `.product-model-reserved-badge` | Bound on another order (`--bg-soft-danger`, `--color-danger-soft`) |
+| `.product-model-serial-row-reserved` | Reserved row wash; wins over latest/selected row background |
+| `.product-model-serial-empty` | `—` for missing supplier-order provenance |
+
 ## Tables
 
 Shared table primitives: `.catalog-table`, `.catalog-table-wrap`, zebra rows, compact variants in [`lists.css`](../frontend/src/shared/styles/lists.css).
+
+## Hover copy icon
+
+**Source of truth** for hover-to-copy on list/table values. Domain docs **link** here; they do not restate the rules.
+
+Shared control: [`frontend/src/shared/ui/CopyableValue.tsx`](../frontend/src/shared/ui/CopyableValue.tsx). Clipboard helper: [`frontend/src/shared/lib/clipboard.ts`](../frontend/src/shared/lib/clipboard.ts). Catalog **names** wrap it via [`CatalogCopyableName.tsx`](../frontend/src/widgets/dashboard/ui/product-catalog/CatalogCopyableName.tsx). CSS: `.copyable-value` / `.copyable-value-copy` in [`layout.css`](../frontend/src/shared/styles/layout.css) (aliases `.catalog-name-copy-button` remain).
+
+### Interaction
+
+- Hover or `:focus-within` on the **value wrapper** (not the whole row) shows a copy icon as an inline sibling after the text.
+- Only the icon copies. Clicking the value keeps the current flow: open order/sale/client/model/supplier, `tel:`, or row click.
+- Icon click uses `preventDefault` + `stopPropagation` so star, expand, delete, and row handlers do not run.
+- Empty / whitespace-only values have no icon.
+- The icon is **not** `position: absolute` and must not cover the star, expand chevron, status badge, delete `×`, next column, or modal close.
+- Hidden until hover by collapsing width (`width: 0`). On `@media (hover: none)` the icon stays visible.
+- Success state (~1.4s) uses `--color-success` on the icon button.
+- Labels: `common.copy` / `common.copied` / `common.copyFailed`. Catalog **name** idle label is `catalog.tables.copyName` (keep `copyName` / `copied` / `copyFailed` in `frontend/scripts/catalog-locale-*.json` so locale merge does not drop them).
+
+### Clipboard payload
+
+| Value | Copied text |
+| --- | --- |
+| Name, serial, order number, product, supplier | Visible string |
+| Phone | Stored canonical value (`+380…`), not the grouped display |
+
+### Surfaces
+
+| Place | Hover targets | Wiring |
+| --- | --- | --- |
+| `Orders` / `Sales` tables | Order number, client phone | `OrdersWorkspace.tsx` |
+| `Supplier Order` table | Order number (parent and child), Product, Supplier (not collapsed `N items` / child `—`) | `SupplierOrdersWorkspaceSections.tsx` |
+| Warehouse `Receipts` | Order number (lines + grouped parent) | `WarehouseTables.tsx` |
+| Warehouse `Stock balances` | Name, Serial #, Client order, Supplier order (**not** Article / Note) | `WarehouseTables.tsx` |
+| Product model modal `Purchase by serial` | Serial #, Supplier order number (order click still opens `SupplierOrderModal`; Latest/Reserved stay outside the serial copy target) | `ProductModelModal.tsx` |
+| `Clients & suppliers` → Clients / Suppliers | Name, phone | `ClientsTable.tsx`, `ClientsSuppliersWorkspace.tsx` |
+| Client card header | Blue `tel:` phone | `ClientCardModal.tsx` |
+| Client card `Orders` / `Sales` | Order/sale number, device / product serial (`S/N:` line; icon copies the serial). Number click still opens the card | `ClientCardModal.tsx` |
+| Products & Services → Client devices / Products / Services | Name | `CatalogCopyableName` in `ProductCatalogTables.tsx` |
+| Products & Services → **Suppliers** | Name **and** phone (`tel:` stays on the number; icon copies; row click still opens the supplier) | `ProductCatalogTables.tsx` `SuppliersTable` |
+
+### Out of scope
+
+- Product model modal title copy (separate `.product-model-copy-button` control)
+- Warehouse Stock `Article` / `Note`
+- Employee phones
+- Kanban cards
+
+Domain links: [ORDER_FLOW.md](./ORDER_FLOW.md) · [SALE_FLOW.md](./SALE_FLOW.md) · [SUPPLIER_ORDER_FLOW.md](./SUPPLIER_ORDER_FLOW.md) · [WAREHOUSE_FLOW.md](./WAREHOUSE_FLOW.md) · [CLIENTS_RULES.md](./CLIENTS_RULES.md) · [CATALOG_PRODUCT_CREATE_MODAL_SPEC.md](./CATALOG_PRODUCT_CREATE_MODAL_SPEC.md)
 
 ## Breakpoints
 
@@ -129,6 +187,7 @@ From [`responsive.css`](../frontend/src/shared/styles/responsive.css):
 | `NumberStepper` | `NumberStepper.tsx` |
 | `PhonesField` | `PhonesField.tsx` |
 | `LanguageSwitcher` | `LanguageSwitcher.tsx` |
+| `CopyableValue` | `CopyableValue.tsx` — hover copy icon; see [Hover copy icon](#hover-copy-icon) |
 
 ### Feedback states
 
@@ -141,7 +200,9 @@ From [`responsive.css`](../frontend/src/shared/styles/responsive.css):
 | `.offline-banner` | Persistent offline strip in page shell |
 | `.page-header` | Module header row (F2) |
 | `.mobile-bottom-nav` | Phone bottom tabs ≤720px |
-| `html[data-ui-density=compact]` | Compact table/toolbar density (Settings → Company) |
+| `html[data-ui-density=compact]` | Compact table/toolbar density (Settings → Company → Appearance) |
+| `.settings-group` | Card group on Settings tabs (appearance / identity / widget blocks) |
+| `.settings-token` | Print-form placeholder chip (`{{company}}`) next to Company fields |
 | `html[data-theme=light\|dark]` | Color theme (`project-goods.ui-theme` in localStorage; topbar ThemeSwitcher) |
 
 ## CSS file map
@@ -149,7 +210,7 @@ From [`responsive.css`](../frontend/src/shared/styles/responsive.css):
 ```
 shared/styles/
   base.css          # tokens, client badges
-  layout.css        # shell, catalog, toast, shared workspace
+  layout.css        # shell, catalog, toast, hover-copy (`.copyable-value`), shared workspace
   forms.css         # buttons, fields, inline errors
   lists.css         # tables, pills
   responsive.css    # breakpoints
@@ -158,6 +219,8 @@ shared/styles/
     orders.css
     warehouse.css
     accounting.css
+    employees.css
+    settings.css         # Settings tabs, groups, print builder chrome, backups, db report
     adaptive-tables.css  # card-stack tables, kanban snap, create menu
 ```
 

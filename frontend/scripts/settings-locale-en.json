@@ -2,8 +2,39 @@
   "tabs": {
     "company": "Company",
     "print": "Print forms",
+    "dashboard": "Dashboard",
     "backups": "Backups",
     "database": "Database"
+  },
+  "dashboard": {
+    "subtitle": "Defaults for the home-page market, rates and weather widget.",
+    "groups": {
+      "widgets": "Widget visibility",
+      "rates": "Exchange rates",
+      "weather": "Weather"
+    },
+    "marketWeatherEnabled": "Show market & weather widget",
+    "exchangeRatesEnabled": "Show exchange rates",
+    "weatherEnabled": "Show weather forecast",
+    "weatherAnimationEnabled": "Enable weather animation",
+    "currencies": "Currencies",
+    "rateProviders": "Rate providers",
+    "weatherProvider": "Weather API provider",
+    "defaultForecastView": "Default forecast view",
+    "defaultWeatherLocation": "Weather location",
+    "defaultWeatherHint": "Weather and animation use this city. No device geolocation is required.",
+    "weatherLocations": {
+      "chornomorsk": "Chornomorsk",
+      "odesa": "Odesa"
+    },
+    "openWeatherApiKey": "OpenWeatherMap API key",
+    "openWeatherApiKeyPlaceholder": "Required when OpenWeatherMap is selected",
+    "openWeatherApiKeyConfigured": "Configured on the server (OPENWEATHER_API_KEY).",
+    "openWeatherApiKeyServerOnly": "Set OPENWEATHER_API_KEY on the backend host. Keys are not stored in settings.",
+    "providers": {
+      "openMeteo": "Open-Meteo (no key)",
+      "openWeather": "OpenWeatherMap"
+    }
   },
   "tabsAriaLabel": "Settings sections",
   "panel": {
@@ -11,31 +42,36 @@
     "title": "Service configuration",
     "subtitle": "Global CRM settings for orders, print forms, finance and future client notifications.",
     "saveSettings": "Save settings",
-    "saving": "Saving..."
+    "saving": "Saving...",
+    "loading": "Loading settings..."
   },
   "company": {
+    "appearanceTitle": "Appearance",
+    "identityTitle": "Company identity",
+    "identitySubtitle": "These values fill print-form tokens on documents.",
     "serviceNameInHeader": "Service name in header",
     "serviceNamePlaceholder": "Service CRM",
-    "companyName": "Company name ({{company}})",
+    "companyName": "Company name",
     "companyNamePlaceholder": "Company name",
     "companyNameMinLength": "Company name must be at least 2 characters.",
-    "companyId": "Company ID ({{company_id}})",
+    "companyId": "Company ID",
     "companyIdPlaceholder": "Company registration ID",
     "companyIdFormat": "Company ID must be 8-12 characters (letters, digits, dash).",
-    "companyAddress": "Company address ({{company_address}})",
+    "companyAddress": "Company address",
     "companyAddressPlaceholder": "Company address",
     "companyAddressMinLength": "Company address must be at least 5 characters.",
-    "companyIban": "Company IBAN ({{company_iban}})",
+    "companyIban": "Company IBAN",
     "companyIbanPlaceholder": "UA00 0000 0000 0000 0000 0000 0000 000",
     "companyIbanFormat": "IBAN must match UA + 27 digits (spaces are allowed).",
-    "companyEmail": "Company e-mail ({{company_email}})",
+    "companyEmail": "Company e-mail",
     "companyEmailPlaceholder": "service@example.com",
-    "companySite": "Company site ({{company_site}})",
+    "companySite": "Company site",
     "companySitePlaceholder": "https://example.com"
   },
   "print": {
     "sectionLabel": "Print forms",
     "title": "Order documents",
+    "subtitle": "Templates used in order, sale and warehouse print menus.",
     "documentTemplate": "Document template",
     "add": "Add",
     "duplicate": "Duplicate",
@@ -56,6 +92,11 @@
     "custom": "Custom",
     "widthMm": "Width, mm",
     "heightMm": "Height, mm",
+    "contentMargins": "Content margins",
+    "marginTopMm": "Top, mm",
+    "marginRightMm": "Right, mm",
+    "marginBottomMm": "Bottom, mm",
+    "marginLeftMm": "Left, mm",
     "legacyHtmlForm": "Legacy HTML form",
     "duplicateAsBlockLayout": "Duplicate as block layout",
     "layoutSuffix": "{{title}} layout",
@@ -68,6 +109,10 @@
     "alignCenter": "center",
     "alignRight": "right",
     "level": "Level",
+    "weight": "Weight",
+    "weightLight": "Light",
+    "weightNormal": "Normal",
+    "weightBold": "Bold",
     "columns": "Columns",
     "fieldLabel": "Field label {{index}}",
     "fieldValue": "Field value {{index}}",
@@ -288,5 +333,12 @@
       "indexCount": "# idx",
       "share": "Share"
     }
+  },
+  "ui": {
+    "appearance": "Interface appearance",
+    "density": "Table density",
+    "densityComfortable": "Comfortable",
+    "densityCompact": "Compact",
+    "densityHint": "Applies to tables and toolbars in this browser."
   }
 }

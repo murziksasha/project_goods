@@ -461,6 +461,51 @@ describe('RapidSaleModal', () => {
     vi.useRealTimers();
   });
 
+  it('dismisses product suggestions on outside click and keeps the typed query', async () => {
+    renderModal(
+      <RapidSaleModal
+        products={[
+          product({
+            id: 'p-main',
+            name: 'Router',
+            warehouseId: 'wh-main',
+            serialNumber: 'S000001',
+            salePriceOptions: [100],
+          }),
+        ]}
+        sales={[]}
+        isSaving={false}
+        onClose={vi.fn()}
+        onSubmit={vi.fn(async () => undefined)}
+        onError={vi.fn()}
+      />,
+    );
+
+    const dialog = screen.getByRole('dialog', { name: 'Rapid sale' });
+    await waitFor(() => {
+      expect(within(dialog).getByLabelText('Warehouse')).toHaveValue('wh-main');
+    });
+    const searchInput = within(dialog).getByPlaceholderText(
+      'Name, serial or article',
+    );
+
+    vi.useFakeTimers();
+    fireEvent.change(searchInput, { target: { value: 'Router' } });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(250);
+    });
+
+    expect(within(dialog).getByRole('button', { name: 'Router' })).toBeInTheDocument();
+
+    fireEvent.pointerDown(within(dialog).getByLabelText('Product quantity'));
+    expect(
+      within(dialog).queryByRole('button', { name: 'Router' }),
+    ).not.toBeInTheDocument();
+    expect(searchInput).toHaveValue('Router');
+
+    vi.useRealTimers();
+  });
+
   it('hides draft serials from product suggestions after add', async () => {
     vi.useFakeTimers();
     renderModal(

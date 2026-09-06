@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useDismissibleSuggestions } from '../../../../../shared/lib/useDismissibleSuggestions';
 import type { Product } from '../../../../../entities/product/model/types';
 import type { ProductSalePriceTier } from '../../../../../entities/product/lib/sale-prices';
 import { NumberStepper } from '../../../../../shared/ui/NumberStepper';
@@ -52,6 +53,14 @@ export const CreateOrderSaleSection = ({
 }: CreateOrderSaleSectionProps) => {
   const { t } = useTranslation();
   const warrantyOptions = getWarrantyOptions();
+  const {
+    rootRef: saleProductSuggestionsRootRef,
+    isVisible: isSaleProductSuggestionsVisible,
+  } = useDismissibleSuggestions({
+    query: focusedSaleItem?.query ?? '',
+    isActive:
+      visibleSaleProductSuggestions.length > 0 || isSaleProductLookupLoading,
+  });
   const productsById = useMemo(
     () => Object.fromEntries(products.map((product) => [product.id, product])),
     [products],
@@ -81,7 +90,18 @@ export const CreateOrderSaleSection = ({
       <div className="sale-items-list">
         {saleItems.map((item, index) => (
           <div key={item.id} className="sale-item-row">
-            <label className="field sale-item-product">
+            <label
+              className={
+                item.id === focusedSaleItem?.id
+                  ? 'field sale-item-product modal-suggestions-anchor'
+                  : 'field sale-item-product'
+              }
+              ref={
+                item.id === focusedSaleItem?.id
+                  ? saleProductSuggestionsRootRef
+                  : undefined
+              }
+            >
               <span>{t('orders.create.productNumber', { number: index + 1 })}</span>
               <input
                 value={item.query}
@@ -99,6 +119,53 @@ export const CreateOrderSaleSection = ({
                 }}
                 placeholder={t('orders.create.productSearchPlaceholder')}
               />
+              {item.id === focusedSaleItem?.id &&
+              isSaleProductSuggestionsVisible ? (
+                <div className="create-suggestions">
+                  {isSaleProductLookupLoading ? (
+                    <p>{t('orders.create.searchingProducts')}</p>
+                  ) : null}
+                  {visibleSaleProductSuggestions.map((product) => (
+                    <button
+                      key={product.id}
+                      type="button"
+                      className="create-suggestion-item"
+                      disabled={!product.selectable}
+                      title={
+                        product.selectable ? undefined : product.availabilityLabel
+                      }
+                      onClick={() =>
+                        focusedSaleItem &&
+                        onApplySaleProduct(focusedSaleItem.id, product)
+                      }
+                    >
+                      <strong>{product.name}</strong>
+                      <span>
+                        {product.source === 'stock' ? (
+                          <>
+                            <strong>{product.warehouseName ?? '-'}</strong>
+                            {' / '}
+                            {formatCurrency(product.price)} /{' '}
+                            {product.article || '-'} /{' '}
+                            {product.serialNumber || '-'} /{' '}
+                            {product.availabilityLabel}
+                          </>
+                        ) : (
+                          <>
+                            {product.price > 0 ? (
+                              <>
+                                {formatCurrency(product.price)}
+                                {' / '}
+                              </>
+                            ) : null}
+                            {product.note}
+                          </>
+                        )}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              ) : null}
             </label>
             <label className="field">
               <span>{t('orders.create.qty')}</span>
@@ -168,52 +235,9 @@ export const CreateOrderSaleSection = ({
         ))}
       </div>
 
-      {visibleSaleProductSuggestions.length > 0 ||
-      isSaleProductLookupLoading ? (
-        <div className="create-suggestions">
-          {isSaleProductLookupLoading ? (
-            <p>{t('orders.create.searchingProducts')}</p>
-          ) : null}
-          {visibleSaleProductSuggestions.map((product) => (
-            <button
-              key={product.id}
-              type="button"
-              className="create-suggestion-item"
-              disabled={!product.selectable}
-              title={product.selectable ? undefined : product.availabilityLabel}
-              onClick={() =>
-                focusedSaleItem &&
-                onApplySaleProduct(focusedSaleItem.id, product)
-              }
-            >
-              <strong>{product.name}</strong>
-              <span>
-                {product.source === 'stock' ? (
-                  <>
-                    <strong>{product.warehouseName ?? '-'}</strong>
-                    {' / '}
-                    {formatCurrency(product.price)} / {product.article || '-'} /{' '}
-                    {product.serialNumber || '-'} / {product.availabilityLabel}
-                  </>
-                ) : (
-                  <>
-                    {product.price > 0 ? (
-                      <>
-                        {formatCurrency(product.price)}
-                        {' / '}
-                      </>
-                    ) : null}
-                    {product.note}
-                  </>
-                )}
-              </span>
-            </button>
-          ))}
-          <div className="sale-order-unavailable">
-            <span>{`${Math.round(saleItemsTotal * 100) / 100} UAH`}</span>
-          </div>
-        </div>
-      ) : null}
+      <div className="sale-order-unavailable">
+        <span>{`${Math.round(saleItemsTotal * 100) / 100} UAH`}</span>
+      </div>
 
       <label className="field">
         <span>{t('orders.create.saleNotes')}</span>

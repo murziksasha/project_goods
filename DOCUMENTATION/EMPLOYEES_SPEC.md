@@ -9,6 +9,7 @@ The Employees section (`page=employees`) is available to `owner` and employees w
 - Page host: `frontend/src/pages/dashboard/ui/DashboardPage.tsx`
 - Tabs wrapper: `frontend/src/widgets/dashboard/ui/settings/EmployeesPanel.tsx`
 - Team management tab: `frontend/src/widgets/dashboard/ui/settings/EmployeeManagementPanel.tsx`
+- Create/edit modal: `frontend/src/widgets/dashboard/ui/settings/EmployeeFormModal.tsx`
 - Information tab: `frontend/src/widgets/dashboard/ui/settings/EmployeeInformationPanel.tsx`
 - Analytics engine: `frontend/src/widgets/dashboard/model/employee-information.ts`
 
@@ -21,13 +22,29 @@ The Employees section (`page=employees`) is available to `owner` and employees w
 
 Active tab is persisted in browser `localStorage` (`project-goods.employees-active-tab`).
 
-## Employee list: inactive badge
+## Employee list
 
-In the team list (`EmployeeManagementPanel`), inactive employees show an inline badge after the employee name:
+`EmployeeManagementPanel` is a header + filtered card list. Create/edit lives in `EmployeeFormModal` (not an inline form below the list).
+
+- **Header:** `PageHeader` with active/inactive counts and **Add employee**
+- **Toolbar:** search (name, login, email, phone, localized role), role filter, status filter (`all` / `active` / `inactive`)
+- **Cards:** name (opens edit), localized role badge (`StatusBadge`), inactive badge, current-user chip; labeled login / email / phone (`PhoneNumber`)
+- **Actions:** Edit / Delete with current permission rules; clicking the card opens edit when allowed
+
+### Inactive badge
+
+Inactive employees show an inline badge after the employee name:
 
 - CSS class: `catalog-inactive-badge` (same pattern as catalog and warehouse inactive entities)
 - i18n key: `employees.list.inactiveBadge`
 - The separate status line (`Active` / `Inactive`) is not duplicated under the name
+
+### Localized roles and permissions
+
+Role names and permission checkboxes use i18n keys, never raw IDs:
+
+- `employees.roles.<role>`
+- `employees.permissions.<permission>` (nested JSON, e.g. `orders.view`)
 
 ## Master assignment rules
 
@@ -41,6 +58,8 @@ Inactive employees must not be assignable as repair master:
 The Information tab follows the same interaction model as Warehouse Information and Accounting Information:
 
 ### Summary KPIs
+
+Rendered with `.analytics-kpi-board` (revenue as hero money cards, counts as volume cards):
 
 - Active employees
 - Orders in selected period
@@ -70,17 +89,17 @@ Completed repairs use final statuses: `issued`, `issuedWithoutRepair`, `clientRe
 
 The Information header mirrors the business home period controls:
 
-- **Whole** — all-time metrics for current active employees
-- **Today** — default on first load
+- **Whole** — all-time metrics for current active employees (default on first load)
+- **Today**
 - **This month**, **Last month**, **This year**, **Last year**
 - **Date** — custom `dateFrom` / `dateTo` range; overrides preset highlight until cleared (Clear resets to Today)
 
-Preset ranges are applied to `sale.createdAt`. Shared period logic lives in `frontend/src/widgets/dashboard/model/stats-period.ts`.
+Preset ranges are applied to `sale.saleDate` (fallback `sale.createdAt`), same as Main analytics. Shared period logic lives in `frontend/src/widgets/dashboard/model/stats-period.ts`. Custom Date clear resets to Whole.
 
 ### Filters and sorting
 
 - Search by name, role, login, email, phone
-- Role filter (all roles + each `EmployeeRole`)
+- Role filter (all roles + each `EmployeeRole`, localized labels)
 - Achievements sort: orders created / repairs / sales / revenue / latest activity
 - Detail views sort: count / revenue / latest activity
 - Direction: ascending / descending

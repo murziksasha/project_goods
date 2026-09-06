@@ -2224,24 +2224,38 @@ describe('OrderDetailCard product entry', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /Products/i }));
 
-    const productSearch = screen.getByPlaceholderText(
-      PRODUCT_SEARCH_PLACEHOLDER,
-    );
-    expect(productSearch).toBeDisabled();
     expect(
-      screen.getByRole('button', { name: 'Add product' }),
-    ).toBeDisabled();
-
-    fireEvent.change(productSearch, { target: { value: 'S000003' } });
-    await waitFor(() => {
-      expect(
-        screen.getByText('TerraE 30E INR18650 2900mAh'),
-      ).toBeInTheDocument();
-    });
-    fireEvent.click(screen.getByText('TerraE 30E INR18650 2900mAh'));
-
+      screen.queryByPlaceholderText(PRODUCT_SEARCH_PLACEHOLDER),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Add product' }),
+    ).not.toBeInTheDocument();
     expect(onAddLineItem).not.toHaveBeenCalled();
     expect(onSuccess).not.toHaveBeenCalled();
+  });
+
+  it('locks issued repair service prices and hides add-row', () => {
+    renderCard({
+      saleOverride: { kind: 'repair', status: 'issued' },
+      status: 'issued',
+      lineItems: [
+        {
+          id: 'svc-1',
+          kind: 'service',
+          name: 'Diagnostics',
+          price: 2500,
+          quantity: 1,
+          warrantyPeriod: 0,
+        },
+      ],
+    });
+
+    expect(screen.getByDisplayValue('2500')).toBeDisabled();
+    expect(
+      screen.queryByRole('button', { name: 'Add service' }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Discount')).toBeDisabled();
+    expect(screen.getByLabelText(/repair status/i)).not.toBeDisabled();
   });
 
   it('exposes keyboard focus path for repair status select', () => {
@@ -3492,6 +3506,7 @@ describe('OrderDetailCard unbound serial issue warning', () => {
       status: 'new',
       statusOptions: saleStatusOptions,
       lineItems: [unboundProduct],
+      paidAmount: 100,
       onSaveMainInfo,
     });
 
@@ -3584,6 +3599,31 @@ describe('OrderDetailCard unbound serial issue warning', () => {
     ).not.toBeInTheDocument();
     await waitFor(() => {
       expect(onSaveMainInfo).toHaveBeenCalled();
+    });
+  });
+
+  it('saves issued without the serial warning when remaining payment is due', async () => {
+    const onSaveMainInfo = vi.fn(async () => undefined);
+    renderCard({
+      saleOverride: { kind: 'repair', status: 'ready' },
+      status: 'ready',
+      statusOptions: repairStatusOptions,
+      lineItems: [unboundProduct],
+      paidAmount: 0,
+      onSaveMainInfo,
+    });
+
+    selectIssuedAndSave();
+
+    expect(
+      screen.queryByRole('alertdialog', {
+        name: 'Serial numbers are not bound',
+      }),
+    ).not.toBeInTheDocument();
+    await waitFor(() => {
+      expect(onSaveMainInfo).toHaveBeenCalledWith(
+        expect.objectContaining({ status: 'issued' }),
+      );
     });
   });
 
