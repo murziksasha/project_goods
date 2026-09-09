@@ -3,11 +3,14 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ReactElement } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Product } from '../../../../../entities/product/model/types';
+import type { ServiceCatalogItem } from '../../../../../entities/service-catalog/model/types';
 import { queryKeys } from '../../../../../shared/api/queryClient';
 import { RapidSaleModal } from './RapidSaleModal';
 
 const { getServiceCatalogItemsMock, createServiceCatalogItemMock } = vi.hoisted(() => ({
-  getServiceCatalogItemsMock: vi.fn(async () => []),
+  getServiceCatalogItemsMock: vi.fn<(query?: string) => Promise<ServiceCatalogItem[]>>(
+    async () => [],
+  ),
   createServiceCatalogItemMock: vi.fn(),
 }));
 

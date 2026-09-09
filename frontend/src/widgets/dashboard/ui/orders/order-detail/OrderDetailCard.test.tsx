@@ -20,6 +20,7 @@ import * as clientDeviceApi from '../../../../../entities/client-device/api/clie
 import type { ClientDevice } from '../../../../../entities/client-device/model/types';
 import * as productApi from '../../../../../entities/product/api/productApi';
 import type { Product } from '../../../../../entities/product/model/types';
+import type { ServiceCatalogItem } from '../../../../../entities/service-catalog/model/types';
 import { defaultPrintForms } from '../../../../../entities/settings/model/printForms';
 import type { Sale } from '../../../../../entities/sale/model/types';
 import type { SupplierOrder } from '../../../../../entities/supplier-order/model/types';
@@ -59,8 +60,12 @@ const {
   getOccupiedSerialNumbersMock: vi.fn(
     async () => ({ occupied: [] as string[] }),
   ),
-  getServiceCatalogItemsMock: vi.fn(async () => []),
-  createServiceCatalogItemMock: vi.fn(),
+  getServiceCatalogItemsMock: vi.fn<(query?: string) => Promise<ServiceCatalogItem[]>>(
+    async () => [],
+  ),
+  createServiceCatalogItemMock: vi.fn<
+    (...args: unknown[]) => Promise<ServiceCatalogItem>
+  >(),
   updateServiceCatalogItemMock: vi.fn(),
   getCashboxesMock: vi.fn(async () => [
     {
