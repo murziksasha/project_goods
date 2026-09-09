@@ -3,11 +3,14 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ReactElement } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Product } from '../../../../../entities/product/model/types';
+import type { ServiceCatalogItem } from '../../../../../entities/service-catalog/model/types';
 import { queryKeys } from '../../../../../shared/api/queryClient';
 import { RapidSaleModal } from './RapidSaleModal';
 
 const { getServiceCatalogItemsMock, createServiceCatalogItemMock } = vi.hoisted(() => ({
-  getServiceCatalogItemsMock: vi.fn(async () => []),
+  getServiceCatalogItemsMock: vi.fn<(query?: string) => Promise<ServiceCatalogItem[]>>(
+    async () => [],
+  ),
   createServiceCatalogItemMock: vi.fn(),
 }));
 
@@ -210,6 +213,60 @@ describe('RapidSaleModal', () => {
       ]);
     });
     expect(getServiceCatalogItemsMock).not.toHaveBeenCalled();
+  });
+
+  it('attaches catalog id when adding an exact service suggestion without clicking it', async () => {
+    vi.useFakeTimers();
+    getServiceCatalogItemsMock.mockResolvedValue([
+      {
+        id: 'service-1',
+        name: 'Screen cleaning',
+        price: 150,
+        salePriceOptions: [150],
+        note: '',
+        isActive: true,
+        createdAt: '2026-01-01T00:00:00.000Z',
+        updatedAt: '2026-01-01T00:00:00.000Z',
+      },
+    ]);
+    const onSubmit = vi.fn(async () => undefined);
+    renderModal(
+      <RapidSaleModal
+        products={[product()]}
+        sales={[]}
+        isSaving={false}
+        onClose={vi.fn()}
+        onSubmit={onSubmit}
+        onError={vi.fn()}
+      />,
+    );
+
+    const dialog = screen.getByRole('dialog', { name: 'Rapid sale' });
+    fireEvent.change(within(dialog).getByPlaceholderText('Service name'), {
+      target: { value: 'screen cleaning' },
+    });
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(350);
+    });
+
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Add service' }));
+    expect(within(dialog).getByRole('button', { name: 'Issued' })).not.toBeDisabled();
+
+    vi.useRealTimers();
+    await act(async () => {
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Issued' }));
+    });
+
+    await waitFor(() => {
+      expect(onSubmit).toHaveBeenCalledWith([
+        expect.objectContaining({
+          kind: 'service',
+          serviceId: 'service-1',
+          name: 'screen cleaning',
+        }),
+      ]);
+    });
   });
 
   it('keeps serialized product in entry row until add is confirmed', async () => {

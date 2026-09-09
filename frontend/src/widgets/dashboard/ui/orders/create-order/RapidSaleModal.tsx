@@ -21,6 +21,7 @@ import { createRuntimeId } from '../../../../../shared/lib/runtime-id';
 import { useDismissibleSuggestions } from '../../../../../shared/lib/useDismissibleSuggestions';
 import {
   buildMissingServicePayload,
+  findExactServiceSuggestion,
   shouldCreateMissingServiceOnSubmit,
 } from '../../../model/missingService';
 import {
@@ -315,7 +316,10 @@ export const RapidSaleModal = ({
       return;
     }
 
-    let serviceId = selectedServiceId;
+    let serviceId =
+      selectedServiceId ||
+      findExactServiceSuggestion(serviceSuggestions, normalizedName)?.id ||
+      '';
     if (
       shouldCreateMissingServiceOnSubmit({
         kind: 'service',

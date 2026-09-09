@@ -8,6 +8,17 @@ type MissingServiceDecisionInput = {
   suggestionNames: string[];
 };
 
+export const findExactServiceSuggestion = <T extends { name: string }>(
+  services: T[],
+  name: string,
+): T | undefined => {
+  const lookup = name.trim().toLowerCase();
+  if (!lookup) return undefined;
+  return services.find(
+    (service) => service.name.trim().toLowerCase() === lookup,
+  );
+};
+
 export const shouldCreateMissingServiceOnSubmit = ({
   kind,
   normalizedName,
@@ -18,12 +29,10 @@ export const shouldCreateMissingServiceOnSubmit = ({
   if (selectedServiceId) return false;
   if (normalizedName.length < 2) return false;
 
-  const normalizedLookup = normalizedName.toLowerCase();
-  const hasExactSuggestion = suggestionNames.some(
-    (suggestionName) => suggestionName.trim().toLowerCase() === normalizedLookup,
+  return !findExactServiceSuggestion(
+    suggestionNames.map((suggestionName) => ({ name: suggestionName })),
+    normalizedName,
   );
-
-  return !hasExactSuggestion;
 };
 
 export const buildMissingServicePayload = (

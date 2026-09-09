@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { CatalogProduct } from '../catalog-product/model';
 import * as catalogProductService from '../catalog-product/service';
+import * as serviceCatalogService from '../service-catalog/service';
 import { Client } from '../client/model';
 import { Employee } from '../employee/model';
 import { Product } from '../product/model';
@@ -114,6 +115,9 @@ const installSpies = () => {
   vi.spyOn(catalogProductService, 'upsertCatalogProducts').mockResolvedValue(
     undefined as never,
   );
+  vi.spyOn(serviceCatalogService, 'attachServiceCatalogIds').mockImplementation(
+    async (items) => items,
+  );
 };
 
 beforeEach(() => {
@@ -205,6 +209,14 @@ describe('createSale product identity', () => {
       kind: 'service',
       name: 'Screen cleaning',
     });
+    expect(serviceCatalogService.attachServiceCatalogIds).toHaveBeenCalledWith(
+      expect.arrayContaining([
+        expect.objectContaining({
+          kind: 'service',
+          name: 'Screen cleaning',
+        }),
+      ]),
+    );
   });
 
   it('creates a manual sale item without object id fields', async () => {

@@ -1,8 +1,20 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildMissingServicePayload,
+  findExactServiceSuggestion,
   shouldCreateMissingServiceOnSubmit,
 } from './missingService';
+
+describe('findExactServiceSuggestion', () => {
+  it('matches catalog names case-insensitively', () => {
+    expect(
+      findExactServiceSuggestion(
+        [{ id: '1', name: 'Ремонт' }],
+        'ремонт',
+      )?.id,
+    ).toBe('1');
+  });
+});
 
 describe('shouldCreateMissingServiceOnSubmit', () => {
   it('returns true for a missing service without selected id and exact suggestion', () => {
