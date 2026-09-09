@@ -269,6 +269,57 @@ describe('RapidSaleModal', () => {
     });
   });
 
+  it('reuses an existing catalog service instead of creating a duplicate', async () => {
+    getServiceCatalogItemsMock.mockResolvedValue([
+      {
+        id: 'service-1',
+        name: 'Ремонт',
+        price: 100,
+        salePriceOptions: [],
+        note: '',
+        isActive: false,
+        createdAt: '2026-01-01T00:00:00.000Z',
+        updatedAt: '2026-01-01T00:00:00.000Z',
+      },
+    ]);
+    const onSubmit = vi.fn(async () => undefined);
+    renderModal(
+      <RapidSaleModal
+        products={[product()]}
+        sales={[]}
+        isSaving={false}
+        onClose={vi.fn()}
+        onSubmit={onSubmit}
+        onError={vi.fn()}
+      />,
+    );
+
+    const dialog = screen.getByRole('dialog', { name: 'Rapid sale' });
+    fireEvent.change(within(dialog).getByPlaceholderText('Service name'), {
+      target: { value: 'ремонт' },
+    });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Add service' }));
+
+    await waitFor(() => {
+      expect(createServiceCatalogItemMock).not.toHaveBeenCalled();
+      expect(within(dialog).getByRole('button', { name: 'Issued' })).not.toBeDisabled();
+    });
+
+    await act(async () => {
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Issued' }));
+    });
+
+    await waitFor(() => {
+      expect(onSubmit).toHaveBeenCalledWith([
+        expect.objectContaining({
+          kind: 'service',
+          serviceId: 'service-1',
+          name: 'ремонт',
+        }),
+      ]);
+    });
+  });
+
   it('keeps serialized product in entry row until add is confirmed', async () => {
     vi.useFakeTimers();
     renderModal(

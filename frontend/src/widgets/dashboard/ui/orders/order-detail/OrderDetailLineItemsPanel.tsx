@@ -66,6 +66,7 @@ import {
 import {
   buildMissingServicePayload,
   findExactServiceSuggestion,
+  resolveOrCreateServiceCatalogItem,
   shouldCreateMissingServiceOnSubmit,
 } from '../../../model/missingService';
 import { queryClient, queryKeys } from '../../../../../shared/api/queryClient';
@@ -1072,8 +1073,11 @@ export const OrderDetailLineItemsPanel = ({
   const saveCreatedService = async () => {
     setIsCreateServiceSaving(true);
     try {
-      const createdService =
-        await createServiceCatalogItem(createServiceForm);
+      const createdService = await resolveOrCreateServiceCatalogItem({
+        name: createServiceForm.name,
+        lookup: getServiceCatalogItems,
+        create: () => createServiceCatalogItem(createServiceForm),
+      });
       await queryClient.invalidateQueries({ queryKey: queryKeys.services });
       if (pendingMissingServiceItemId) {
         onUpdateItem(pendingMissingServiceItemId, undefined, {
@@ -1165,16 +1169,18 @@ export const OrderDetailLineItemsPanel = ({
       onUpdateItem(editingItemId, undefined, {
         name: updatedService.name,
         serviceId: updatedService.id,
-        price: updatedService.price,
-        warrantyPeriod: 1,
       });
       onSuccess(t('orders.messages.success.serviceUpdated'));
       setSelectedService(null);
     } catch (error) {
-      onError(
+      const message =
         error instanceof Error
           ? error.message
-          : t('orders.messages.errors.failedUpdateService'),
+          : t('orders.messages.errors.failedUpdateService');
+      onError(
+        /already exists/i.test(message)
+          ? t('dashboard.actions.errors.duplicateService')
+          : message,
       );
     } finally {
       setIsCatalogSaving(false);
@@ -1214,9 +1220,14 @@ export const OrderDetailLineItemsPanel = ({
       })
     ) {
       try {
-        const createdService = await createServiceCatalogItem(
-          buildMissingServicePayload(normalizedName, normalizedPrice),
-        );
+        const createdService = await resolveOrCreateServiceCatalogItem({
+          name: normalizedName,
+          lookup: getServiceCatalogItems,
+          create: () =>
+            createServiceCatalogItem(
+              buildMissingServicePayload(normalizedName, normalizedPrice),
+            ),
+        });
         await queryClient.invalidateQueries({ queryKey: queryKeys.services });
         nextServiceId = createdService.id;
         setServiceSuggestions([createdService]);

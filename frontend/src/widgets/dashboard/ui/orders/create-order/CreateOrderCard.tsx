@@ -46,6 +46,7 @@ import type { WarehouseItem } from '../../../../../entities/warehouse-settings/m
 import {
   buildMissingServicePayload,
   findExactServiceSuggestion,
+  resolveOrCreateServiceCatalogItem,
   shouldCreateMissingServiceOnSubmit,
 } from '../../../model/missingService';
 import {
@@ -843,13 +844,18 @@ export const CreateOrderCard = ({
       })
     ) {
       try {
-        const createdService = await createServiceCatalogItem(
-          buildMissingServicePayload(
-            normalizedName,
-            parseDecimalInput(servicePrice) || 0,
-          ),
-        );
-        nextServiceId = createdService.id;
+        const resolvedService = await resolveOrCreateServiceCatalogItem({
+          name: normalizedName,
+          lookup: getServiceCatalogItems,
+          create: () =>
+            createServiceCatalogItem(
+              buildMissingServicePayload(
+                normalizedName,
+                parseDecimalInput(servicePrice) || 0,
+              ),
+            ),
+        });
+        nextServiceId = resolvedService.id;
       } catch (error) {
         onError(
           error instanceof Error
@@ -885,7 +891,11 @@ export const CreateOrderCard = ({
   const saveCreatedService = async () => {
     setIsCreateServiceSaving(true);
     try {
-      const createdService = await createServiceCatalogItem(createServiceForm);
+      const createdService = await resolveOrCreateServiceCatalogItem({
+        name: createServiceForm.name,
+        lookup: getServiceCatalogItems,
+        create: () => createServiceCatalogItem(createServiceForm),
+      });
       applyServiceSuggestion(createdService);
       setIsCreateServiceOpen(false);
     } catch (error) {

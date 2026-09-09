@@ -2571,6 +2571,79 @@ describe('OrderDetailCard product entry', () => {
     ).not.toBeInTheDocument();
   });
 
+  it('syncs catalog service name to the line without overwriting price or warranty', async () => {
+    const catalogService: ServiceCatalogItem = {
+      id: 'svc-1',
+      name: 'ремонт',
+      price: 500,
+      salePriceOptions: [],
+      note: '',
+      isActive: true,
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    };
+    getServiceCatalogItemsMock.mockResolvedValue([catalogService]);
+    updateServiceCatalogItemMock.mockResolvedValue({
+      ...catalogService,
+      name: 'Ремонт',
+    });
+
+    const onUpdateLineItem = vi.fn();
+    const onSuccess = vi.fn();
+    const onError = vi.fn();
+
+    renderCard({
+      onUpdateLineItem,
+      onSuccess,
+      onError,
+      paidAmount: 1000,
+      status: 'refinement',
+      lineItems: [
+        {
+          id: 'line-item-s1',
+          kind: 'service',
+          serviceId: 'svc-1',
+          name: 'ремонт',
+          price: 750,
+          quantity: 1,
+          warrantyPeriod: 30,
+        },
+        {
+          id: 'line-item-s2',
+          kind: 'service',
+          name: 'Діагностика телевізора',
+          price: 250,
+          quantity: 1,
+          warrantyPeriod: 30,
+        },
+      ],
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'ремонт' }));
+
+    const dialog = await waitFor(() => screen.getByRole('dialog'));
+    const nameInput = within(dialog).getByDisplayValue('ремонт');
+    fireEvent.change(nameInput, { target: { value: 'Ремонт' } });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => {
+      expect(updateServiceCatalogItemMock).toHaveBeenCalledWith(
+        'svc-1',
+        expect.objectContaining({ name: 'Ремонт' }),
+      );
+      expect(onUpdateLineItem).toHaveBeenCalledWith('line-item-s1', undefined, {
+        name: 'Ремонт',
+        serviceId: 'svc-1',
+      });
+    });
+    expect(onUpdateLineItem.mock.calls[0]?.[2]).not.toHaveProperty('price');
+    expect(onUpdateLineItem.mock.calls[0]?.[2]).not.toHaveProperty(
+      'warrantyPeriod',
+    );
+    expect(onSuccess).toHaveBeenCalledWith('Service updated.');
+    expect(onError).not.toHaveBeenCalled();
+  });
+
   it('restores saved section state from localStorage', () => {
     window.localStorage.setItem(
       orderDetailSectionsStorageKey,

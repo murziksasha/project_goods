@@ -8,6 +8,12 @@ export const serviceCatalogSchema = new mongoose.Schema(
       trim: true,
       minlength: [2, 'Service name must contain at least 2 characters'],
     },
+    nameKey: {
+      type: String,
+      required: true,
+      trim: true,
+      lowercase: true,
+    },
     price: {
       type: Number,
       required: [true, 'Service price is required'],
@@ -46,6 +52,10 @@ export const serviceCatalogSchema = new mongoose.Schema(
 );
 
 serviceCatalogSchema.pre('validate', function updateSearchText() {
+  this.name = String(this.name ?? '')
+    .trim()
+    .replace(/\s+/g, ' ');
+  this.nameKey = this.name.toLowerCase();
   this.searchText = [this.name, this.note].filter(Boolean).join(' ').toLowerCase();
 });
 

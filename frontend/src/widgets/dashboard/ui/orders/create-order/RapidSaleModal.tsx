@@ -22,6 +22,7 @@ import { useDismissibleSuggestions } from '../../../../../shared/lib/useDismissi
 import {
   buildMissingServicePayload,
   findExactServiceSuggestion,
+  resolveOrCreateServiceCatalogItem,
   shouldCreateMissingServiceOnSubmit,
 } from '../../../model/missingService';
 import {
@@ -329,10 +330,18 @@ export const RapidSaleModal = ({
       })
     ) {
       try {
-        const createdService = await createServiceCatalogItem(
-          buildMissingServicePayload(normalizedName, parseDecimalInput(servicePrice) || 0),
-        );
-        serviceId = createdService.id;
+        const resolvedService = await resolveOrCreateServiceCatalogItem({
+          name: normalizedName,
+          lookup: getServiceCatalogItems,
+          create: () =>
+            createServiceCatalogItem(
+              buildMissingServicePayload(
+                normalizedName,
+                parseDecimalInput(servicePrice) || 0,
+              ),
+            ),
+        });
+        serviceId = resolvedService.id;
       } catch (error) {
         onError(
           error instanceof Error ? error.message : t('orders.rapidSale.errors.failedCreateService'),
