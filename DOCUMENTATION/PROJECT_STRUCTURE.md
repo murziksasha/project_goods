@@ -293,6 +293,8 @@ Migration script (reference): `frontend/scripts/reorganize-dashboard-ui.mjs`
 - `frontend/src/entities/sale/api/saleApi.ts` — `getOccupiedSerialNumbers` → `GET /sales/occupied-serials`
 - `frontend/src/shared/lib/price-stepper.ts` — shared price stepper constants (`PRICE_STEPPER_STEP = 1`, `PRICE_STEPPER_PRECISION = 0`)
 - `frontend/src/shared/ui/ProductSalePriceField.tsx` — shared price stepper + retail/wholesale toggle (`tierTogglePlacement: inline | label`)
+- `frontend/src/shared/ui/ServiceSalePriceField.tsx` — service price stepper + R/W1/W2 toggle
+- `frontend/src/entities/service-catalog/lib/sale-prices.ts` — service retail / wholesale 1 / wholesale 2 helpers
 - `frontend/src/widgets/dashboard/ui/product-catalog/product-catalog-shared.ts` — `useLockBodyScroll` (reused by rapid sale modal)
 - `frontend/src/widgets/dashboard/model/sale-client-display.ts` — `Rapid sale` list label and search aliases
 - `frontend/src/widgets/dashboard/model/employee-information.ts` — employee performance report builder for Employees Information tab

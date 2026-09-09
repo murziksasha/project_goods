@@ -507,8 +507,12 @@
     "salePrice": {
       "retail": "Роздріб",
       "wholesale": "Опт",
+      "wholesale1": "Оптова 1",
+      "wholesale2": "Оптова 2",
       "retailShort": "Р",
       "wholesaleShort": "О",
+      "wholesale1Short": "О1",
+      "wholesale2Short": "О2",
       "tierToggleAria": "Тип ціни продажу"
     },
     "examples": {
@@ -659,6 +663,7 @@
       "serviceSearch": "Назва послуги",
       "addProduct": "Додати товар",
       "productPrice": "Ціна товару",
+      "servicePrice": "Ціна послуги",
       "productQuantity": "Кількість товару",
       "warehouse": "Склад",
       "noWarehouses": "Немає складів",

@@ -7,6 +7,10 @@ import {
   getServiceCatalogItems,
 } from '../../../../../entities/service-catalog/api/serviceCatalogApi';
 import type { ServiceCatalogItem } from '../../../../../entities/service-catalog/model/types';
+import {
+  formatServiceRetailSalePrice,
+  type ServiceSalePriceTier,
+} from '../../../../../entities/service-catalog/lib/sale-prices';
 import { useWarehouseSettingsQuery } from '../../../../../entities/warehouse-settings/api/warehouseSettingsApi';
 import type { ProductSalePriceTier } from '../../../../../entities/product/lib/sale-prices';
 import {
@@ -15,6 +19,7 @@ import {
 } from '../../../../../shared/lib/price-stepper';
 import { NumberStepper } from '../../../../../shared/ui/NumberStepper';
 import { ProductSalePriceField } from '../../../../../shared/ui/ProductSalePriceField';
+import { ServiceSalePriceField } from '../../../../../shared/ui/ServiceSalePriceField';
 import { Modal } from '../../../../../shared/ui/Modal';
 import { Button } from '../../../../../shared/ui/Button';
 import { createRuntimeId } from '../../../../../shared/lib/runtime-id';
@@ -77,9 +82,13 @@ export const RapidSaleModal = ({
 
   const [serviceQuery, setServiceQuery] = useState('');
   const [servicePrice, setServicePrice] = useState('');
+  const [servicePriceTier, setServicePriceTier] =
+    useState<ServiceSalePriceTier | null>(null);
   const [serviceQuantity, setServiceQuantity] = useState('1');
   const [serviceWarranty, setServiceWarranty] = useState('1');
   const [selectedServiceId, setSelectedServiceId] = useState('');
+  const [selectedService, setSelectedService] =
+    useState<ServiceCatalogItem | null>(null);
   const [serviceSuggestions, setServiceSuggestions] = useState<ServiceCatalogItem[]>([]);
   const [isServiceLookupLoading, setIsServiceLookupLoading] = useState(false);
   const productSearchInputRef = useRef<HTMLInputElement>(null);
@@ -236,9 +245,11 @@ export const RapidSaleModal = ({
   const resetServiceEntry = () => {
     setServiceQuery('');
     setServicePrice('');
+    setServicePriceTier(null);
     setServiceQuantity('1');
     setServiceWarranty('1');
     setSelectedServiceId('');
+    setSelectedService(null);
     setServiceSuggestions([]);
   };
 
@@ -303,10 +314,12 @@ export const RapidSaleModal = ({
 
   const applyServiceSuggestion = (service: ServiceCatalogItem) => {
     setServiceQuery(service.name);
-    setServicePrice(String(service.price));
+    setServicePrice(formatServiceRetailSalePrice(service));
+    setServicePriceTier('retail');
     setServiceQuantity('1');
     setServiceWarranty('1');
     setSelectedServiceId(service.id);
+    setSelectedService(service);
     setServiceSuggestions([]);
   };
 
@@ -660,6 +673,8 @@ export const RapidSaleModal = ({
                   onChange={(event) => {
                     setServiceQuery(event.target.value);
                     setSelectedServiceId('');
+                    setSelectedService(null);
+                    setServicePriceTier(null);
                   }}
                   onKeyDown={(event) => {
                     if (event.key !== 'Enter') return;
@@ -675,17 +690,25 @@ export const RapidSaleModal = ({
                   placeholder={t('orders.rapidSale.serviceSearch')}
                 />
               </label>
-              <label className="field">
-                <span>{t('orders.create.price')}</span>
-                <NumberStepper
-                  min={0}
-                  step={PRICE_STEPPER_STEP}
-                  precision={PRICE_STEPPER_PRECISION}
-                  value={servicePrice}
-                  onChange={setServicePrice}
-                  placeholder="0"
-                />
-              </label>
+              <ServiceSalePriceField
+                label={t('orders.create.price')}
+                fieldClassName="field sale-price-field-labeled rapid-sale-price-field"
+                tierTogglePlacement="label"
+                value={servicePrice}
+                onChange={setServicePrice}
+                service={
+                  selectedService ??
+                  findExactServiceSuggestion(
+                    serviceSuggestions,
+                    serviceQuery.trim(),
+                  ) ??
+                  null
+                }
+                priceTier={servicePriceTier}
+                onPriceTierChange={setServicePriceTier}
+                placeholder="0"
+                ariaLabel={t('orders.rapidSale.servicePrice')}
+              />
               <label className="field">
                 <span>{t('orders.create.qty')}</span>
                 <NumberStepper min={1} value={serviceQuantity} onChange={setServiceQuantity} />

@@ -707,6 +707,101 @@ describe('RapidSaleModal', () => {
     vi.useRealTimers();
   });
 
+  it('shows retail/wholesale 1/2 toggles for catalog services with wholesale prices', async () => {
+    vi.useFakeTimers();
+    getServiceCatalogItemsMock.mockResolvedValue([
+      {
+        id: 'service-1',
+        name: 'Diagnostics',
+        price: 200,
+        salePriceOptions: [150, 100],
+        note: '',
+        isActive: true,
+        createdAt: '2026-01-01T00:00:00.000Z',
+        updatedAt: '2026-01-01T00:00:00.000Z',
+      },
+    ]);
+    renderModal(
+      <RapidSaleModal
+        products={[product()]}
+        sales={[]}
+        isSaving={false}
+        onClose={vi.fn()}
+        onSubmit={vi.fn(async () => undefined)}
+        onError={vi.fn()}
+      />,
+    );
+
+    const dialog = screen.getByRole('dialog', { name: 'Rapid sale' });
+    fireEvent.change(within(dialog).getByPlaceholderText('Service name'), {
+      target: { value: 'Diag' },
+    });
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(350);
+    });
+
+    fireEvent.click(within(dialog).getByRole('button', { name: /Diagnostics/ }));
+
+    expect(within(dialog).getByLabelText('Service price')).toHaveValue('200');
+    expect(within(dialog).getByRole('button', { name: 'Retail' })).toBeInTheDocument();
+    expect(within(dialog).getByRole('button', { name: 'Wholesale 1' })).toBeInTheDocument();
+    expect(within(dialog).getByRole('button', { name: 'Wholesale 2' })).toBeInTheDocument();
+
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Wholesale 1' }));
+    expect(within(dialog).getByLabelText('Service price')).toHaveValue('150');
+
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Wholesale 2' }));
+    expect(within(dialog).getByLabelText('Service price')).toHaveValue('100');
+
+    vi.useRealTimers();
+  });
+
+  it('hides service wholesale badges when no wholesale prices are configured', async () => {
+    vi.useFakeTimers();
+    getServiceCatalogItemsMock.mockResolvedValue([
+      {
+        id: 'service-1',
+        name: 'Diagnostics',
+        price: 200,
+        salePriceOptions: [],
+        note: '',
+        isActive: true,
+        createdAt: '2026-01-01T00:00:00.000Z',
+        updatedAt: '2026-01-01T00:00:00.000Z',
+      },
+    ]);
+    renderModal(
+      <RapidSaleModal
+        products={[product()]}
+        sales={[]}
+        isSaving={false}
+        onClose={vi.fn()}
+        onSubmit={vi.fn(async () => undefined)}
+        onError={vi.fn()}
+      />,
+    );
+
+    const dialog = screen.getByRole('dialog', { name: 'Rapid sale' });
+    fireEvent.change(within(dialog).getByPlaceholderText('Service name'), {
+      target: { value: 'Diag' },
+    });
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(350);
+    });
+
+    fireEvent.click(within(dialog).getByRole('button', { name: /Diagnostics/ }));
+
+    expect(within(dialog).getByLabelText('Service price')).toHaveValue('200');
+    expect(within(dialog).queryByRole('button', { name: 'Retail' })).not.toBeInTheDocument();
+    expect(
+      within(dialog).queryByRole('button', { name: 'Wholesale 1' }),
+    ).not.toBeInTheDocument();
+
+    vi.useRealTimers();
+  });
+
   it('renders draft items outside the scrollable entry body', async () => {
     vi.useFakeTimers();
     renderModal(

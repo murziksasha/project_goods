@@ -1119,6 +1119,154 @@ describe('OrderDetailCard product entry', () => {
     ).toBeNull();
   });
 
+  it('renders retail/wholesale 1/2 toggles in the price column header when adding a service', async () => {
+    getServiceCatalogItemsMock.mockResolvedValue([
+      {
+        id: 'svc-diag',
+        name: 'Diagnostics',
+        price: 200,
+        salePriceOptions: [150, 100],
+        note: '',
+        isActive: true,
+        createdAt: now,
+        updatedAt: now,
+      },
+    ]);
+    const { container } = renderCard();
+
+    fireEvent.click(screen.getByRole('button', { name: /Services/i }));
+    fireEvent.change(screen.getByPlaceholderText('Add service'), {
+      target: { value: 'Diag' },
+    });
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole('button', { name: /Diagnostics/i }),
+      ).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /Diagnostics/i }));
+
+    expect(screen.getByDisplayValue('200')).toBeInTheDocument();
+    const servicesPanel = container.querySelector(
+      '.order-detail-line-items-panel:not(.order-detail-products-panel)',
+    );
+    const priceHeader = servicesPanel?.querySelector(
+      '.order-detail-table-price-header',
+    );
+    expect(
+      priceHeader?.querySelector('.product-sale-price-tier-toggle'),
+    ).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Retail' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Wholesale 1' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Wholesale 2' })).toBeInTheDocument();
+    expect(
+      servicesPanel?.querySelector(
+        '.order-detail-table-entry-row .product-sale-price-tier-toggle',
+      ),
+    ).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Wholesale 1' }));
+    expect(screen.getByDisplayValue('150')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Wholesale 2' }));
+    expect(screen.getByDisplayValue('100')).toBeInTheDocument();
+  });
+
+  it('renders wholesale toggles in the price column header when editing an existing service line', async () => {
+    getServiceCatalogItemsMock.mockResolvedValue([
+      {
+        id: 'svc-diag',
+        name: 'Diagnostics',
+        price: 200,
+        salePriceOptions: [150, 100],
+        note: '',
+        isActive: true,
+        createdAt: now,
+        updatedAt: now,
+      },
+    ]);
+    const { container } = renderCard({
+      lineItems: [
+        {
+          id: 'line-item-s1',
+          kind: 'service',
+          serviceId: 'svc-diag',
+          name: 'Diagnostics',
+          price: 200,
+          quantity: 1,
+          warrantyPeriod: 1,
+        },
+      ],
+    });
+
+    await waitFor(() => {
+      expect(getServiceCatalogItemsMock).toHaveBeenCalled();
+    });
+
+    fireEvent.focus(screen.getByDisplayValue('200'));
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Wholesale 1' })).toBeInTheDocument();
+    });
+
+    const servicesPanel = container.querySelector(
+      '.order-detail-line-items-panel:not(.order-detail-products-panel)',
+    );
+    const priceHeader = servicesPanel?.querySelector(
+      '.order-detail-table-price-header',
+    );
+    expect(
+      priceHeader?.querySelector('.product-sale-price-tier-toggle'),
+    ).toBeTruthy();
+    expect(
+      servicesPanel?.querySelector(
+        '.order-detail-table-entry-row .product-sale-price-tier-toggle',
+      ),
+    ).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Wholesale 2' }));
+    expect(screen.getByDisplayValue('100')).toBeInTheDocument();
+  });
+
+  it('hides W2 when the catalog service only has wholesale 1', async () => {
+    getServiceCatalogItemsMock.mockResolvedValue([
+      {
+        id: 'svc-diag',
+        name: 'Diagnostics',
+        price: 200,
+        salePriceOptions: [150],
+        note: '',
+        isActive: true,
+        createdAt: now,
+        updatedAt: now,
+      },
+    ]);
+    renderCard({
+      lineItems: [
+        {
+          id: 'line-item-s1',
+          kind: 'service',
+          serviceId: 'svc-diag',
+          name: 'Diagnostics',
+          price: 200,
+          quantity: 1,
+          warrantyPeriod: 1,
+        },
+      ],
+    });
+
+    await waitFor(() => {
+      expect(getServiceCatalogItemsMock).toHaveBeenCalled();
+    });
+
+    fireEvent.focus(screen.getByDisplayValue('200'));
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Wholesale 1' })).toBeInTheDocument();
+    });
+    expect(screen.queryByRole('button', { name: 'Wholesale 2' })).not.toBeInTheDocument();
+  });
+
   it('shows catalog suggestions when searching by product name', async () => {
     renderCard({ products: [] });
 
@@ -2140,7 +2288,7 @@ describe('OrderDetailCard product entry', () => {
     ).not.toBeInTheDocument();
     expect(
       within(dialog).getByRole('button', {
-        name: 'Select serial numbers to print',
+        name: 'Select serials to print',
       }),
     ).toBeInTheDocument();
   });
