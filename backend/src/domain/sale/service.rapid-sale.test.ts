@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { CatalogProduct } from '../catalog-product/model';
 import * as catalogProductService from '../catalog-product/service';
+import * as serviceCatalogService from '../service-catalog/service';
 import * as rapidSaleClient from '../client/rapid-sale-client';
 import { Employee } from '../employee/model';
 import { Product } from '../product/model';
@@ -126,6 +127,9 @@ const installSpies = () => {
   vi.spyOn(sequenceService, 'getNextRecordNumber').mockResolvedValue('r000123');
   vi.spyOn(catalogProductService, 'upsertCatalogProducts').mockResolvedValue(
     undefined as never,
+  );
+  vi.spyOn(serviceCatalogService, 'attachServiceCatalogIds').mockImplementation(
+    async (items) => items,
   );
 };
 

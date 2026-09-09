@@ -45,6 +45,7 @@ import { getWarehouseSettings } from '../../../../../entities/warehouse-settings
 import type { WarehouseItem } from '../../../../../entities/warehouse-settings/model/types';
 import {
   buildMissingServicePayload,
+  findExactServiceSuggestion,
   shouldCreateMissingServiceOnSubmit,
 } from '../../../model/missingService';
 import {
@@ -830,7 +831,9 @@ export const CreateOrderCard = ({
       return;
     }
 
-    let nextServiceId = selectedServiceId || undefined;
+    let nextServiceId =
+      selectedServiceId ||
+      findExactServiceSuggestion(serviceSuggestions, normalizedName)?.id;
     if (
       shouldCreateMissingServiceOnSubmit({
         kind: 'service',

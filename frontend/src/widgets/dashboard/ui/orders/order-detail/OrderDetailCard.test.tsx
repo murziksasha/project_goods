@@ -45,6 +45,9 @@ const {
   getCashboxesMock,
   paySupplierOrderMock,
   issueSupplierOrderWithoutPaymentMock,
+  getServiceCatalogItemsMock,
+  createServiceCatalogItemMock,
+  updateServiceCatalogItemMock,
 } = vi.hoisted(() => ({
   getProductsMock: vi.fn(
     async (_query = ''): Promise<Product[]> => [],
@@ -56,6 +59,9 @@ const {
   getOccupiedSerialNumbersMock: vi.fn(
     async () => ({ occupied: [] as string[] }),
   ),
+  getServiceCatalogItemsMock: vi.fn(async () => []),
+  createServiceCatalogItemMock: vi.fn(),
+  updateServiceCatalogItemMock: vi.fn(),
   getCashboxesMock: vi.fn(async () => [
     {
       id: 'cashbox-1',
@@ -124,8 +130,9 @@ vi.mock(
 vi.mock(
   '../../../../../entities/service-catalog/api/serviceCatalogApi',
   () => ({
-    createServiceCatalogItem: vi.fn(),
-    getServiceCatalogItems: vi.fn(async () => []),
+    createServiceCatalogItem: createServiceCatalogItemMock,
+    getServiceCatalogItems: getServiceCatalogItemsMock,
+    updateServiceCatalogItem: updateServiceCatalogItemMock,
   }),
 );
 
@@ -494,6 +501,9 @@ const restoreApiMocks = () => {
   getOccupiedSerialNumbersMock.mockImplementation(async () => ({
     occupied: [],
   }));
+  getServiceCatalogItemsMock.mockImplementation(async () => []);
+  createServiceCatalogItemMock.mockReset();
+  updateServiceCatalogItemMock.mockReset();
   getWarehouseSettingsMock.mockImplementation(
     async () => warehouseSettingsFixture,
   );
@@ -534,6 +544,9 @@ afterEach(() => {
   getCashboxesMock.mockClear();
   paySupplierOrderMock.mockClear();
   issueSupplierOrderWithoutPaymentMock.mockClear();
+  getServiceCatalogItemsMock.mockClear();
+  createServiceCatalogItemMock.mockClear();
+  updateServiceCatalogItemMock.mockClear();
   vi.useRealTimers();
   window.localStorage.clear();
   document.body.style.overflow = '';
@@ -2459,6 +2472,98 @@ describe('OrderDetailCard product entry', () => {
       screen.getByRole('button', { name: /Services/i }),
     ).toHaveAttribute('aria-expanded', 'true');
     expect(screen.getByText('Setup')).toBeInTheDocument();
+  });
+
+  it('opens create-service editor when an order service is missing from catalog', async () => {
+    const onError = vi.fn();
+    const onUpdateLineItem = vi.fn();
+    createServiceCatalogItemMock.mockResolvedValue({
+      id: 'svc-new',
+      name: 'ремонт',
+      price: 750,
+      salePriceOptions: [],
+      note: '',
+      isActive: true,
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    });
+
+    renderCard({
+      onError,
+      onUpdateLineItem,
+      lineItems: [
+        {
+          id: 'line-item-s1',
+          kind: 'service',
+          name: 'ремонт',
+          price: 750,
+          quantity: 1,
+          warrantyPeriod: 30,
+        },
+      ],
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'ремонт' }));
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole('heading', { name: 'Create service' }),
+      ).toBeInTheDocument();
+    });
+    expect(onError).not.toHaveBeenCalled();
+    expect(screen.getByDisplayValue('ремонт')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => {
+      expect(createServiceCatalogItemMock).toHaveBeenCalled();
+      expect(onUpdateLineItem).toHaveBeenCalledWith(
+        'line-item-s1',
+        undefined,
+        expect.objectContaining({
+          name: 'ремонт',
+          serviceId: 'svc-new',
+          price: 750,
+        }),
+      );
+    });
+  });
+
+  it('edits a catalog service matched by case-insensitive name', async () => {
+    getServiceCatalogItemsMock.mockResolvedValue([
+      {
+        id: 'svc-1',
+        name: 'Ремонт',
+        price: 750,
+        salePriceOptions: [],
+        note: '',
+        isActive: true,
+        createdAt: '2026-01-01T00:00:00.000Z',
+        updatedAt: '2026-01-01T00:00:00.000Z',
+      },
+    ]);
+
+    renderCard({
+      lineItems: [
+        {
+          id: 'line-item-s1',
+          kind: 'service',
+          name: 'ремонт',
+          price: 750,
+          quantity: 1,
+          warrantyPeriod: 30,
+        },
+      ],
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'ремонт' }));
+
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { name: 'Ремонт' })).toBeInTheDocument();
+    });
+    expect(
+      screen.queryByRole('heading', { name: 'Create service' }),
+    ).not.toBeInTheDocument();
   });
 
   it('restores saved section state from localStorage', () => {

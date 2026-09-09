@@ -65,8 +65,10 @@ import {
 } from '../../../model/create-order-products';
 import {
   buildMissingServicePayload,
+  findExactServiceSuggestion,
   shouldCreateMissingServiceOnSubmit,
 } from '../../../model/missingService';
+import { queryClient, queryKeys } from '../../../../../shared/api/queryClient';
 import { canRemoveLineItemAfterPayment } from '../../../model/line-item-ops';
 import {
   getGroupedLinePriceSummary,
@@ -261,6 +263,8 @@ export const OrderDetailLineItemsPanel = ({
   );
   const [isCreateServiceSaving, setIsCreateServiceSaving] =
     useState(false);
+  const [pendingMissingServiceItemId, setPendingMissingServiceItemId] =
+    useState<string | null>(null);
   const [serialsEditingItem, setSerialsEditingItem] =
     useState<OrderLineItem | null>(null);
   const [serialBindWarehouses, setSerialBindWarehouses] = useState<
@@ -1070,6 +1074,18 @@ export const OrderDetailLineItemsPanel = ({
     try {
       const createdService =
         await createServiceCatalogItem(createServiceForm);
+      await queryClient.invalidateQueries({ queryKey: queryKeys.services });
+      if (pendingMissingServiceItemId) {
+        onUpdateItem(pendingMissingServiceItemId, undefined, {
+          name: createdService.name,
+          serviceId: createdService.id,
+          price: createdService.price,
+        });
+        setPendingMissingServiceItemId(null);
+        setIsCreateServiceOpen(false);
+        onSuccess(t('orders.messages.success.serviceSaved'));
+        return;
+      }
       setName(createdService.name);
       setPrice(String(createdService.price));
       setQuantity('1');
@@ -1108,13 +1124,19 @@ export const OrderDetailLineItemsPanel = ({
 
       const services = await getServiceCatalogItems(item.name);
       const service =
-        services.find(
-          (candidate) => candidate.id === item.serviceId,
-        ) ??
-        services.find((candidate) => candidate.name === item.name) ??
+        (item.serviceId
+          ? services.find((candidate) => candidate.id === item.serviceId)
+          : undefined) ??
+        findExactServiceSuggestion(services, item.name) ??
         null;
       if (!service) {
-        onError(t('orders.messages.errors.serviceNotFound'));
+        setPendingMissingServiceItemId(item.id);
+        setCreateServiceForm({
+          ...initialServiceCatalogForm,
+          name: item.name,
+          price: String(item.price),
+        });
+        setIsCreateServiceOpen(true);
         return;
       }
       setSelectedService(service);
@@ -1137,6 +1159,7 @@ export const OrderDetailLineItemsPanel = ({
         selectedService.id,
         serviceForm,
       );
+      await queryClient.invalidateQueries({ queryKey: queryKeys.services });
       setSelectedService(updatedService);
       setServiceForm(toServiceCatalogForm(updatedService));
       onUpdateItem(editingItemId, undefined, {
@@ -1177,9 +1200,7 @@ export const OrderDetailLineItemsPanel = ({
     let nextServiceId =
       kind === 'service'
         ? (selectedServiceId ??
-          serviceSuggestions.find(
-            (service) => service.name === normalizedName,
-          )?.id)
+          findExactServiceSuggestion(serviceSuggestions, normalizedName)?.id)
         : undefined;
 
     if (
@@ -1196,6 +1217,7 @@ export const OrderDetailLineItemsPanel = ({
         const createdService = await createServiceCatalogItem(
           buildMissingServicePayload(normalizedName, normalizedPrice),
         );
+        await queryClient.invalidateQueries({ queryKey: queryKeys.services });
         nextServiceId = createdService.id;
         setServiceSuggestions([createdService]);
         onSuccess(t('orders.messages.success.serviceSaved'));
@@ -2003,7 +2025,10 @@ export const OrderDetailLineItemsPanel = ({
             }))
           }
           onSubmit={() => void saveCreatedService()}
-          onClose={() => setIsCreateServiceOpen(false)}
+          onClose={() => {
+            setPendingMissingServiceItemId(null);
+            setIsCreateServiceOpen(false);
+          }}
         />
       ) : null}
       {productModelContext ? (

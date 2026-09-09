@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { CatalogProduct } from '../catalog-product/model';
 import * as catalogProductService from '../catalog-product/service';
+import * as serviceCatalogService from '../service-catalog/service';
 import { Employee } from '../employee/model';
 import { Product } from '../product/model';
 import * as errors from '../../shared/lib/errors';
@@ -86,6 +87,9 @@ const installSpies = () => {
   vi.spyOn(errors, 'assertNotStale').mockImplementation(() => undefined);
   vi.spyOn(catalogProductService, 'upsertCatalogProducts').mockResolvedValue(
     undefined as never,
+  );
+  vi.spyOn(serviceCatalogService, 'attachServiceCatalogIds').mockImplementation(
+    async (items) => items,
   );
   vi.spyOn(CatalogProduct, 'countDocuments').mockResolvedValue(0 as never);
 
