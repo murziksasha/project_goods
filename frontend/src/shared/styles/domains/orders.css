@@ -2067,6 +2067,7 @@
 .orders-table .supplier-orders-col-number {
   width: 190px;
   min-width: 190px;
+  max-width: 190px;
 }
 
 .orders-table .supplier-orders-col-product {

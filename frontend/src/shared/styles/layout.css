@@ -4326,35 +4326,56 @@ button.payment-summary-discount-badge:hover:not(:disabled) {
 }
 
 .supplier-orders-number-cell {
-  overflow: visible;
+  overflow: hidden;
 }
 
 .supplier-order-number-cell {
-  display: inline-flex;
+  display: flex;
   align-items: center;
   gap: 6px;
-  min-width: max-content;
+  min-width: 0;
+  max-width: 100%;
+  width: 100%;
 }
 
 .supplier-order-product-cell .copyable-value,
 .supplier-order-supplier-cell .copyable-value {
   display: flex;
+  min-width: 0;
+  flex: 1 1 auto;
   width: 100%;
   max-width: 100%;
 }
 
+.supplier-order-number-cell .copyable-value {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 auto;
+  max-width: 100%;
+}
+
 .supplier-order-product-cell .copyable-value-content,
-.supplier-order-supplier-cell .copyable-value-content {
+.supplier-order-supplier-cell .copyable-value-content,
+.supplier-order-number-cell .copyable-value-content {
   flex: 1 1 auto;
   min-width: 0;
   overflow: hidden;
 }
 
 .supplier-order-product-cell .catalog-name-button,
-.supplier-order-supplier-cell .catalog-name-button {
+.supplier-order-supplier-cell .catalog-name-button,
+.supplier-order-number-cell .catalog-name-button,
+.supplier-order-number-cell .supplier-order-number-button,
+.supplier-order-number-cell .order-number-button {
   display: block;
   min-width: 0;
   max-width: 100%;
+}
+
+.supplier-order-product-cell .truncated-text-tooltip,
+.supplier-order-supplier-cell .truncated-text-tooltip,
+.supplier-order-number-cell .truncated-text-tooltip {
+  width: 100%;
 }
 
 .supplier-order-number-button {
@@ -4366,9 +4387,9 @@ button.payment-summary-discount-badge:hover:not(:disabled) {
   text-align: left;
   cursor: pointer;
   padding: 0;
-  flex: 0 0 auto;
   white-space: nowrap;
-  overflow: visible;
+  overflow: hidden;
+  text-overflow: ellipsis;
   font-variant-numeric: tabular-nums;
 }
 

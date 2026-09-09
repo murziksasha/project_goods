@@ -554,6 +554,24 @@ describe('SupplierOrdersTable', () => {
     expect(onOpenSupplier).not.toHaveBeenCalled();
   });
 
+  it('wraps number, product, and supplier with the same overflow tooltip', () => {
+    renderTable({
+      catalogProducts: [catalogProduct],
+      suppliers: [supplier],
+      visibleColumns: ['number', 'product', 'supplier'],
+    });
+
+    expect(
+      screen.getByText('SO-1').closest('.truncated-text-tooltip'),
+    ).toBeTruthy();
+    expect(
+      screen.getByText('Type C cable').closest('.truncated-text-tooltip'),
+    ).toBeTruthy();
+    expect(
+      screen.getByText('Parts Hub').closest('.truncated-text-tooltip'),
+    ).toBeTruthy();
+  });
+
   it('keeps product and supplier click flows', () => {
     const onOpenCatalogProduct = vi.fn();
     const onOpenSupplier = vi.fn();
