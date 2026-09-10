@@ -44,7 +44,7 @@ describe('EmployeeFormModal', () => {
     render(<ModalHarness />);
 
     expect(screen.getByText('Kanban')).toBeInTheDocument();
-    expect(screen.getByLabelText('Use Kanban')).not.toBeChecked();
+    expect(screen.getByLabelText('Use Kanban')).toBeChecked();
   });
 
   it('activates default permission checkboxes when role changes', () => {
@@ -72,6 +72,7 @@ describe('EmployeeFormModal', () => {
     expect(screen.getByLabelText('View orders')).toBeChecked();
     expect(screen.getByLabelText('Manage orders')).toBeChecked();
     expect(screen.getByLabelText('Order chat')).toBeChecked();
+    expect(screen.getByLabelText('Use Kanban')).toBeChecked();
     expect(screen.getByLabelText('Manage inventory')).toBeChecked();
     expect(screen.getByLabelText('View supplier orders')).toBeChecked();
     expect(screen.getByLabelText('Manage supplier orders')).toBeChecked();
@@ -87,6 +88,7 @@ describe('EmployeeFormModal', () => {
     expect(screen.getByLabelText('View orders')).toBeChecked();
     expect(screen.getByLabelText('Order chat')).toBeChecked();
     expect(screen.getByLabelText('Execute repairs')).toBeChecked();
+    expect(screen.getByLabelText('Use Kanban')).toBeChecked();
   });
 
   it('does not activate orders.chat for sales and support defaults', () => {

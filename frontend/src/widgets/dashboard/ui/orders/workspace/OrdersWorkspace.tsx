@@ -11,7 +11,6 @@ import i18n from '../../../../../shared/i18n/config';
 import {
   hasAnyEmployeePermission,
   hasEmployeePermission,
-  isKanbanOnlyEmployee,
 } from '../../../../../entities/employee/model/permissions';
 import type { Sale } from '../../../../../entities/sale/model/types';
 import { isRepairOrder } from '../../../../../entities/sale/lib/sale-kind';
@@ -235,11 +234,14 @@ export const OrdersWorkspace = ({
     currentEmployee,
     'orders.chat',
   );
-  const canUpdateKanbanBoard = hasAnyEmployeePermission(currentEmployee, [
+  const canUpdateKanbanBoard = hasEmployeePermission(
+    currentEmployee,
     'kanban.use',
-    'orders.manage',
-  ]);
-  const canEditOpenedSaleWorkspace = !isKanbanOnlyEmployee(currentEmployee);
+  );
+  const canEditOpenedSaleWorkspace = hasAnyEmployeePermission(
+    currentEmployee,
+    ['orders.manage', 'sales.manage'],
+  );
   const canViewSupplierOrders =
     hasEmployeePermission(currentEmployee, 'supplierOrders.view') ||
     hasEmployeePermission(currentEmployee, 'supplierOrders.manage');

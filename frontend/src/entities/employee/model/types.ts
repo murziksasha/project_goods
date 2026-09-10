@@ -42,6 +42,7 @@ export const defaultEmployeePermissionsByRole: Record<EmployeeRole, EmployeePerm
     'orders.view',
     'orders.manage',
     'orders.chat',
+    'kanban.use',
     'supplierOrders.view',
     'supplierOrders.manage',
     'clients.manage',
@@ -49,7 +50,7 @@ export const defaultEmployeePermissionsByRole: Record<EmployeeRole, EmployeePerm
     'finance.cashboxes.view',
     'finance.transactions.deposit',
   ],
-  master: ['orders.view', 'orders.chat', 'repairs.execute'],
+  master: ['orders.view', 'orders.chat', 'repairs.execute', 'kanban.use'],
   accountant: [
     'orders.view',
     'supplierOrders.view',

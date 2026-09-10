@@ -30,7 +30,6 @@ import type {
 import {
   hasAnyEmployeePermission,
   hasEmployeePermission,
-  isKanbanOnlyEmployee,
 } from '../../../entities/employee/model/permissions';
 import { getApiErrorMessage, setApiAuthToken } from '../../../shared/api/http';
 import {
@@ -299,18 +298,13 @@ export const DashboardPage = () => {
   const canCreateOrders =
     currentEmployee?.isActive === true &&
     hasEmployeePermission(currentEmployee, 'orders.manage');
-  const kanbanOnlyEmployee = isKanbanOnlyEmployee(currentEmployee);
-  const canViewRepairSalesOrders =
-    !kanbanOnlyEmployee &&
-    hasAnyEmployeePermission(currentEmployee, [
-      'orders.view',
-      'orders.manage',
-      'repairs.execute',
-      'sales.manage',
-    ]);
-  const canViewKanban =
-    kanbanOnlyEmployee ||
-    canViewRepairSalesOrders;
+  const canViewRepairSalesOrders = hasAnyEmployeePermission(currentEmployee, [
+    'orders.view',
+    'orders.manage',
+    'repairs.execute',
+    'sales.manage',
+  ]);
+  const canViewKanban = hasEmployeePermission(currentEmployee, 'kanban.use');
   const canViewSupplierOrders = hasAnyEmployeePermission(currentEmployee, [
     'supplierOrders.view',
     'supplierOrders.manage',

@@ -81,6 +81,7 @@ describe('normalizeEmployeePayload', () => {
         'orders.view',
         'orders.manage',
         'orders.chat',
+        'kanban.use',
         'supplierOrders.view',
         'supplierOrders.manage',
         'clients.manage',
@@ -170,6 +171,7 @@ describe('normalizeEmployeePayload', () => {
         'orders.view',
         'orders.chat',
         'repairs.execute',
+        'kanban.use',
       ]),
     );
   });
