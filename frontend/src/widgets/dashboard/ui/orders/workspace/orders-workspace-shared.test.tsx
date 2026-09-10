@@ -31,7 +31,11 @@ import {
   normalizeOrderStatus,
   ordersColumnsStorageKey,
   printWarehouseSerialLabels,
+  readActiveOrderFilters,
   readVisibleColumns,
+  toKanbanFilters,
+  emptyOrdersFilters,
+  activeOrdersFiltersStorageKey,
   shouldOpenPaymentModalForStatusChange,
   type OrderLineItem,
 } from './orders-workspace-shared';
@@ -782,6 +786,60 @@ describe('repair status refinement', () => {
   it('normalizes refinement status key', () => {
     expect(normalizeOrderStatus('refinement')).toBe('refinement');
     expect(normalizeOrderStatus(' Refinement ')).toBe('refinement');
+  });
+});
+
+describe('kanban active filters', () => {
+  afterEach(() => {
+    window.localStorage.clear();
+  });
+
+  it('keeps only master, dates, and favorites on kanban', () => {
+    expect(
+      toKanbanFilters({
+        ...emptyOrdersFilters,
+        statuses: ['ready', 'inRepair'],
+        orderNumber: 'r0001',
+        client: 'Igor',
+        assigneeId: 'master-1',
+        repairType: 'warranty',
+        dateFrom: '2026-02-01',
+        dateTo: '2026-02-28',
+        favoritesOnly: true,
+      }),
+    ).toEqual({
+      ...emptyOrdersFilters,
+      assigneeId: 'master-1',
+      dateFrom: '2026-02-01',
+      dateTo: '2026-02-28',
+      favoritesOnly: true,
+    });
+  });
+
+  it('does not copy leftover order status filters onto kanban', () => {
+    window.localStorage.setItem(
+      activeOrdersFiltersStorageKey,
+      JSON.stringify({
+        orders: {
+          ...emptyOrdersFilters,
+          statuses: ['ready', 'inRepair', 'diagnostics'],
+          assigneeId: 'master-1',
+          dateFrom: '2026-01-01',
+        },
+      }),
+    );
+
+    const stored = readActiveOrderFilters();
+    expect(stored.kanban).toEqual({
+      ...emptyOrdersFilters,
+      assigneeId: 'master-1',
+      dateFrom: '2026-01-01',
+    });
+    expect(stored.orders.statuses).toEqual([
+      'ready',
+      'inRepair',
+      'diagnostics',
+    ]);
   });
 });
 

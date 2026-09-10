@@ -548,6 +548,15 @@ export const emptyOrdersFilters: OrdersFilters = {
   favoritesOnly: false,
 };
 
+/** Kanban toolbar is master + dates + favorites only (columns are the status filter). */
+export const toKanbanFilters = (filters: OrdersFilters): OrdersFilters => ({
+  ...emptyOrdersFilters,
+  assigneeId: filters.assigneeId,
+  dateFrom: filters.dateFrom,
+  dateTo: filters.dateTo,
+  favoritesOnly: filters.favoritesOnly === true,
+});
+
 export const readActiveOrderFilters = () => {
   try {
     const raw = JSON.parse(
@@ -580,7 +589,7 @@ export const readActiveOrderFilters = () => {
 
     return {
       orders: normalizeOne(raw.orders),
-      kanban: normalizeOne(raw.kanban ?? raw.orders),
+      kanban: toKanbanFilters(normalizeOne(raw.kanban ?? raw.orders)),
       sales: normalizeOne(raw.sales),
       supplierOrders: normalizeOne(raw.supplierOrders),
       supplierInformation: normalizeOne(raw.supplierInformation),
