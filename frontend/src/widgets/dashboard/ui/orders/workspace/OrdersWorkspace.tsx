@@ -143,6 +143,7 @@ import {
   readActiveOrderFilters,
   readSavedOrderFilters,
   readVisibleColumns,
+  toKanbanFilters,
   repairStatuses,
   saleStatuses,
   savedOrdersFiltersStorageKey,
@@ -480,17 +481,19 @@ export const OrdersWorkspace = ({
   const filteredOrders = useMemo(() => {
     const query = searchValue.trim().toLowerCase();
     const queryPhone = normalizePhone(searchValue);
+    const listFilters =
+      activeTab === 'kanban'
+        ? toKanbanFilters(appliedFilters)
+        : appliedFilters;
     const sortedTabSales = [...tabSales].sort(
       (firstSale, secondSale) =>
         getCreatedTime(secondSale) - getCreatedTime(firstSale),
     );
-    const orderNumberValue = appliedFilters.orderNumber
-      .trim()
-      .toLowerCase();
-    const clientValue = appliedFilters.client.trim().toLowerCase();
-    const clientPhoneValue = normalizePhone(appliedFilters.client);
-    const productValue = appliedFilters.product.trim().toLowerCase();
-    const serviceValue = appliedFilters.service.trim().toLowerCase();
+    const orderNumberValue = listFilters.orderNumber.trim().toLowerCase();
+    const clientValue = listFilters.client.trim().toLowerCase();
+    const clientPhoneValue = normalizePhone(listFilters.client);
+    const productValue = listFilters.product.trim().toLowerCase();
+    const serviceValue = listFilters.service.trim().toLowerCase();
 
     return sortedTabSales.filter((sale) => {
       if (activeTab === 'kanban' && !isKanbanVisibleSale(sale)) {
@@ -524,12 +527,12 @@ export const OrdersWorkspace = ({
         salePhones.some((phone) =>
           normalizePhone(phone).includes(clientPhoneValue),
         );
-      const matchesClientTextFilter = saleMatchesPhoneQuery(sale, appliedFilters.client);
+      const matchesClientTextFilter = saleMatchesPhoneQuery(
+        sale,
+        listFilters.client,
+      );
 
-      if (
-        appliedFilters.favoritesOnly &&
-        sale.isFavorite !== true
-      ) {
+      if (listFilters.favoritesOnly && sale.isFavorite !== true) {
         return false;
       }
       if (
@@ -563,46 +566,45 @@ export const OrdersWorkspace = ({
         return false;
       }
       if (
-        appliedFilters.statuses.length > 0 &&
-        !appliedFilters.statuses.includes(status)
+        listFilters.statuses.length > 0 &&
+        !listFilters.statuses.includes(status)
       ) {
         return false;
       }
-      if (appliedFilters.assigneeId) {
+      if (listFilters.assigneeId) {
         const matchesAssignee =
           activeTab === 'kanban'
-            ? saleMatchesKanbanMasterFilter(sale, appliedFilters.assigneeId)
+            ? saleMatchesKanbanMasterFilter(sale, listFilters.assigneeId)
             : activeTab === 'sales'
-              ? sale.manager?.id === appliedFilters.assigneeId
-              : sale.master?.id === appliedFilters.assigneeId ||
-                sale.manager?.id === appliedFilters.assigneeId;
+              ? sale.manager?.id === listFilters.assigneeId
+              : sale.master?.id === listFilters.assigneeId ||
+                sale.manager?.id === listFilters.assigneeId;
         if (!matchesAssignee) {
           return false;
         }
       }
-      if (activeTab === 'sales' && appliedFilters.saleType !== 'all') {
+      if (activeTab === 'sales' && listFilters.saleType !== 'all') {
         const isRapidSale = sale.isRapidSale === true;
-        if (appliedFilters.saleType === 'rapid' && !isRapidSale) return false;
-        if (appliedFilters.saleType === 'regular' && isRapidSale) return false;
+        if (listFilters.saleType === 'rapid' && !isRapidSale) return false;
+        if (listFilters.saleType === 'regular' && isRapidSale) return false;
       }
-      if (activeTab !== 'sales' && appliedFilters.repairType === 'warranty') {
+      if (activeTab !== 'sales' && listFilters.repairType === 'warranty') {
         if (!hasWarrantyService) return false;
       }
-      if (activeTab !== 'sales' && appliedFilters.repairType === 'paid') {
+      if (activeTab !== 'sales' && listFilters.repairType === 'paid') {
         if (hasWarrantyService) return false;
       }
       if (
-        appliedFilters.paymentMethod &&
-        getLatestDepositPaymentMethod(sale) !==
-          appliedFilters.paymentMethod
+        listFilters.paymentMethod &&
+        getLatestDepositPaymentMethod(sale) !== listFilters.paymentMethod
       ) {
         return false;
       }
       if (
         !isIsoDateWithinRange(
           getIsoDatePart(sale.saleDate),
-          appliedFilters.dateFrom,
-          appliedFilters.dateTo,
+          listFilters.dateFrom,
+          listFilters.dateTo,
         )
       ) {
         return false;
@@ -751,12 +753,10 @@ export const OrdersWorkspace = ({
   }, [statusKeysForActiveTab]);
 
   useEffect(() => {
-    setDraftFilters(
-      storedActiveFilters[activeTab] ?? emptyOrdersFilters,
-    );
-    setAppliedFilters(
-      storedActiveFilters[activeTab] ?? emptyOrdersFilters,
-    );
+    const stored = storedActiveFilters[activeTab] ?? emptyOrdersFilters;
+    const next = activeTab === 'kanban' ? toKanbanFilters(stored) : stored;
+    setDraftFilters(next);
+    setAppliedFilters(next);
   }, [activeTab, storedActiveFilters]);
 
   useEffect(() => {
@@ -818,13 +818,7 @@ export const OrdersWorkspace = ({
   const applyFilters = () => {
     const nextFilters =
       activeTab === 'kanban'
-        ? {
-            ...emptyOrdersFilters,
-            assigneeId: draftFilters.assigneeId,
-            dateFrom: draftFilters.dateFrom,
-            dateTo: draftFilters.dateTo,
-            favoritesOnly: draftFilters.favoritesOnly,
-          }
+        ? toKanbanFilters(draftFilters)
         : {
             ...draftFilters,
             warehouse: '',
@@ -861,7 +855,10 @@ export const OrdersWorkspace = ({
   };
 
   const applyFiltersPatch = (nextFilters: OrdersFilters) => {
-    const sanitized = { ...nextFilters, warehouse: '' };
+    const sanitized =
+      activeTab === 'kanban'
+        ? toKanbanFilters(nextFilters)
+        : { ...nextFilters, warehouse: '' };
     setDraftFilters(sanitized);
     setAppliedFilters(sanitized);
     setStoredActiveFilters((current) => ({
@@ -954,14 +951,6 @@ export const OrdersWorkspace = ({
     };
   }, [currentEmployee?.id, onError, t]);
 
-  const toKanbanSavedFilters = (filters: OrdersFilters): OrdersFilters => ({
-    ...emptyOrdersFilters,
-    assigneeId: filters.assigneeId,
-    dateFrom: filters.dateFrom,
-    dateTo: filters.dateTo,
-    favoritesOnly: filters.favoritesOnly,
-  });
-
   const saveCurrentFilter = () => {
     if (!currentEmployee?.id) {
       onError(t('orders.messages.errors.employeeRequiredForFilters'));
@@ -974,7 +963,7 @@ export const OrdersWorkspace = ({
     }
     const filters: OrdersFilters =
       activeTab === 'kanban'
-        ? toKanbanSavedFilters(draftFilters)
+        ? toKanbanFilters(draftFilters)
         : {
             ...draftFilters,
             warehouse: '',
@@ -1021,7 +1010,7 @@ export const OrdersWorkspace = ({
   const applySavedFilter = (savedFilter: SavedOrdersFilter) => {
     const nextFilters =
       savedFilter.tab === 'kanban'
-        ? toKanbanSavedFilters(savedFilter.filters)
+        ? toKanbanFilters(savedFilter.filters)
         : savedFilter.filters;
     onActiveTabChange(savedFilter.tab);
     setDraftFilters(nextFilters);
@@ -3057,7 +3046,11 @@ export const OrdersWorkspace = ({
       />
 
       <OrdersActiveFilterChips
-        filters={appliedFilters}
+        filters={
+          activeTab === 'kanban'
+            ? toKanbanFilters(appliedFilters)
+            : appliedFilters
+        }
         assigneeLabelById={assigneeLabelById}
         assigneeFieldLabel={
           activeTab === 'kanban'

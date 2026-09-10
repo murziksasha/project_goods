@@ -10,6 +10,10 @@ import type { Sale } from '../../../../../entities/sale/model/types';
 import type { Cashbox } from '../../../../../entities/finance/model/types';
 import type { PrintForm } from '../../../../../entities/settings/model/types';
 import { OrdersWorkspace } from './OrdersWorkspace';
+import {
+  activeOrdersFiltersStorageKey,
+  emptyOrdersFilters,
+} from './orders-workspace-shared';
 
 const scrollDashboardMainToTopMock = vi.hoisted(() => vi.fn());
 
@@ -1692,6 +1696,47 @@ describe('OrdersWorkspace', () => {
     await waitFor(() => {
       expect(onSelectedSaleIdChange).toHaveBeenCalledWith('sale-match');
     });
+  });
+
+  it('keeps refinement cards on kanban when leftover order status filters omit refinement', () => {
+    window.localStorage.setItem(
+      activeOrdersFiltersStorageKey,
+      JSON.stringify({
+        orders: {
+          ...emptyOrdersFilters,
+          statuses: ['ready', 'inRepair', 'diagnostics', 'waitingParts'],
+        },
+        kanban: {
+          ...emptyOrdersFilters,
+          statuses: ['ready', 'inRepair', 'diagnostics', 'waitingParts'],
+        },
+      }),
+    );
+
+    renderWorkspace({
+      activeTab: 'kanban',
+      visibleTabs: ['orders', 'kanban'],
+      sales: [
+        {
+          ...sale,
+          id: 'sale-ready',
+          status: 'ready',
+          recordNumber: 'R000760',
+        },
+        {
+          ...sale,
+          id: 'sale-refinement',
+          status: 'refinement',
+          recordNumber: 'R000761',
+        },
+      ],
+    });
+
+    expect(screen.getByText('#R000760')).toBeInTheDocument();
+    expect(screen.getByText('#R000761')).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Clear all' }),
+    ).not.toBeInTheDocument();
   });
 
   it('filters kanban by assigned master, not the creating manager', () => {
