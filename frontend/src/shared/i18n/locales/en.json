@@ -507,8 +507,12 @@
     "salePrice": {
       "retail": "Retail",
       "wholesale": "Wholesale",
+      "wholesale1": "Wholesale 1",
+      "wholesale2": "Wholesale 2",
       "retailShort": "R",
       "wholesaleShort": "W",
+      "wholesale1Short": "W1",
+      "wholesale2Short": "W2",
       "tierToggleAria": "Sale price type"
     },
     "examples": {
@@ -659,6 +663,7 @@
       "serviceSearch": "Service name",
       "addProduct": "Add product",
       "productPrice": "Product price",
+      "servicePrice": "Service price",
       "productQuantity": "Product quantity",
       "warehouse": "Warehouse",
       "noWarehouses": "No warehouses",

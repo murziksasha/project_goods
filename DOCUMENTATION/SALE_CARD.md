@@ -5,7 +5,7 @@ Related: [SALE_FLOW.md](./SALE_FLOW.md) · [ORDER_CARD.md](./ORDER_CARD.md) · [
 ## Rapid Sale Display
 
 - Rapid sales (`isRapidSale: true`) are created from the compact rapid-sale modal (full creation UX: [SALE_FLOW.md](./SALE_FLOW.md#rapid-sale-2026-06-24-ux-updates-2026-06-30)) and may still be opened later as a normal sale card from the sales list.
-- Creation-time retail/wholesale selection happens in the **product entry row** only (`ProductSalePriceField`, R/W badges in the Price label). Post-add price edits use the pinned **draft items table** (plain `NumberStepper` per line before `Issued`). After the sale exists, line-item price rules follow the normal sale card sections below.
+- Creation-time retail/wholesale selection happens in the **product entry row** (`ProductSalePriceField`, R/W badges in the Price label) and the **service entry row** (`ServiceSalePriceField`, R/W1/W2 when wholesale options are set). Post-add price edits use the pinned **draft items table** (plain `NumberStepper` per line before `Issued`). After the sale exists, line-item price rules follow the normal sale card sections below. Service wholesale on the opened card lives in the Services price column header (same pattern as product R/W).
 - In the sales list client column only, rapid sales display `Rapid sale` instead of the linked system client name; phone shows `-`. The Product column still shows the sold item (`getSaleProductName`).
 - Client card link is disabled in the list for rapid sales (`isRapidSaleClientLinkDisabled`).
 - Inside an opened sale card, client fields continue to use stored system-client snapshot data (not the `Rapid sale` list label).

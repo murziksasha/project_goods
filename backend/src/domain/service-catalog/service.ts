@@ -4,7 +4,9 @@ import { Sale } from '../sale/model';
 import { escapeRegExp, getSearchQuery } from '../../shared/lib/query';
 import { toNumber } from '../../shared/lib/parsers';
 import type { ServiceCatalogPayload } from '../shared/types';
-import { HttpError } from '../../shared/lib/errors';
+import { HttpError, isDuplicateKeyError } from '../../shared/lib/errors';
+
+const DUPLICATE_SERVICE_NAME_MESSAGE = 'Service with this name already exists.';
 
 const defaultServices: Array<{ name: string; price: number; note: string }> = [
   { name: 'Діагностика', price: 250, note: 'Стандартна діагностика приладу' },
@@ -17,7 +19,17 @@ const defaultServices: Array<{ name: string; price: number; note: string }> = [
 
 const SEARCH_LIMIT = 20;
 
-const normalizeName = (value: unknown) => String(value ?? '').trim();
+const normalizeName = (value: unknown) =>
+  String(value ?? '')
+    .trim()
+    .replace(/\s+/g, ' ');
+const toNameKey = (value: string) => normalizeName(value).toLowerCase();
+const mapServiceCatalogWriteError = (error: unknown) => {
+  if (isDuplicateKeyError(error) && error.keyPattern?.nameKey) {
+    return new HttpError(409, DUPLICATE_SERVICE_NAME_MESSAGE);
+  }
+  return error;
+};
 const normalizePrice = (value: unknown) => {
   const price = toNumber(value);
   if (!Number.isFinite(price) || price < 0) {
@@ -65,25 +77,130 @@ const ensureDefaultServices = async () => {
   await ServiceCatalog.insertMany(
     defaultServices.map((service) => ({
       ...service,
+      nameKey: toNameKey(service.name),
       searchText: [service.name, service.note].join(' ').toLowerCase(),
     })),
   );
 };
 
 let backfillPromise: Promise<void> | null = null;
+let uniquenessPromise: Promise<void> | null = null;
 
 export const resetServiceCatalogBackfillState = () => {
   backfillPromise = null;
+  uniquenessPromise = null;
 };
 
-export const findServiceCatalogByName = async (name: string) => {
+const findServiceCatalogDocumentByName = async (
+  name: string,
+  exceptId?: string,
+) => {
   const normalized = normalizeName(name);
   if (normalized.length < 2) return null;
 
-  const service = await ServiceCatalog.findOne({
-    name: { $regex: `^${escapeRegExp(normalized)}$`, $options: 'i' },
-  }).lean<ServiceCatalogDocument | null>();
+  const nameKey = toNameKey(normalized);
+  const query: Record<string, unknown> = {
+    $or: [
+      { nameKey },
+      { name: { $regex: `^${escapeRegExp(normalized)}$`, $options: 'i' } },
+    ],
+  };
+  if (exceptId && mongoose.isValidObjectId(exceptId)) {
+    query._id = { $ne: exceptId };
+  }
 
+  return ServiceCatalog.findOne(query).lean<ServiceCatalogDocument | null>();
+};
+
+const assertUniqueServiceName = async (name: string, exceptId?: string) => {
+  const existing = await findServiceCatalogDocumentByName(name, exceptId);
+  if (existing) {
+    throw new HttpError(409, DUPLICATE_SERVICE_NAME_MESSAGE);
+  }
+};
+
+const pickDuplicateServiceWinner = (rows: ServiceCatalogDocument[]) => {
+  const activeRows = rows.filter((row) => row.isActive !== false);
+  const pool = activeRows.length > 0 ? activeRows : rows;
+  return pool.reduce((winner, row) => {
+    if (row.createdAt < winner.createdAt) return row;
+    if (
+      row.createdAt.getTime() === winner.createdAt.getTime() &&
+      row._id.toString() < winner._id.toString()
+    ) {
+      return row;
+    }
+    return winner;
+  });
+};
+
+export const mergeDuplicateServiceCatalogItems = async () => {
+  const items = await ServiceCatalog.find({})
+    .sort({ createdAt: 1 })
+    .lean<ServiceCatalogDocument[]>();
+
+  const groups = new Map<string, ServiceCatalogDocument[]>();
+  for (const item of items) {
+    const nameKey = item.nameKey || toNameKey(item.name);
+    if (!nameKey) continue;
+    const group = groups.get(nameKey) ?? [];
+    group.push(item);
+    groups.set(nameKey, group);
+
+    if (item.nameKey !== nameKey) {
+      await ServiceCatalog.updateOne({ _id: item._id }, { $set: { nameKey } });
+    }
+  }
+
+  for (const group of groups.values()) {
+    if (group.length < 2) continue;
+
+    const winner = pickDuplicateServiceWinner(group);
+    const losers = group.filter((row) => row._id.toString() !== winner._id.toString());
+    const loserIds = losers.map((row) => row._id);
+    if (loserIds.length === 0) continue;
+
+    await Sale.updateMany(
+      { 'lineItems.serviceId': { $in: loserIds } },
+      { $set: { 'lineItems.$[line].serviceId': winner._id } },
+      { arrayFilters: [{ 'line.serviceId': { $in: loserIds } }] },
+    );
+    await ServiceCatalog.deleteMany({ _id: { $in: loserIds } });
+  }
+};
+
+export const ensureServiceCatalogNameUniqueness = async () => {
+  await mergeDuplicateServiceCatalogItems();
+  try {
+    await ServiceCatalog.collection.createIndex(
+      { nameKey: 1 },
+      { unique: true, name: 'nameKey_1' },
+    );
+  } catch (error) {
+    if (isDuplicateKeyError(error)) {
+      console.error(
+        'Service catalog nameKey unique index not applied; duplicate names remain.',
+        error,
+      );
+      return;
+    }
+    throw error;
+  }
+};
+
+const ensureMergedServiceNames = async () => {
+  if (!uniquenessPromise) {
+    uniquenessPromise = mergeDuplicateServiceCatalogItems().catch((error) => {
+      uniquenessPromise = null;
+      console.error('Failed to merge duplicate service catalog names', error);
+    });
+  }
+
+  await uniquenessPromise;
+};
+
+export const findServiceCatalogByName = async (name: string) => {
+  const service = await findServiceCatalogDocumentByName(name);
   return service ? formatServiceCatalogItem(service) : null;
 };
 
@@ -108,10 +225,18 @@ export const upsertServiceCatalogItem = async ({
   const byName = await findServiceCatalogByName(normalized);
   if (byName) return byName;
 
-  return createServiceCatalogItem({
-    name: normalized,
-    price: safePrice(price),
-  });
+  try {
+    return await createServiceCatalogItem({
+      name: normalized,
+      price: safePrice(price),
+    });
+  } catch (error) {
+    if (error instanceof HttpError && error.statusCode === 409) {
+      const existing = await findServiceCatalogByName(normalized);
+      if (existing) return existing;
+    }
+    throw error;
+  }
 };
 
 export const attachServiceCatalogIds = async <
@@ -183,6 +308,7 @@ const ensureServicesFromSales = async () => {
 
 export const listServiceCatalogItems = async (queryValue: unknown) => {
   await ensureDefaultServices();
+  await ensureMergedServiceNames();
   await ensureServicesFromSales();
 
   const query = typeof queryValue === 'string' ? queryValue.trim() : '';
@@ -209,15 +335,22 @@ export const listServiceCatalogItems = async (queryValue: unknown) => {
 export const createServiceCatalogItem = async (
   payload: ServiceCatalogPayload,
 ) => {
+  const name = normalizeName(payload.name);
+  await assertUniqueServiceName(name);
+
   const service = new ServiceCatalog({
-    name: normalizeName(payload.name),
+    name,
     price: normalizePrice(payload.price),
     salePriceOptions: normalizeSalePriceOptions(payload.salePriceOptions),
     note: String(payload.note ?? '').trim(),
   });
 
   await service.validate();
-  await service.save();
+  try {
+    await service.save();
+  } catch (error) {
+    throw mapServiceCatalogWriteError(error);
+  }
 
   return formatServiceCatalogItem(
     service.toObject<ServiceCatalogDocument>(),
@@ -233,7 +366,10 @@ export const updateServiceCatalogItem = async (
     throw new HttpError(404, 'Service not found.');
   }
 
-  service.name = normalizeName(payload.name);
+  const name = normalizeName(payload.name);
+  await assertUniqueServiceName(name, serviceId);
+
+  service.name = name;
   service.price = normalizePrice(payload.price);
   service.salePriceOptions = normalizeSalePriceOptions(payload.salePriceOptions);
   service.note = String(payload.note ?? '').trim();
@@ -244,7 +380,11 @@ export const updateServiceCatalogItem = async (
   }
 
   await service.validate();
-  await service.save();
+  try {
+    await service.save();
+  } catch (error) {
+    throw mapServiceCatalogWriteError(error);
+  }
 
   return formatServiceCatalogItem(
     service.toObject<ServiceCatalogDocument>(),

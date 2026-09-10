@@ -40,12 +40,17 @@ import {
   getServiceCatalogItems,
 } from '../../../../../entities/service-catalog/api/serviceCatalogApi';
 import type { ServiceCatalogItem } from '../../../../../entities/service-catalog/model/types';
+import {
+  formatServiceRetailSalePrice,
+  type ServiceSalePriceTier,
+} from '../../../../../entities/service-catalog/lib/sale-prices';
 import { initialServiceCatalogForm } from '../../../../../entities/service-catalog/model/forms';
 import { getWarehouseSettings } from '../../../../../entities/warehouse-settings/api/warehouseSettingsApi';
 import type { WarehouseItem } from '../../../../../entities/warehouse-settings/model/types';
 import {
   buildMissingServicePayload,
   findExactServiceSuggestion,
+  resolveOrCreateServiceCatalogItem,
   shouldCreateMissingServiceOnSubmit,
 } from '../../../model/missingService';
 import {
@@ -182,9 +187,13 @@ export const CreateOrderCard = ({
   const [isServicesSectionOpen, setIsServicesSectionOpen] = useState(false);
   const [serviceQuery, setServiceQuery] = useState('');
   const [servicePrice, setServicePrice] = useState('');
+  const [servicePriceTier, setServicePriceTier] =
+    useState<ServiceSalePriceTier | null>(null);
   const [serviceQuantity, setServiceQuantity] = useState('1');
   const [serviceWarranty, setServiceWarranty] = useState('1');
   const [selectedServiceId, setSelectedServiceId] = useState('');
+  const [selectedService, setSelectedService] =
+    useState<ServiceCatalogItem | null>(null);
   const [serviceSuggestions, setServiceSuggestions] = useState<ServiceCatalogItem[]>([]);
   const [isServiceLookupLoading, setIsServiceLookupLoading] = useState(false);
   const [isCreateServiceOpen, setIsCreateServiceOpen] = useState(false);
@@ -809,18 +818,22 @@ export const CreateOrderCard = ({
   const resetServiceEntry = () => {
     setServiceQuery('');
     setServicePrice('');
+    setServicePriceTier(null);
     setServiceQuantity('1');
     setServiceWarranty('1');
     setSelectedServiceId('');
+    setSelectedService(null);
     setServiceSuggestions([]);
   };
 
   const applyServiceSuggestion = (service: ServiceCatalogItem) => {
     setServiceQuery(service.name);
-    setServicePrice(String(service.price));
+    setServicePrice(formatServiceRetailSalePrice(service));
+    setServicePriceTier('retail');
     setServiceQuantity('1');
     setServiceWarranty('1');
     setSelectedServiceId(service.id);
+    setSelectedService(service);
     setServiceSuggestions([]);
   };
 
@@ -843,13 +856,18 @@ export const CreateOrderCard = ({
       })
     ) {
       try {
-        const createdService = await createServiceCatalogItem(
-          buildMissingServicePayload(
-            normalizedName,
-            parseDecimalInput(servicePrice) || 0,
-          ),
-        );
-        nextServiceId = createdService.id;
+        const resolvedService = await resolveOrCreateServiceCatalogItem({
+          name: normalizedName,
+          lookup: getServiceCatalogItems,
+          create: () =>
+            createServiceCatalogItem(
+              buildMissingServicePayload(
+                normalizedName,
+                parseDecimalInput(servicePrice) || 0,
+              ),
+            ),
+        });
+        nextServiceId = resolvedService.id;
       } catch (error) {
         onError(
           error instanceof Error
@@ -885,7 +903,11 @@ export const CreateOrderCard = ({
   const saveCreatedService = async () => {
     setIsCreateServiceSaving(true);
     try {
-      const createdService = await createServiceCatalogItem(createServiceForm);
+      const createdService = await resolveOrCreateServiceCatalogItem({
+        name: createServiceForm.name,
+        lookup: getServiceCatalogItems,
+        create: () => createServiceCatalogItem(createServiceForm),
+      });
       applyServiceSuggestion(createdService);
       setIsCreateServiceOpen(false);
     } catch (error) {
@@ -1326,6 +1348,15 @@ export const CreateOrderCard = ({
                   isOpen={isServicesSectionOpen}
                   serviceQuery={serviceQuery}
                   servicePrice={servicePrice}
+                  servicePriceTier={servicePriceTier}
+                  selectedService={
+                    selectedService ??
+                    findExactServiceSuggestion(
+                      serviceSuggestions,
+                      serviceLookupQuery,
+                    ) ??
+                    null
+                  }
                   serviceQuantity={serviceQuantity}
                   serviceWarranty={serviceWarranty}
                   serviceSuggestions={serviceSuggestions}
@@ -1336,8 +1367,11 @@ export const CreateOrderCard = ({
                   onServiceQueryChange={(value) => {
                     setServiceQuery(value);
                     setSelectedServiceId('');
+                    setSelectedService(null);
+                    setServicePriceTier(null);
                   }}
                   onServicePriceChange={setServicePrice}
+                  onServicePriceTierChange={setServicePriceTier}
                   onServiceQuantityChange={setServiceQuantity}
                   onServiceWarrantyChange={setServiceWarranty}
                   onApplyServiceSuggestion={applyServiceSuggestion}

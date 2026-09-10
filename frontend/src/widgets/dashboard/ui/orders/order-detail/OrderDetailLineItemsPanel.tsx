@@ -42,6 +42,13 @@ import {
   type ProductSalePriceTier,
 } from '../../../../../entities/product/lib/sale-prices';
 import {
+  formatServiceSalePrice,
+  getServiceSalePriceByTier,
+  hasServiceWholesaleSalePrice,
+  matchesServiceSalePriceTier,
+  type ServiceSalePriceTier,
+} from '../../../../../entities/service-catalog/lib/sale-prices';
+import {
   MONEY_FIELD_COMMIT_MS,
   PRICE_STEPPER_PRECISION,
   PRICE_STEPPER_STEP,
@@ -49,6 +56,7 @@ import {
 import { NumberStepper } from '../../../../../shared/ui/NumberStepper';
 import { ProductSalePriceField } from '../../../../../shared/ui/ProductSalePriceField';
 import { ProductSalePriceTierToggle } from '../../../../../shared/ui/ProductSalePriceTierToggle';
+import { ServiceSalePriceTierToggle } from '../../../../../shared/ui/ServiceSalePriceTierToggle';
 import { parseDecimal } from '../../../../../shared/lib/decimal';
 import { formatCurrency } from '../../../../../shared/lib/format';
 import { useDismissibleSuggestions } from '../../../../../shared/lib/useDismissibleSuggestions';
@@ -66,6 +74,7 @@ import {
 import {
   buildMissingServicePayload,
   findExactServiceSuggestion,
+  resolveOrCreateServiceCatalogItem,
   shouldCreateMissingServiceOnSubmit,
 } from '../../../model/missingService';
 import { queryClient, queryKeys } from '../../../../../shared/api/queryClient';
@@ -196,6 +205,18 @@ export const OrderDetailLineItemsPanel = ({
   const [priceTierByItemId, setPriceTierByItemId] = useState<
     Record<string, ProductSalePriceTier | null>
   >({});
+  const [servicePriceTier, setServicePriceTier] =
+    useState<ServiceSalePriceTier | null>(null);
+  const [servicePriceTierByItemId, setServicePriceTierByItemId] = useState<
+    Record<string, ServiceSalePriceTier | null>
+  >({});
+  const [entryService, setEntryService] = useState<ServiceCatalogItem | null>(
+    null,
+  );
+  const [catalogServicesById, setCatalogServicesById] = useState<
+    Record<string, ServiceCatalogItem>
+  >({});
+  const requestedCatalogServiceIdsRef = useRef(new Set<string>());
   const [activePriceContext, setActivePriceContext] = useState<
     'entry' | string
   >('entry');
@@ -968,14 +989,77 @@ export const OrderDetailLineItemsPanel = ({
     };
   }, [kind, selectedServiceId, serviceLookupQuery]);
 
+  const rememberCatalogService = (service: ServiceCatalogItem) => {
+    requestedCatalogServiceIdsRef.current.add(service.id);
+    setCatalogServicesById((current) =>
+      current[service.id] === service
+        ? current
+        : { ...current, [service.id]: service },
+    );
+  };
+
   const applyServiceSuggestion = (service: ServiceCatalogItem) => {
     setName(service.name);
-    setPrice(String(service.price));
+    setPrice(formatServiceSalePrice(service.price));
+    setServicePriceTier('retail');
     setQuantity('1');
     setWarrantyPeriod('1');
     setSelectedServiceId(service.id);
+    setEntryService(service);
+    rememberCatalogService(service);
     setServiceSuggestions([]);
   };
+
+  useEffect(() => {
+    if (kind !== 'service') return;
+
+    const missingItems = items.filter((item) => {
+      const serviceId = item.serviceId;
+      if (!serviceId) return false;
+      if (requestedCatalogServiceIdsRef.current.has(serviceId)) return false;
+      return true;
+    });
+    if (missingItems.length === 0) return;
+
+    let isActive = true;
+    missingItems.forEach((item) => {
+      if (item.serviceId) {
+        requestedCatalogServiceIdsRef.current.add(item.serviceId);
+      }
+    });
+
+    void (async () => {
+      const nextEntries: Record<string, ServiceCatalogItem> = {};
+      for (const item of missingItems) {
+        try {
+          const services = await getServiceCatalogItems(item.name);
+          if (!isActive) return;
+          const match =
+            (item.serviceId
+              ? services.find((candidate) => candidate.id === item.serviceId)
+              : undefined) ??
+            findExactServiceSuggestion(services, item.name) ??
+            null;
+          if (match) {
+            nextEntries[match.id] = match;
+            if (item.serviceId && item.serviceId !== match.id) {
+              nextEntries[item.serviceId] = match;
+            }
+          }
+        } catch {
+          if (item.serviceId) {
+            requestedCatalogServiceIdsRef.current.delete(item.serviceId);
+          }
+        }
+      }
+      if (!isActive || Object.keys(nextEntries).length === 0) return;
+      setCatalogServicesById((current) => ({ ...current, ...nextEntries }));
+    })();
+
+    return () => {
+      isActive = false;
+    };
+  }, [kind, items]);
 
   const applyProductSuggestion = (
     suggestion: ProductEntrySuggestion,
@@ -1072,8 +1156,11 @@ export const OrderDetailLineItemsPanel = ({
   const saveCreatedService = async () => {
     setIsCreateServiceSaving(true);
     try {
-      const createdService =
-        await createServiceCatalogItem(createServiceForm);
+      const createdService = await resolveOrCreateServiceCatalogItem({
+        name: createServiceForm.name,
+        lookup: getServiceCatalogItems,
+        create: () => createServiceCatalogItem(createServiceForm),
+      });
       await queryClient.invalidateQueries({ queryKey: queryKeys.services });
       if (pendingMissingServiceItemId) {
         onUpdateItem(pendingMissingServiceItemId, undefined, {
@@ -1141,6 +1228,7 @@ export const OrderDetailLineItemsPanel = ({
       }
       setSelectedService(service);
       setServiceForm(toServiceCatalogForm(service));
+      rememberCatalogService(service);
     } catch (error) {
       onError(
         error instanceof Error
@@ -1162,19 +1250,22 @@ export const OrderDetailLineItemsPanel = ({
       await queryClient.invalidateQueries({ queryKey: queryKeys.services });
       setSelectedService(updatedService);
       setServiceForm(toServiceCatalogForm(updatedService));
+      rememberCatalogService(updatedService);
       onUpdateItem(editingItemId, undefined, {
         name: updatedService.name,
         serviceId: updatedService.id,
-        price: updatedService.price,
-        warrantyPeriod: 1,
       });
       onSuccess(t('orders.messages.success.serviceUpdated'));
       setSelectedService(null);
     } catch (error) {
-      onError(
+      const message =
         error instanceof Error
           ? error.message
-          : t('orders.messages.errors.failedUpdateService'),
+          : t('orders.messages.errors.failedUpdateService');
+      onError(
+        /already exists/i.test(message)
+          ? t('dashboard.actions.errors.duplicateService')
+          : message,
       );
     } finally {
       setIsCatalogSaving(false);
@@ -1214,9 +1305,14 @@ export const OrderDetailLineItemsPanel = ({
       })
     ) {
       try {
-        const createdService = await createServiceCatalogItem(
-          buildMissingServicePayload(normalizedName, normalizedPrice),
-        );
+        const createdService = await resolveOrCreateServiceCatalogItem({
+          name: normalizedName,
+          lookup: getServiceCatalogItems,
+          create: () =>
+            createServiceCatalogItem(
+              buildMissingServicePayload(normalizedName, normalizedPrice),
+            ),
+        });
         await queryClient.invalidateQueries({ queryKey: queryKeys.services });
         nextServiceId = createdService.id;
         setServiceSuggestions([createdService]);
@@ -1293,9 +1389,11 @@ export const OrderDetailLineItemsPanel = ({
     setName('');
     setPrice('');
     setPriceTier(null);
+    setServicePriceTier(null);
     setQuantity('1');
     setWarrantyPeriod(kind === 'service' ? '1' : '0');
     setSelectedServiceId(undefined);
+    setEntryService(null);
     setSelectedProductId(undefined);
     setSelectedCatalogProductId(undefined);
     setServiceSuggestions([]);
@@ -1373,16 +1471,61 @@ export const OrderDetailLineItemsPanel = ({
     },
     [],
   );
+  const resolveServiceSalePriceTier = useCallback(
+    (
+      service: ServiceCatalogItem | null,
+      value: string,
+      tier: ServiceSalePriceTier | null,
+    ): ServiceSalePriceTier | null => {
+      if (!service || !hasServiceWholesaleSalePrice(service)) return null;
+      if (tier && matchesServiceSalePriceTier(service, value, tier))
+        return tier;
+      if (matchesServiceSalePriceTier(service, value, 'wholesale1')) {
+        return 'wholesale1';
+      }
+      if (matchesServiceSalePriceTier(service, value, 'wholesale2')) {
+        return 'wholesale2';
+      }
+      if (matchesServiceSalePriceTier(service, value, 'retail')) {
+        return 'retail';
+      }
+      return null;
+    },
+    [],
+  );
+  const resolvedEntryService = useMemo(() => {
+    if (entryService) return entryService;
+    if (selectedServiceId && catalogServicesById[selectedServiceId]) {
+      return catalogServicesById[selectedServiceId];
+    }
+    return (
+      findExactServiceSuggestion(serviceSuggestions, name.trim()) ?? null
+    );
+  }, [
+    catalogServicesById,
+    entryService,
+    name,
+    selectedServiceId,
+    serviceSuggestions,
+  ]);
   const activePriceHeaderTarget = useMemo(() => {
-    if (!isProductKind) return null;
-
     if (activePriceContext === 'entry') {
-      if (!selectedStockProduct) return null;
-
+      if (isProductKind) {
+        if (!selectedStockProduct) return null;
+        return {
+          kind: 'product' as const,
+          product: selectedStockProduct,
+          value: price,
+          priceTier,
+          itemId: null as string | null,
+        };
+      }
+      if (!resolvedEntryService) return null;
       return {
-        product: selectedStockProduct,
+        kind: 'service' as const,
+        service: resolvedEntryService,
         value: price,
-        priceTier,
+        priceTier: servicePriceTier,
         itemId: null as string | null,
       };
     }
@@ -1390,20 +1533,36 @@ export const OrderDetailLineItemsPanel = ({
     const item = items.find(
       (lineItem) => lineItem.id === activePriceContext,
     );
-    if (!item || item.kind !== 'product') return null;
+    if (!item) return null;
 
-    const product = item.productId
-      ? (productsById[item.productId] ?? null)
+    if (item.kind === 'product') {
+      const product = item.productId
+        ? (productsById[item.productId] ?? null)
+        : null;
+      if (!product) return null;
+      return {
+        kind: 'product' as const,
+        product,
+        value: priceDrafts[item.id] ?? String(item.price),
+        priceTier: priceTierByItemId[item.id] ?? null,
+        itemId: item.id,
+      };
+    }
+
+    const service = item.serviceId
+      ? (catalogServicesById[item.serviceId] ?? null)
       : null;
-
+    if (!service) return null;
     return {
-      product,
+      kind: 'service' as const,
+      service,
       value: priceDrafts[item.id] ?? String(item.price),
-      priceTier: priceTierByItemId[item.id] ?? null,
+      priceTier: servicePriceTierByItemId[item.id] ?? null,
       itemId: item.id,
     };
   }, [
     activePriceContext,
+    catalogServicesById,
     isProductKind,
     items,
     price,
@@ -1411,24 +1570,37 @@ export const OrderDetailLineItemsPanel = ({
     priceTier,
     priceTierByItemId,
     productsById,
+    resolvedEntryService,
     selectedStockProduct,
+    servicePriceTier,
+    servicePriceTierByItemId,
   ]);
   const showPriceHeaderTierToggle = Boolean(
-    activePriceHeaderTarget?.product &&
-    hasWholesaleSalePrice(activePriceHeaderTarget.product),
+    activePriceHeaderTarget &&
+      (activePriceHeaderTarget.kind === 'product'
+        ? hasWholesaleSalePrice(activePriceHeaderTarget.product)
+        : hasServiceWholesaleSalePrice(activePriceHeaderTarget.service)),
   );
   const priceHeaderActiveTier = useMemo(() => {
-    if (!activePriceHeaderTarget?.product) return null;
+    if (activePriceHeaderTarget?.kind !== 'product') return null;
     return resolveSalePriceTier(
       activePriceHeaderTarget.product,
       activePriceHeaderTarget.value,
       activePriceHeaderTarget.priceTier,
     );
   }, [activePriceHeaderTarget, resolveSalePriceTier]);
+  const servicePriceHeaderActiveTier = useMemo(() => {
+    if (activePriceHeaderTarget?.kind !== 'service') return null;
+    return resolveServiceSalePriceTier(
+      activePriceHeaderTarget.service,
+      activePriceHeaderTarget.value,
+      activePriceHeaderTarget.priceTier,
+    );
+  }, [activePriceHeaderTarget, resolveServiceSalePriceTier]);
   const handlePriceHeaderTierChange = (
     tier: ProductSalePriceTier,
   ) => {
-    if (!activePriceHeaderTarget?.product) return;
+    if (activePriceHeaderTarget?.kind !== 'product') return;
 
     const nextPrice = formatProductSalePrice(
       getProductSalePriceByTier(activePriceHeaderTarget.product, tier),
@@ -1442,6 +1614,30 @@ export const OrderDetailLineItemsPanel = ({
 
     const itemId = activePriceHeaderTarget.itemId;
     setPriceTierByItemId((current) => ({
+      ...current,
+      [itemId]: tier,
+    }));
+    const item = items.find((lineItem) => lineItem.id === itemId);
+    if (!item) return;
+    handleLineItemPriceChange(item, nextPrice, true);
+  };
+  const handleServicePriceHeaderTierChange = (
+    tier: ServiceSalePriceTier,
+  ) => {
+    if (activePriceHeaderTarget?.kind !== 'service') return;
+
+    const nextPrice = formatServiceSalePrice(
+      getServiceSalePriceByTier(activePriceHeaderTarget.service, tier),
+    );
+
+    if (activePriceHeaderTarget.itemId === null) {
+      setServicePriceTier(tier);
+      setPrice(nextPrice);
+      return;
+    }
+
+    const itemId = activePriceHeaderTarget.itemId;
+    setServicePriceTierByItemId((current) => ({
       ...current,
       [itemId]: tier,
     }));
@@ -1470,11 +1666,20 @@ export const OrderDetailLineItemsPanel = ({
             {t('orders.detail.lineItems.price')}
           </span>
           {showPriceHeaderTierToggle && activePriceHeaderTarget ? (
-            <ProductSalePriceTierToggle
-              activeTier={priceHeaderActiveTier}
-              onTierChange={handlePriceHeaderTierChange}
-              disabled={isReadOnly}
-            />
+            activePriceHeaderTarget.kind === 'product' ? (
+              <ProductSalePriceTierToggle
+                activeTier={priceHeaderActiveTier}
+                onTierChange={handlePriceHeaderTierChange}
+                disabled={isReadOnly}
+              />
+            ) : (
+              <ServiceSalePriceTierToggle
+                service={activePriceHeaderTarget.service}
+                activeTier={servicePriceHeaderActiveTier}
+                onTierChange={handleServicePriceHeaderTierChange}
+                disabled={isReadOnly}
+              />
+            )
           ) : null}
         </div>
         <div className='order-detail-table-header'>
@@ -1808,9 +2013,11 @@ export const OrderDetailLineItemsPanel = ({
               onChange={(event) => {
                 setName(event.target.value);
                 setSelectedServiceId(undefined);
+                setEntryService(null);
                 setSelectedProductId(undefined);
                 setSelectedCatalogProductId(undefined);
                 setPriceTier(null);
+                setServicePriceTier(null);
               }}
               placeholder={
                 isProductKind
@@ -1856,6 +2063,7 @@ export const OrderDetailLineItemsPanel = ({
                 placeholder={t('orders.detail.lineItems.price')}
                 disabled={isReadOnly}
                 ariaLabel={t('orders.detail.lineItems.price')}
+                onFocus={() => setActivePriceContext('entry')}
               />
             )}
           </div>

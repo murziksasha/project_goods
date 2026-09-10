@@ -1,11 +1,9 @@
 import { useTranslation } from 'react-i18next';
 import { useDismissibleSuggestions } from '../../../../../shared/lib/useDismissibleSuggestions';
 import type { ServiceCatalogItem } from '../../../../../entities/service-catalog/model/types';
-import {
-  PRICE_STEPPER_PRECISION,
-  PRICE_STEPPER_STEP,
-} from '../../../../../shared/lib/price-stepper';
+import type { ServiceSalePriceTier } from '../../../../../entities/service-catalog/lib/sale-prices';
 import { NumberStepper } from '../../../../../shared/ui/NumberStepper';
+import { ServiceSalePriceField } from '../../../../../shared/ui/ServiceSalePriceField';
 import { formatCurrency } from '../../../../../shared/lib/format';
 import type { SaleServiceOrderItem } from './create-order-card-shared';
 import { getWarrantyOptions } from '../workspace/orders-workspace-shared';
@@ -17,6 +15,8 @@ type CreateOrderSaleServicesSectionProps = {
   isOpen: boolean;
   serviceQuery: string;
   servicePrice: string;
+  servicePriceTier: ServiceSalePriceTier | null;
+  selectedService: ServiceCatalogItem | null;
   serviceQuantity: string;
   serviceWarranty: string;
   serviceSuggestions: ServiceCatalogItem[];
@@ -26,6 +26,7 @@ type CreateOrderSaleServicesSectionProps = {
   onToggle: () => void;
   onServiceQueryChange: (value: string) => void;
   onServicePriceChange: (value: string) => void;
+  onServicePriceTierChange: (tier: ServiceSalePriceTier) => void;
   onServiceQuantityChange: (value: string) => void;
   onServiceWarrantyChange: (value: string) => void;
   onApplyServiceSuggestion: (service: ServiceCatalogItem) => void;
@@ -38,6 +39,8 @@ export const CreateOrderSaleServicesSection = ({
   isOpen,
   serviceQuery,
   servicePrice,
+  servicePriceTier,
+  selectedService,
   serviceQuantity,
   serviceWarranty,
   serviceSuggestions,
@@ -47,6 +50,7 @@ export const CreateOrderSaleServicesSection = ({
   onToggle,
   onServiceQueryChange,
   onServicePriceChange,
+  onServicePriceTierChange,
   onServiceQuantityChange,
   onServiceWarrantyChange,
   onApplyServiceSuggestion,
@@ -96,17 +100,18 @@ export const CreateOrderSaleServicesSection = ({
                 placeholder={t('orders.detail.lineItems.addServicePlaceholder')}
               />
             </label>
-            <label className="field">
-              <span>{t('orders.create.price')}</span>
-              <NumberStepper
-                min={0}
-                step={PRICE_STEPPER_STEP}
-                precision={PRICE_STEPPER_PRECISION}
-                value={servicePrice}
-                onChange={onServicePriceChange}
-                placeholder="0"
-              />
-            </label>
+            <ServiceSalePriceField
+              label={t('orders.create.price')}
+              fieldClassName="field sale-item-price-field sale-price-field-labeled"
+              tierTogglePlacement="label"
+              value={servicePrice}
+              onChange={onServicePriceChange}
+              service={selectedService}
+              priceTier={servicePriceTier}
+              onPriceTierChange={onServicePriceTierChange}
+              placeholder="0"
+              ariaLabel={t('orders.create.price')}
+            />
             <label className="field">
               <span>{t('orders.create.qty')}</span>
               <NumberStepper

@@ -296,6 +296,36 @@ Suggestion rows may show the resolved retail price before click when matching st
 - shared UI: `frontend/src/shared/ui/ProductSalePriceField.tsx`
 - styles: `frontend/src/shared/styles/layout.css` (`.sale-price-field-labeled`, `.product-sale-price-field-compact`, `.product-sale-price-tier-toggle`)
 
+## Service Wholesale Price Toggle
+
+Service catalog stores three prices: retail (`service.price`), wholesale 1 (`salePriceOptions[0]`), wholesale 2 (`salePriceOptions[1]`). When a catalog service is selected in a service entry row and at least one wholesale option is `> 0`, the price field shows **R / W1 / W2** badges (`ServiceSalePriceTierToggle`). W1 / W2 appear only when that option is configured.
+
+| Surface | Toggle placement | Notes |
+|---------|------------------|-------|
+| `Create order -> Sales order` service entry | In the **Price** label row (`tierTogglePlacement: label`) | Class `sale-item-price-field sale-price-field-labeled`; price column `minmax(120px, 1.15fr)` |
+| `Rapid sale` service entry | In the **Price** label row (`tierTogglePlacement: label`) | Class `sale-price-field-labeled rapid-sale-price-field` |
+| Opened sale/repair card Services add-row and focused existing service line | Price **column header** (cell stepper has no inline badges) | Shown when the line has `serviceId` and a wholesale option is configured |
+
+### Behavior
+
+- Default tier on catalog select: **retail** (`service.price`).
+- Clicking **W1** fills `salePriceOptions[0]`; **W2** fills `salePriceOptions[1]`; **R** restores retail.
+- Manual edits in the price stepper remain allowed; if the entered value no longer matches a tier, no badge stays highlighted.
+- Toggle is shown only when a concrete catalog `serviceId` is known (or an exact catalog suggestion match) and a wholesale option is configured.
+- Manual / missing-service rows keep the plain price stepper without toggle.
+- Create-order service items table and rapid-sale draft table stay without the toggle (pick the tier before **Add**). Line items persist the numeric price only.
+
+### Scope
+
+1. `Create order -> Sales order` service entry (`CreateOrderSaleServicesSection`)
+2. `Rapid sale` service entry (`RapidSaleModal`)
+3. Opened sale/repair card service entry row and existing service line price cells (`OrderDetailLineItemsPanel`)
+
+### Implementation References
+
+- price helpers: `frontend/src/entities/service-catalog/lib/sale-prices.ts`
+- shared UI: `frontend/src/shared/ui/ServiceSalePriceField.tsx`, `frontend/src/shared/ui/ServiceSalePriceTierToggle.tsx`
+
 ## Sale Creation: Product/Device Linking Rules
 
 - Creating a `Sales order` from a typed product name is allowed even if there is no stock match.

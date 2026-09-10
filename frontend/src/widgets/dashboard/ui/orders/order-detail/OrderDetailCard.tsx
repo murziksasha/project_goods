@@ -769,7 +769,7 @@ export const OrderDetailCard = ({
       new Date(secondItem.createdAt).getTime() -
       new Date(firstItem.createdAt).getTime(),
   );
-  const isCommentComposerDisabled = isReadOnly || !canAddComment;
+  const isCommentComposerDisabled = !canAddComment;
   const relatedListCount =
     relatedTab === 'supplierOrders'
       ? relatedSupplierOrderItems.length
