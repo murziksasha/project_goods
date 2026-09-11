@@ -141,7 +141,6 @@ This document defines current warehouse requirements for stock balances, receipt
 2. if `product.warehouseId` is missing (legacy row), allow fallback by normalized `purchasePlace === warehouse.name`
 - After `Transfer`, `product.warehouseId` becomes the only warehouse source for that stock unit; stale `purchasePlace` from the original receipt must not make the serial appear in the old warehouse dropdown.
 - `Auto-select oldest` chooses the oldest in-stock serials by `purchaseDate` (fallback `createdAt`) inside the currently selected warehouse only, up to the line-item quantity.
-- Each bind-modal candidate row shows serial, purchase price (`Product.price`), receipt datetime, and supplier-order number. Provenance, copy-icon, and number-click behavior match §4.4 (existing item-scoped `SupplierOrderModal`; bind modal stays open underneath). Missing / unmatched provenance shows `—`. Footer `Order` still closes the bind modal first and creates a new supplier order.
 - Source of truth for candidate list:
 1. `lineItem.productId` strict equality with `product.id`
 2. if `lineItem.productId` is missing (legacy data), allow only exact normalized product name equality (no partial match)
@@ -177,6 +176,24 @@ This document defines current warehouse requirements for stock balances, receipt
 - A product line item with a bound serial must not allow direct quantity increase.
 - Binding multiple serials to a legacy product row must split that row into one atomic serialized row per selected serial.
 - Backend workspace validation must enforce the same invariant before stock deltas are calculated.
+
+### 4.3.2) Bind Modal Candidate Row (Purchase Price + Supplier Order)
+
+Canonical UI for `Serials x/y` → `SerialBindModal` on **opened sale and repair cards**. Rapid Sale’s serial picker is out of scope.
+
+- After warehouse + occupancy filtering (§4.3 / §4.3.0), each visible candidate row shows four fields:
+  1. **Serial #** — `[ ]` / `[x]` toggle. Click serial, purchase price, or receipt datetime still selects/deselects.
+  2. **Purchase price** — that stock unit’s `Product.price`, formatted with `formatCurrency` (read-only).
+  3. **Receipt datetime** — `purchaseDate` (fallback `createdAt`) via `formatDateTime`. Keep time; do not switch to the product-model date-only cell.
+  4. **Supplier order** — unit provenance, same as §2.1 / §4.4: `product.supplierOrderId` + `product.supplierOrderItemIndex` resolved with `buildSupplierOrdersByProductId` to `displayNumber` (`SO-1`, or `SO-1-2` on multi-item orders). Missing / unmatched provenance shows `—` (no copy icon, not clickable).
+- Desktop column header uses `catalog.productModel` labels: `Serial #`, `Purchase price`, `Receipt date`, `Supplier order`.
+- Hover on the supplier-order number shows a copy icon; only the icon copies the visible number. Spec: [UI_DESIGN_SYSTEM.md — Hover copy icon](./UI_DESIGN_SYSTEM.md#hover-copy-icon).
+- Click the number calls `onOpenSupplierOrder(supplierOrderId, itemIndex)` and opens the **existing** item-scoped `SupplierOrderModal` (same path as product-model / Stock balances). The bind modal **stays open** underneath.
+- Copy icon and supplier-order click must not toggle serial selection (`stopPropagation` on that cell).
+- Footer **Order** is a different path: it still **closes** the bind modal first, then opens a *new* supplier-order create modal. Spec: [ORDER_FLOW.md — Serials Modal → Supplier Order](./ORDER_FLOW.md#sales-card-serials-modal---supplier-order-2026-05-20).
+- This modal does **not** show Latest/Reserved badges, serial copy icons, or print checkboxes (those stay on product-model §4.4).
+- Wiring: `SerialBindModal` receives `supplierOrders` + `onOpenSupplierOrder` from `OrderDetailLineItemsPanel` (same callback the product-model modal uses).
+- Tests: `SerialBindModal.test.tsx` (price, empty `—`, copy without select, click without select); `OrderDetailCard.test.tsx` (number click opens existing supplier-order modal; bind dialog remains).
 
 ### 4.4) Product Model Detail Modal
 - In `Warehouse -> Stock balances`, clicking `Name`, `Serial #`, `Article`, or `Note` opens the shared product model modal for the row's exact product name.
@@ -295,7 +312,6 @@ Implementation references:
 - `orders-workspace-shared.test.tsx`: batch HTML classes and one `print-form-label` section per item.
 - `printForms.test.ts`: `warehouse-barcode` migration copies settings from `barcode`.
 - `ProductModelModal.test.tsx`: single-item print calls `printWarehouseSerialLabels` with one payload row; reserved serials show the red `Reserved` badge from occupancy API and from in-memory sales fallback.
-- `SerialBindModal.test.tsx`: candidate rows show purchase price and a copyable/clickable supplier-order number; copy/click do not toggle serial selection.
 - `product-model.test.ts`: `getReservedProductIdsOnOtherSales` skips the current sale and issued sales; `getReservedProductIdsFromOccupiedSerials` maps occupied serials; serial purchase rows carry `isReserved`.
 
 ## Receipts Requirements

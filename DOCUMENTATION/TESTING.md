@@ -42,6 +42,7 @@ Specs:
 - High-value suites: `OrdersWorkspace`, `OrderDetailCard`, `CreateOrderCard`, `AccountingPanel`, `DashboardPage`.
 - Product grouping: `order-line-item-groups.test.ts` (card key + print key with price); `OrderDetailCard.test.tsx` (collapsed `×N` groups); `orders-workspace-shared.test.tsx` (print `products_table` / invoice merge-vs-split).
 - Product model serial table: `product-model.test.ts` (latest batch, reserved-on-other-sale, supplier-order provenance); `ProductModelModal.test.tsx` (Latest / Reserved badges, serial + supplier-order hover copy, empty `—`). Nested modal Escape: `Modal.test.tsx`.
+- Serial bind modal candidate row: `SerialBindModal.test.tsx` (purchase price, empty `—`, copy/click do not select serial); `OrderDetailCard.test.tsx` (number click opens existing supplier-order modal; bind dialog remains). Spec: [WAREHOUSE_FLOW.md §4.3.2](./WAREHOUSE_FLOW.md#432-bind-modal-candidate-row-purchase-price--supplier-order).
 - Warehouse stock table: `WarehouseTables.test.tsx` (name/serial/client-order/supplier-order hover copy; badge click still opens).
 - Supplier Order table: `SupplierOrdersWorkspaceSections.test.tsx` (number + product + supplier hover copy; parent `N items` / child `—` have no product/supplier icon; click still opens).
 - Client card history: `ClientCardModal.test.tsx` (Orders/Sales number + serial hover copy; empty serial has no icon; number click still opens).

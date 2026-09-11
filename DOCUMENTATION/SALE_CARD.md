@@ -91,7 +91,7 @@ Related: [SALE_FLOW.md](./SALE_FLOW.md) · [ORDER_CARD.md](./ORDER_CARD.md) · [
 - If a legacy/non-serialized product row has `quantity > 1` and the operator binds multiple serial numbers, the save flow must split it into one atomic row per selected serial.
 - Catalog/name pre-fill may keep `selectedProductId` for price hints, but `Add product` with `qty > 1` must persist the line without `productId` until serial binding completes.
 - Backend workspace validation must reject serialized rows with `quantity > 1`, more than one serial, or a `productId`/`serialNumber` mismatch.
-- `Serials x/y` opens the shared serial bind modal (warehouse dropdown + `Auto-select oldest`). Occupancy spec: [WAREHOUSE_FLOW.md §4.3.0](./WAREHOUSE_FLOW.md#430-bind-modal-occupancy-opened-repair-and-sale-cards). Candidate rows show purchase price and supplier-order number (hover copy + click opens the related supplier-order modal, same as product-model; bind modal stays open).
+- `Serials x/y` opens the shared serial bind modal (warehouse dropdown + `Auto-select oldest`). Occupancy spec: [WAREHOUSE_FLOW.md §4.3.0](./WAREHOUSE_FLOW.md#430-bind-modal-occupancy-opened-repair-and-sale-cards). Candidate row (purchase price + supplier-order number): [WAREHOUSE_FLOW.md §4.3.2](./WAREHOUSE_FLOW.md#432-bind-modal-candidate-row-purchase-price--supplier-order).
 
 ## Service Entry
 

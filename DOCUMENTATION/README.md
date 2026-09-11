@@ -11,6 +11,7 @@ One topic → one source of truth. Other files **link**, they do not copy the ru
 | Sales / Rapid sale | [SALE_FLOW.md](./SALE_FLOW.md) | [SALE_CARD.md](./SALE_CARD.md) |
 | Warehouse / serials | [WAREHOUSE_FLOW.md](./WAREHOUSE_FLOW.md) | [SERIAL_NUMBER_SEQUENCE_SPEC.md](./SERIAL_NUMBER_SEQUENCE_SPEC.md) |
 | Bind serial occupancy | [WAREHOUSE_FLOW.md §4.3.0](./WAREHOUSE_FLOW.md#430-bind-modal-occupancy-opened-repair-and-sale-cards) | API: `GET /sales/occupied-serials` in [API.md](./API.md) |
+| Bind serial candidate row | [WAREHOUSE_FLOW.md §4.3.2](./WAREHOUSE_FLOW.md#432-bind-modal-candidate-row-purchase-price--supplier-order) | Purchase price + supplier-order number (copy/click) |
 | Lookup / autocomplete | [SPEC_SUGGESTIONS_BEHAVIOR.md](./SPEC_SUGGESTIONS_BEHAVIOR.md) | select, dismiss-without-select, create-order / cards / Rapid Sale / supplier / merge |
 | Print | [PRINT_FORMS_SPEC.md](./PRINT_FORMS_SPEC.md) | warehouse serial labels in WAREHOUSE_FLOW §4.5 |
 | Finance | [ACCOUNTING.md](./ACCOUNTING.md) | — |
@@ -18,7 +19,7 @@ One topic → one source of truth. Other files **link**, they do not copy the ru
 | Clients | [CLIENTS_RULES.md](./CLIENTS_RULES.md) | — |
 | Employees / RBAC | [EMPLOYEES_SPEC.md](./EMPLOYEES_SPEC.md) | [Permission_Flow.md](./Permission_Flow.md) |
 | Settings | [SETTINGS_SPEC.md](./SETTINGS_SPEC.md) | [PRINT_FORMS_SPEC.md](./PRINT_FORMS_SPEC.md), [BUSINESS_DASHBOARD.md](./BUSINESS_DASHBOARD.md) |
-| Hover copy icon (tables) | [UI_DESIGN_SYSTEM.md — Hover copy icon](./UI_DESIGN_SYSTEM.md#hover-copy-icon) | Orders, Sales, Supplier Order, warehouse, clients, catalog Suppliers phone |
+| Hover copy icon (tables) | [UI_DESIGN_SYSTEM.md — Hover copy icon](./UI_DESIGN_SYSTEM.md#hover-copy-icon) | Orders, Sales, Supplier Order, warehouse, clients, catalog Suppliers phone, serial bind supplier-order number |
 
 ## 1. Start here
 
@@ -52,7 +53,7 @@ One topic → one source of truth. Other files **link**, they do not copy the ru
 
 ## 4. Warehouse, serials, print
 
-- [WAREHOUSE_FLOW.md](./WAREHOUSE_FLOW.md) — stock models/units, receipts, transfers, information, occupancy, labels
+- [WAREHOUSE_FLOW.md](./WAREHOUSE_FLOW.md) — stock models/units, receipts, transfers, information, occupancy, bind-modal candidate row, labels
 - [SERIAL_NUMBER_SEQUENCE_SPEC.md](./SERIAL_NUMBER_SEQUENCE_SPEC.md) — `S000001` assignment on receipt
 - [PRINT_FORMS_SPEC.md](./PRINT_FORMS_SPEC.md) — print templates
 - [CATALOG_PRODUCT_CREATE_MODAL_SPEC.md](./CATALOG_PRODUCT_CREATE_MODAL_SPEC.md) — Product List modal (not stock); catalog list hover-copy (Suppliers phone)
