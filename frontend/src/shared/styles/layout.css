@@ -3825,7 +3825,7 @@ select.line-item-inline-input {
 }
 
 .serial-bind-modal {
-  width: min(680px, calc(100vw - 32px));
+  width: min(780px, calc(100vw - 32px));
   max-height: min(calc(100dvh - 16px), calc(100vh - 48px));
   grid-template-rows: minmax(0, 1fr) auto;
   overflow: hidden;
@@ -3866,6 +3866,125 @@ select.line-item-inline-input {
 .serial-bind-selected-item strong {
   min-width: 0;
   overflow-wrap: anywhere;
+}
+
+.serial-bind-candidate-header,
+.serial-bind-candidate {
+  display: grid;
+  grid-template-columns:
+    minmax(7rem, 1.2fr)
+    minmax(6.5rem, auto)
+    minmax(9.5rem, 1.1fr)
+    minmax(7.5rem, 1fr);
+  gap: 8px 12px;
+  align-items: center;
+}
+
+.serial-bind-candidate {
+  text-align: left;
+  border: 1px solid var(--color-line-panel);
+  border-radius: 8px;
+  background: var(--bg-card);
+  color: var(--color-text-body-strong);
+  padding: 10px 12px;
+  cursor: pointer;
+}
+
+.serial-bind-candidate-header {
+  padding: 0 12px;
+  color: var(--color-text-label);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.serial-bind-candidate-header span,
+.serial-bind-candidate-price,
+.serial-bind-candidate-date,
+.serial-bind-candidate-supplier {
+  min-width: 0;
+}
+
+.serial-bind-candidate-price,
+.serial-bind-candidate-date,
+.serial-bind-candidate-supplier {
+  font-size: 0.9rem;
+}
+
+.serial-bind-candidate-price,
+.serial-bind-candidate-supplier {
+  font-variant-numeric: tabular-nums;
+}
+
+.serial-bind-candidate-date {
+  color: var(--text-soft);
+  overflow-wrap: anywhere;
+}
+
+.serial-bind-candidate-toggle {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  padding: 0;
+}
+
+.serial-bind-candidate-toggle strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.serial-bind-candidate-supplier .copyable-value {
+  max-width: 100%;
+}
+
+.serial-bind-candidate-supplier .supplier-order-number-button {
+  max-width: 100%;
+}
+
+.serial-bind-candidate-empty {
+  color: var(--text-soft);
+}
+
+.serial-bind-candidate:hover,
+.serial-bind-candidate-selected {
+  border-color: var(--color-primary);
+  background: var(--bg-soft-primary);
+}
+
+@media (max-width: 640px) {
+  .serial-bind-candidate-header {
+    display: none;
+  }
+
+  .serial-bind-candidate {
+    grid-template-columns: minmax(0, 1fr) minmax(0, auto);
+    grid-template-areas:
+      'serial supplier'
+      'price date';
+  }
+
+  .serial-bind-candidate-toggle {
+    grid-area: serial;
+  }
+
+  .serial-bind-candidate-price {
+    grid-area: price;
+  }
+
+  .serial-bind-candidate-date {
+    grid-area: date;
+  }
+
+  .serial-bind-candidate-supplier {
+    grid-area: supplier;
+  }
 }
 
 .modal-backdrop {

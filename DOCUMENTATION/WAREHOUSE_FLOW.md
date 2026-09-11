@@ -141,6 +141,7 @@ This document defines current warehouse requirements for stock balances, receipt
 2. if `product.warehouseId` is missing (legacy row), allow fallback by normalized `purchasePlace === warehouse.name`
 - After `Transfer`, `product.warehouseId` becomes the only warehouse source for that stock unit; stale `purchasePlace` from the original receipt must not make the serial appear in the old warehouse dropdown.
 - `Auto-select oldest` chooses the oldest in-stock serials by `purchaseDate` (fallback `createdAt`) inside the currently selected warehouse only, up to the line-item quantity.
+- Each bind-modal candidate row shows serial, purchase price (`Product.price`), receipt datetime, and supplier-order number. Provenance, copy-icon, and number-click behavior match §4.4 (existing item-scoped `SupplierOrderModal`; bind modal stays open underneath). Missing / unmatched provenance shows `—`. Footer `Order` still closes the bind modal first and creates a new supplier order.
 - Source of truth for candidate list:
 1. `lineItem.productId` strict equality with `product.id`
 2. if `lineItem.productId` is missing (legacy data), allow only exact normalized product name equality (no partial match)
@@ -294,6 +295,7 @@ Implementation references:
 - `orders-workspace-shared.test.tsx`: batch HTML classes and one `print-form-label` section per item.
 - `printForms.test.ts`: `warehouse-barcode` migration copies settings from `barcode`.
 - `ProductModelModal.test.tsx`: single-item print calls `printWarehouseSerialLabels` with one payload row; reserved serials show the red `Reserved` badge from occupancy API and from in-memory sales fallback.
+- `SerialBindModal.test.tsx`: candidate rows show purchase price and a copyable/clickable supplier-order number; copy/click do not toggle serial selection.
 - `product-model.test.ts`: `getReservedProductIdsOnOtherSales` skips the current sale and issued sales; `getReservedProductIdsFromOccupiedSerials` maps occupied serials; serial purchase rows carry `isReserved`.
 
 ## Receipts Requirements

@@ -231,7 +231,8 @@ Related: [ORDER_CARD.md](./ORDER_CARD.md) · [SALE_FLOW.md](./SALE_FLOW.md) · [
 - In sale card product line, `Serials x/y` action opens serial binding modal.
 - In serial binding modal, warehouse dropdown filters available serials; `Auto-select oldest` must respect that warehouse filter. Occupancy spec: [WAREHOUSE_FLOW.md §4.3.0](./WAREHOUSE_FLOW.md#430-bind-modal-occupancy-opened-repair-and-sale-cards).
 - In serial binding modal, `Order` action opens existing `SupplierOrderModal`.
-- Before `SupplierOrderModal` opens, the serial binding modal is closed first so nested background scroll locks cannot leave `.orders-table-wrap` / page scroll stuck.
+- Before that create-flow `SupplierOrderModal` opens, the serial binding modal is closed first so nested background scroll locks cannot leave `.orders-table-wrap` / page scroll stuck.
+- Clicking a supplier-order number on a bind-modal candidate row is a different path: it opens the **existing** item-scoped supplier-order modal (same as product-model / stock balances) and **keeps** the bind modal open underneath. Hover copy on that number follows [UI_DESIGN_SYSTEM.md — Hover copy icon](./UI_DESIGN_SYSTEM.md#hover-copy-icon).
 - Shared `useModalBackgroundScrollLock` uses reference counting: nested modals only restore body/document/table overflow when the **last** active lock releases (base overflow captured on first lock).
 - Product name is prefilled from current product line item.
 - On submit, system creates supplier order with:

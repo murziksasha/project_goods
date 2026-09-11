@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type MouseEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Product } from '../../../../../entities/product/model/types';
+import type { SupplierOrder } from '../../../../../entities/supplier-order/model/types';
 import type { WarehouseItem } from '../../../../../entities/warehouse-settings/model/types';
-import { formatDateTime } from '../../../../../shared/lib/format';
+import { formatCurrency, formatDateTime } from '../../../../../shared/lib/format';
 import {
   filterProductsByWarehouse,
   getDefaultWarehouseId,
@@ -10,8 +11,10 @@ import {
   selectOldestSerialsForWarehouse,
 } from '../../../model/warehouse-serial-filter';
 import { normalizeSerialNumber } from '../../../model/order-line-serials';
+import { buildSupplierOrdersByProductId } from '../../../model/stock-balance';
 import { Modal } from '../../../../../shared/ui/Modal';
 import { Button } from '../../../../../shared/ui/Button';
+import { CopyableValue } from '../../../../../shared/ui/CopyableValue';
 import { WarehouseSelectField } from '../../warehouse/WarehouseSelectField';
 
 export type SerialBindLineItem = {
@@ -24,28 +27,39 @@ export type SerialBindLineItem = {
   serialNumbers?: string[];
 };
 
+const EMPTY_SUPPLIER_ORDERS: SupplierOrder[] = [];
+const EMPTY_VALUE = '\u2014';
+
+const stopRowToggle = (event: MouseEvent<HTMLElement>) => {
+  event.stopPropagation();
+};
+
 type SerialBindModalProps = {
   lineItem: SerialBindLineItem;
   warehouses: WarehouseItem[];
   availableProducts: Product[];
+  supplierOrders?: SupplierOrder[];
   isLoading: boolean;
   isSuppliersLoading: boolean;
   onClose: () => void;
   onOrder: () => void;
   onSave: (selectedSerials: string[]) => void;
   onError: (message: string) => void;
+  onOpenSupplierOrder?: (supplierOrderId: string, itemIndex: number) => void;
 };
 
 export const SerialBindModal = ({
   lineItem,
   warehouses,
   availableProducts,
+  supplierOrders = EMPTY_SUPPLIER_ORDERS,
   isLoading,
   isSuppliersLoading,
   onClose,
   onOrder,
   onSave,
   onError,
+  onOpenSupplierOrder,
 }: SerialBindModalProps) => {
   const { t } = useTranslation();
   const [selectedWarehouseId, setSelectedWarehouseId] = useState(() =>
@@ -95,6 +109,15 @@ export const SerialBindModal = ({
       warehouses,
     );
   }, [availableProducts, selectedWarehouseId, warehouses]);
+
+  const supplierOrdersByProductId = useMemo(
+    () =>
+      buildSupplierOrdersByProductId({
+        products: warehouseFilteredProducts,
+        supplierOrders,
+      }),
+    [supplierOrders, warehouseFilteredProducts],
+  );
 
   const handleWarehouseChange = (warehouseId: string) => {
     setSelectedWarehouseId(warehouseId);
@@ -188,26 +211,95 @@ export const SerialBindModal = ({
         {!isLoading && warehouseFilteredProducts.length === 0 ? (
           <p>{t('orders.detail.lineItems.noAvailableSerials')}</p>
         ) : null}
+        {warehouseFilteredProducts.length > 0 ? (
+          <div className="serial-bind-candidate-header" aria-hidden="true">
+            <span>{t('catalog.productModel.serialNumber')}</span>
+            <span>{t('catalog.productModel.purchasePrice')}</span>
+            <span>{t('catalog.productModel.purchaseDate')}</span>
+            <span>{t('catalog.productModel.supplierOrder')}</span>
+          </div>
+        ) : null}
         {warehouseFilteredProducts.map((product) => {
           const serial = normalizeSerialNumber(product.serialNumber);
           const isSelected = selectedSerials.includes(serial);
+          const link = supplierOrdersByProductId[product.id]?.[0];
+          const supplierOrderNumber = link?.displayNumber ?? '';
+          const supplierOrderId = link?.order.id;
+          const supplierOrderItemIndex = link?.itemIndex;
+          const canOpenSupplierOrder =
+            Boolean(onOpenSupplierOrder) &&
+            Boolean(supplierOrderId) &&
+            typeof supplierOrderItemIndex === 'number';
+
           return (
-            <button
+            <div
               key={product.id}
-              type="button"
-              className="create-suggestion-item"
+              className={`serial-bind-candidate${
+                isSelected ? ' serial-bind-candidate-selected' : ''
+              }`}
               onClick={() => toggleSerial(serial)}
             >
-              <strong>
-                {isSelected ? '[x] ' : '[ ] '}
-                {serial}
-              </strong>
-              <span>
+              <button
+                type="button"
+                className="serial-bind-candidate-toggle"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  toggleSerial(serial);
+                }}
+              >
+                <strong>
+                  {isSelected ? '[x] ' : '[ ] '}
+                  {serial}
+                </strong>
+              </button>
+              <span className="serial-bind-candidate-price">
+                {formatCurrency(product.price)}
+              </span>
+              <span className="serial-bind-candidate-date">
                 {t('orders.detail.lineItems.dateLabel', {
-                  date: formatDateTime(product.purchaseDate ?? product.createdAt),
+                  date: formatDateTime(
+                    product.purchaseDate ?? product.createdAt,
+                  ),
                 })}
               </span>
-            </button>
+              <div
+                className="serial-bind-candidate-supplier"
+                onClick={stopRowToggle}
+                onMouseDown={stopRowToggle}
+              >
+                {supplierOrderNumber ? (
+                  <CopyableValue value={supplierOrderNumber}>
+                    {canOpenSupplierOrder ? (
+                      <button
+                        type="button"
+                        className="supplier-order-number-button"
+                        onClick={() => {
+                          if (
+                            !onOpenSupplierOrder ||
+                            !supplierOrderId ||
+                            typeof supplierOrderItemIndex !== 'number'
+                          ) {
+                            return;
+                          }
+                          onOpenSupplierOrder(
+                            supplierOrderId,
+                            supplierOrderItemIndex,
+                          );
+                        }}
+                      >
+                        {supplierOrderNumber}
+                      </button>
+                    ) : (
+                      <span>{supplierOrderNumber}</span>
+                    )}
+                  </CopyableValue>
+                ) : (
+                  <span className="serial-bind-candidate-empty">
+                    {EMPTY_VALUE}
+                  </span>
+                )}
+              </div>
+            </div>
           );
         })}
       </div>
