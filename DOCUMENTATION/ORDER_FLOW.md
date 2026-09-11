@@ -185,7 +185,7 @@ Related: [ORDER_CARD.md](./ORDER_CARD.md) · [SALE_FLOW.md](./SALE_FLOW.md) · [
 - In order card `Save changes`, status change follows the same rules as in Orders list:
   - `issued` is blocked while attached product line items have unpaid balance.
   - `client rejected` and `issued without repair` are blocked while any product line has a bound warehouse serial number.
-- In order card product lines, `Serials x/y` remains openable for an already bound serial even when the product block is otherwise read-only, so the serialized stock binding can be inspected or cleared.
+- In order card product lines, `Serials x/y` remains openable for an already bound serial even when the product block is otherwise read-only, so the serialized stock binding can be inspected or cleared. Bind-modal candidate row: [WAREHOUSE_FLOW.md §4.3.2](./WAREHOUSE_FLOW.md#432-bind-modal-candidate-row-purchase-price--supplier-order).
 - Identical product lines in `Products` (same `catalogProductId` or normalized name) collapse into a UI group; persistence stays one row per serial. Spec: [ORDER_CARD.md](./ORDER_CARD.md) / [SALE_CARD.md](./SALE_CARD.md).
 - Print tables (`{{products_table}}`, `{{invoice_items_table}}`) also collapse identical products, but **only when unit price matches**. Same name / different serials / different price stay separate print rows. Spec: [PRINT_FORMS_SPEC.md](./PRINT_FORMS_SPEC.md#line-items-grouping-products).
 - If saved status is NOT one of final issued statuses:
@@ -231,7 +231,8 @@ Related: [ORDER_CARD.md](./ORDER_CARD.md) · [SALE_FLOW.md](./SALE_FLOW.md) · [
 - In sale card product line, `Serials x/y` action opens serial binding modal.
 - In serial binding modal, warehouse dropdown filters available serials; `Auto-select oldest` must respect that warehouse filter. Occupancy spec: [WAREHOUSE_FLOW.md §4.3.0](./WAREHOUSE_FLOW.md#430-bind-modal-occupancy-opened-repair-and-sale-cards).
 - In serial binding modal, `Order` action opens existing `SupplierOrderModal`.
-- Before `SupplierOrderModal` opens, the serial binding modal is closed first so nested background scroll locks cannot leave `.orders-table-wrap` / page scroll stuck.
+- Before that create-flow `SupplierOrderModal` opens, the serial binding modal is closed first so nested background scroll locks cannot leave `.orders-table-wrap` / page scroll stuck.
+- Clicking a supplier-order **number on a candidate row** is a different path: open the existing item-scoped supplier-order modal and keep bind open. Spec: [WAREHOUSE_FLOW.md §4.3.2](./WAREHOUSE_FLOW.md#432-bind-modal-candidate-row-purchase-price--supplier-order). Hover copy: [UI_DESIGN_SYSTEM.md — Hover copy icon](./UI_DESIGN_SYSTEM.md#hover-copy-icon).
 - Shared `useModalBackgroundScrollLock` uses reference counting: nested modals only restore body/document/table overflow when the **last** active lock releases (base overflow captured on first lock).
 - Product name is prefilled from current product line item.
 - On submit, system creates supplier order with:

@@ -279,7 +279,7 @@ When selecting a warehouse stock suggestion **without** a bound serial in `Creat
 `Create order -> Sales order` name queries still use catalog suggestions (`buildOrderDetailProductSuggestions` catalog mode). On selection, `findSelectableStockProductByName` checks for a selectable warehouse product with the same normalized `name`:
 
 - **Match found (bulk stock):** apply stock row (`productId`, retail/purchase price, optional R/W toggle).
-- **Match found (serialized-only stock, e.g. AAA Etron batteries):** pre-fill name/price/`productId` for R/W toggle, leave `serialNumber` empty, allow `qty > 1`; on save omit `productId` when `qty > 1`; serial binding happens later in the opened sale card (`Serials x/y`). Occupancy: [WAREHOUSE_FLOW.md §4.3.0](./WAREHOUSE_FLOW.md#430-bind-modal-occupancy-opened-repair-and-sale-cards).
+- **Match found (serialized-only stock, e.g. AAA Etron batteries):** pre-fill name/price/`productId` for R/W toggle, leave `serialNumber` empty, allow `qty > 1`; on save omit `productId` when `qty > 1`; serial binding happens later in the opened sale card (`Serials x/y`). Occupancy: [WAREHOUSE_FLOW.md §4.3.0](./WAREHOUSE_FLOW.md#430-bind-modal-occupancy-opened-repair-and-sale-cards). Bind-modal candidate row: [WAREHOUSE_FLOW.md §4.3.2](./WAREHOUSE_FLOW.md#432-bind-modal-candidate-row-purchase-price--supplier-order).
 - **No match:** keep catalog-only row (`catalogProductId`, price `0`).
 
 ### Price Stepper (2026-07-11)

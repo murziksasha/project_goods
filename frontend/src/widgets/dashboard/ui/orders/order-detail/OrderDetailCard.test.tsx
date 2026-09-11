@@ -1867,6 +1867,73 @@ describe('OrderDetailCard product entry', () => {
     );
   });
 
+  it('opens the existing supplier order from a bind-modal serial row without closing bind', async () => {
+    const linkedOrder = supplierOrder({
+      id: 'so-1',
+      number: 'SO-1',
+      orderBaseId: 'SO-1',
+      items: [
+        {
+          lineId: 'line-1',
+          itemIndex: 0,
+          productName: 'TerraE 30E INR18650 2900mAh',
+          quantity: 1,
+          price: 250,
+          receiptStatus: 'received',
+        },
+      ],
+    });
+    const stockProducts = [
+      product({
+        id: 'product-1',
+        serialNumber: 'S000003',
+        price: 250,
+        supplierOrderId: 'so-1',
+        supplierOrderItemIndex: 0,
+      }),
+    ];
+    getProductsMock.mockImplementation(async () => stockProducts);
+
+    renderCard({
+      products: stockProducts,
+      catalogProducts: [],
+      supplierOrders: [linkedOrder],
+      lineItems: [
+        {
+          id: 'line-item-1',
+          kind: 'product',
+          productId: undefined,
+          name: 'TerraE 30E INR18650 2900mAh',
+          price: 88,
+          quantity: 1,
+          warrantyPeriod: 6,
+          serialNumbers: [],
+        },
+      ],
+    });
+
+    fireEvent.click(
+      screen.getByRole('button', { name: /Serials\s*0\/1/i }),
+    );
+
+    const bindModal = await waitForSerialBindModal();
+    const supplierNumberButton = await within(bindModal).findByRole(
+      'button',
+      { name: 'SO-1' },
+    );
+    fireEvent.click(supplierNumberButton);
+
+    expect(
+      await screen.findByRole('heading', { name: 'Order from supplier' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('dialog', { name: /bind serial numbers/i }),
+    ).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByDisplayValue('SO-1')).toBeInTheDocument();
+    });
+  });
+
   it('keeps an existing product row when its price input is cleared', () => {
     const onUpdateLineItem = vi.fn();
     const onRemoveLineItem = vi.fn();

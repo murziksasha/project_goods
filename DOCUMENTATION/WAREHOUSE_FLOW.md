@@ -177,6 +177,24 @@ This document defines current warehouse requirements for stock balances, receipt
 - Binding multiple serials to a legacy product row must split that row into one atomic serialized row per selected serial.
 - Backend workspace validation must enforce the same invariant before stock deltas are calculated.
 
+### 4.3.2) Bind Modal Candidate Row (Purchase Price + Supplier Order)
+
+Canonical UI for `Serials x/y` → `SerialBindModal` on **opened sale and repair cards**. Rapid Sale’s serial picker is out of scope.
+
+- After warehouse + occupancy filtering (§4.3 / §4.3.0), each visible candidate row shows four fields:
+  1. **Serial #** — `[ ]` / `[x]` toggle. Click serial, purchase price, or receipt datetime still selects/deselects.
+  2. **Purchase price** — that stock unit’s `Product.price`, formatted with `formatCurrency` (read-only).
+  3. **Receipt datetime** — `purchaseDate` (fallback `createdAt`) via `formatDateTime`. Keep time; do not switch to the product-model date-only cell.
+  4. **Supplier order** — unit provenance, same as §2.1 / §4.4: `product.supplierOrderId` + `product.supplierOrderItemIndex` resolved with `buildSupplierOrdersByProductId` to `displayNumber` (`SO-1`, or `SO-1-2` on multi-item orders). Missing / unmatched provenance shows `—` (no copy icon, not clickable).
+- Desktop column header uses `catalog.productModel` labels: `Serial #`, `Purchase price`, `Receipt date`, `Supplier order`.
+- Hover on the supplier-order number shows a copy icon; only the icon copies the visible number. Spec: [UI_DESIGN_SYSTEM.md — Hover copy icon](./UI_DESIGN_SYSTEM.md#hover-copy-icon).
+- Click the number calls `onOpenSupplierOrder(supplierOrderId, itemIndex)` and opens the **existing** item-scoped `SupplierOrderModal` (same path as product-model / Stock balances). The bind modal **stays open** underneath.
+- Copy icon and supplier-order click must not toggle serial selection (`stopPropagation` on that cell).
+- Footer **Order** is a different path: it still **closes** the bind modal first, then opens a *new* supplier-order create modal. Spec: [ORDER_FLOW.md — Serials Modal → Supplier Order](./ORDER_FLOW.md#sales-card-serials-modal---supplier-order-2026-05-20).
+- This modal does **not** show Latest/Reserved badges, serial copy icons, or print checkboxes (those stay on product-model §4.4).
+- Wiring: `SerialBindModal` receives `supplierOrders` + `onOpenSupplierOrder` from `OrderDetailLineItemsPanel` (same callback the product-model modal uses).
+- Tests: `SerialBindModal.test.tsx` (price, empty `—`, copy without select, click without select); `OrderDetailCard.test.tsx` (number click opens existing supplier-order modal; bind dialog remains).
+
 ### 4.4) Product Model Detail Modal
 - In `Warehouse -> Stock balances`, clicking `Name`, `Serial #`, `Article`, or `Note` opens the shared product model modal for the row's exact product name.
 - Hover on `Name`, `Serial #`, `Client order`, and `Supplier order` shows a copy icon. Only the icon copies; name/serial clicks still open the model/serial card, and order badges still open the sale/order or supplier-order modal. `Article` and `Note` have no copy icon. Spec: [UI_DESIGN_SYSTEM.md — Hover copy icon](./UI_DESIGN_SYSTEM.md#hover-copy-icon).

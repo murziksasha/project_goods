@@ -2292,12 +2292,14 @@ export const OrderDetailLineItemsPanel = ({
           }}
           warehouses={serialBindWarehouses}
           availableProducts={availableSerialProducts}
+          supplierOrders={supplierOrders}
           isLoading={isSerialLookupLoading}
           isSuppliersLoading={isSuppliersLoading}
           onClose={() => setSerialsEditingItem(null)}
           onOrder={() => void openSupplierOrderModalForSerialItem()}
           onSave={handleSerialBindSave}
           onError={onError}
+          onOpenSupplierOrder={onOpenSupplierOrder}
         />
       ) : null}
       {isProductKind ? (
