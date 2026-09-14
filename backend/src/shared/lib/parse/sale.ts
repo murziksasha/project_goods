@@ -110,14 +110,14 @@ export const normalizeSalePayload = (payload: SalePayload) => ({
     : [],
   discount: (() => {
     if (!payload.discount || typeof payload.discount !== 'object') {
-      return { mode: 'amount' as const, value: 0 };
+      return { mode: 'percent' as const, value: 0 };
     }
 
     const modeRaw = toNonEmptyString((payload.discount as { mode?: unknown }).mode);
     const valueRaw = toNumber((payload.discount as { value?: unknown }).value);
 
     return {
-      mode: modeRaw === 'percent' ? 'percent' : 'amount',
+      mode: modeRaw === 'amount' ? 'amount' : 'percent',
       value: Number.isFinite(valueRaw) ? Math.max(0, valueRaw) : 0,
     };
   })(),

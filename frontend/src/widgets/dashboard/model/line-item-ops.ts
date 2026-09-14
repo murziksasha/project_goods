@@ -29,7 +29,7 @@ const roundMoney = (value: number) => Math.round(value * 100) / 100;
 
 export const getLineItemsPaymentTotal = <T extends MinimalPaymentLineItem>(
   items: T[],
-  discount: LineItemsDiscount = { mode: 'amount', value: 0 },
+  discount: LineItemsDiscount = { mode: 'percent', value: 0 },
 ) => {
   const baseTotal = items.reduce(
     (total, item) => total + item.price * item.quantity,
@@ -99,7 +99,7 @@ export const canRemoveLineItemAfterPayment = <
   itemId: string,
   itemIndex: number | undefined,
   paidAmount: number,
-  discount: LineItemsDiscount = { mode: 'amount', value: 0 },
+  discount: LineItemsDiscount = { mode: 'percent', value: 0 },
 ) => {
   if (paidAmount <= 0) return true;
 

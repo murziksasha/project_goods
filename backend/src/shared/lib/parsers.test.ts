@@ -352,6 +352,7 @@ describe('normalizeSalePayload', () => {
     });
 
     expect(result.productId).toBe('');
+    expect(result.discount).toEqual({ mode: 'percent', value: 0 });
     expect(result.lineItems).toEqual([
       expect.objectContaining({
         id: 'li-catalog',
@@ -365,6 +366,29 @@ describe('normalizeSalePayload', () => {
         catalogProductId: undefined,
       }),
     ]);
+  });
+
+  it('defaults missing discount to percent', () => {
+    const result = normalizeSalePayload({
+      clientId: '507f1f77bcf86cd799439011',
+      productId: '',
+      quantity: '1',
+      salePrice: '400',
+    });
+
+    expect(result.discount).toEqual({ mode: 'percent', value: 0 });
+  });
+
+  it('keeps an explicit amount discount', () => {
+    const result = normalizeSalePayload({
+      clientId: '507f1f77bcf86cd799439011',
+      productId: '',
+      quantity: '1',
+      salePrice: '400',
+      discount: { mode: 'amount', value: 25 },
+    });
+
+    expect(result.discount).toEqual({ mode: 'amount', value: 25 });
   });
 });
 

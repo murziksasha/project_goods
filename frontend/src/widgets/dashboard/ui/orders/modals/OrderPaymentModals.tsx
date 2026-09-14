@@ -13,7 +13,15 @@ import {
 import { NumberStepper } from '../../../../../shared/ui/NumberStepper';
 import { Modal } from '../../../../../shared/ui/Modal';
 import { Button } from '../../../../../shared/ui/Button';
-import { getProductLinesMissingWarehouseSerials } from '../workspace/orders-workspace-shared';
+import {
+  getProductLinesMissingWarehouseSerials,
+  isOrderEditableStatus,
+  normalizeOrderStatus,
+} from '../workspace/orders-workspace-shared';
+import {
+  OrderPaymentDiscountControl,
+  type OrderPaymentDiscountValue,
+} from '../order-detail/OrderPaymentDiscountControl';
 import { UnboundSerialIssueModal } from './UnboundSerialIssueModal';
 import {
   defaultPrintForms,
@@ -38,10 +46,7 @@ type OrderLineItem = {
   warrantyPeriod: number;
   serialNumbers?: string[];
 };
-type DiscountView = {
-  mode: 'percent' | 'amount';
-  value: number;
-};
+
 
 const PrinterIcon = () => (
   <svg
@@ -77,7 +82,7 @@ type PaymentModalProps = {
   amount: string;
   paidAmount: number;
   total: number;
-  discount: DiscountView;
+  discount: OrderPaymentDiscountValue;
   currentPaymentRemaining: number;
   isRepairTargetStatusBlockedByStock: boolean;
   isIssueWithoutPaymentBlocked: boolean;
@@ -86,6 +91,7 @@ type PaymentModalProps = {
   onCashboxChange: (cashboxId: string) => void;
   onPaymentMethodChange: (method: PaymentMethod) => void;
   onAmountChange: (amount: string) => void;
+  onDiscountChange: (discount: OrderPaymentDiscountValue) => void;
   onClose: () => void;
   onOpenPrint: () => void;
   onSubmit: (action: PaymentAction) => void;
@@ -110,6 +116,7 @@ export const PaymentModal = ({
   onCashboxChange,
   onPaymentMethodChange,
   onAmountChange,
+  onDiscountChange,
   onClose,
   onOpenPrint,
   onSubmit,
@@ -147,6 +154,10 @@ export const PaymentModal = ({
     numericAmount > currentPaymentRemaining;
   const isIssueDisabled =
     isLoading || isSaving || isIssueWithoutPaymentBlocked;
+  const isDiscountDisabled =
+    isLoading ||
+    isSaving ||
+    !isOrderEditableStatus(sale, normalizeOrderStatus(sale.status));
   const requestPaymentAction = (action: PaymentAction) => {
     if (
       action === 'depositAndIssue' &&
@@ -253,21 +264,12 @@ export const PaymentModal = ({
             <dt>{t('orders.payment.paid')}</dt>
             <dd>{formatCurrency(paidAmount)}</dd>
           </div>
-          <div>
-            <dt>
-              <span className="payment-summary-discount-label">
-                {t('orders.payment.discount')}
-                <span className="payment-summary-discount-badge">
-                  {discount.mode === 'percent' ? '%' : '₴'}
-                </span>
-              </span>
-            </dt>
-            <dd>
-              {discount.value > 0
-                ? `${discount.value}${discount.mode === 'percent' ? '%' : ' ₴'}`
-                : '-'}
-            </dd>
-          </div>
+          <OrderPaymentDiscountControl
+            discount={discount}
+            disabled={isDiscountDisabled}
+            resetKey={sale.id}
+            onDiscountChange={onDiscountChange}
+          />
           <div>
             <dt>{t('orders.payment.toPay')}</dt>
             <dd>{formatCurrency(currentPaymentRemaining)}</dd>

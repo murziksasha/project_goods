@@ -2383,7 +2383,7 @@ describe('OrderDetailCard product entry', () => {
     onDiscountChange.mockClear();
     fireEvent.click(discountModeButtons[1]);
     expect(onDiscountChange).toHaveBeenCalledWith({
-      mode: 'amount',
+      mode: 'percent',
       value: 5,
     });
   });

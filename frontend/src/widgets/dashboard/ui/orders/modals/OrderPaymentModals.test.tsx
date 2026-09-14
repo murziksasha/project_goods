@@ -63,11 +63,18 @@ const renderPaymentModal = (
   options: {
     paymentSale?: Sale;
     paymentTargetStatus?: 'issued' | 'paid';
+    discount?: { mode: 'percent' | 'amount'; value: number };
     onSubmit?: (action: 'deposit' | 'depositAndIssue' | 'issueWithoutPayment') => void;
+    onDiscountChange?: (discount: {
+      mode: 'percent' | 'amount';
+      value: number;
+    }) => void;
+    isSaving?: boolean;
     isIssueWithoutPaymentBlocked?: boolean;
   } = {},
 ) => {
   const onSubmit = options.onSubmit ?? vi.fn();
+  const onDiscountChange = options.onDiscountChange ?? vi.fn();
   const paymentSale = options.paymentSale ?? sale();
   render(
     <PaymentModal
@@ -80,23 +87,24 @@ const renderPaymentModal = (
       amount="100"
       paidAmount={0}
       total={100}
-      discount={{ mode: 'percent', value: 0 }}
+      discount={options.discount ?? { mode: 'percent', value: 0 }}
       currentPaymentRemaining={100}
       isRepairTargetStatusBlockedByStock={false}
       isIssueWithoutPaymentBlocked={
         options.isIssueWithoutPaymentBlocked ?? false
       }
       isLoading={false}
-      isSaving={false}
+      isSaving={options.isSaving ?? false}
       onCashboxChange={vi.fn()}
       onPaymentMethodChange={vi.fn()}
       onAmountChange={vi.fn()}
+      onDiscountChange={onDiscountChange}
       onClose={vi.fn()}
       onOpenPrint={vi.fn()}
       onSubmit={onSubmit}
     />,
   );
-  return { onSubmit };
+  return { onSubmit, onDiscountChange };
 };
 
 describe('PaymentModal unbound serial issue warning', () => {
@@ -187,5 +195,55 @@ describe('PaymentModal unbound serial issue warning', () => {
         name: 'Serial numbers are not bound',
       }),
     ).not.toBeInTheDocument();
+  });
+});
+
+describe('PaymentModal discount', () => {
+  it('defaults empty discount to percent and toggles mode', () => {
+    const { onDiscountChange } = renderPaymentModal({
+      discount: { mode: 'amount', value: 0 },
+    });
+
+    const toggles = screen.getAllByRole('button', {
+      name: 'Toggle discount mode',
+    });
+    expect(toggles).toHaveLength(2);
+    expect(toggles[0]).toHaveTextContent('%');
+
+    fireEvent.click(toggles[0]);
+    expect(onDiscountChange).toHaveBeenCalledWith({
+      mode: 'amount',
+      value: 0,
+    });
+  });
+
+  it('commits typed discount on blur', () => {
+    const { onDiscountChange } = renderPaymentModal({
+      discount: { mode: 'percent', value: 1 },
+    });
+    const discountInput = document.querySelector<HTMLInputElement>(
+      '.order-payment-discount-control input',
+    );
+
+    expect(discountInput).not.toBeNull();
+    fireEvent.change(discountInput!, { target: { value: '1,3' } });
+    fireEvent.blur(discountInput!);
+    expect(onDiscountChange).toHaveBeenCalledWith({
+      mode: 'percent',
+      value: 1.3,
+    });
+  });
+
+  it('locks discount while saving', () => {
+    renderPaymentModal({ isSaving: true });
+
+    for (const toggle of screen.getAllByRole('button', {
+      name: 'Toggle discount mode',
+    })) {
+      expect(toggle).toBeDisabled();
+    }
+    expect(
+      document.querySelector('.order-payment-discount-control input'),
+    ).toBeDisabled();
   });
 });

@@ -47,3 +47,21 @@ describe('formatSale favorite state', () => {
     expect(formatSale(makeSale()).isFavorite).toBe(false);
   });
 });
+
+describe('formatSale discount', () => {
+  it('defaults missing discount mode to percent', () => {
+    expect(formatSale(makeSale({ discount: undefined })).discount).toEqual({
+      mode: 'percent',
+      value: 0,
+    });
+  });
+
+  it('keeps an explicit amount discount', () => {
+    expect(
+      formatSale(makeSale({ discount: { mode: 'amount', value: 15 } })).discount,
+    ).toEqual({
+      mode: 'amount',
+      value: 15,
+    });
+  });
+});

@@ -121,7 +121,7 @@ Related: [ORDER_CARD.md](./ORDER_CARD.md) · [SALE_FLOW.md](./SALE_FLOW.md) · [
 - `Cash` badge in payment modal is clickable and toggles payment method: `Cash` <-> `Non-cash`.
 - In `Non-cash` mode, badge background changes to light red.
 - Selected method is saved into `paymentHistory` deposit entries as `paymentMethod`.
-- `Discount` in payment modal summary is read-only; editing is available only in order card `Payment` panel.
+- `Discount` in the payment modal is the same editable control as the order card `Payment` panel (default `%`). Spec: [ORDER_CARD.md → Payment And Discount](./ORDER_CARD.md#payment-and-discount).
 - Partial deposits are allowed for repair orders while the order remains in its current non-final status.
 - A repair order may receive several payments at different times and into different cashboxes.
 - `Accept to cashbox` records only the deposit and must not require full remaining payment.

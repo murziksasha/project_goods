@@ -62,6 +62,20 @@ describe('getSaleDocumentTotal', () => {
     expect(getSaleDocumentTotal(makeSale())).toBe(180);
   });
 
+  it('applies a percent discount to line-item totals', () => {
+    expect(
+      getSaleDocumentTotal(
+        makeSale({
+          discount: { mode: 'percent', value: 10 },
+        }),
+      ),
+    ).toBe(180);
+  });
+
+  it('treats missing discount as zero', () => {
+    expect(getSaleDocumentTotal(makeSale({ discount: undefined }))).toBe(200);
+  });
+
   it('falls back to salePrice * quantity when line items are empty', () => {
     expect(
       getSaleDocumentTotal(
