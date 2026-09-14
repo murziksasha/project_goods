@@ -112,21 +112,20 @@ Related: [ORDER_FLOW.md](./ORDER_FLOW.md) · [SALE_CARD.md](./SALE_CARD.md) · [
   - `Discount`
   - `Paid`
   - `To pay`
-- `Discount` is editable only in the right `Payment` panel of the card.
-- In `Accept payment` modal summary, `Discount` is read-only and informational.
+- `Discount` is editable in the right `Payment` panel of the card **and** in the `Accept payment` modal. Both use the same control.
 - After a successful modal action (`Accept to cashbox`, `Accept and issue`, or `Issue without payment` / paid equivalent), the payment modal closes automatically.
 - `Print` from the payment modal opens the print flow only and keeps the payment modal open.
-- `Discount` supports two modes switched in the card control:
-  - `%` (percentage from total)
+- `Discount` supports two modes:
+  - `%` (percentage from Repair cost) — **default** when discount value is `0` or mode is missing/invalid
   - `₴` (fixed amount in currency)
-- Discount mode toggle is available from both controls in the `Payment` panel:
+- Discount mode toggle is available from both controls (card and modal):
   - round badge next to the `Discount` label
   - mode button inside the discount input field (right side)
 - Both controls call the same toggle logic and stay in sync.
 - Discount reduces final order amount before `To pay` calculation.
 - `To pay` formula:
   - `max((Repair cost - Discount) - Paid, 0)`
-- Discount is persisted in sale/order workspace and reused across card and payment modal views.
+- Discount is persisted in sale/order workspace and reused across card and payment modal views. Changing discount in the modal updates `To pay` and the payment amount immediately.
 - `Refund to client` availability for repair orders:
   - NOT allowed when status is `issued`, `client rejected`, or `issued without repair`.
   - For all other repair statuses, refund modal can be opened.

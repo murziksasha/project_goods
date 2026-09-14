@@ -15,6 +15,7 @@ import {
   getPrimaryItemCellContent,
   getPrimaryItemColumnLabel,
   getPrimaryItemExtraLineCount,
+  getDiscount,
   getLineItemsQuantity,
   getLineItemsTotal,
   getOrdersColumnClassName,
@@ -993,5 +994,37 @@ describe('shouldOpenPaymentModalForStatusChange', () => {
     expect(shouldOpenPaymentModalForStatusChange('paid', 1)).toBe(true);
     expect(shouldOpenPaymentModalForStatusChange('issued', 0)).toBe(false);
     expect(shouldOpenPaymentModalForStatusChange('ready', 50)).toBe(false);
+  });
+});
+
+describe('getDiscount', () => {
+  it('defaults missing or invalid mode to percent', () => {
+    expect(getDiscount(repairSale({ discount: undefined }))).toEqual({
+      mode: 'percent',
+      value: 0,
+    });
+    expect(
+      getDiscount(
+        repairSale({
+          discount: { mode: 'percent', value: 0 },
+        }),
+      ),
+    ).toEqual({
+      mode: 'percent',
+      value: 0,
+    });
+  });
+
+  it('keeps an explicit amount discount', () => {
+    expect(
+      getDiscount(
+        repairSale({
+          discount: { mode: 'amount', value: 20 },
+        }),
+      ),
+    ).toEqual({
+      mode: 'amount',
+      value: 20,
+    });
   });
 });

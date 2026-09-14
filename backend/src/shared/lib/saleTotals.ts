@@ -19,7 +19,7 @@ const normalizeDiscount = (
       : 0;
 
   return {
-    mode: discount?.mode === 'percent' ? 'percent' : 'amount',
+    mode: discount?.mode === 'amount' ? 'amount' : 'percent',
     value,
   } as const;
 };

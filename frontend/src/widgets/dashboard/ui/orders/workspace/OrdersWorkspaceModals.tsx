@@ -68,6 +68,10 @@ type OrdersWorkspaceModalsProps = {
   onReturnWarehouseChange: (warehouse: string) => void;
   onReturnRefundAmountChange: (amount: string) => void;
   onOpenPrint: (sale: Sale, lineItems: OrderLineItem[], paidAmount: number) => void;
+  onDiscountChange: (discount: {
+    mode: 'percent' | 'amount';
+    value: number;
+  }) => void;
   onAcceptPayment: (action: PaymentAction) => void | Promise<void>;
   onRefundPayment: () => void | Promise<void>;
   onReturnLineItemToStock: () => void | Promise<void>;
@@ -117,6 +121,7 @@ export const OrdersWorkspaceModals = ({
   onReturnWarehouseChange,
   onReturnRefundAmountChange,
   onOpenPrint,
+  onDiscountChange,
   onAcceptPayment,
   onRefundPayment,
   onReturnLineItemToStock,
@@ -163,6 +168,7 @@ export const OrdersWorkspaceModals = ({
           onCashboxChange={onCashboxChange}
           onPaymentMethodChange={onPaymentMethodChange}
           onAmountChange={onPaymentAmountChange}
+          onDiscountChange={onDiscountChange}
           onClose={onPaymentSaleClose}
           onOpenPrint={() =>
             onOpenPrint(

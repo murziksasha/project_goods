@@ -3172,6 +3172,10 @@ export const OrdersWorkspace = ({
         onReturnWarehouseChange={setReturnWarehouse}
         onReturnRefundAmountChange={setReturnRefundAmount}
         onOpenPrint={openPrintDialog}
+        onDiscountChange={(discount) => {
+          if (!paymentSale) return;
+          updateDiscount(paymentSale, discount);
+        }}
         onAcceptPayment={acceptPayment}
         onRefundPayment={refundPayment}
         onReturnLineItemToStock={returnLineItemToStock}

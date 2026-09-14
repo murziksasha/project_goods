@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { hasEmployeePermission } from '../../../../../entities/employee/model/permissions';
 import { isRepairOrder } from '../../../../../entities/sale/lib/sale-kind';
@@ -23,8 +23,7 @@ import {
   getUnbindClientDeviceAction,
   unbindClientDevice,
 } from '../../../../../entities/client-device/lib/unbind-client-device';
-import { normalizeDecimalInput, parseDecimal } from '../../../../../shared/lib/decimal';
-import { MONEY_FIELD_COMMIT_MS } from '../../../../../shared/lib/price-stepper';
+import { OrderPaymentDiscountControl } from './OrderPaymentDiscountControl';
 import {
   getCashboxes,
   issueSupplierOrderWithoutPayment,
@@ -105,7 +104,6 @@ export type { OrderDetailCardProps } from './order-detail-card-types';
 const COLLAPSE_ICON_EXPANDED = '\u2303';
 const COLLAPSE_ICON_COLLAPSED = '\u2304';
 const EM_DASH = '\u2014';
-const CURRENCY_UAH = '\u20B4';
 
 const COMPACT_LAYOUT_MEDIA_QUERY = '(max-width: 1024px)';
 const ORDER_RELATED_LIST_SCROLL_THRESHOLD = 6;
@@ -239,64 +237,6 @@ export const OrderDetailCard = ({
     useState(false);
   const total = getOrderBaseTotal(sale, lineItems);
   const discount = getDiscount(sale);
-  const [discountInput, setDiscountInput] = useState(String(discount.value));
-  const discountRef = useRef(discount);
-  const discountInputRef = useRef(discountInput);
-  const onDiscountChangeRef = useRef(onDiscountChange);
-  useEffect(() => {
-    discountRef.current = discount;
-    discountInputRef.current = discountInput;
-    onDiscountChangeRef.current = onDiscountChange;
-  }, [discount, discountInput, onDiscountChange]);
-  const discountCommitTimerRef = useRef<
-    ReturnType<typeof setTimeout> | undefined
-  >(undefined);
-  const persistDiscountValue = (input: string) => {
-    if (
-      isReadOnly ||
-      !isOrderEditableStatus(sale, normalizeOrderStatus(sale.status))
-    ) {
-      return;
-    }
-    const currentDiscount = discountRef.current;
-    if (input === '') {
-      if (currentDiscount.value !== 0) {
-        onDiscountChangeRef.current({
-          mode: currentDiscount.mode,
-          value: 0,
-        });
-      }
-      return;
-    }
-    const nextValue = parseDecimal(input);
-    if (!Number.isFinite(nextValue)) return;
-    const rounded =
-      nextValue > 0 ? Math.round(nextValue * 100) / 100 : 0;
-    if (rounded === currentDiscount.value) return;
-    onDiscountChangeRef.current({
-      mode: currentDiscount.mode,
-      value: rounded,
-    });
-  };
-  const cancelDiscountCommit = () => {
-    if (discountCommitTimerRef.current) {
-      clearTimeout(discountCommitTimerRef.current);
-      discountCommitTimerRef.current = undefined;
-    }
-  };
-  const flushDiscountCommit = (input = discountInputRef.current) => {
-    cancelDiscountCommit();
-    persistDiscountValue(input);
-  };
-  useEffect(
-    () => () => {
-      if (discountCommitTimerRef.current) {
-        clearTimeout(discountCommitTimerRef.current);
-        persistDiscountValue(discountInputRef.current);
-      }
-    },
-    [],
-  );
   const remainingPayment = getRemainingPayment(
     sale,
     paidAmount,
@@ -406,38 +346,12 @@ export const OrderDetailCard = ({
     });
   };
   const canEditUserNote = !isContentLocked;
-  const toggleDiscountMode = () => {
-    if (isContentLocked) return;
-
-    cancelDiscountCommit();
-    const nextValue = parseDecimal(discountInput);
-    onDiscountChange({
-      mode: discount.mode === 'percent' ? 'amount' : 'percent',
-      value:
-        Number.isFinite(nextValue) && nextValue > 0
-          ? Math.round(nextValue * 100) / 100
-          : discount.value,
-    });
-  };
   useEffect(() => {
     setStatusDraft(status);
   }, [status]);
   useEffect(() => {
     setMainInfoSaveError(null);
   }, [sale.id, deviceNameInput, serialNumberInput, masterIdInput, statusDraft]);
-  useEffect(() => {
-    setDiscountInput((current) => {
-      const currentValue = parseDecimal(current);
-      const roundedCurrentValue = Number.isFinite(currentValue)
-        ? Math.round(currentValue * 100) / 100
-        : NaN;
-
-      if (current.trim() === '' && discount.value === 0) return current;
-      if (roundedCurrentValue === discount.value) return current;
-
-      return String(discount.value);
-    });
-  }, [discount.mode, discount.value, sale.id]);
   useEffect(() => {
     try {
       window.localStorage.setItem(
@@ -1586,56 +1500,12 @@ export const OrderDetailCard = ({
               <dt>{t('orders.payment.repairCost')}</dt>
               <dd>{formatCurrency(total)}</dd>
             </div>
-            <div>
-              <dt>
-                <span className='payment-summary-discount-label'>
-                  {t('orders.payment.discount')}
-                  <button
-                    type='button'
-                    className='payment-summary-discount-badge'
-                    onClick={toggleDiscountMode}
-                    aria-label={t('orders.payment.toggleDiscountMode')}
-                    disabled={isContentLocked}
-                  >
-                    {discount.mode === 'percent' ? '%' : CURRENCY_UAH}
-                  </button>
-                </span>
-              </dt>
-              <dd>
-                <div className='order-payment-discount-control'>
-                  <input
-                    type='text'
-                    inputMode='decimal'
-                    value={discountInput}
-                    onChange={(event) => {
-                      const nextInput = normalizeDecimalInput(event.target.value);
-                      setDiscountInput(nextInput);
-                      cancelDiscountCommit();
-                      discountCommitTimerRef.current = setTimeout(() => {
-                        discountCommitTimerRef.current = undefined;
-                        persistDiscountValue(nextInput);
-                      }, MONEY_FIELD_COMMIT_MS);
-                    }}
-                    onBlur={(event) =>
-                      flushDiscountCommit(
-                        normalizeDecimalInput(event.currentTarget.value),
-                      )
-                    }
-                    disabled={isContentLocked}
-                    aria-label={t('orders.payment.discount')}
-                  />
-                  <button
-                    type='button'
-                    className='order-payment-discount-mode'
-                    onClick={toggleDiscountMode}
-                    aria-label={t('orders.payment.toggleDiscountMode')}
-                    disabled={isContentLocked}
-                  >
-                    {discount.mode === 'percent' ? '%' : CURRENCY_UAH}
-                  </button>
-                </div>
-              </dd>
-            </div>
+            <OrderPaymentDiscountControl
+              discount={discount}
+              disabled={isContentLocked}
+              resetKey={sale.id}
+              onDiscountChange={onDiscountChange}
+            />
             <div>
               <dt>{t('orders.payment.paid')}</dt>
               <dd>{formatCurrency(paidAmount)}</dd>

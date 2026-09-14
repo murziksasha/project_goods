@@ -116,16 +116,14 @@ Related: [SALE_FLOW.md](./SALE_FLOW.md) · [ORDER_CARD.md](./ORDER_CARD.md) · [
 
 ## Payment Discount
 
-- `Payment` panel contains editable `Discount` row under `Repair cost`.
-- `Discount` supports toggle modes:
-  - `%` for percentage discount from total sale amount
-  - `₴` for fixed discount amount
-- Discount mode can be switched from two places in the sale card `Payment` panel:
+- `Payment` panel contains editable `Discount` row under `Repair cost`. The same control is used in `Accept payment`.
+- Shared discount rules (modes, default `%`, toggle, `To pay`): [ORDER_CARD.md → Payment And Discount](./ORDER_CARD.md#payment-and-discount).
+- `%` is percent of the sale Repair cost; `₴` is a fixed amount. Empty discount (value `0`) defaults to `%`.
+- Discount mode can be switched from two places in both the sale card `Payment` panel and the `Accept payment` modal:
   - round badge next to the `Discount` label
   - mode button inside the discount input field (right side)
 - Both controls use the same toggle behavior and current discount value.
-- In `Accept payment` modal, `Discount` is read-only and shown for reference.
-- Discount is edited only in sale card `Payment` panel and affects `To pay` immediately.
+- Discount edits in the card or modal affect `To pay` immediately.
 - Discount value is stored in workspace state and reused across card and payment modal.
 - After a successful payment modal action (`Accept to cashbox`, `Accept and mark paid`, `Accept and issue`, or allowed `Issue/Mark without payment`), the payment modal closes automatically.
 - `Accept and issue` with target `issued` shows the unbound-serial confirm when any product line has no warehouse `serialNumbers`. **Cancel** stays in the payment modal. **Continue** issues. `Accept to cashbox` and `Issue without payment` do not show this alert.

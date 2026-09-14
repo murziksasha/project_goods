@@ -404,8 +404,7 @@ Service catalog stores three prices: retail (`service.price`), wholesale 1 (`sal
   - `Accept to cashbox` (deposit only)
   - `Accept and mark paid` (deposit + status change)
   - `Mark paid without payment` (status change without deposit)
-- Modal summary includes read-only `Discount` (informational only).
-- Discount editing is done only in sale card `Payment` panel; modal reuses those values.
+- Modal summary includes the same editable `Discount` control as the sale card (default `%`). Spec: [SALE_CARD.md → Payment Discount](./SALE_CARD.md#payment-discount).
 
 ## Status Change: Issued In Sales List
 

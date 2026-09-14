@@ -763,7 +763,7 @@ export const getDefaultLineItems = (sale: Sale) =>
     : [createOrderLineItem(sale, 'product')];
 
 export const getDiscount = (sale: Sale) => ({
-  mode: sale.discount?.mode === 'percent' ? 'percent' : 'amount',
+  mode: sale.discount?.mode === 'amount' ? 'amount' : 'percent',
   value:
     Number.isFinite(sale.discount?.value) && (sale.discount?.value ?? 0) > 0
       ? Number(sale.discount?.value)
@@ -1125,7 +1125,7 @@ export const getReopenedSaleStatusForLineItems = (
   const total = getOrderTotal(
     {
       ...sale,
-      discount: discount ?? { mode: 'amount', value: 0 },
+      discount: discount ?? { mode: 'percent', value: 0 },
     },
     nextLineItems,
   );
