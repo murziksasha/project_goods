@@ -2430,6 +2430,10 @@
   background: #5c0a71;
 }
 
+.order-status-away {
+  background: #6b7280;
+}
+
 .order-status-options {
   position: absolute;
   top: calc(100% + 4px);
@@ -2770,6 +2774,7 @@
 .repair-kanban-column[data-status='refinement'] { --kanban-status-accent: #14b8a6; }
 .repair-kanban-column[data-status='ready'] { --kanban-status-accent: #10b981; }
 .repair-kanban-column[data-status='paid'] { --kanban-status-accent: #0ea47d; }
+.repair-kanban-column[data-status='away'] { --kanban-status-accent: #78716c; }
 
 .repair-kanban-column-collapsed {
   flex-basis: 72px;
@@ -3054,6 +3059,7 @@
 .repair-kanban-nav-chip[data-status='refinement'] { --kanban-status-accent: #14b8a6; }
 .repair-kanban-nav-chip[data-status='ready'] { --kanban-status-accent: #10b981; }
 .repair-kanban-nav-chip[data-status='paid'] { --kanban-status-accent: #0ea47d; }
+.repair-kanban-nav-chip[data-status='away'] { --kanban-status-accent: #78716c; }
 
 .repair-kanban-move-option[data-status='new'] { --kanban-status-accent: #94a3b8; }
 .repair-kanban-move-option[data-status='diagnostics'] { --kanban-status-accent: #38bdf8; }
@@ -3063,6 +3069,7 @@
 .repair-kanban-move-option[data-status='refinement'] { --kanban-status-accent: #14b8a6; }
 .repair-kanban-move-option[data-status='ready'] { --kanban-status-accent: #10b981; }
 .repair-kanban-move-option[data-status='paid'] { --kanban-status-accent: #0ea47d; }
+.repair-kanban-move-option[data-status='away'] { --kanban-status-accent: #78716c; }
 
 .repair-kanban-move-backdrop {
   position: fixed;

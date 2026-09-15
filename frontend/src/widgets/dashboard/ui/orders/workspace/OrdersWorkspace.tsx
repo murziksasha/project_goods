@@ -239,6 +239,19 @@ export const OrdersWorkspace = ({
     currentEmployee,
     'kanban.use',
   );
+  const canAssignOrderStatus = (
+    sale: Sale,
+    nextStatus: OrderStatus,
+  ) => {
+    if (nextStatus === 'away') return true;
+    if (isRepairOrder(sale)) {
+      return hasAnyEmployeePermission(currentEmployee, [
+        'orders.manage',
+        'kanban.use',
+      ]);
+    }
+    return hasEmployeePermission(currentEmployee, 'sales.manage');
+  };
   const canEditOpenedSaleWorkspace = hasAnyEmployeePermission(
     currentEmployee,
     ['orders.manage', 'sales.manage'],
@@ -1428,6 +1441,11 @@ export const OrdersWorkspace = ({
 
   const updateStatus = async (sale: Sale, status: OrderStatus) => {
     try {
+      if (normalizeOrderStatus(sale.status) === status) {
+        setOpenStatusSaleId(null);
+        return;
+      }
+
       if (isRepairStatusChangeLockedByStock(sale, status)) {
         setWarningMessage(getStockLockedRepairStatusMessage());
         setOpenStatusSaleId(null);
@@ -3123,6 +3141,7 @@ export const OrdersWorkspace = ({
           }}
           onUpdateStatus={updateStatus}
           onOpenSale={openSaleCard}
+          canAssignStatus={canAssignOrderStatus}
         />
       )}
 

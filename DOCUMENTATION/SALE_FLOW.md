@@ -132,7 +132,7 @@ After the rapid-sale modal and payment handoff, opening the record from **`Order
 
 - List label **`Rapid sale`** does not apply inside the card (system-client snapshot is shown).
 - Line-item sections, product/service entry, qty, serials, payment, discount, notes, and live feed behave like any other sale card.
-- Editable statuses remain `new`, `reserved`, `paid` (same as normal sales).
+- Editable statuses remain `new`, `reserved`, `paid`, `away` (same as normal sales).
 - **`issued` / `returned`** → card read-only (same as normal sales).
 
 #### Paid after Accept to cashbox + adding products
@@ -396,6 +396,13 @@ Service catalog stores three prices: retail (`service.price`), wholesale 1 (`sal
   - **Sale type**: `All` / `Rapid sale` / `Regular` (wired to `GET /sales?isRapidSale=`)
   - product, service, payment method, and dates stay available
 
+## Status Change: Away
+
+- Sales (and repair orders) support shared parking status `away` (`Away` / `Відсутній`).
+- Selecting `away` does not open the payment modal and does not commit stock.
+- Any employee who can view the sale may set `away` from the Sales list status dropdown. Leaving `away` for another status still requires `sales.manage` (or, for repairs, `orders.manage` / `kanban.use`).
+- Sale card remains editable while status is `away`.
+
 ## Status Change: Paid
 
 - For `Sales` flow, when status is changed to `paid`, system opens `Accept payment` modal (if `To pay > 0`).
@@ -427,6 +434,8 @@ Service catalog stores three prices: retail (`service.price`), wholesale 1 (`sal
 
 ## Status Dropdown UX
 
+- Status dropdown includes shared parking status `away` (`Away` / `Відсутній`) after the other sale statuses. Selecting it does not open the payment modal.
+- Employees without `sales.manage` may still pick `away`; other statuses stay disabled in the menu.
 - Status dropdown in list is closed when user clicks outside the dropdown menu area.
 - Status dropdown in list is rendered in overlay (portal) above table/content.
 - Status dropdown opens **below or above** the row badge depending on available viewport space; `max-height` is clamped to the free space on the chosen side.
@@ -454,6 +463,7 @@ Service catalog stores three prices: retail (`service.price`), wholesale 1 (`sal
   - `new`
   - `reserved`
   - `paid`
+  - `away`
 - For non-editable statuses (`issued`, `returned`, etc.), card is read-only.
 - Exception for `issued` sale: `Refund to client` action stays available to unblock return workflow.
 
@@ -470,12 +480,12 @@ Service catalog stores three prices: retail (`service.price`), wholesale 1 (`sal
 
 - `Remove` for product line is enabled only when:
   - order is not paid (`paidAmount = 0`, or net payment history deposits minus refunds equals `0`)
-  - status is editable (`new`, `reserved`, `paid`)
+  - status is editable (`new`, `reserved`, `paid`, `away`)
   - no serial number is bound to that line item
 - When enabled, `Remove` performs pure line deletion from order card (no stock receive modal).
 - `Remove` for service line is enabled only when:
   - order is not paid (`paidAmount = 0`)
-  - status is editable (`new`, `reserved`, `paid`)
+  - status is editable (`new`, `reserved`, `paid`, `away`)
 - If action is blocked, UI keeps `Remove` disabled and shows tooltip with exact reason.
 - For `issued` sale:
   - product row action is `Return` (not `Remove`)

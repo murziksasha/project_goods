@@ -136,7 +136,7 @@ Related: [SALE_FLOW.md](./SALE_FLOW.md) · [ORDER_CARD.md](./ORDER_CARD.md) · [
 - `Notes` is **not** shown inside `Main information` (removed from that block).
 - Only `userNote` is displayed in the sale card; legacy system `note` values from older records are hidden in UI.
 - User note styling and edit flow match repair cards: light blue text, pencil button when expanded, inline Save / Cancel.
-- Editable only when sale status is `new`, `reserved`, or `paid` and the card is not read-only.
+- Editable only when sale status is `new`, `reserved`, `paid`, or `away` and the card is not read-only.
 - Empty placeholder: `No notes for this sale yet.`
 
 ## Live Feed
@@ -155,10 +155,12 @@ Related: [SALE_FLOW.md](./SALE_FLOW.md) · [ORDER_CARD.md](./ORDER_CARD.md) · [
   - `Paid`
   - `Issued`
   - `Returned`
-- Backend/API status values are `new`, `reserved`, `paid`, `issued`, and `returned`; there is no separate `completed` sale-card status.
+  - `Away`
+- Backend/API status values are `new`, `reserved`, `paid`, `issued`, `returned`, and `away`; there is no separate `completed` sale-card status.
 
 ## Sale Status Change Rules
 
+- Status `away` is a parking state shared with repair orders. Selecting it does not open the payment modal. Any employee who can view the sale may set it.
 - Status `paid` is a payment state and may be selected from the list or sale card.
 - If `paid` is selected while `To pay > 0`, the `Accept payment` modal is opened.
 - Status `issued` is allowed only when `To pay = 0` (or final total is `0`).
@@ -166,7 +168,7 @@ Related: [SALE_FLOW.md](./SALE_FLOW.md) · [ORDER_CARD.md](./ORDER_CARD.md) · [
 - Before the sale card **Save changes** persists status `issued` when `To pay = 0`, if any product line has no warehouse `serialNumbers`, show the same unbound-serial confirm as repair cards (`orders.serialIssueWarning.*`). **Cancel** does not persist. **Continue** saves `issued`. Service-only sales skip the alert. When `To pay > 0`, the payment modal shows that confirm on **Accept and issue**.
 - `Issue without payment` is blocked for `issued` sales while `To pay > 0`, except when final sale total is `0`.
 - Status `returned` must not be set manually while any product line remains attached or while client payment is not fully refunded.
-- While status is `paid`, the card stays editable. If a line-item or discount workspace update would leave **product** lines with `paidAmount < total`, the save **reopens** status to **`new`** (backend `resolveEditableSaleStatus`, frontend `getReopenedSaleStatusForLineItems`). Status `issued` is not auto-reopened.
+- While status is `paid` or `away`, the card stays editable. If a line-item or discount workspace update would leave **product** lines with `paidAmount < total`, a **`paid`** save **reopens** status to **`new`** (backend `resolveEditableSaleStatus`, frontend `getReopenedSaleStatusForLineItems`). Status `away` is not auto-reopened. Status `issued` is not auto-reopened.
 
 ## Read-Only Lock For Sales Card
 
@@ -174,6 +176,7 @@ Related: [SALE_FLOW.md](./SALE_FLOW.md) · [ORDER_CARD.md](./ORDER_CARD.md) · [
   - `new`
   - `reserved`
   - `paid`
+  - `away`
 
 ## Product Rows Removal (2026-05-24)
 
@@ -199,7 +202,7 @@ Related: [SALE_FLOW.md](./SALE_FLOW.md) · [ORDER_CARD.md](./ORDER_CARD.md) · [
 - Product row action must NOT open refund modal.
 - Product `Remove` is enabled only when all conditions are true:
   - order is not paid (`paidAmount = 0`)
-  - card status is editable (`new`, `reserved`, `paid`)
+  - card status is editable (`new`, `reserved`, `paid`, `away`)
   - line item has no bound serial numbers
 - If any condition is not met, `Remove` is disabled and shows tooltip with block reason.
 - Required refund amount for stock return validation remains discount-aware (line share in discounted order total).
@@ -216,5 +219,5 @@ Related: [SALE_FLOW.md](./SALE_FLOW.md) · [ORDER_CARD.md](./ORDER_CARD.md) · [
 
 - Service line `Remove` is enabled only when:
   - order is not paid (`paidAmount = 0`)
-  - card status is editable (`new`, `reserved`, `paid`)
+  - card status is editable (`new`, `reserved`, `paid`, `away`)
 - In paid orders, service removal is blocked until refund is completed.

@@ -1344,6 +1344,7 @@
         "employeeRequiredForFilters": "Для збереження фільтрів потрібен поточний співробітник.",
         "enterFilterName": "Введіть назву фільтра.",
         "failedUpdateStatus": "Не вдалося оновити статус замовлення.",
+        "statusChangeDenied": "Немає права встановити цей статус.",
         "refundBeforeReturned": "Поверніть оплату клієнту перед позначенням продажу як поверненого.",
         "shippedUnpaid": "Товар відвантажено, але оплату не отримано.",
         "noAcceptPaymentPermission": "У поточного співробітника немає прав на прийом оплат.",
@@ -1437,14 +1438,16 @@
         "clientApproved": "Погоджено клієнтом",
         "clientRejected": "Відхилено клієнтом",
         "issuedWithoutRepair": "Видано без ремонту",
-        "notPickedUp": "Не забирають"
+        "notPickedUp": "Не забирають",
+        "away": "Відсутній"
       },
       "sale": {
         "new": "Новий продаж",
         "reserved": "Зарезервовано",
         "paid": "Оплачено",
         "issued": "Видано",
-        "returned": "Повернено"
+        "returned": "Повернено",
+        "away": "Відсутній"
       }
     },
     "timeline": {

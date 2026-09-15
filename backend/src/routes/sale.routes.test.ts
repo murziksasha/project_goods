@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   getSaleFavoritePermission,
+  isAwayStatusWorkspacePatch,
   isKanbanBoardWorkspacePatch,
   isManualCommentWorkspacePatch,
 } from './sale.routes';
@@ -226,6 +227,87 @@ describe('isKanbanBoardWorkspacePatch', () => {
         },
       ),
     ).toBe(true);
+  });
+});
+
+describe('isAwayStatusWorkspacePatch', () => {
+  const awayPayload = {
+    kind: 'repair',
+    status: 'away',
+    timeline: [
+      {
+        id: 'system-1',
+        author: 'Support',
+        message: 'Status changed to "Away".',
+        createdAt: '2026-06-09T10:05:00.000Z',
+      },
+    ],
+  };
+
+  it('returns true when only repair status changes to away', () => {
+    expect(isAwayStatusWorkspacePatch(existingSale, awayPayload)).toBe(true);
+  });
+
+  it('returns true for product sales', () => {
+    expect(
+      isAwayStatusWorkspacePatch(
+        { ...existingSale, kind: 'sale', status: 'reserved' },
+        { ...awayPayload, kind: 'sale' },
+      ),
+    ).toBe(true);
+  });
+
+  it('returns false when the target status is not away', () => {
+    expect(
+      isAwayStatusWorkspacePatch(existingSale, {
+        ...awayPayload,
+        status: 'inRepair',
+      }),
+    ).toBe(false);
+  });
+
+  it('returns false when status is already away', () => {
+    expect(
+      isAwayStatusWorkspacePatch(
+        { ...existingSale, status: 'away' },
+        awayPayload,
+      ),
+    ).toBe(false);
+  });
+
+  it('returns false when line items change with the status', () => {
+    expect(
+      isAwayStatusWorkspacePatch(existingSale, {
+        ...awayPayload,
+        lineItems: [
+          {
+            id: 'item-1',
+            kind: 'service',
+            name: 'Diagnostics',
+            price: 250,
+            quantity: 1,
+          },
+        ],
+      }),
+    ).toBe(false);
+  });
+
+  it('returns false when userNote changes with the away patch', () => {
+    expect(
+      isAwayStatusWorkspacePatch(existingSale, {
+        ...awayPayload,
+        userNote: 'Client is away',
+      }),
+    ).toBe(false);
+  });
+
+  it('returns false when master is assigned together with away', () => {
+    expect(
+      isAwayStatusWorkspacePatch(existingSale, {
+        ...awayPayload,
+        masterId: 'master-1',
+      }),
+    ).toBe(false);
   });
 });
 

@@ -52,6 +52,17 @@ describe('analytics aggregates', () => {
     expect(funnel.find((item) => item.status === 'issued')).toBeUndefined();
   });
 
+  it('counts away as its own open funnel slice', () => {
+    const isFinal = (sale: { status?: string }) => sale.status === 'issued';
+    const funnel = getRepairFunnel(
+      [{ status: 'away' }, { status: 'issued' }],
+      isFinal,
+    );
+
+    expect(funnel.find((item) => item.status === 'away')?.count).toBe(1);
+    expect(funnel.find((item) => item.status === 'other')).toBeUndefined();
+  });
+
   it('ranks top products and services by amount', () => {
     const top = getTopLineItems(
       [

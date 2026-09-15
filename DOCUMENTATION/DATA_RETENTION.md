@@ -25,7 +25,7 @@ Policy for multi-year LAN use. **Live purge stays off by default** until ops ena
 | Server analytics | `GET /api/analytics/dashboard` | Lean projection; `dataScope: live_sales_only`, `coldSalesPurgedExist` |
 | Finance period seal | `POST /api/archive/finance/seal` (+ auto on scheduler) | Reverse-walk balances at **36m** cutoff |
 | Finance purge | `POST /api/archive/finance/purge` body `{ confirmation: "PURGE_FINANCE" }` | Deletes txs `transactionDate <= periodEnd`; optional safety backup |
-| Yearly sales dump | `POST /api/archive/yearly/sales/:year` | Terminal statuses; checksum + verified gate before purge |
+| Yearly sales dump | `POST /api/archive/yearly/sales/:year` | Terminal statuses (`issued`, `issuedWithoutRepair`, `paid`, `returned`, `clientRejected`, `cancelled`); `away` is **not** terminal. Checksum + verified gate before purge |
 | Yearly finance dump | `POST /api/archive/yearly/finance/:year` | Offline copy only; `purge` → 400 |
 | List archives | `GET /api/archive/yearly` | Eligible years, snapshots, `staleOpenSales` |
 | Balance-after list | uses txs **after** active seal only | Scales after purge |

@@ -152,7 +152,7 @@ This document defines current warehouse requirements for stock balances, receipt
 2. serial picker must remain deterministic and model-safe even when names are similar
 
 ### 4.3.0) Bind Modal Occupancy (Opened Repair and Sale Cards)
-- Binding a serial to an order/sale does **not** drop `freeQuantity` until stock-committed status (`paid`/`issued` for sales; `issued`/`issuedWithoutRepair` for repairs). Occupancy is a sale-domain rule, not a stock-quantity rule.
+- Binding a serial to an order/sale does **not** drop `freeQuantity` until stock-committed status (`paid`/`issued` for sales; `issued`/`issuedWithoutRepair` for repairs). Status `away` is not stock-committed. Occupancy is a sale-domain rule, not a stock-quantity rule.
 - Operator must never see a serial that is already bound to another order/sale, or to another product line on the opened card. `Auto-select oldest` must never pick those serials.
 - Occupancy source of truth is Mongo via `GET /sales/occupied-serials` (`findOccupiedSerialNumbers` in `backend/src/domain/sale/validators.ts`). Do **not** infer occupancy from the dashboard `GET /sales?limit=500` list.
 - Filter rules for `SerialBindModal` candidates (`OrderDetailLineItemsPanel` + `filterBindableSerialProducts`):

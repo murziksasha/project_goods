@@ -123,6 +123,7 @@ export type RepairStatus =
   | 'ready'
   | 'new'
   | 'paid'
+  | 'away'
   | 'diagnostics'
   | 'inRepair'
   | 'refinement'
@@ -130,14 +131,14 @@ export type RepairStatus =
   | 'clientApproved'
   | 'clientRejected'
   | 'issuedWithoutRepair'
-  | 'notPickedUp'
-  | 'ready';
+  | 'notPickedUp';
 export type SaleStatus =
   | 'new'
   | 'reserved'
   | 'paid'
   | 'issued'
-  | 'returned';
+  | 'returned'
+  | 'away';
 export type OrderStatus = RepairStatus | SaleStatus;
 export type PaymentAction =
   | 'deposit'
@@ -486,6 +487,7 @@ export const repairStatuses: Array<{ key: RepairStatus; labelKey: string }> = [
   { key: 'clientRejected', labelKey: 'orders.status.repair.clientRejected' },
   { key: 'issuedWithoutRepair', labelKey: 'orders.status.repair.issuedWithoutRepair' },
   { key: 'notPickedUp', labelKey: 'orders.status.repair.notPickedUp' },
+  { key: 'away', labelKey: 'orders.status.repair.away' },
 ];
 export const saleStatuses: Array<{ key: SaleStatus; labelKey: string }> = [
   { key: 'new', labelKey: 'orders.status.sale.new' },
@@ -493,6 +495,7 @@ export const saleStatuses: Array<{ key: SaleStatus; labelKey: string }> = [
   { key: 'paid', labelKey: 'orders.status.sale.paid' },
   { key: 'issued', labelKey: 'orders.status.sale.issued' },
   { key: 'returned', labelKey: 'orders.status.sale.returned' },
+  { key: 'away', labelKey: 'orders.status.sale.away' },
 ];
 export const finalRepairStatuses: RepairStatus[] = [
   'issued',
@@ -516,6 +519,7 @@ export const kanbanVisibleRepairStatuses: RepairStatus[] = [
   'refinement',
   'ready',
   'paid',
+  'away',
 ];
 /** Kanban: hidden completely (no column). */
 export const kanbanHiddenRepairStatuses: RepairStatus[] = [
@@ -636,6 +640,7 @@ export const normalizeOrderStatus = (
   const repairStatusMap: Record<string, RepairStatus> = {
     new: 'new',
     paid: 'paid',
+    away: 'away',
     diagnostics: 'diagnostics',
     inrepair: 'inRepair',
     refinement: 'refinement',
@@ -654,6 +659,7 @@ export const normalizeOrderStatus = (
     paid: 'paid',
     issued: 'issued',
     returned: 'returned',
+    away: 'away',
   };
   const compact = normalized.replace(/[\s_-]+/g, '');
 
@@ -1035,11 +1041,13 @@ export const saleEditableStatuses = new Set<OrderStatus>([
   'new',
   'reserved',
   'paid',
+  'away',
 ]);
 
 export const repairEditableStatuses = new Set<RepairStatus>([
   'new',
   'paid',
+  'away',
   'diagnostics',
   'inRepair',
   'refinement',

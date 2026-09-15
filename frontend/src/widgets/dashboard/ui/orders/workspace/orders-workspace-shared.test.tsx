@@ -38,6 +38,10 @@ import {
   emptyOrdersFilters,
   activeOrdersFiltersStorageKey,
   shouldOpenPaymentModalForStatusChange,
+  repairEditableStatuses,
+  saleEditableStatuses,
+  repairStatuses,
+  saleStatuses,
   type OrderLineItem,
 } from './orders-workspace-shared';
 
@@ -787,6 +791,24 @@ describe('repair status refinement', () => {
   it('normalizes refinement status key', () => {
     expect(normalizeOrderStatus('refinement')).toBe('refinement');
     expect(normalizeOrderStatus(' Refinement ')).toBe('refinement');
+  });
+});
+
+describe('away status', () => {
+  it('normalizes away for repair and sale', () => {
+    expect(normalizeOrderStatus('away')).toBe('away');
+    expect(normalizeOrderStatus(' Away ')).toBe('away');
+  });
+
+  it('does not open the payment modal', () => {
+    expect(shouldOpenPaymentModalForStatusChange('away', 100)).toBe(false);
+  });
+
+  it('is an editable parking status on both repair and sale', () => {
+    expect(repairEditableStatuses.has('away')).toBe(true);
+    expect(saleEditableStatuses.has('away')).toBe(true);
+    expect(repairStatuses.some((item) => item.key === 'away')).toBe(true);
+    expect(saleStatuses.some((item) => item.key === 'away')).toBe(true);
   });
 });
 

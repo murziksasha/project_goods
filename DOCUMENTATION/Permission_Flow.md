@@ -32,13 +32,14 @@ Defaults are applied by backend when an employee is created or updated with an e
 ### Orders And Sales
 | Permission | Allows |
 | --- | --- |
-| `orders.view` | View order/sale context where the UI exposes it. |
+| `orders.view` | View order/sale context where the UI exposes it. Also enough to set status `away` (status-only workspace patch). |
 | `orders.manage` | Create and manage orders; used by order creation flows. |
 | `orders.chat` | Add manual `Live feed` comments in order cards. System-generated timeline entries continue to come from the underlying order/payment/stock actions. |
 | `supplierOrders.view` | View supplier orders and supplier-order information. |
 | `supplierOrders.manage` | Create, edit, cancel, change status, and take supplier orders on charge. |
 | `repairs.execute` | Be assigned/executed as repair master. |
 | `sales.manage` | Manage sale-oriented workflows. |
+| `kanban.use` | Use the repair Kanban tab (drag/move/master). Toggleable; not re-granted from role defaults after an explicit uncheck. |
 
 ### Clients And Inventory
 | Permission | Allows |
@@ -104,9 +105,11 @@ All `/api/*` routes except health, login, and invitation flows require a valid B
 ### Sales / Orders
 | Endpoint | Required access |
 | --- | --- |
-| `GET /sales` | `orders.view`, `sales.manage`, `repairs.execute`, `supplierOrders.view`, or `supplierOrders.manage`. |
+| `GET /sales` | `orders.view`, `sales.manage`, `repairs.execute`, `kanban.use`, `supplierOrders.view`, or `supplierOrders.manage`. |
 | `POST /sales`, `PUT /sales/:saleId`, `DELETE /sales/:saleId` | `orders.manage` for repair orders; `sales.manage` for product sales. |
 | `PATCH /sales/:saleId/workspace` (comment-only) | `orders.chat`. |
+| `PATCH /sales/:saleId/workspace` (status-only to `away`) | Any sale-read permission: `orders.view`, `sales.manage`, `repairs.execute`, `kanban.use`, `supplierOrders.view`, or `supplierOrders.manage`. |
+| `PATCH /sales/:saleId/workspace` (repair status/master-only) | `kanban.use` or `orders.manage`. |
 | `PATCH /sales/:saleId/workspace` (other changes) | `orders.manage` or `sales.manage` by sale kind. |
 | `PATCH /sales/:saleId/return-line-item-stock` | `orders.manage` or `inventory.manage`. |
 
@@ -188,7 +191,8 @@ See also: [SECURITY.md](./SECURITY.md) for auth model and LAN deployment notes.
 - Sidebar shows `Employees` when employee is `owner` or has `employees.manage`.
 - Sidebar shows `Accounting` when employee is `owner` or has `finance.view`.
 - Sidebar always shows `Main`.
-- Sidebar shows `Orders` when employee is `owner` or has one of `orders.view`, `orders.manage`, `repairs.execute`, `sales.manage`, `supplierOrders.view`, `supplierOrders.manage`.
+- Sidebar shows `Orders` when employee is `owner` or has one of `orders.view`, `orders.manage`, `repairs.execute`, `sales.manage`, `supplierOrders.view`, `supplierOrders.manage`, `kanban.use`.
+- Orders/Sales list status menu: status `away` is enabled for any employee who can see the row. Other statuses require `orders.manage` / `kanban.use` (repair) or `sales.manage` (sale).
 - Sidebar shows `Clients & suppliers` when employee is `owner` or has `clients.manage`.
 - Sidebar shows `Warehouse` and `Products & Services` when employee is `owner` or has `inventory.manage`.
 - Sidebar shows `Settings` when employee is `owner` or has `system.backups.manage` or `printForms.manage`.

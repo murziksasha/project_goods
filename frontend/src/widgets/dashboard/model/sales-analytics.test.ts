@@ -277,6 +277,20 @@ describe('sales analytics', () => {
     expect(analytics.funnel.find((item) => item.status === 'paid')?.count).toBe(1);
   });
 
+  it('keeps away repairs in the open funnel', () => {
+    const analytics = buildDashboardAnalytics(
+      [],
+      [{ ...baseSale, id: 'r-away', kind: 'repair', status: 'away' }],
+      'currentMonth',
+      [],
+      new Date('2026-05-12T12:00:00.000Z'),
+    );
+
+    expect(analytics.operations.openOrders).toBe(1);
+    expect(analytics.operations.closedOrders).toBe(0);
+    expect(analytics.funnel.find((item) => item.status === 'away')?.count).toBe(1);
+  });
+
   it('returns stable empty-state values without records', () => {
     const analytics = buildDashboardAnalytics(
       [],

@@ -47,11 +47,13 @@ Related: [ORDER_FLOW.md](./ORDER_FLOW.md) · [SALE_CARD.md](./SALE_CARD.md) · [
 ## Status And Issued
 
 - Status in card is draft-only until `Save changes`.
+- Repair status set includes shared parking status `away` (`Away` / `Відсутній`), last Kanban column after `paid`. Spec: [ORDER_FLOW.md](./ORDER_FLOW.md#shared-status-away-2026-09-15) · [REPAIR_KANBAN_SPEC.md](./REPAIR_KANBAN_SPEC.md#status-away).
 - `Issued` employee is set only when saved status is one of:
   - `issued`
   - `client rejected`
   - `issued without repair`
-- For any other saved status, `Issued` employee is cleared.
+- For any other saved status (including `away` and `paid`), `Issued` employee is cleared.
+- **Save changes** to `away` does not open the payment modal and does not commit stock. The card stays editable.
 - **Save changes** to `issued` or `paid` while `To pay > 0` opens the same **Accept payment** modal as the Orders list / Kanban status dropdown. Device / S/N / master are persisted first if dirty; status stays unchanged until a modal issue/paid action. `Issue without payment` still requires attached products to be fully paid.
 - If `To pay = 0`, **Save changes** persists `issued`/`paid` without the payment modal.
 - If product line items still have bound warehouse serials, saving status `client rejected` or `issued without repair` is blocked until the client is refunded for those serials and the serials are returned/unbound to stock.
