@@ -7,7 +7,7 @@ Related: [ARCHITECTURE.md](./ARCHITECTURE.md) · [API.md](./API.md) · [BROWSER_
 - Server collections live in TanStack Query (`products`, `sales` compact lists, `clients`, catalog, services, employees, suppliers, settings).
 - `useDashboardPage` still owns forms, filters, and mutation orchestration (`dashboard-actions.ts`).
 - Sales **list** uses `compact=1` (no `timeline` / `paymentHistory`). Order/sale cards load the full document via `GET /sales/:id` (`useSaleDetail`).
-- Orders/Sales tables request `GET /sales?page&pageSize` (`{ items, total, page, pageSize }`). Kanban loads visible statuses with `pageSize=500`. Command palette still uses a capped compact dump (`limit=500`).
+- Orders/Sales tables request `GET /sales?page&pageSize` (`{ items, total, page, pageSize }`). Kanban loads visible pipeline statuses (`kanbanVisibleRepairStatuses`, including last column `away`) with `pageSize=500`. Command palette still uses a capped compact dump (`limit=500`).
 - Queries are page-scoped where safe (warehouse/catalog/clients). Sales stay loaded for command palette.
 - Polling is visibility-aware (15s on the active orders/stock/clients surface, including the Kanban orders tab; paused when the tab is hidden).
 - `GET /api/events/stream` (SSE) invalidates matching query keys after mutations so other LAN users refresh without a full reload.

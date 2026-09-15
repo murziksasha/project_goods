@@ -83,7 +83,7 @@ Each row represents one named employee (name + login) with individual achievemen
 | Repairs | `sale.master.id` on `kind=repair` | repair count, completed count, revenue, latest activity |
 | Sales | `sale.manager.id` on `kind=sale` | sale count, revenue, average ticket, latest activity |
 
-Completed repairs use final statuses: `issued`, `issuedWithoutRepair`, `clientRejected`, `paid`.
+Completed repairs use final statuses: `issued`, `issuedWithoutRepair`, `clientRejected`, `paid`. Parking status `away` is **not** completed.
 
 ### Period presets (header)
 

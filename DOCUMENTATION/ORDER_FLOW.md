@@ -92,15 +92,16 @@ Related: [ORDER_CARD.md](./ORDER_CARD.md) · [SALE_FLOW.md](./SALE_FLOW.md) · [
   - `issued`
   - `client rejected`
   - `issued without repair`
-  - (`notPickedUp` / «Не забирають» is **not** a handoff status and does not fill `Issued`)
+  - (`notPickedUp` / «Не забирають» and `away` / «Відсутній» are **not** handoff statuses and do not fill `Issued`)
 - If no such status transition happened yet, `Issued` shows `-`.
 - Every status change action is recorded in `Live feed` with author and timestamp.
 - `Ready date` in the orders list is treated as completion date and is set from the timestamp of transition to one of:
   - `issued`
   - `client rejected`
   - `issued without repair`
-  - (not from `notPickedUp`)
-- Repair Kanban board (Orders tab `Kanban` only) mirrors repair statuses as columns; see [REPAIR_KANBAN_SPEC.md](./REPAIR_KANBAN_SPEC.md).
+  - (not from `notPickedUp` or `away`)
+- Repair Kanban board (Orders tab `Kanban` only) mirrors repair statuses as columns, including last column `away`; see [REPAIR_KANBAN_SPEC.md](./REPAIR_KANBAN_SPEC.md).
+- Repair orders support status `away` in the `Orders` tab status dropdown and filters. Any employee who can view the order may set `away`; other statuses stay gated by `orders.manage` / `kanban.use`.
 - Completion timestamp source is the corresponding status-change entry in `Live feed` (timeline).
 - Filters include `Payment method` dropdown: `All`, `Cash`, `Non-cash`.
 - If order has paid amount and latest deposit method is `non-cash`, columns `Price` and `Paid` are shown in red.
@@ -109,6 +110,7 @@ Related: [ORDER_CARD.md](./ORDER_CARD.md) · [SALE_FLOW.md](./SALE_FLOW.md) · [
 - When the status dropdown is open, background scroll is locked: `body`/page scroll and `orders-table-wrap` scroll are disabled until the menu closes.
 - Mouse-wheel scrolling moves only the status list (`overscroll-behavior: contain` plus wheel guard); the parent page and orders table must not scroll.
 - Status dropdown must not affect row height and must not create additional scroll inside orders table container.
+- Employees without `orders.manage` / `kanban.use` may still pick `away`; other statuses stay disabled in the menu.
 - For repair orders with attached warehouse products, status change to `issued` is allowed only after the attached products are fully paid.
 - When a paid repair order changes to `issued`, bound warehouse serials stay attached to the order and stock is shipped by the workspace save flow.
 - For repair orders, status change to `client rejected` or `issued without repair` is blocked when any product line has a warehouse serial number bound through the `Serials x/y` action.
@@ -121,7 +123,7 @@ Related: [ORDER_CARD.md](./ORDER_CARD.md) · [SALE_FLOW.md](./SALE_FLOW.md) · [
 - `Cash` badge in payment modal is clickable and toggles payment method: `Cash` <-> `Non-cash`.
 - In `Non-cash` mode, badge background changes to light red.
 - Selected method is saved into `paymentHistory` deposit entries as `paymentMethod`.
-- `Discount` in payment modal summary is read-only; editing is available only in order card `Payment` panel.
+- `Discount` in the payment modal is the same editable control as the order card `Payment` panel (default `%`). Spec: [ORDER_CARD.md → Payment And Discount](./ORDER_CARD.md#payment-and-discount).
 - Partial deposits are allowed for repair orders while the order remains in its current non-final status.
 - A repair order may receive several payments at different times and into different cashboxes.
 - `Accept to cashbox` records only the deposit and must not require full remaining payment.
@@ -144,6 +146,21 @@ Related: [ORDER_CARD.md](./ORDER_CARD.md) · [SALE_FLOW.md](./SALE_FLOW.md) · [
 - For `Repair order`, `Issue without payment` changes order status to selected payment target status (normally `issued`) and writes status change to timeline.
 - Exception for `Repair order`: if order has attached product line items and `To pay > 0`, `Issue without payment` is blocked until the attached products are fully paid.
 - For `Sales`, `Issue without payment` remains blocked for target status `issued` while `To pay > 0`.
+
+## Shared Status Away (2026-09-15)
+
+- Repair orders and product sales support parking status `away`:
+  - key: `away`
+  - EN label: `Away`
+  - UK label: `Відсутній`
+- Kanban column: last, after `paid`.
+- Badge color: muted slate (`#6b7280`).
+- `away` is a non-final working status:
+  - available in Orders and Sales list status dropdowns, order/sale-card status select, and `Order status` filter checkboxes,
+  - editable in the order/sale card,
+  - does not fill `Issued`, does not set `Ready date`, does not trigger payment modal on selection,
+  - does not commit stock and does not block refunds,
+  - any employee who can view the sale may set status to `away`; changing from `away` to another status keeps the usual `orders.manage` / `sales.manage` / `kanban.use` rules.
 
 ## Repair Status Refinement (2026-07-03)
 
@@ -185,7 +202,7 @@ Related: [ORDER_CARD.md](./ORDER_CARD.md) · [SALE_FLOW.md](./SALE_FLOW.md) · [
 - In order card `Save changes`, status change follows the same rules as in Orders list:
   - `issued` is blocked while attached product line items have unpaid balance.
   - `client rejected` and `issued without repair` are blocked while any product line has a bound warehouse serial number.
-- In order card product lines, `Serials x/y` remains openable for an already bound serial even when the product block is otherwise read-only, so the serialized stock binding can be inspected or cleared.
+- In order card product lines, `Serials x/y` remains openable for an already bound serial even when the product block is otherwise read-only, so the serialized stock binding can be inspected or cleared. Bind-modal candidate row: [WAREHOUSE_FLOW.md §4.3.2](./WAREHOUSE_FLOW.md#432-bind-modal-candidate-row-purchase-price--supplier-order).
 - Identical product lines in `Products` (same `catalogProductId` or normalized name) collapse into a UI group; persistence stays one row per serial. Spec: [ORDER_CARD.md](./ORDER_CARD.md) / [SALE_CARD.md](./SALE_CARD.md).
 - Print tables (`{{products_table}}`, `{{invoice_items_table}}`) also collapse identical products, but **only when unit price matches**. Same name / different serials / different price stay separate print rows. Spec: [PRINT_FORMS_SPEC.md](./PRINT_FORMS_SPEC.md#line-items-grouping-products).
 - If saved status is NOT one of final issued statuses:
@@ -231,7 +248,8 @@ Related: [ORDER_CARD.md](./ORDER_CARD.md) · [SALE_FLOW.md](./SALE_FLOW.md) · [
 - In sale card product line, `Serials x/y` action opens serial binding modal.
 - In serial binding modal, warehouse dropdown filters available serials; `Auto-select oldest` must respect that warehouse filter. Occupancy spec: [WAREHOUSE_FLOW.md §4.3.0](./WAREHOUSE_FLOW.md#430-bind-modal-occupancy-opened-repair-and-sale-cards).
 - In serial binding modal, `Order` action opens existing `SupplierOrderModal`.
-- Before `SupplierOrderModal` opens, the serial binding modal is closed first so nested background scroll locks cannot leave `.orders-table-wrap` / page scroll stuck.
+- Before that create-flow `SupplierOrderModal` opens, the serial binding modal is closed first so nested background scroll locks cannot leave `.orders-table-wrap` / page scroll stuck.
+- Clicking a supplier-order **number on a candidate row** is a different path: open the existing item-scoped supplier-order modal and keep bind open. Spec: [WAREHOUSE_FLOW.md §4.3.2](./WAREHOUSE_FLOW.md#432-bind-modal-candidate-row-purchase-price--supplier-order). Hover copy: [UI_DESIGN_SYSTEM.md — Hover copy icon](./UI_DESIGN_SYSTEM.md#hover-copy-icon).
 - Shared `useModalBackgroundScrollLock` uses reference counting: nested modals only restore body/document/table overflow when the **last** active lock releases (base overflow captured on first lock).
 - Product name is prefilled from current product line item.
 - On submit, system creates supplier order with:

@@ -123,6 +123,7 @@ export type RepairStatus =
   | 'ready'
   | 'new'
   | 'paid'
+  | 'away'
   | 'diagnostics'
   | 'inRepair'
   | 'refinement'
@@ -130,14 +131,14 @@ export type RepairStatus =
   | 'clientApproved'
   | 'clientRejected'
   | 'issuedWithoutRepair'
-  | 'notPickedUp'
-  | 'ready';
+  | 'notPickedUp';
 export type SaleStatus =
   | 'new'
   | 'reserved'
   | 'paid'
   | 'issued'
-  | 'returned';
+  | 'returned'
+  | 'away';
 export type OrderStatus = RepairStatus | SaleStatus;
 export type PaymentAction =
   | 'deposit'
@@ -486,6 +487,7 @@ export const repairStatuses: Array<{ key: RepairStatus; labelKey: string }> = [
   { key: 'clientRejected', labelKey: 'orders.status.repair.clientRejected' },
   { key: 'issuedWithoutRepair', labelKey: 'orders.status.repair.issuedWithoutRepair' },
   { key: 'notPickedUp', labelKey: 'orders.status.repair.notPickedUp' },
+  { key: 'away', labelKey: 'orders.status.repair.away' },
 ];
 export const saleStatuses: Array<{ key: SaleStatus; labelKey: string }> = [
   { key: 'new', labelKey: 'orders.status.sale.new' },
@@ -493,6 +495,7 @@ export const saleStatuses: Array<{ key: SaleStatus; labelKey: string }> = [
   { key: 'paid', labelKey: 'orders.status.sale.paid' },
   { key: 'issued', labelKey: 'orders.status.sale.issued' },
   { key: 'returned', labelKey: 'orders.status.sale.returned' },
+  { key: 'away', labelKey: 'orders.status.sale.away' },
 ];
 export const finalRepairStatuses: RepairStatus[] = [
   'issued',
@@ -516,6 +519,7 @@ export const kanbanVisibleRepairStatuses: RepairStatus[] = [
   'refinement',
   'ready',
   'paid',
+  'away',
 ];
 /** Kanban: hidden completely (no column). */
 export const kanbanHiddenRepairStatuses: RepairStatus[] = [
@@ -547,6 +551,15 @@ export const emptyOrdersFilters: OrdersFilters = {
   service: '',
   favoritesOnly: false,
 };
+
+/** Kanban toolbar is master + dates + favorites only (columns are the status filter). */
+export const toKanbanFilters = (filters: OrdersFilters): OrdersFilters => ({
+  ...emptyOrdersFilters,
+  assigneeId: filters.assigneeId,
+  dateFrom: filters.dateFrom,
+  dateTo: filters.dateTo,
+  favoritesOnly: filters.favoritesOnly === true,
+});
 
 export const readActiveOrderFilters = () => {
   try {
@@ -580,7 +593,7 @@ export const readActiveOrderFilters = () => {
 
     return {
       orders: normalizeOne(raw.orders),
-      kanban: normalizeOne(raw.kanban ?? raw.orders),
+      kanban: toKanbanFilters(normalizeOne(raw.kanban ?? raw.orders)),
       sales: normalizeOne(raw.sales),
       supplierOrders: normalizeOne(raw.supplierOrders),
       supplierInformation: normalizeOne(raw.supplierInformation),
@@ -627,6 +640,7 @@ export const normalizeOrderStatus = (
   const repairStatusMap: Record<string, RepairStatus> = {
     new: 'new',
     paid: 'paid',
+    away: 'away',
     diagnostics: 'diagnostics',
     inrepair: 'inRepair',
     refinement: 'refinement',
@@ -645,6 +659,7 @@ export const normalizeOrderStatus = (
     paid: 'paid',
     issued: 'issued',
     returned: 'returned',
+    away: 'away',
   };
   const compact = normalized.replace(/[\s_-]+/g, '');
 
@@ -754,7 +769,7 @@ export const getDefaultLineItems = (sale: Sale) =>
     : [createOrderLineItem(sale, 'product')];
 
 export const getDiscount = (sale: Sale) => ({
-  mode: sale.discount?.mode === 'percent' ? 'percent' : 'amount',
+  mode: sale.discount?.mode === 'amount' ? 'amount' : 'percent',
   value:
     Number.isFinite(sale.discount?.value) && (sale.discount?.value ?? 0) > 0
       ? Number(sale.discount?.value)
@@ -1026,11 +1041,13 @@ export const saleEditableStatuses = new Set<OrderStatus>([
   'new',
   'reserved',
   'paid',
+  'away',
 ]);
 
 export const repairEditableStatuses = new Set<RepairStatus>([
   'new',
   'paid',
+  'away',
   'diagnostics',
   'inRepair',
   'refinement',
@@ -1040,26 +1057,30 @@ export const repairEditableStatuses = new Set<RepairStatus>([
 ]);
 
 export const ORDER_STATUS_MENU_WIDTH = 230;
+export const ORDER_EXTRA_LINES_MENU_WIDTH = 360;
 export const ORDER_STATUS_MENU_MAX_HEIGHT = 260;
 export const ORDER_STATUS_MENU_GAP = 4;
 export const ORDER_STATUS_MENU_VIEWPORT_PADDING = 8;
 export const ORDER_STATUS_MENU_MIN_HEIGHT = 120;
+export const EMPTY_LINE_ITEM_SERIAL = '-';
 
 export type OrderStatusMenuPosition = {
-  top: number;
+  top?: number;
   left: number;
   maxHeight: number;
   placement: 'below' | 'above';
+  /** Distance from the viewport bottom; used when placement is `above`. */
+  bottom?: number;
 };
 
-export const computeOrderStatusMenuPosition = (
+export const computeAnchoredMenuPosition = (
   anchorRect: Pick<DOMRect, 'top' | 'bottom' | 'left' | 'width'>,
   viewport: { width: number; height: number } = {
     width: window.innerWidth,
     height: window.innerHeight,
   },
+  menuWidth = ORDER_STATUS_MENU_WIDTH,
 ): OrderStatusMenuPosition => {
-  const menuWidth = ORDER_STATUS_MENU_WIDTH;
   const menuMaxHeight = ORDER_STATUS_MENU_MAX_HEIGHT;
   const gap = ORDER_STATUS_MENU_GAP;
   const pad = ORDER_STATUS_MENU_VIEWPORT_PADDING;
@@ -1086,6 +1107,38 @@ export const computeOrderStatusMenuPosition = (
     left,
     maxHeight,
     placement: openBelow ? 'below' : 'above',
+  };
+};
+
+export const computeOrderStatusMenuPosition = (
+  anchorRect: Pick<DOMRect, 'top' | 'bottom' | 'left' | 'width'>,
+  viewport: { width: number; height: number } = {
+    width: window.innerWidth,
+    height: window.innerHeight,
+  },
+): OrderStatusMenuPosition =>
+  computeAnchoredMenuPosition(anchorRect, viewport, ORDER_STATUS_MENU_WIDTH);
+
+export const computeOrderExtraLinesMenuPosition = (
+  anchorRect: Pick<DOMRect, 'top' | 'bottom' | 'left' | 'width'>,
+  viewport: { width: number; height: number } = {
+    width: window.innerWidth,
+    height: window.innerHeight,
+  },
+): OrderStatusMenuPosition => {
+  const position = computeAnchoredMenuPosition(
+    anchorRect,
+    viewport,
+    ORDER_EXTRA_LINES_MENU_WIDTH,
+  );
+  if (position.placement !== 'above') return position;
+
+  return {
+    ...position,
+    top: undefined,
+    // Grow the short item list upward from the trigger instead of
+    // reserving ORDER_STATUS_MENU_MAX_HEIGHT (260px) of empty space.
+    bottom: viewport.height - anchorRect.top + ORDER_STATUS_MENU_GAP,
   };
 };
 
@@ -1116,7 +1169,7 @@ export const getReopenedSaleStatusForLineItems = (
   const total = getOrderTotal(
     {
       ...sale,
-      discount: discount ?? { mode: 'amount', value: 0 },
+      discount: discount ?? { mode: 'percent', value: 0 },
     },
     nextLineItems,
   );
@@ -1867,6 +1920,55 @@ export const getPrimaryItemCellContent = (
 export const getPrimaryItemExtraLineCount = (sale: Sale) => {
   const count = (sale.lineItems ?? []).length;
   return count > 1 ? count - 1 : 0;
+};
+
+export type SaleListDropdownItem = {
+  id: string;
+  name: string;
+  serial: string;
+  price: number;
+  quantity: number;
+};
+
+export const getSaleListDropdownItemSerial = (
+  item: Pick<OrderLineItem, 'kind' | 'name' | 'productId' | 'serialNumbers'>,
+  sale: Pick<Sale, 'product'>,
+) => {
+  const fromLine = (item.serialNumbers ?? [])
+    .map((serial) => serial.trim())
+    .filter(Boolean)
+    .join(', ');
+  if (fromLine) return fromLine;
+
+  if (item.kind !== 'product') return EMPTY_LINE_ITEM_SERIAL;
+
+  const snapshotSerial = getSaleProductSerialNumber(sale);
+  if (!snapshotSerial) return EMPTY_LINE_ITEM_SERIAL;
+
+  const snapshotName = sale.product?.name?.trim() ?? '';
+  const snapshotId = sale.product?.id ?? '';
+  const itemName = item.name?.trim() ?? '';
+  const matchesSnapshot =
+    (Boolean(snapshotId) && item.productId === snapshotId) ||
+    (Boolean(snapshotName) && itemName === snapshotName);
+
+  return matchesSnapshot ? snapshotSerial : EMPTY_LINE_ITEM_SERIAL;
+};
+
+export const getSaleListDropdownItems = (sale: Sale): SaleListDropdownItem[] =>
+  (sale.lineItems ?? []).map((item, index) => ({
+    id: item.id || `line-${index}`,
+    name: item.name?.trim() || '',
+    serial: getSaleListDropdownItemSerial(item, sale),
+    price: item.price,
+    quantity: item.quantity,
+  }));
+
+export const formatSaleListDropdownPrice = (
+  item: Pick<SaleListDropdownItem, 'price' | 'quantity'>,
+) => {
+  const price = formatCurrency(item.price);
+  return item.quantity > 1 ? `${price} × ${item.quantity}` : price;
 };
 
 export const isUrgentRepairOrder = (sale: Sale) => {

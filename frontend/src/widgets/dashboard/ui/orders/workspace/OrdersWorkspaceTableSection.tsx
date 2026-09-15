@@ -5,8 +5,11 @@ import type { Sale } from '../../../../../entities/sale/model/types';
 import { PaginationPanel } from '../../../../../shared/ui/PaginationPanel';
 import { TableSkeleton } from '../../../../../shared/ui/TableSkeleton';
 import {
+  ORDER_EXTRA_LINES_MENU_WIDTH,
+  formatSaleListDropdownPrice,
   getColumnLabel,
   getOrdersColumnClassName,
+  getSaleListDropdownItems,
   getStatusOptionsForSale,
   isRepairStatusChangeLockedByStock,
   isUrgentRepairOrder,
@@ -29,6 +32,9 @@ type OrdersWorkspaceTableSectionProps = {
   openStatusSale: Sale | null;
   statusMenuPosition: OrderStatusMenuPosition | null;
   statusMenuOptionsRef: RefObject<HTMLDivElement | null>;
+  openExtraLinesSale: Sale | null;
+  extraLinesMenuPosition: OrderStatusMenuPosition | null;
+  extraLinesMenuRef: RefObject<HTMLDivElement | null>;
   getStatus: (sale: Sale) => OrderStatus;
   renderOrdersCell: (sale: Sale, columnKey: OrdersColumnKey) => ReactNode;
   totalItems: number;
@@ -37,6 +43,7 @@ type OrdersWorkspaceTableSectionProps = {
   onPageSizeChange: (pageSize: number) => void;
   onUpdateStatus: (sale: Sale, status: OrderStatus) => void | Promise<void>;
   onOpenSale: (sale: Sale) => void;
+  canAssignStatus: (sale: Sale, status: OrderStatus) => boolean;
 };
 
 export const OrdersWorkspaceTableSection = ({
@@ -52,6 +59,9 @@ export const OrdersWorkspaceTableSection = ({
   openStatusSale,
   statusMenuPosition,
   statusMenuOptionsRef,
+  openExtraLinesSale,
+  extraLinesMenuPosition,
+  extraLinesMenuRef,
   getStatus,
   renderOrdersCell,
   totalItems,
@@ -60,6 +70,7 @@ export const OrdersWorkspaceTableSection = ({
   onPageSizeChange,
   onUpdateStatus,
   onOpenSale,
+  canAssignStatus,
 }: OrdersWorkspaceTableSectionProps) => {
   const { t } = useTranslation();
 
@@ -163,26 +174,31 @@ export const OrdersWorkspaceTableSection = ({
                 maxHeight: statusMenuPosition.maxHeight,
               }}
             >
-              {getStatusOptionsForSale(openStatusSale).map((statusOption) => (
+              {getStatusOptionsForSale(openStatusSale).map((statusOption) => {
+                const stockLocked = isRepairStatusChangeLockedByStock(
+                  openStatusSale,
+                  statusOption.key,
+                );
+                const assignDenied = !canAssignStatus(
+                  openStatusSale,
+                  statusOption.key,
+                );
+                return (
                 <button
                   key={statusOption.key}
                   type="button"
-                  disabled={isRepairStatusChangeLockedByStock(
-                    openStatusSale,
-                    statusOption.key,
-                  )}
+                  disabled={stockLocked || assignDenied}
                   className={
                     statusOption.key === getStatus(openStatusSale)
                       ? 'order-status-option order-status-option-active'
                       : 'order-status-option'
                   }
                   title={
-                    isRepairStatusChangeLockedByStock(
-                      openStatusSale,
-                      statusOption.key,
-                    )
+                    stockLocked
                       ? t('orders.payment.stockLocked')
-                      : undefined
+                      : assignDenied
+                        ? t('orders.messages.errors.statusChangeDenied')
+                        : undefined
                   }
                   onClick={() => {
                     void onUpdateStatus(openStatusSale, statusOption.key);
@@ -190,6 +206,45 @@ export const OrdersWorkspaceTableSection = ({
                 >
                   {t(statusOption.labelKey)}
                 </button>
+                );
+              })}
+            </div>,
+            document.body,
+          )
+        : null}
+
+      {openExtraLinesSale &&
+      extraLinesMenuPosition &&
+      typeof document !== 'undefined'
+        ? createPortal(
+            <div
+              ref={extraLinesMenuRef}
+              role="listbox"
+              aria-label={t('orders.toolbar.extraLinesShow')}
+              className={`create-suggestions order-extra-lines-menu order-extra-lines-menu-portal order-extra-lines-menu-portal-${extraLinesMenuPosition.placement}`}
+              style={{
+                top:
+                  extraLinesMenuPosition.bottom == null
+                    ? extraLinesMenuPosition.top
+                    : 'auto',
+                bottom: extraLinesMenuPosition.bottom,
+                left: extraLinesMenuPosition.left,
+                maxHeight: extraLinesMenuPosition.maxHeight,
+                width: ORDER_EXTRA_LINES_MENU_WIDTH,
+              }}
+            >
+              {getSaleListDropdownItems(openExtraLinesSale).map((item) => (
+                <div
+                  key={item.id}
+                  role="option"
+                  className="create-suggestion-item order-extra-lines-item"
+                >
+                  <strong title={item.name}>{item.name}</strong>
+                  <span className="order-extra-lines-serial">{item.serial}</span>
+                  <span className="order-extra-lines-price">
+                    {formatSaleListDropdownPrice(item)}
+                  </span>
+                </div>
               ))}
             </div>,
             document.body,

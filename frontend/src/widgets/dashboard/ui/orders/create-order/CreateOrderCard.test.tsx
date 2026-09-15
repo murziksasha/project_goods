@@ -1649,6 +1649,64 @@ describe('CreateOrderCard', () => {
     );
   });
 
+  it('attaches catalog id when adding an exact suggestion without clicking it', async () => {
+    const onSave = vi.fn(async () => null);
+    getServiceCatalogItemsMock.mockImplementation(async (query = '') => {
+      if (query.toLowerCase().includes('clean')) {
+        return [
+          {
+            id: 'service-1',
+            name: 'Screen cleaning',
+            price: 150,
+            salePriceOptions: [150],
+            note: '',
+            isActive: true,
+            createdAt: '2026-01-01T00:00:00.000Z',
+            updatedAt: '2026-01-01T00:00:00.000Z',
+          },
+        ];
+      }
+      return [];
+    });
+
+    renderCreateOrderCard('sale', onSave);
+
+    fireEvent.click(screen.getByRole('button', { name: /Services/i }));
+
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText('Add service')).toBeInTheDocument();
+    });
+
+    await afterDebouncedInput(
+      () => {
+        fireEvent.change(screen.getByPlaceholderText('Add service'), {
+          target: { value: 'screen cleaning' },
+        });
+      },
+      () => {
+        expect(screen.getByText('Screen cleaning')).toBeInTheDocument();
+      },
+    );
+
+    fireEvent.click(document.querySelector('.create-order-add-service-button')!);
+    fireEvent.click(screen.getByText('Save order'));
+
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalled();
+    });
+
+    expect(onSave).toHaveBeenCalledWith(
+      expect.objectContaining({
+        saleServiceItems: [
+          expect.objectContaining({
+            serviceId: 'service-1',
+            name: 'screen cleaning',
+          }),
+        ],
+      }),
+    );
+  });
+
   it('saves a service-only sales order without product lines', async () => {
     const onSave = vi.fn(async () => null);
     getServiceCatalogItemsMock.mockImplementation(async (query = '') => {
@@ -1709,6 +1767,60 @@ describe('CreateOrderCard', () => {
         ],
       }),
     );
+  });
+
+  it('shows retail/wholesale 1/2 toggles when selecting a catalog service with wholesale prices', async () => {
+    getServiceCatalogItemsMock.mockImplementation(async (query = '') => {
+      if (query.toLowerCase().includes('diag')) {
+        return [
+          {
+            id: 'service-1',
+            name: 'Diagnostics',
+            price: 200,
+            salePriceOptions: [150, 100],
+            note: '',
+            isActive: true,
+            createdAt: '2026-01-01T00:00:00.000Z',
+            updatedAt: '2026-01-01T00:00:00.000Z',
+          },
+        ];
+      }
+      return [];
+    });
+
+    renderCreateOrderCard('sale');
+    fireEvent.click(screen.getByRole('button', { name: /Services/i }));
+
+    await afterDebouncedInput(
+      () => {
+        fireEvent.change(screen.getByPlaceholderText('Add service'), {
+          target: { value: 'Diag' },
+        });
+      },
+      () => {
+        expect(
+          screen.getByRole('button', { name: /Diagnostics/i }),
+        ).toBeInTheDocument();
+      },
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /Diagnostics/i }));
+
+    const servicesSection = document.querySelector(
+      '.create-order-sale-services-section',
+    );
+    expect(servicesSection).toBeTruthy();
+    const services = within(servicesSection as HTMLElement);
+    expect(services.getByDisplayValue('200')).toBeInTheDocument();
+    expect(services.getByRole('button', { name: 'Retail' })).toBeInTheDocument();
+    expect(services.getByRole('button', { name: 'Wholesale 1' })).toBeInTheDocument();
+    expect(services.getByRole('button', { name: 'Wholesale 2' })).toBeInTheDocument();
+
+    fireEvent.click(services.getByRole('button', { name: 'Wholesale 1' }));
+    expect(services.getByDisplayValue('150')).toBeInTheDocument();
+
+    fireEvent.click(services.getByRole('button', { name: 'Wholesale 2' }));
+    expect(services.getByDisplayValue('100')).toBeInTheDocument();
   });
 
   it('shows rapid sale button only on sales tab and opens modal', () => {

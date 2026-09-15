@@ -285,7 +285,7 @@ Migration script (reference): `frontend/scripts/reorganize-dashboard-ui.mjs`
 ### Frontend
 
 - `frontend/src/widgets/dashboard/ui/orders/create-order/RapidSaleModal.tsx` — modal UI: entry panel, pinned draft table, footer, `useLockBodyScroll`, `ProductSalePriceField` with `tierTogglePlacement: label`
-- `frontend/src/widgets/dashboard/ui/orders/modals/SerialBindModal.tsx` — warehouse-filtered serial picker for order/sale card line items
+- `frontend/src/widgets/dashboard/ui/orders/modals/SerialBindModal.tsx` — warehouse-filtered serial picker for order/sale card line items; candidate rows show purchase price and copyable/clickable supplier-order number
 - `frontend/src/widgets/dashboard/ui/warehouse/WarehouseSelectField.tsx` — shared warehouse dropdown (rapid sale + serial bind)
 - `frontend/src/widgets/dashboard/model/warehouse-serial-filter.ts` — warehouse default, product filter, and oldest-serial selection helpers
 - `frontend/src/widgets/dashboard/model/rapid-sale-line-items.ts` — `buildRapidSaleStockSuggestions`, `getRapidSaleOccupiedSerialNumbers`, `validateRapidSaleDraft`, line-item builder
@@ -293,6 +293,8 @@ Migration script (reference): `frontend/scripts/reorganize-dashboard-ui.mjs`
 - `frontend/src/entities/sale/api/saleApi.ts` — `getOccupiedSerialNumbers` → `GET /sales/occupied-serials`
 - `frontend/src/shared/lib/price-stepper.ts` — shared price stepper constants (`PRICE_STEPPER_STEP = 1`, `PRICE_STEPPER_PRECISION = 0`)
 - `frontend/src/shared/ui/ProductSalePriceField.tsx` — shared price stepper + retail/wholesale toggle (`tierTogglePlacement: inline | label`)
+- `frontend/src/shared/ui/ServiceSalePriceField.tsx` — service price stepper + R/W1/W2 toggle
+- `frontend/src/entities/service-catalog/lib/sale-prices.ts` — service retail / wholesale 1 / wholesale 2 helpers
 - `frontend/src/widgets/dashboard/ui/product-catalog/product-catalog-shared.ts` — `useLockBodyScroll` (reused by rapid sale modal)
 - `frontend/src/widgets/dashboard/model/sale-client-display.ts` — `Rapid sale` list label and search aliases
 - `frontend/src/widgets/dashboard/model/employee-information.ts` — employee performance report builder for Employees Information tab
@@ -314,7 +316,8 @@ Migration script (reference): `frontend/scripts/reorganize-dashboard-ui.mjs`
 ### Tests
 
 - `frontend/src/widgets/dashboard/ui/orders/create-order/RapidSaleModal.test.tsx`
-- `frontend/src/widgets/dashboard/ui/orders/modals/SerialBindModal.test.tsx`
+- `frontend/src/widgets/dashboard/ui/orders/modals/SerialBindModal.test.tsx` — purchase price + copyable/clickable supplier-order number; copy/click do not select the serial
+- `frontend/src/widgets/dashboard/ui/orders/order-detail/OrderDetailCard.test.tsx` — bind-modal supplier-order click opens existing `SupplierOrderModal` and keeps bind open
 - `frontend/src/widgets/dashboard/model/order-line-serials.test.ts`
 - `frontend/src/widgets/dashboard/model/warehouse-serial-filter.test.ts`
 - `backend/src/domain/sale/validators.test.ts`

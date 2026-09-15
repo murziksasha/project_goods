@@ -1690,7 +1690,18 @@
     justify-content: flex-start;
   }
 
+  .payment-modal-summary div:has(.order-payment-discount-control) dd {
+    display: flex;
+    justify-content: flex-end;
+    min-width: 0;
+  }
+
   .order-payment-discount-control {
+    width: min(168px, 100%);
+    max-width: 168px;
+  }
+
+  .payment-modal-summary .order-payment-discount-control {
     width: min(168px, 100%);
     max-width: 168px;
   }
@@ -2099,6 +2110,11 @@
   }
 
   .order-payment-discount-control {
+    width: min(148px, 100%);
+    max-width: 148px;
+  }
+
+  .payment-modal-summary .order-payment-discount-control {
     width: min(148px, 100%);
     max-width: 148px;
   }

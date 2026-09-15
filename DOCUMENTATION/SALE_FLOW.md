@@ -123,7 +123,7 @@ See also [SPEC_SUGGESTIONS_BEHAVIOR.md](./SPEC_SUGGESTIONS_BEHAVIOR.md) -> Rapid
 - After payment/issue/refusal, operator remains on the sales list; sale card opens only if chosen manually later.
 - Payment modal actions after rapid-sale create:
   - **Accept to cashbox** — deposit only; if remaining becomes `0`, status may auto-change to **`paid`** (sale is not issued).
-  - **Accept and issue** / allowed issue path — status becomes **`issued`** (card becomes read-only per normal sale rules). If any product line has no warehouse serial, the payment modal shows the unbound-serial confirm first (same as sale/repair cards). **Cancel** stays in payment. **Continue** issues. Rapid Sale footer **Issued** (create) does not show this alert.
+  - **Accept and issue** / allowed issue path — status becomes **`issued`** (card becomes read-only per normal sale rules). Warehouse stock is taken from `lineItems[].productId` (Rapid Sale has no top-level `product`). If any product line has no warehouse serial, the payment modal shows the unbound-serial confirm first (same as sale/repair cards). **Cancel** stays in payment. **Continue** issues. Rapid Sale footer **Issued** (create) does not show this alert.
   - Closing or partial deposit without full pay leaves a non-final editable status (`new` / partial pay) as for any sale.
 
 ### Opened Rapid Sale Card (Post-Create Edit)
@@ -132,7 +132,7 @@ After the rapid-sale modal and payment handoff, opening the record from **`Order
 
 - List label **`Rapid sale`** does not apply inside the card (system-client snapshot is shown).
 - Line-item sections, product/service entry, qty, serials, payment, discount, notes, and live feed behave like any other sale card.
-- Editable statuses remain `new`, `reserved`, `paid` (same as normal sales).
+- Editable statuses remain `new`, `reserved`, `paid`, `away` (same as normal sales).
 - **`issued` / `returned`** → card read-only (same as normal sales).
 
 #### Paid after Accept to cashbox + adding products
@@ -279,7 +279,7 @@ When selecting a warehouse stock suggestion **without** a bound serial in `Creat
 `Create order -> Sales order` name queries still use catalog suggestions (`buildOrderDetailProductSuggestions` catalog mode). On selection, `findSelectableStockProductByName` checks for a selectable warehouse product with the same normalized `name`:
 
 - **Match found (bulk stock):** apply stock row (`productId`, retail/purchase price, optional R/W toggle).
-- **Match found (serialized-only stock, e.g. AAA Etron batteries):** pre-fill name/price/`productId` for R/W toggle, leave `serialNumber` empty, allow `qty > 1`; on save omit `productId` when `qty > 1`; serial binding happens later in the opened sale card (`Serials x/y`). Occupancy: [WAREHOUSE_FLOW.md §4.3.0](./WAREHOUSE_FLOW.md#430-bind-modal-occupancy-opened-repair-and-sale-cards).
+- **Match found (serialized-only stock, e.g. AAA Etron batteries):** pre-fill name/price/`productId` for R/W toggle, leave `serialNumber` empty, allow `qty > 1`; on save omit `productId` when `qty > 1`; serial binding happens later in the opened sale card (`Serials x/y`). Occupancy: [WAREHOUSE_FLOW.md §4.3.0](./WAREHOUSE_FLOW.md#430-bind-modal-occupancy-opened-repair-and-sale-cards). Bind-modal candidate row: [WAREHOUSE_FLOW.md §4.3.2](./WAREHOUSE_FLOW.md#432-bind-modal-candidate-row-purchase-price--supplier-order).
 - **No match:** keep catalog-only row (`catalogProductId`, price `0`).
 
 ### Price Stepper (2026-07-11)
@@ -295,6 +295,36 @@ Suggestion rows may show the resolved retail price before click when matching st
 - price helpers: `frontend/src/entities/product/lib/sale-prices.ts`
 - shared UI: `frontend/src/shared/ui/ProductSalePriceField.tsx`
 - styles: `frontend/src/shared/styles/layout.css` (`.sale-price-field-labeled`, `.product-sale-price-field-compact`, `.product-sale-price-tier-toggle`)
+
+## Service Wholesale Price Toggle
+
+Service catalog stores three prices: retail (`service.price`), wholesale 1 (`salePriceOptions[0]`), wholesale 2 (`salePriceOptions[1]`). When a catalog service is selected in a service entry row and at least one wholesale option is `> 0`, the price field shows **R / W1 / W2** badges (`ServiceSalePriceTierToggle`). W1 / W2 appear only when that option is configured.
+
+| Surface | Toggle placement | Notes |
+|---------|------------------|-------|
+| `Create order -> Sales order` service entry | In the **Price** label row (`tierTogglePlacement: label`) | Class `sale-item-price-field sale-price-field-labeled`; price column `minmax(120px, 1.15fr)` |
+| `Rapid sale` service entry | In the **Price** label row (`tierTogglePlacement: label`) | Class `sale-price-field-labeled rapid-sale-price-field` |
+| Opened sale/repair card Services add-row and focused existing service line | Price **column header** (cell stepper has no inline badges) | Shown when the line has `serviceId` and a wholesale option is configured |
+
+### Behavior
+
+- Default tier on catalog select: **retail** (`service.price`).
+- Clicking **W1** fills `salePriceOptions[0]`; **W2** fills `salePriceOptions[1]`; **R** restores retail.
+- Manual edits in the price stepper remain allowed; if the entered value no longer matches a tier, no badge stays highlighted.
+- Toggle is shown only when a concrete catalog `serviceId` is known (or an exact catalog suggestion match) and a wholesale option is configured.
+- Manual / missing-service rows keep the plain price stepper without toggle.
+- Create-order service items table and rapid-sale draft table stay without the toggle (pick the tier before **Add**). Line items persist the numeric price only.
+
+### Scope
+
+1. `Create order -> Sales order` service entry (`CreateOrderSaleServicesSection`)
+2. `Rapid sale` service entry (`RapidSaleModal`)
+3. Opened sale/repair card service entry row and existing service line price cells (`OrderDetailLineItemsPanel`)
+
+### Implementation References
+
+- price helpers: `frontend/src/entities/service-catalog/lib/sale-prices.ts`
+- shared UI: `frontend/src/shared/ui/ServiceSalePriceField.tsx`, `frontend/src/shared/ui/ServiceSalePriceTierToggle.tsx`
 
 ## Sale Creation: Product/Device Linking Rules
 
@@ -357,14 +387,37 @@ Suggestion rows may show the resolved retail price before click when matching st
 - Default visible columns: `Order #`, `Client`, `Product`, `Status`, `Price`, `Paid`, `Manager`, `Created`.
 - Column picker extras: `Issued` (`issuedBy`). Repair-only columns stay off this tab: `Term`, `Master`, `Warehouse`, `Ready date`.
 - Saved 6-column sales layouts (`Order #`, `Client`, `Status`, `Price`, `Paid`, `Created`) migrate to the default set; `Reset columns` restores defaults.
-- `Product` shows `getSaleProductName` (first product, else first service). Serial subtitle uses `S/N:`; extra lines show `+N` when more than one line item exists.
+- `Product` shows `getSaleProductName` (first product, else first service). Serial subtitle uses `S/N:`; extra lines show `+N` when more than one line item exists. Clicking `+N` opens a dropdown of every `lineItems[]` row (name, serial, price) — see **Product extra-lines dropdown** below. Clicking the product name still opens the sale card.
 - Rapid sales keep the Client label **`Rapid sale`** (see Rapid Sale → Sales List Display And Search). The Product column still shows the sold item.
-- Toolbar search placeholder: `Order, client, phone, product or manager`. Server `q` already matches record number, client, product snapshot (name/serial/article), line names, and manager.
+- Toolbar search placeholder: `Order, client, phone, product or manager`. Server `q` matches record number, client, product snapshot (name/serial/article), **every** `lineItems.name` / `lineItems.serialNumbers`, and manager. Client re-filter uses the same haystack (`getSaleListSearchValues`) so a good on the card as a second Products row (shown as `+N`) is still found. Product column still shows the first item plus `+N`.
 - Filters on this tab:
   - hide `Repair type`
   - assignee is **Manager** (active managers/owners/`sales.manage`/`orders.manage`)
   - **Sale type**: `All` / `Rapid sale` / `Regular` (wired to `GET /sales?isRapidSale=`)
   - product, service, payment method, and dates stay available
+
+### Product extra-lines dropdown
+
+Shown only on **Orders → Sales** (not the repair Orders tab) when `lineItems.length > 1`. Visible label is `+N` (`orders.toolbar.extraLines`); `N` is `lineItems.length - 1`.
+
+- Product **name** (and `S/N:` subtitle) stay a separate control and still open the sale card.
+- **`+N` is its own control.** Click toggles the dropdown and must not open the sale card (or fire the row click).
+- Dropdown lists **every** `lineItems[]` row in stored order (products and services), not only the extras.
+- Each row shows three fields, using the project suggestion-list chrome (`.create-suggestions` / `.create-suggestion-item`):
+  - **Name** — `lineItems[].name`
+  - **Serial** — trimmed `serialNumbers` joined with `, `. Empty → `-`. If a product row has no serials but matches the sale product snapshot (`productId` or name), fall back to `product.serialNumber`.
+  - **Price** — unit `formatCurrency(lineItems[].price)`. If `quantity > 1`, append ` × {quantity}`.
+- Rows are informational (not links). Clicking a row does not open the sale card or product model.
+- Close on: second `+N` click, outside click, Escape, tab change, table scroll, window resize, opening the status menu, or opening a sale card.
+- Only one extra-lines menu is open at a time.
+- The menu is a `document.body` portal (table cells clip overflow). Place it **below** the `+N` when there is more space below than above. Near the bottom of the viewport, place it **above** and grow the list **up from the trigger** (`bottom` anchored to `+N`). Do not reserve a tall empty block (status-menu max height) that would float the short list several rows higher than the control.
+
+## Status Change: Away
+
+- Sales (and repair orders) support shared parking status `away` (`Away` / `Відсутній`).
+- Selecting `away` does not open the payment modal and does not commit stock.
+- Any employee who can view the sale may set `away` from the Sales list status dropdown. Leaving `away` for another status still requires `sales.manage` (or, for repairs, `orders.manage` / `kanban.use`).
+- Sale card remains editable while status is `away`.
 
 ## Status Change: Paid
 
@@ -374,8 +427,7 @@ Suggestion rows may show the resolved retail price before click when matching st
   - `Accept to cashbox` (deposit only)
   - `Accept and mark paid` (deposit + status change)
   - `Mark paid without payment` (status change without deposit)
-- Modal summary includes read-only `Discount` (informational only).
-- Discount editing is done only in sale card `Payment` panel; modal reuses those values.
+- Modal summary includes the same editable `Discount` control as the sale card (default `%`). Spec: [SALE_CARD.md → Payment Discount](./SALE_CARD.md#payment-discount).
 
 ## Status Change: Issued In Sales List
 
@@ -398,6 +450,8 @@ Suggestion rows may show the resolved retail price before click when matching st
 
 ## Status Dropdown UX
 
+- Status dropdown includes shared parking status `away` (`Away` / `Відсутній`) after the other sale statuses. Selecting it does not open the payment modal.
+- Employees without `sales.manage` may still pick `away`; other statuses stay disabled in the menu.
 - Status dropdown in list is closed when user clicks outside the dropdown menu area.
 - Status dropdown in list is rendered in overlay (portal) above table/content.
 - Status dropdown opens **below or above** the row badge depending on available viewport space; `max-height` is clamped to the free space on the chosen side.
@@ -425,6 +479,7 @@ Suggestion rows may show the resolved retail price before click when matching st
   - `new`
   - `reserved`
   - `paid`
+  - `away`
 - For non-editable statuses (`issued`, `returned`, etc.), card is read-only.
 - Exception for `issued` sale: `Refund to client` action stays available to unblock return workflow.
 
@@ -441,12 +496,12 @@ Suggestion rows may show the resolved retail price before click when matching st
 
 - `Remove` for product line is enabled only when:
   - order is not paid (`paidAmount = 0`, or net payment history deposits minus refunds equals `0`)
-  - status is editable (`new`, `reserved`, `paid`)
+  - status is editable (`new`, `reserved`, `paid`, `away`)
   - no serial number is bound to that line item
 - When enabled, `Remove` performs pure line deletion from order card (no stock receive modal).
 - `Remove` for service line is enabled only when:
   - order is not paid (`paidAmount = 0`)
-  - status is editable (`new`, `reserved`, `paid`)
+  - status is editable (`new`, `reserved`, `paid`, `away`)
 - If action is blocked, UI keeps `Remove` disabled and shows tooltip with exact reason.
 - For `issued` sale:
   - product row action is `Return` (not `Remove`)

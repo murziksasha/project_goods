@@ -55,6 +55,7 @@ export const defaultEmployeePermissionsByRole: Record<
     'orders.view',
     'orders.manage',
     'orders.chat',
+    'kanban.use',
     'supplierOrders.view',
     'supplierOrders.manage',
     'clients.manage',
@@ -62,7 +63,7 @@ export const defaultEmployeePermissionsByRole: Record<
     'finance.cashboxes.view',
     'finance.transactions.deposit',
   ],
-  master: ['orders.view', 'orders.chat', 'repairs.execute'],
+  master: ['orders.view', 'orders.chat', 'repairs.execute', 'kanban.use'],
   accountant: [
     'orders.view',
     'supplierOrders.view',
@@ -101,6 +102,17 @@ export const getEffectiveEmployeePermissions = (employee: {
     ? (employee.role as EmployeeRole)
     : null;
   const defaults = role ? defaultEmployeePermissionsByRole[role] : [];
+  const stored = employee.permissions ?? [];
+  if (stored.length === 0) {
+    return [...defaults];
+  }
 
-  return Array.from(new Set([...(employee.permissions ?? []), ...defaults]));
+  // kanban.use is a toggleable grant. Role defaults seed it only when the
+  // stored list is empty so unchecking it actually revokes access.
+  return Array.from(
+    new Set([
+      ...stored,
+      ...defaults.filter((permission) => permission !== 'kanban.use'),
+    ]),
+  );
 };

@@ -98,7 +98,7 @@ This document defines current warehouse requirements for stock balances, receipt
 1. `Models` / `Units` view toggle (default `Models`; persisted per browser)
 2. show the number of active applied filters on the `Filter` button
 3. gear menu for column visibility (`Select` locked)
-4. search mode select + search field; placeholder matches the active search mode
+4. search mode select + search field; placeholder matches the active search mode. `By serial #` / `By article` stay exact for single-token scans (for example `S000102`). If the same query used on Receipts/Sales is a product name (spaces or non-ASCII letters), stock search also matches name + article + serial + note so remaining units are not hidden as empty stock.
 5. bulk serial print and clear-selection controls appear only when at least one row is selected
 - Table requirements:
 1. header stays sticky while scrolling the stock table
@@ -152,7 +152,7 @@ This document defines current warehouse requirements for stock balances, receipt
 2. serial picker must remain deterministic and model-safe even when names are similar
 
 ### 4.3.0) Bind Modal Occupancy (Opened Repair and Sale Cards)
-- Binding a serial to an order/sale does **not** drop `freeQuantity` until stock-committed status (`paid`/`issued` for sales; `issued`/`issuedWithoutRepair` for repairs). Occupancy is a sale-domain rule, not a stock-quantity rule.
+- Binding a serial to an order/sale does **not** drop `freeQuantity` until stock-committed status (`paid`/`issued` for sales; `issued`/`issuedWithoutRepair` for repairs). Status `away` is not stock-committed. Occupancy is a sale-domain rule, not a stock-quantity rule.
 - Operator must never see a serial that is already bound to another order/sale, or to another product line on the opened card. `Auto-select oldest` must never pick those serials.
 - Occupancy source of truth is Mongo via `GET /sales/occupied-serials` (`findOccupiedSerialNumbers` in `backend/src/domain/sale/validators.ts`). Do **not** infer occupancy from the dashboard `GET /sales?limit=500` list.
 - Filter rules for `SerialBindModal` candidates (`OrderDetailLineItemsPanel` + `filterBindableSerialProducts`):
@@ -176,6 +176,24 @@ This document defines current warehouse requirements for stock balances, receipt
 - A product line item with a bound serial must not allow direct quantity increase.
 - Binding multiple serials to a legacy product row must split that row into one atomic serialized row per selected serial.
 - Backend workspace validation must enforce the same invariant before stock deltas are calculated.
+
+### 4.3.2) Bind Modal Candidate Row (Purchase Price + Supplier Order)
+
+Canonical UI for `Serials x/y` → `SerialBindModal` on **opened sale and repair cards**. Rapid Sale’s serial picker is out of scope.
+
+- After warehouse + occupancy filtering (§4.3 / §4.3.0), each visible candidate row shows four fields:
+  1. **Serial #** — `[ ]` / `[x]` toggle. Click serial, purchase price, or receipt datetime still selects/deselects.
+  2. **Purchase price** — that stock unit’s `Product.price`, formatted with `formatCurrency` (read-only).
+  3. **Receipt datetime** — `purchaseDate` (fallback `createdAt`) via `formatDateTime`. Keep time; do not switch to the product-model date-only cell.
+  4. **Supplier order** — unit provenance, same as §2.1 / §4.4: `product.supplierOrderId` + `product.supplierOrderItemIndex` resolved with `buildSupplierOrdersByProductId` to `displayNumber` (`SO-1`, or `SO-1-2` on multi-item orders). Missing / unmatched provenance shows `—` (no copy icon, not clickable).
+- Desktop column header uses `catalog.productModel` labels: `Serial #`, `Purchase price`, `Receipt date`, `Supplier order`.
+- Hover on the supplier-order number shows a copy icon; only the icon copies the visible number. Spec: [UI_DESIGN_SYSTEM.md — Hover copy icon](./UI_DESIGN_SYSTEM.md#hover-copy-icon).
+- Click the number calls `onOpenSupplierOrder(supplierOrderId, itemIndex)` and opens the **existing** item-scoped `SupplierOrderModal` (same path as product-model / Stock balances). The bind modal **stays open** underneath.
+- Copy icon and supplier-order click must not toggle serial selection (`stopPropagation` on that cell).
+- Footer **Order** is a different path: it still **closes** the bind modal first, then opens a *new* supplier-order create modal. Spec: [ORDER_FLOW.md — Serials Modal → Supplier Order](./ORDER_FLOW.md#sales-card-serials-modal---supplier-order-2026-05-20).
+- This modal does **not** show Latest/Reserved badges, serial copy icons, or print checkboxes (those stay on product-model §4.4).
+- Wiring: `SerialBindModal` receives `supplierOrders` + `onOpenSupplierOrder` from `OrderDetailLineItemsPanel` (same callback the product-model modal uses).
+- Tests: `SerialBindModal.test.tsx` (price, empty `—`, copy without select, click without select); `OrderDetailCard.test.tsx` (number click opens existing supplier-order modal; bind dialog remains).
 
 ### 4.4) Product Model Detail Modal
 - In `Warehouse -> Stock balances`, clicking `Name`, `Serial #`, `Article`, or `Note` opens the shared product model modal for the row's exact product name.

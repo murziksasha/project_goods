@@ -163,6 +163,7 @@ const textOr = (pattern: string) => [
   { 'productSnapshot.serialNumber': { $regex: pattern, $options: 'i' } },
   { 'productSnapshot.article': { $regex: pattern, $options: 'i' } },
   { 'lineItems.name': { $regex: pattern, $options: 'i' } },
+  { 'lineItems.serialNumbers': { $regex: pattern, $options: 'i' } },
 ];
 
 export const buildSalesFilter = (options: ListSalesOptions): SalesMongoFilter => {

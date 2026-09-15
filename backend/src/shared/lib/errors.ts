@@ -45,6 +45,10 @@ export const getErrorMessage = (error: unknown) => {
       return 'Employee email must be unique.';
     }
 
+    if (error.keyPattern?.nameKey) {
+      return 'Service with this name already exists.';
+    }
+
     return 'Duplicate value detected.';
   }
 

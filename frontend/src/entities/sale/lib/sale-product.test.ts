@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import type { Sale } from '../model/types';
-import { getSaleProductName, getSaleProductSnapshot } from './sale-product';
+import {
+  getSaleListSearchValues,
+  getSaleProductName,
+  getSaleProductSnapshot,
+  saleMatchesListSearchQuery,
+} from './sale-product';
 
 const sale = (patch: Partial<Sale> = {}): Sale =>
   ({
@@ -62,5 +67,58 @@ describe('sale-product helpers', () => {
     });
 
     expect(getSaleProductName(mixedSale)).toBe('Cable');
+  });
+
+  it('matches extra card product lines, not only the first Product cell', () => {
+    const extraLineSale = sale({
+      product: {
+        id: 'p-mcc',
+        article: '',
+        name: '114719 Дієтична добавка MCC LIVESTA, 90 таб.',
+        serialNumber: 'S000336',
+      },
+      lineItems: [
+        {
+          id: 'li-mcc',
+          kind: 'product',
+          productId: 'p-mcc',
+          name: '114719 Дієтична добавка MCC LIVESTA, 90 таб.',
+          price: 150,
+          quantity: 1,
+          warrantyPeriod: 0,
+          serialNumbers: ['S000336'],
+        },
+        {
+          id: 'li-bali',
+          kind: 'product',
+          productId: 'p-bali',
+          name: '114527 Парфумована вода для жінок Bali, 50 мл',
+          price: 260,
+          quantity: 1,
+          warrantyPeriod: 0,
+          serialNumbers: ['S000367'],
+        },
+      ],
+    });
+
+    expect(getSaleProductName(extraLineSale)).toBe(
+      '114719 Дієтична добавка MCC LIVESTA, 90 таб.',
+    );
+    expect(getSaleListSearchValues(extraLineSale)).toEqual(
+      expect.arrayContaining([
+        '114719 Дієтична добавка MCC LIVESTA, 90 таб.',
+        '114527 Парфумована вода для жінок Bali, 50 мл',
+        'S000336',
+        'S000367',
+      ]),
+    );
+    expect(
+      saleMatchesListSearchQuery(
+        extraLineSale,
+        '114527 Парфумована вода для жінок Bali, 50 мл',
+      ),
+    ).toBe(true);
+    expect(saleMatchesListSearchQuery(extraLineSale, 'S000367')).toBe(true);
+    expect(saleMatchesListSearchQuery(extraLineSale, 'HDMI Cable')).toBe(false);
   });
 });

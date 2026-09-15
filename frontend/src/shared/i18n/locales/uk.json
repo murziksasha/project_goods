@@ -507,8 +507,12 @@
     "salePrice": {
       "retail": "Роздріб",
       "wholesale": "Опт",
+      "wholesale1": "Оптова 1",
+      "wholesale2": "Оптова 2",
       "retailShort": "Р",
       "wholesaleShort": "О",
+      "wholesale1Short": "О1",
+      "wholesale2Short": "О2",
       "tierToggleAria": "Тип ціни продажу"
     },
     "examples": {
@@ -659,6 +663,7 @@
       "serviceSearch": "Назва послуги",
       "addProduct": "Додати товар",
       "productPrice": "Ціна товару",
+      "servicePrice": "Ціна послуги",
       "productQuantity": "Кількість товару",
       "warehouse": "Склад",
       "noWarehouses": "Немає складів",
@@ -720,6 +725,7 @@
       },
       "serialPrefix": "S/N: {{serial}}",
       "extraLines": "+{{count}}",
+      "extraLinesShow": "Показати позиції в цьому замовленні",
       "warehouseLabel": "Склад: Service center",
       "assignee": {
         "master": "{{name}} (Майстер)",
@@ -1339,6 +1345,7 @@
         "employeeRequiredForFilters": "Для збереження фільтрів потрібен поточний співробітник.",
         "enterFilterName": "Введіть назву фільтра.",
         "failedUpdateStatus": "Не вдалося оновити статус замовлення.",
+        "statusChangeDenied": "Немає права встановити цей статус.",
         "refundBeforeReturned": "Поверніть оплату клієнту перед позначенням продажу як поверненого.",
         "shippedUnpaid": "Товар відвантажено, але оплату не отримано.",
         "noAcceptPaymentPermission": "У поточного співробітника немає прав на прийом оплат.",
@@ -1432,14 +1439,16 @@
         "clientApproved": "Погоджено клієнтом",
         "clientRejected": "Відхилено клієнтом",
         "issuedWithoutRepair": "Видано без ремонту",
-        "notPickedUp": "Не забирають"
+        "notPickedUp": "Не забирають",
+        "away": "Відсутній"
       },
       "sale": {
         "new": "Новий продаж",
         "reserved": "Зарезервовано",
         "paid": "Оплачено",
         "issued": "Видано",
-        "returned": "Повернено"
+        "returned": "Повернено",
+        "away": "Відсутній"
       }
     },
     "timeline": {

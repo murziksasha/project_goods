@@ -31,6 +31,7 @@ Visible pipeline (left → right):
 6. `refinement`
 7. `ready`
 8. `paid`
+9. `away`
 
 Hidden (no column): `issued`, `issuedWithoutRepair`, `clientRejected`, `notPickedUp`.
 
@@ -51,13 +52,30 @@ Hidden (no column): `issued`, `issuedWithoutRepair`, `clientRejected`, `notPicke
 - **Desktop (fine pointer):** whole-card drag, `distance: 6`. Empty columns can collapse to a 72px rail (header toggle); a column auto-expands if a card lands in it. Collapse set persists in `localStorage` (`project-goods.kanban-collapsed-columns`).
 - **Touch / coarse pointer:** drag **only** from the 44px handle (`touch-action: none` on the handle, not the card). The card body pans the board/column and tap still opens the order. Activation: delay 120ms / tolerance 12px.
 - **≤1024 navigator:** sticky status chips with counts. Tap jumps the board to that column. While dragging, chips are droppables (`rail:{status}`) and win collision over a peeking column body. `scroll-snap` is disabled for the duration of the drag (`data-dragging`). Horizontal auto-scroll is limited to `.repair-kanban-board`.
-- **Move sheet:** every card with `canUpdateStatus` has **Move**. Opens a bottom sheet of the 8 visible statuses and calls the same `onStatusChange` path as a drop.
+- **Move sheet:** every card with `canUpdateStatus` has **Move**. Opens a bottom sheet of the 9 visible statuses and calls the same `onStatusChange` path as a drop.
 - **Layout:** phone ≤720 one full-width column (no 86vw peek); tablet 721–1024 two 50% columns; desktop ~260px columns. Column height uses `--kanban-chrome-offset` so the last card clears the mobile bottom nav.
 - **Click** card (outside master, handle, and Move) opens the existing Order Detail panel/modal while staying on the Kanban tab.
 - **Device name** on the card uses primary-blue (`--color-primary-strong`) so the appliance is scannable.
 - **Total** (`formatCurrency(getSaleTotal(sale))`) is shown on the card only when `sale.lineItems.length > 0` (includes discount). Empty line items → no amount.
 - **Master select** on the card uses the same employee options as Order Detail (`master` role or `repairs.execute`); change persists via the same main-info workspace save and stays in sync with the open order card.
 - Column/card left accent uses status color tokens (aligned with the Home repair funnel).
+
+## Status `away`
+
+Shared parking status for repair orders and product sales. On Kanban it is the last visible column (after `paid`).
+
+| Concern | Rule |
+|---|---|
+| API/DB | Ordinary string status on sale (same as other statuses; no separate enum collection) |
+| UI lists / filters / status select / i18n | Included for both repair (`orders.status.repair.away`) and sale (`orders.status.sale.away`). EN `Away` / UK `Відсутній` |
+| Who can set it | Any employee who can read the sale (`orders.view`, `sales.manage`, `repairs.execute`, `kanban.use`, `supplierOrders.view`, or `supplierOrders.manage`). Leaving `away` for another status uses the usual manage / `kanban.use` rules |
+| `finalRepairStatuses` | No — stays open, like `paid` |
+| `stockLockedRepairStatuses` | No |
+| Issued / received-by capture | No |
+| Yearly archive `SALES_TERMINAL_STATUSES` | No |
+| Payment modal | No |
+| Card editable | Yes |
+| Badge / Kanban accent | Slate `#6b7280` / stone `#78716c` |
 
 ## Status `notPickedUp`
 
@@ -90,3 +108,4 @@ Hidden (no column): `issued`, `issuedWithoutRepair`, `clientRejected`, `notPicke
 - 2026-08-20: Kanban Master filter lists master-capable employees and matches `sale.master` only.
 - 2026-08-20: Kanban is tab-only (no sidebar/mobile/command-palette page). Device name is blue; total shows when line items exist. Search with exactly one match makes `Orders: 1` open that order.
 - 2026-08-28: Touch/tablet board: no 86vw peek, drag handle, sticky navigator + rail droppables, Move sheet, auto-scroll, empty-column collapse on desktop, status accent colors.
+- 2026-09-15: Added shared `away` status as the last Kanban column (after `paid`). Any sale-read employee can set it.

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { assertNotStale, HttpError } from './errors';
+import { assertNotStale, getErrorMessage, HttpError } from './errors';
 
 describe('assertNotStale', () => {
   it('does nothing when expectedUpdatedAt is not provided', () => {
@@ -18,5 +18,13 @@ describe('assertNotStale', () => {
     ).toThrowError(
       new HttpError(409, 'Product was modified by another user. Reload and try again.'),
     );
+  });
+});
+
+describe('getErrorMessage', () => {
+  it('maps a service nameKey duplicate key to a unique-name error', () => {
+    expect(
+      getErrorMessage({ code: 11000, keyPattern: { nameKey: 1 } }),
+    ).toBe('Service with this name already exists.');
   });
 });

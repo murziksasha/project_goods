@@ -37,6 +37,7 @@ import {
   getCreateOrderSaleTitle,
   validateCreateOrderSaleLineItems,
 } from '../../../widgets/dashboard/model/create-order-sale-validation';
+import { hasDuplicateServiceName } from '../../../widgets/dashboard/model/missingService';
 import {
   initialServiceCatalogForm,
   toServiceCatalogForm,
@@ -324,8 +325,6 @@ export const createDashboardActions = ({
     }
     return `+380${digits}`;
   };
-  const normalizeServiceName = (value: string) =>
-    value.trim().replace(/\s+/g, ' ').toLowerCase();
   const parseDecimalInput = (value: string) => {
     const numeric = parseDecimal(value || '0');
     return Number.isFinite(numeric) ? numeric : 0;
@@ -554,17 +553,11 @@ export const createDashboardActions = ({
     },
     saveService: async () => {
       clearNotifications();
-      if (!editingServiceId) {
-        const nextServiceName = normalizeServiceName(serviceForm.name);
-        const hasDuplicateService = allServices.some(
-          (service) =>
-            normalizeServiceName(service.name) === nextServiceName,
-        );
-
-        if (hasDuplicateService) {
-          setError(i18n.t('dashboard.actions.errors.duplicateService'));
-          return;
-        }
+      if (
+        hasDuplicateServiceName(allServices, serviceForm.name, editingServiceId)
+      ) {
+        setError(i18n.t('dashboard.actions.errors.duplicateService'));
+        return;
       }
 
       setIsServiceSaving(true);
@@ -594,7 +587,15 @@ export const createDashboardActions = ({
 
         resetServiceEditor();
       } catch (requestError) {
-        setError(getRequestErrorMessage(requestError, i18n.t('errors.failedToSaveService')));
+        const message = getRequestErrorMessage(
+          requestError,
+          i18n.t('errors.failedToSaveService'),
+        );
+        setError(
+          /already exists/i.test(message)
+            ? i18n.t('dashboard.actions.errors.duplicateService')
+            : message,
+        );
       } finally {
         setIsServiceSaving(false);
       }

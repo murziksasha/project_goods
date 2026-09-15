@@ -102,6 +102,18 @@ describe('auth permission helpers', () => {
 
     expect(employeeHasPermission(master, 'orders.chat')).toBe(true);
     expect(employeeHasPermission(master, 'repairs.execute')).toBe(true);
+    expect(employeeHasPermission(master, 'kanban.use')).toBe(true);
+  });
+
+  it('does not re-grant an explicit kanban.use uncheck from master defaults', () => {
+    const master = {
+      role: 'master',
+      permissions: ['orders.manage', 'sales.manage'],
+    };
+
+    expect(employeeHasPermission(master, 'kanban.use')).toBe(false);
+    expect(employeeHasPermission(master, 'orders.view')).toBe(true);
+    expect(employeeHasPermission(master, 'orders.chat')).toBe(true);
   });
 });
 

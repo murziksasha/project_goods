@@ -16,6 +16,7 @@ import {
   assertSerialNumbersNotBoundToOtherSales,
   assertSerializedLineItemsAreAtomic,
 } from './validators';
+import { attachServiceCatalogIds } from '../service-catalog/service';
 import {
   applyStockDeltas,
   assertSalePayload,
@@ -104,20 +105,20 @@ export const createSale = async (payloadInput: SalePayload) => {
     lineItems.find((item) => item.kind === 'product')?.name?.trim() ??
     lineItems.find((item) => item.kind === 'service')?.name?.trim() ??
     '';
-  const stockDeltas =
-    normalizedKind === 'sale' && !product
-      ? []
-      : getStockLines(
-          normalizedKind,
-          payload.status || 'new',
-          lineItems,
-          payload.quantity,
-          product?._id ?? payload.productId,
-        );
+  const stockLineItems =
+    product || payload.lineItems.length > 0 ? lineItems : [];
+  const stockDeltas = getStockLines(
+    normalizedKind,
+    payload.status || 'new',
+    stockLineItems,
+    payload.quantity,
+    product?._id ?? null,
+  );
 
   await assertSerialNumbersNotBoundToOtherSales('', lineItems);
   await assertSerializedLineItemsAreAtomic(lineItems);
   await assertLineItemCatalogProductIds(lineItems);
+  const lineItemsWithServices = await attachServiceCatalogIds([...lineItems]);
 
   const result = await withOptionalMongoSession(async (session) => {
     let stockDeltasApplied = false;
@@ -147,7 +148,7 @@ export const createSale = async (payloadInput: SalePayload) => {
         userNote: payload.userNote,
         timeline: payload.timeline ?? [],
         paymentHistory: payload.paymentHistory ?? [],
-        lineItems,
+        lineItems: lineItemsWithServices,
         discount: normalizeDiscount(payload.discount),
         productSnapshot: {
           article: product?.article || (normalizedKind === 'sale' ? 'SALE' : 'REPAIR'),

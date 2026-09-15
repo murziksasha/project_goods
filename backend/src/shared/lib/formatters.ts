@@ -175,7 +175,7 @@ export const formatSale = (sale: SaleDocument) => ({
     serialNumbers: (item.serialNumbers ?? []).map((serial) => String(serial)),
   })),
   discount: {
-    mode: sale.discount?.mode === 'percent' ? 'percent' : 'amount',
+    mode: sale.discount?.mode === 'amount' ? 'amount' : 'percent',
     value: sale.discount?.value ?? 0,
   },
   client: {

@@ -43,3 +43,32 @@ export const getSaleProductId = (sale: Sale) =>
   sale.product?.id ??
   (sale.lineItems ?? []).find((item) => item.kind === 'product')?.productId ??
   '';
+
+/** Toolbar/list search haystack: every card line, not only the first Product cell. */
+export const getSaleListSearchValues = (
+  sale: Pick<Sale, 'product' | 'lineItems'>,
+): string[] => {
+  const values: string[] = [
+    sale.product?.name ?? '',
+    sale.product?.article ?? '',
+    getSaleProductSerialNumber(sale),
+  ];
+
+  (sale.lineItems ?? []).forEach((item) => {
+    values.push(item.name ?? '');
+    (item.serialNumbers ?? []).forEach((serial) => values.push(serial));
+  });
+
+  return values.map((value) => value.trim()).filter(Boolean);
+};
+
+export const saleMatchesListSearchQuery = (
+  sale: Pick<Sale, 'product' | 'lineItems'>,
+  query: string,
+) => {
+  const normalizedQuery = query.trim().toLowerCase();
+  if (!normalizedQuery) return true;
+  return getSaleListSearchValues(sale).some((value) =>
+    value.toLowerCase().includes(normalizedQuery),
+  );
+};

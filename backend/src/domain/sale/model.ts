@@ -171,7 +171,7 @@ export const saleSchema = new mongoose.Schema(
       mode: {
         type: String,
         enum: ['percent', 'amount'],
-        default: 'amount',
+        default: 'percent',
       },
       value: {
         type: Number,

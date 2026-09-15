@@ -507,8 +507,12 @@
     "salePrice": {
       "retail": "Retail",
       "wholesale": "Wholesale",
+      "wholesale1": "Wholesale 1",
+      "wholesale2": "Wholesale 2",
       "retailShort": "R",
       "wholesaleShort": "W",
+      "wholesale1Short": "W1",
+      "wholesale2Short": "W2",
       "tierToggleAria": "Sale price type"
     },
     "examples": {
@@ -659,6 +663,7 @@
       "serviceSearch": "Service name",
       "addProduct": "Add product",
       "productPrice": "Product price",
+      "servicePrice": "Service price",
       "productQuantity": "Product quantity",
       "warehouse": "Warehouse",
       "noWarehouses": "No warehouses",
@@ -720,6 +725,7 @@
       },
       "serialPrefix": "S/N: {{serial}}",
       "extraLines": "+{{count}}",
+      "extraLinesShow": "Show items in this order",
       "warehouseLabel": "Warehouse: Service center",
       "assignee": {
         "master": "{{name}} (Master)",
@@ -1339,6 +1345,7 @@
         "employeeRequiredForFilters": "Current employee is required to save filters.",
         "enterFilterName": "Enter a filter name.",
         "failedUpdateStatus": "Failed to update order status.",
+        "statusChangeDenied": "You do not have permission to set this status.",
         "refundBeforeReturned": "Refund client payment before marking sale as returned.",
         "shippedUnpaid": "Product shipped but payment has not been received.",
         "noAcceptPaymentPermission": "Current employee does not have permission to accept payments.",
@@ -1432,14 +1439,16 @@
         "clientApproved": "Client approved",
         "clientRejected": "Client rejected",
         "issuedWithoutRepair": "Issued without repair",
-        "notPickedUp": "Not picked up"
+        "notPickedUp": "Not picked up",
+        "away": "Away"
       },
       "sale": {
         "new": "New sale",
         "reserved": "Reserved",
         "paid": "Paid",
         "issued": "Issued",
-        "returned": "Returned"
+        "returned": "Returned",
+        "away": "Away"
       }
     },
     "timeline": {

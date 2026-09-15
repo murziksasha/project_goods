@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { CatalogProduct } from '../catalog-product/model';
 import * as catalogProductService from '../catalog-product/service';
+import * as serviceCatalogService from '../service-catalog/service';
 import * as rapidSaleClient from '../client/rapid-sale-client';
 import { Employee } from '../employee/model';
 import { Product } from '../product/model';
@@ -127,6 +128,9 @@ const installSpies = () => {
   vi.spyOn(catalogProductService, 'upsertCatalogProducts').mockResolvedValue(
     undefined as never,
   );
+  vi.spyOn(serviceCatalogService, 'attachServiceCatalogIds').mockImplementation(
+    async (items) => items,
+  );
 };
 
 beforeEach(() => {
@@ -193,6 +197,34 @@ describe('createSale rapid sale', () => {
       name: 'Setup',
     });
     expect(salePayload.productSnapshot.name).toBe('Setup');
+  });
+
+  it('decrements warehouse stock when a rapid sale is created as paid', async () => {
+    vi.spyOn(Product, 'findById').mockReturnValue(leanResult(stockProduct) as never);
+
+    await createSale({
+      ...baseRapidPayload,
+      status: 'paid',
+      paidAmount: 150,
+      salePrice: '150',
+      lineItems: [
+        {
+          id: 'li-stock',
+          kind: 'product',
+          productId: stockProduct._id,
+          name: 'HDMI Cable',
+          price: '150',
+          quantity: '1',
+          warrantyPeriod: '0',
+        },
+      ],
+    });
+
+    expect(Product.findByIdAndUpdate).toHaveBeenCalledWith(
+      stockProduct._id,
+      { $inc: { quantity: -1 } },
+      expect.objectContaining({ returnDocument: 'after' }),
+    );
   });
 
   it('rejects rapid sale without line items', async () => {

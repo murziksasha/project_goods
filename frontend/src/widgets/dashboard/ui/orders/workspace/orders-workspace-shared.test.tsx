@@ -8,13 +8,18 @@ import {
   buildOrderPrintBody,
   buildOrderPrintHtml,
   buildSupplierOrderLinkNote,
+  computeOrderExtraLinesMenuPosition,
   computeOrderStatusMenuPosition,
+  EMPTY_LINE_ITEM_SERIAL,
+  formatSaleListDropdownPrice,
+  getSaleListDropdownItems,
   availableColumnsByTab,
   defaultVisibleColumns,
   formatReadyDate,
   getPrimaryItemCellContent,
   getPrimaryItemColumnLabel,
   getPrimaryItemExtraLineCount,
+  getDiscount,
   getLineItemsQuantity,
   getLineItemsTotal,
   getOrdersColumnClassName,
@@ -31,8 +36,16 @@ import {
   normalizeOrderStatus,
   ordersColumnsStorageKey,
   printWarehouseSerialLabels,
+  readActiveOrderFilters,
   readVisibleColumns,
+  toKanbanFilters,
+  emptyOrdersFilters,
+  activeOrdersFiltersStorageKey,
   shouldOpenPaymentModalForStatusChange,
+  repairEditableStatuses,
+  saleEditableStatuses,
+  repairStatuses,
+  saleStatuses,
   type OrderLineItem,
 } from './orders-workspace-shared';
 
@@ -785,6 +798,78 @@ describe('repair status refinement', () => {
   });
 });
 
+describe('away status', () => {
+  it('normalizes away for repair and sale', () => {
+    expect(normalizeOrderStatus('away')).toBe('away');
+    expect(normalizeOrderStatus(' Away ')).toBe('away');
+  });
+
+  it('does not open the payment modal', () => {
+    expect(shouldOpenPaymentModalForStatusChange('away', 100)).toBe(false);
+  });
+
+  it('is an editable parking status on both repair and sale', () => {
+    expect(repairEditableStatuses.has('away')).toBe(true);
+    expect(saleEditableStatuses.has('away')).toBe(true);
+    expect(repairStatuses.some((item) => item.key === 'away')).toBe(true);
+    expect(saleStatuses.some((item) => item.key === 'away')).toBe(true);
+  });
+});
+
+describe('kanban active filters', () => {
+  afterEach(() => {
+    window.localStorage.clear();
+  });
+
+  it('keeps only master, dates, and favorites on kanban', () => {
+    expect(
+      toKanbanFilters({
+        ...emptyOrdersFilters,
+        statuses: ['ready', 'inRepair'],
+        orderNumber: 'r0001',
+        client: 'Igor',
+        assigneeId: 'master-1',
+        repairType: 'warranty',
+        dateFrom: '2026-02-01',
+        dateTo: '2026-02-28',
+        favoritesOnly: true,
+      }),
+    ).toEqual({
+      ...emptyOrdersFilters,
+      assigneeId: 'master-1',
+      dateFrom: '2026-02-01',
+      dateTo: '2026-02-28',
+      favoritesOnly: true,
+    });
+  });
+
+  it('does not copy leftover order status filters onto kanban', () => {
+    window.localStorage.setItem(
+      activeOrdersFiltersStorageKey,
+      JSON.stringify({
+        orders: {
+          ...emptyOrdersFilters,
+          statuses: ['ready', 'inRepair', 'diagnostics'],
+          assigneeId: 'master-1',
+          dateFrom: '2026-01-01',
+        },
+      }),
+    );
+
+    const stored = readActiveOrderFilters();
+    expect(stored.kanban).toEqual({
+      ...emptyOrdersFilters,
+      assigneeId: 'master-1',
+      dateFrom: '2026-01-01',
+    });
+    expect(stored.orders.statuses).toEqual([
+      'ready',
+      'inRepair',
+      'diagnostics',
+    ]);
+  });
+});
+
 describe('order status menu position', () => {
   it('opens below the badge when space allows', () => {
     const position = computeOrderStatusMenuPosition(
@@ -818,6 +903,88 @@ describe('order status menu position', () => {
 
     expect(position.left).toBeLessThan(1200);
     expect(position.left + 230).toBeLessThanOrEqual(1280 - 8);
+  });
+
+  it('uses a wider extra-lines menu when clamping to the viewport', () => {
+    const position = computeOrderExtraLinesMenuPosition(
+      { top: 200, bottom: 232, left: 1200, width: 40 },
+      { width: 1280, height: 900 },
+    );
+
+    expect(position.left + 360).toBeLessThanOrEqual(1280 - 8);
+  });
+
+  it('pins extra-lines menu to the trigger when flipping above', () => {
+    const position = computeOrderExtraLinesMenuPosition(
+      { top: 820, bottom: 852, left: 48, width: 40 },
+      { width: 1280, height: 900 },
+    );
+
+    expect(position.placement).toBe('above');
+    expect(position.bottom).toBe(84);
+    expect(position.top).toBeUndefined();
+  });
+});
+
+describe('sale list extra-lines dropdown items', () => {
+  it('maps every line item with serial fallback and quantity in price', () => {
+    const saleRow = repairSale({
+      kind: 'sale',
+      product: {
+        id: 'product-1',
+        article: 'ART-1',
+        name: 'Wireless mouse M22',
+        serialNumber: 'SNAP-1',
+      },
+      lineItems: [
+        {
+          id: 'a',
+          kind: 'product',
+          productId: 'product-1',
+          name: 'Wireless mouse M22',
+          price: 500,
+          quantity: 1,
+          warrantyPeriod: 0,
+          serialNumbers: [],
+        },
+        {
+          id: 'b',
+          kind: 'service',
+          name: 'Setup',
+          price: 50,
+          quantity: 2,
+          warrantyPeriod: 0,
+        },
+        {
+          id: 'c',
+          kind: 'product',
+          productId: 'product-2',
+          name: 'Cable',
+          price: 80,
+          quantity: 1,
+          warrantyPeriod: 0,
+          serialNumbers: [' SN-9 '],
+        },
+      ],
+    });
+
+    const items = getSaleListDropdownItems(saleRow);
+    expect(items).toHaveLength(3);
+    expect(items[0]).toMatchObject({
+      name: 'Wireless mouse M22',
+      serial: 'SNAP-1',
+      price: 500,
+      quantity: 1,
+    });
+    expect(items[1]).toMatchObject({
+      name: 'Setup',
+      serial: EMPTY_LINE_ITEM_SERIAL,
+      price: 50,
+      quantity: 2,
+    });
+    expect(items[2].serial).toBe('SN-9');
+    expect(formatSaleListDropdownPrice(items[0])).not.toContain('×');
+    expect(formatSaleListDropdownPrice(items[1])).toContain('× 2');
   });
 });
 
@@ -935,5 +1102,37 @@ describe('shouldOpenPaymentModalForStatusChange', () => {
     expect(shouldOpenPaymentModalForStatusChange('paid', 1)).toBe(true);
     expect(shouldOpenPaymentModalForStatusChange('issued', 0)).toBe(false);
     expect(shouldOpenPaymentModalForStatusChange('ready', 50)).toBe(false);
+  });
+});
+
+describe('getDiscount', () => {
+  it('defaults missing or invalid mode to percent', () => {
+    expect(getDiscount(repairSale({ discount: undefined }))).toEqual({
+      mode: 'percent',
+      value: 0,
+    });
+    expect(
+      getDiscount(
+        repairSale({
+          discount: { mode: 'percent', value: 0 },
+        }),
+      ),
+    ).toEqual({
+      mode: 'percent',
+      value: 0,
+    });
+  });
+
+  it('keeps an explicit amount discount', () => {
+    expect(
+      getDiscount(
+        repairSale({
+          discount: { mode: 'amount', value: 20 },
+        }),
+      ),
+    ).toEqual({
+      mode: 'amount',
+      value: 20,
+    });
   });
 });

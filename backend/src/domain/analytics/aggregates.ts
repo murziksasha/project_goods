@@ -7,6 +7,7 @@ export const FUNNEL_STATUSES = [
   'refinement',
   'ready',
   'paid',
+  'away',
 ] as const;
 
 export type FunnelStatus = (typeof FUNNEL_STATUSES)[number] | 'other';

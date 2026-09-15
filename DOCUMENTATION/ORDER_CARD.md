@@ -47,11 +47,13 @@ Related: [ORDER_FLOW.md](./ORDER_FLOW.md) · [SALE_CARD.md](./SALE_CARD.md) · [
 ## Status And Issued
 
 - Status in card is draft-only until `Save changes`.
+- Repair status set includes shared parking status `away` (`Away` / `Відсутній`), last Kanban column after `paid`. Spec: [ORDER_FLOW.md](./ORDER_FLOW.md#shared-status-away-2026-09-15) · [REPAIR_KANBAN_SPEC.md](./REPAIR_KANBAN_SPEC.md#status-away).
 - `Issued` employee is set only when saved status is one of:
   - `issued`
   - `client rejected`
   - `issued without repair`
-- For any other saved status, `Issued` employee is cleared.
+- For any other saved status (including `away` and `paid`), `Issued` employee is cleared.
+- **Save changes** to `away` does not open the payment modal and does not commit stock. The card stays editable.
 - **Save changes** to `issued` or `paid` while `To pay > 0` opens the same **Accept payment** modal as the Orders list / Kanban status dropdown. Device / S/N / master are persisted first if dirty; status stays unchanged until a modal issue/paid action. `Issue without payment` still requires attached products to be fully paid.
 - If `To pay = 0`, **Save changes** persists `issued`/`paid` without the payment modal.
 - If product line items still have bound warehouse serials, saving status `client rejected` or `issued without repair` is blocked until the client is refunded for those serials and the serials are returned/unbound to stock.
@@ -84,6 +86,7 @@ Related: [ORDER_FLOW.md](./ORDER_FLOW.md) · [SALE_CARD.md](./SALE_CARD.md) · [
 - Selecting a catalog suggestion or a stock suggestion without `serialNumber` pre-fills the entry row; operator confirms with `Add product`; serial binding uses the `Serials` modal.
 - Product add-row grid matches the line-items table columns (`Name | Serial | Price | Qty | Warranty | Action`); the name input stretches to the full Name column; Serial column is a spacer in the add-row.
 - Price entry uses `ProductSalePriceField` in `compact` mode (R/W above stepper, no duplicate **Price** label under the table header). Price `+/-` buttons use the global 1 UAH step (`PRICE_STEPPER_STEP`); see `SALE_FLOW.md` §Price Stepper.
+- Service add-row and focused existing service lines use the Services price **column header** for **R / W1 / W2** when the catalog service has wholesale options. See [SALE_FLOW.md](./SALE_FLOW.md#service-wholesale-price-toggle).
 - Catalog suggestion selection with matching selectable warehouse stock by `name` resolves to stock pre-fill (`selectedProductId` for retail price and R/W when wholesale is configured) via `findSelectableStockProductByName`; catalog-only rows stay unchanged when no stock match exists. When the operator confirms `Add product` with `qty > 1`, the saved line item omits `productId` until serial binding; after bind/split each row becomes atomic.
 - Accepted repair device is not a product line item.
 - Clearing a product row `Price` input while editing must not remove the product line item; explicit `Remove` remains the only row-removal action.
@@ -102,7 +105,7 @@ Related: [ORDER_FLOW.md](./ORDER_FLOW.md) · [SALE_CARD.md](./SALE_CARD.md) · [
 - The product model modal is exact-name only, shows warehouse stock summary, and saves shared stock-row fields to matching `Product` rows only.
 - In that modal's `Purchase by serial` table, columns are `Serial # | Purchase | Receipt date | Supplier order`. `Latest` marks the newest receipt batch and red `Reserved` marks units already bound on another order. Serials bound only on the opened card stay unmarked. Serial # and supplier-order number have the hover copy icon; supplier-order click still opens the related supplier-order modal. Same rules: [WAREHOUSE_FLOW.md §4.4](./WAREHOUSE_FLOW.md#44-product-model-detail-modal).
 - Serial binding/removal controls keep their existing behavior and are separate from opening the product model modal.
-- **Serial bind modal** (Products action column → `Serials`): warehouse dropdown + `Auto-select oldest` (oldest `purchaseDate`, fallback `createdAt`, selected warehouse only, up to line qty). Occupancy spec: [WAREHOUSE_FLOW.md §4.3.0](./WAREHOUSE_FLOW.md#430-bind-modal-occupancy-opened-repair-and-sale-cards). Changing warehouse clears selections not visible in the new warehouse.
+- **Serial bind modal** (Products action column → `Serials`): warehouse dropdown + `Auto-select oldest` (oldest `purchaseDate`, fallback `createdAt`, selected warehouse only, up to line qty). Occupancy spec: [WAREHOUSE_FLOW.md §4.3.0](./WAREHOUSE_FLOW.md#430-bind-modal-occupancy-opened-repair-and-sale-cards). Changing warehouse clears selections not visible in the new warehouse. Candidate row (purchase price + supplier-order number, hover copy, click opens existing supplier-order modal): [WAREHOUSE_FLOW.md §4.3.2](./WAREHOUSE_FLOW.md#432-bind-modal-candidate-row-purchase-price--supplier-order).
 
 ## Payment And Discount
 
@@ -111,21 +114,20 @@ Related: [ORDER_FLOW.md](./ORDER_FLOW.md) · [SALE_CARD.md](./SALE_CARD.md) · [
   - `Discount`
   - `Paid`
   - `To pay`
-- `Discount` is editable only in the right `Payment` panel of the card.
-- In `Accept payment` modal summary, `Discount` is read-only and informational.
+- `Discount` is editable in the right `Payment` panel of the card **and** in the `Accept payment` modal. Both use the same control.
 - After a successful modal action (`Accept to cashbox`, `Accept and issue`, or `Issue without payment` / paid equivalent), the payment modal closes automatically.
 - `Print` from the payment modal opens the print flow only and keeps the payment modal open.
-- `Discount` supports two modes switched in the card control:
-  - `%` (percentage from total)
+- `Discount` supports two modes:
+  - `%` (percentage from Repair cost) — **default** when discount value is `0` or mode is missing/invalid
   - `₴` (fixed amount in currency)
-- Discount mode toggle is available from both controls in the `Payment` panel:
+- Discount mode toggle is available from both controls (card and modal):
   - round badge next to the `Discount` label
   - mode button inside the discount input field (right side)
 - Both controls call the same toggle logic and stay in sync.
 - Discount reduces final order amount before `To pay` calculation.
 - `To pay` formula:
   - `max((Repair cost - Discount) - Paid, 0)`
-- Discount is persisted in sale/order workspace and reused across card and payment modal views.
+- Discount is persisted in sale/order workspace and reused across card and payment modal views. Changing discount in the modal updates `To pay` and the payment amount immediately.
 - `Refund to client` availability for repair orders:
   - NOT allowed when status is `issued`, `client rejected`, or `issued without repair`.
   - For all other repair statuses, refund modal can be opened.

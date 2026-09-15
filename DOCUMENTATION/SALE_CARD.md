@@ -5,7 +5,7 @@ Related: [SALE_FLOW.md](./SALE_FLOW.md) · [ORDER_CARD.md](./ORDER_CARD.md) · [
 ## Rapid Sale Display
 
 - Rapid sales (`isRapidSale: true`) are created from the compact rapid-sale modal (full creation UX: [SALE_FLOW.md](./SALE_FLOW.md#rapid-sale-2026-06-24-ux-updates-2026-06-30)) and may still be opened later as a normal sale card from the sales list.
-- Creation-time retail/wholesale selection happens in the **product entry row** only (`ProductSalePriceField`, R/W badges in the Price label). Post-add price edits use the pinned **draft items table** (plain `NumberStepper` per line before `Issued`). After the sale exists, line-item price rules follow the normal sale card sections below.
+- Creation-time retail/wholesale selection happens in the **product entry row** (`ProductSalePriceField`, R/W badges in the Price label) and the **service entry row** (`ServiceSalePriceField`, R/W1/W2 when wholesale options are set). Post-add price edits use the pinned **draft items table** (plain `NumberStepper` per line before `Issued`). After the sale exists, line-item price rules follow the normal sale card sections below. Service wholesale on the opened card lives in the Services price column header (same pattern as product R/W).
 - In the sales list client column only, rapid sales display `Rapid sale` instead of the linked system client name; phone shows `-`. The Product column still shows the sold item (`getSaleProductName`).
 - Client card link is disabled in the list for rapid sales (`isRapidSaleClientLinkDisabled`).
 - Inside an opened sale card, client fields continue to use stored system-client snapshot data (not the `Rapid sale` list label).
@@ -91,7 +91,7 @@ Related: [SALE_FLOW.md](./SALE_FLOW.md) · [ORDER_CARD.md](./ORDER_CARD.md) · [
 - If a legacy/non-serialized product row has `quantity > 1` and the operator binds multiple serial numbers, the save flow must split it into one atomic row per selected serial.
 - Catalog/name pre-fill may keep `selectedProductId` for price hints, but `Add product` with `qty > 1` must persist the line without `productId` until serial binding completes.
 - Backend workspace validation must reject serialized rows with `quantity > 1`, more than one serial, or a `productId`/`serialNumber` mismatch.
-- `Serials x/y` opens the shared serial bind modal (warehouse dropdown + `Auto-select oldest`). Occupancy spec: [WAREHOUSE_FLOW.md §4.3.0](./WAREHOUSE_FLOW.md#430-bind-modal-occupancy-opened-repair-and-sale-cards).
+- `Serials x/y` opens the shared serial bind modal (warehouse dropdown + `Auto-select oldest`). Occupancy spec: [WAREHOUSE_FLOW.md §4.3.0](./WAREHOUSE_FLOW.md#430-bind-modal-occupancy-opened-repair-and-sale-cards). Candidate row (purchase price + supplier-order number): [WAREHOUSE_FLOW.md §4.3.2](./WAREHOUSE_FLOW.md#432-bind-modal-candidate-row-purchase-price--supplier-order).
 
 ## Service Entry
 
@@ -116,16 +116,14 @@ Related: [SALE_FLOW.md](./SALE_FLOW.md) · [ORDER_CARD.md](./ORDER_CARD.md) · [
 
 ## Payment Discount
 
-- `Payment` panel contains editable `Discount` row under `Repair cost`.
-- `Discount` supports toggle modes:
-  - `%` for percentage discount from total sale amount
-  - `₴` for fixed discount amount
-- Discount mode can be switched from two places in the sale card `Payment` panel:
+- `Payment` panel contains editable `Discount` row under `Repair cost`. The same control is used in `Accept payment`.
+- Shared discount rules (modes, default `%`, toggle, `To pay`): [ORDER_CARD.md → Payment And Discount](./ORDER_CARD.md#payment-and-discount).
+- `%` is percent of the sale Repair cost; `₴` is a fixed amount. Empty discount (value `0`) defaults to `%`.
+- Discount mode can be switched from two places in both the sale card `Payment` panel and the `Accept payment` modal:
   - round badge next to the `Discount` label
   - mode button inside the discount input field (right side)
 - Both controls use the same toggle behavior and current discount value.
-- In `Accept payment` modal, `Discount` is read-only and shown for reference.
-- Discount is edited only in sale card `Payment` panel and affects `To pay` immediately.
+- Discount edits in the card or modal affect `To pay` immediately.
 - Discount value is stored in workspace state and reused across card and payment modal.
 - After a successful payment modal action (`Accept to cashbox`, `Accept and mark paid`, `Accept and issue`, or allowed `Issue/Mark without payment`), the payment modal closes automatically.
 - `Accept and issue` with target `issued` shows the unbound-serial confirm when any product line has no warehouse `serialNumbers`. **Cancel** stays in the payment modal. **Continue** issues. `Accept to cashbox` and `Issue without payment` do not show this alert.
@@ -138,7 +136,7 @@ Related: [SALE_FLOW.md](./SALE_FLOW.md) · [ORDER_CARD.md](./ORDER_CARD.md) · [
 - `Notes` is **not** shown inside `Main information` (removed from that block).
 - Only `userNote` is displayed in the sale card; legacy system `note` values from older records are hidden in UI.
 - User note styling and edit flow match repair cards: light blue text, pencil button when expanded, inline Save / Cancel.
-- Editable only when sale status is `new`, `reserved`, or `paid` and the card is not read-only.
+- Editable only when sale status is `new`, `reserved`, `paid`, or `away` and the card is not read-only.
 - Empty placeholder: `No notes for this sale yet.`
 
 ## Live Feed
@@ -157,10 +155,12 @@ Related: [SALE_FLOW.md](./SALE_FLOW.md) · [ORDER_CARD.md](./ORDER_CARD.md) · [
   - `Paid`
   - `Issued`
   - `Returned`
-- Backend/API status values are `new`, `reserved`, `paid`, `issued`, and `returned`; there is no separate `completed` sale-card status.
+  - `Away`
+- Backend/API status values are `new`, `reserved`, `paid`, `issued`, `returned`, and `away`; there is no separate `completed` sale-card status.
 
 ## Sale Status Change Rules
 
+- Status `away` is a parking state shared with repair orders. Selecting it does not open the payment modal. Any employee who can view the sale may set it.
 - Status `paid` is a payment state and may be selected from the list or sale card.
 - If `paid` is selected while `To pay > 0`, the `Accept payment` modal is opened.
 - Status `issued` is allowed only when `To pay = 0` (or final total is `0`).
@@ -168,7 +168,7 @@ Related: [SALE_FLOW.md](./SALE_FLOW.md) · [ORDER_CARD.md](./ORDER_CARD.md) · [
 - Before the sale card **Save changes** persists status `issued` when `To pay = 0`, if any product line has no warehouse `serialNumbers`, show the same unbound-serial confirm as repair cards (`orders.serialIssueWarning.*`). **Cancel** does not persist. **Continue** saves `issued`. Service-only sales skip the alert. When `To pay > 0`, the payment modal shows that confirm on **Accept and issue**.
 - `Issue without payment` is blocked for `issued` sales while `To pay > 0`, except when final sale total is `0`.
 - Status `returned` must not be set manually while any product line remains attached or while client payment is not fully refunded.
-- While status is `paid`, the card stays editable. If a line-item or discount workspace update would leave **product** lines with `paidAmount < total`, the save **reopens** status to **`new`** (backend `resolveEditableSaleStatus`, frontend `getReopenedSaleStatusForLineItems`). Status `issued` is not auto-reopened.
+- While status is `paid` or `away`, the card stays editable. If a line-item or discount workspace update would leave **product** lines with `paidAmount < total`, a **`paid`** save **reopens** status to **`new`** (backend `resolveEditableSaleStatus`, frontend `getReopenedSaleStatusForLineItems`). Status `away` is not auto-reopened. Status `issued` is not auto-reopened.
 
 ## Read-Only Lock For Sales Card
 
@@ -176,6 +176,7 @@ Related: [SALE_FLOW.md](./SALE_FLOW.md) · [ORDER_CARD.md](./ORDER_CARD.md) · [
   - `new`
   - `reserved`
   - `paid`
+  - `away`
 
 ## Product Rows Removal (2026-05-24)
 
@@ -201,7 +202,7 @@ Related: [SALE_FLOW.md](./SALE_FLOW.md) · [ORDER_CARD.md](./ORDER_CARD.md) · [
 - Product row action must NOT open refund modal.
 - Product `Remove` is enabled only when all conditions are true:
   - order is not paid (`paidAmount = 0`)
-  - card status is editable (`new`, `reserved`, `paid`)
+  - card status is editable (`new`, `reserved`, `paid`, `away`)
   - line item has no bound serial numbers
 - If any condition is not met, `Remove` is disabled and shows tooltip with block reason.
 - Required refund amount for stock return validation remains discount-aware (line share in discounted order total).
@@ -218,5 +219,5 @@ Related: [SALE_FLOW.md](./SALE_FLOW.md) · [ORDER_CARD.md](./ORDER_CARD.md) · [
 
 - Service line `Remove` is enabled only when:
   - order is not paid (`paidAmount = 0`)
-  - card status is editable (`new`, `reserved`, `paid`)
+  - card status is editable (`new`, `reserved`, `paid`, `away`)
 - In paid orders, service removal is blocked until refund is completed.

@@ -5,6 +5,7 @@ import {
   ensureProductArticleIsNotUnique,
   ensureProductNameIsNotUnique,
 } from './domain/product/service';
+import { ensureServiceCatalogNameUniqueness } from './domain/service-catalog/service';
 import { startBackupScheduler } from './domain/backup/scheduler';
 import { refreshSupplierOrderDerivedStatuses } from './domain/supplier-order/service';
 
@@ -21,6 +22,11 @@ const startServer = async () => {
     await connectDatabase();
     await ensureProductNameIsNotUnique();
     await ensureProductArticleIsNotUnique();
+    try {
+      await ensureServiceCatalogNameUniqueness();
+    } catch (error) {
+      console.error('Service catalog uniqueness setup failed:', error);
+    }
     startBackupScheduler();
     void refreshSupplierOrderDerivedStatuses().catch((error) => {
       console.error('Supplier order derived-status refresh failed on startup:', error);

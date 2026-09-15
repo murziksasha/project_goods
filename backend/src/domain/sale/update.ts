@@ -18,6 +18,7 @@ import {
   assertSerialNumbersNotBoundToOtherSales,
   assertSerializedLineItemsAreAtomic,
 } from './validators';
+import { attachServiceCatalogIds } from '../service-catalog/service';
 import {
   applyStockDeltas,
   assertSalePayload,
@@ -106,25 +107,24 @@ export const updateSale = async (saleId: string, payloadInput: SalePayload) => {
     nextLineItems,
     payload.discount,
   );
-  const stockDeltas =
-    normalizedKind === 'sale' && !product
-      ? []
-      : getStockDeltas(
-          getStockLines(
-            existingSale.kind === 'sale' ? 'sale' : 'repair',
-            existingSale.status || 'new',
-            currentLineItems,
-            existingSale.quantity,
-            existingSale.product ?? '',
-          ),
-          getStockLines(
-            normalizedKind,
-            nextStatus,
-            nextLineItems,
-            payload.quantity,
-            product?._id ?? payload.productId,
-          ),
-        );
+  const nextStockLineItems =
+    product || payload.lineItems.length > 0 ? nextLineItems : [];
+  const stockDeltas = getStockDeltas(
+    getStockLines(
+      existingSale.kind === 'sale' ? 'sale' : 'repair',
+      existingSale.status || 'new',
+      currentLineItems,
+      existingSale.quantity,
+      existingSale.product ?? '',
+    ),
+    getStockLines(
+      normalizedKind,
+      nextStatus,
+      nextStockLineItems,
+      payload.quantity,
+      product?._id ?? null,
+    ),
+  );
 
   await assertLineItemCatalogProductIds(nextLineItems);
   assertWorkspaceState(
@@ -134,6 +134,7 @@ export const updateSale = async (saleId: string, payloadInput: SalePayload) => {
     nextLineItems,
     payload.discount,
   );
+  const lineItemsWithServices = await attachServiceCatalogIds([...nextLineItems]);
   const clientVisitCount = await Sale.countDocuments({ client: client._id });
 
   const result = await withOptionalMongoSession(async (session) => {
@@ -160,7 +161,7 @@ export const updateSale = async (saleId: string, payloadInput: SalePayload) => {
           timeline: payload.timeline ?? existingSale.timeline ?? [],
           paymentHistory:
             payload.paymentHistory ?? existingSale.paymentHistory ?? [],
-          lineItems: nextLineItems,
+          lineItems: lineItemsWithServices,
           discount: normalizeDiscount(payload.discount),
           productSnapshot: {
             article:
@@ -330,6 +331,9 @@ export const updateSaleWorkspace = async (
   );
   await assertSerializedLineItemsAreAtomic(normalizedLineItems);
   await assertLineItemCatalogProductIds(normalizedLineItems);
+  const lineItemsWithServices = await attachServiceCatalogIds([
+    ...normalizedLineItems,
+  ]);
 
   const currentStockLines = getStockLines(
     existingSale.kind === 'sale' ? 'sale' : 'repair',
@@ -377,7 +381,7 @@ export const updateSaleWorkspace = async (
             : existingSale.issuedBy ?? null,
           timeline: nextTimeline,
           paymentHistory: nextPaymentHistory,
-          lineItems: normalizedLineItems,
+          lineItems: lineItemsWithServices,
           discount: nextDiscount,
           userNote: nextUserNote,
           productSnapshot: {
