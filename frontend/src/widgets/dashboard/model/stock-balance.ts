@@ -293,7 +293,7 @@ export const getStockIdentitySearchText = (product: Product) =>
 export const isProductNameLikeStockQuery = (query: string) => {
   const trimmed = query.trim();
   if (!trimmed) return false;
-  return /\s/.test(trimmed) || /[^\u0000-\u007F]/.test(trimmed);
+  return /\s/.test(trimmed) || /[^\x20-\x7E]/.test(trimmed);
 };
 
 export const matchesStockSearchQuery = ({
