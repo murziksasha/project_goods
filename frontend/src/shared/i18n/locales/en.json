@@ -1344,6 +1344,7 @@
         "employeeRequiredForFilters": "Current employee is required to save filters.",
         "enterFilterName": "Enter a filter name.",
         "failedUpdateStatus": "Failed to update order status.",
+        "statusChangeDenied": "You do not have permission to set this status.",
         "refundBeforeReturned": "Refund client payment before marking sale as returned.",
         "shippedUnpaid": "Product shipped but payment has not been received.",
         "noAcceptPaymentPermission": "Current employee does not have permission to accept payments.",
@@ -1437,14 +1438,16 @@
         "clientApproved": "Client approved",
         "clientRejected": "Client rejected",
         "issuedWithoutRepair": "Issued without repair",
-        "notPickedUp": "Not picked up"
+        "notPickedUp": "Not picked up",
+        "away": "Away"
       },
       "sale": {
         "new": "New sale",
         "reserved": "Reserved",
         "paid": "Paid",
         "issued": "Issued",
-        "returned": "Returned"
+        "returned": "Returned",
+        "away": "Away"
       }
     },
     "timeline": {

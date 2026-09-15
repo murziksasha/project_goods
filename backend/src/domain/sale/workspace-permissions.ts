@@ -136,6 +136,42 @@ export const isManualCommentWorkspacePatch = (
   );
 };
 
+/** True when PATCH only sets status to `away` (any sale-read permission). */
+export const isAwayStatusWorkspacePatch = (
+  sale: WorkspaceComparableSale,
+  payloadInput: SalePayload,
+) => {
+  const { current, next } = toComparableWorkspaceState(sale, payloadInput);
+  if (next.status !== 'away' || current.status === next.status) {
+    return false;
+  }
+
+  const masterChanged = current.masterId !== next.masterId;
+  if (masterChanged) {
+    return false;
+  }
+
+  const currentUserNote = String(sale.userNote ?? '');
+  const nextUserNote =
+    payloadInput.userNote === undefined
+      ? currentUserNote
+      : String(payloadInput.userNote ?? '');
+  if (nextUserNote !== currentUserNote) {
+    return false;
+  }
+
+  return (
+    current.kind === next.kind &&
+    current.paidAmount === next.paidAmount &&
+    current.deviceName === next.deviceName &&
+    current.serialNumber === next.serialNumber &&
+    JSON.stringify(current.discount) === JSON.stringify(next.discount) &&
+    JSON.stringify(current.paymentHistory) ===
+      JSON.stringify(next.paymentHistory) &&
+    JSON.stringify(current.lineItems) === JSON.stringify(next.lineItems)
+  );
+};
+
 /** True when PATCH only moves a repair card or assigns a master (kanban.use). */
 export const isKanbanBoardWorkspacePatch = (
   sale: WorkspaceComparableSale,

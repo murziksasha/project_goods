@@ -37,6 +37,7 @@ type OrdersWorkspaceTableSectionProps = {
   onPageSizeChange: (pageSize: number) => void;
   onUpdateStatus: (sale: Sale, status: OrderStatus) => void | Promise<void>;
   onOpenSale: (sale: Sale) => void;
+  canAssignStatus: (sale: Sale, status: OrderStatus) => boolean;
 };
 
 export const OrdersWorkspaceTableSection = ({
@@ -60,6 +61,7 @@ export const OrdersWorkspaceTableSection = ({
   onPageSizeChange,
   onUpdateStatus,
   onOpenSale,
+  canAssignStatus,
 }: OrdersWorkspaceTableSectionProps) => {
   const { t } = useTranslation();
 
@@ -163,26 +165,31 @@ export const OrdersWorkspaceTableSection = ({
                 maxHeight: statusMenuPosition.maxHeight,
               }}
             >
-              {getStatusOptionsForSale(openStatusSale).map((statusOption) => (
+              {getStatusOptionsForSale(openStatusSale).map((statusOption) => {
+                const stockLocked = isRepairStatusChangeLockedByStock(
+                  openStatusSale,
+                  statusOption.key,
+                );
+                const assignDenied = !canAssignStatus(
+                  openStatusSale,
+                  statusOption.key,
+                );
+                return (
                 <button
                   key={statusOption.key}
                   type="button"
-                  disabled={isRepairStatusChangeLockedByStock(
-                    openStatusSale,
-                    statusOption.key,
-                  )}
+                  disabled={stockLocked || assignDenied}
                   className={
                     statusOption.key === getStatus(openStatusSale)
                       ? 'order-status-option order-status-option-active'
                       : 'order-status-option'
                   }
                   title={
-                    isRepairStatusChangeLockedByStock(
-                      openStatusSale,
-                      statusOption.key,
-                    )
+                    stockLocked
                       ? t('orders.payment.stockLocked')
-                      : undefined
+                      : assignDenied
+                        ? t('orders.messages.errors.statusChangeDenied')
+                        : undefined
                   }
                   onClick={() => {
                     void onUpdateStatus(openStatusSale, statusOption.key);
@@ -190,7 +197,8 @@ export const OrdersWorkspaceTableSection = ({
                 >
                   {t(statusOption.labelKey)}
                 </button>
-              ))}
+                );
+              })}
             </div>,
             document.body,
           )

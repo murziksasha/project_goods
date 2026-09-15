@@ -114,7 +114,7 @@ Permission: `system.backups.manage` (except finance snapshot read).
 
 - `GET /sales` - список продаж и заказов (массив, sort `saleDate` desc). Опциональные query:
   - `kind` — `sale` | `repair`
-  - `status` — точное совпадение статуса
+  - `status` — точное совпадение статуса (repair/sale string; shared parking value `away` is valid for both kinds)
   - `dateFrom` / `dateTo` — `YYYY-MM-DD` (UTC day bounds по `saleDate`)
   - `isFavorite` / `isRapidSale` — boolean (`true`/`false`/`1`/`0`)
   - `clientId` — ObjectId клиента
@@ -338,6 +338,8 @@ Client status localization rule: keep client status values in original English (
 - `PATCH /sales/:saleId/workspace`
   - Supports `userNote` (string, trimmed, max 500). Updates only `userNote`; does not change system `note`.
   - Manual `Live feed` comment-only saves require `orders.chat`.
+  - Status-only change to `away` (repair or sale; timeline / `issuedById` clear allowed) requires any sale-read permission: `orders.view`, `sales.manage`, `repairs.execute`, `kanban.use`, `supplierOrders.view`, or `supplierOrders.manage`. Leaving `away` for another status uses the usual manage / `kanban.use` rules. Spec: [Permission_Flow.md](./Permission_Flow.md) · [ORDER_FLOW.md](./ORDER_FLOW.md#shared-status-away-2026-09-15).
+  - Repair status/master-only Kanban patches require `kanban.use` or `orders.manage`.
   - System-generated timeline entries attached to other workspace actions are still authorized by those actions, not by `orders.chat`.
   - Serial numbers already bound to another sale/order are rejected (`assertSerialNumbersNotBoundToOtherSales` / `findOccupiedSerialNumbers`). Bind-modal listing uses `GET /sales/occupied-serials` so occupied units never appear as pickable. Spec: [WAREHOUSE_FLOW.md](./WAREHOUSE_FLOW.md#430-bind-modal-occupancy-opened-repair-and-sale-cards)
   - Serialized stock product line items are validated as atomic units.

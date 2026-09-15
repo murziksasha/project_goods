@@ -33,7 +33,7 @@ MongoDB
 
 ## Repair Kanban
 
-Канбан ремонтів — вкладка Orders (`ordersTab=kanban`), не окрема сторінка. Синхронізований із repair sales; статуси = стовпці. Деталі: [REPAIR_KANBAN_SPEC.md](./REPAIR_KANBAN_SPEC.md).
+Канбан ремонтів — вкладка Orders (`ordersTab=kanban`), не окрема сторінка. Синхронізований із repair sales; статуси = стовпці (останній видимий — `away` після `paid`). Деталі: [REPAIR_KANBAN_SPEC.md](./REPAIR_KANBAN_SPEC.md).
 
 ## Архитектура frontend
 

@@ -92,15 +92,16 @@ Related: [ORDER_CARD.md](./ORDER_CARD.md) · [SALE_FLOW.md](./SALE_FLOW.md) · [
   - `issued`
   - `client rejected`
   - `issued without repair`
-  - (`notPickedUp` / «Не забирають» is **not** a handoff status and does not fill `Issued`)
+  - (`notPickedUp` / «Не забирають» and `away` / «Відсутній» are **not** handoff statuses and do not fill `Issued`)
 - If no such status transition happened yet, `Issued` shows `-`.
 - Every status change action is recorded in `Live feed` with author and timestamp.
 - `Ready date` in the orders list is treated as completion date and is set from the timestamp of transition to one of:
   - `issued`
   - `client rejected`
   - `issued without repair`
-  - (not from `notPickedUp`)
-- Repair Kanban board (Orders tab `Kanban` only) mirrors repair statuses as columns; see [REPAIR_KANBAN_SPEC.md](./REPAIR_KANBAN_SPEC.md).
+  - (not from `notPickedUp` or `away`)
+- Repair Kanban board (Orders tab `Kanban` only) mirrors repair statuses as columns, including last column `away`; see [REPAIR_KANBAN_SPEC.md](./REPAIR_KANBAN_SPEC.md).
+- Repair orders support status `away` in the `Orders` tab status dropdown and filters. Any employee who can view the order may set `away`; other statuses stay gated by `orders.manage` / `kanban.use`.
 - Completion timestamp source is the corresponding status-change entry in `Live feed` (timeline).
 - Filters include `Payment method` dropdown: `All`, `Cash`, `Non-cash`.
 - If order has paid amount and latest deposit method is `non-cash`, columns `Price` and `Paid` are shown in red.
@@ -109,6 +110,7 @@ Related: [ORDER_CARD.md](./ORDER_CARD.md) · [SALE_FLOW.md](./SALE_FLOW.md) · [
 - When the status dropdown is open, background scroll is locked: `body`/page scroll and `orders-table-wrap` scroll are disabled until the menu closes.
 - Mouse-wheel scrolling moves only the status list (`overscroll-behavior: contain` plus wheel guard); the parent page and orders table must not scroll.
 - Status dropdown must not affect row height and must not create additional scroll inside orders table container.
+- Employees without `orders.manage` / `kanban.use` may still pick `away`; other statuses stay disabled in the menu.
 - For repair orders with attached warehouse products, status change to `issued` is allowed only after the attached products are fully paid.
 - When a paid repair order changes to `issued`, bound warehouse serials stay attached to the order and stock is shipped by the workspace save flow.
 - For repair orders, status change to `client rejected` or `issued without repair` is blocked when any product line has a warehouse serial number bound through the `Serials x/y` action.
@@ -144,6 +146,21 @@ Related: [ORDER_CARD.md](./ORDER_CARD.md) · [SALE_FLOW.md](./SALE_FLOW.md) · [
 - For `Repair order`, `Issue without payment` changes order status to selected payment target status (normally `issued`) and writes status change to timeline.
 - Exception for `Repair order`: if order has attached product line items and `To pay > 0`, `Issue without payment` is blocked until the attached products are fully paid.
 - For `Sales`, `Issue without payment` remains blocked for target status `issued` while `To pay > 0`.
+
+## Shared Status Away (2026-09-15)
+
+- Repair orders and product sales support parking status `away`:
+  - key: `away`
+  - EN label: `Away`
+  - UK label: `Відсутній`
+- Kanban column: last, after `paid`.
+- Badge color: muted slate (`#6b7280`).
+- `away` is a non-final working status:
+  - available in Orders and Sales list status dropdowns, order/sale-card status select, and `Order status` filter checkboxes,
+  - editable in the order/sale card,
+  - does not fill `Issued`, does not set `Ready date`, does not trigger payment modal on selection,
+  - does not commit stock and does not block refunds,
+  - any employee who can view the sale may set status to `away`; changing from `away` to another status keeps the usual `orders.manage` / `sales.manage` / `kanban.use` rules.
 
 ## Repair Status Refinement (2026-07-03)
 

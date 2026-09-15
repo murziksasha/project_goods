@@ -57,6 +57,7 @@ describe('repair kanban status model', () => {
       'refinement',
       'ready',
       'paid',
+      'away',
     ]);
     expect(kanbanHiddenRepairStatuses).toEqual([
       'issued',
@@ -75,6 +76,7 @@ describe('repair kanban visibility', () => {
     expect(isKanbanVisibleSale(sale('a', 'new'))).toBe(true);
     expect(isKanbanVisibleSale(sale('b', 'issued'))).toBe(false);
     expect(isKanbanVisibleSale(sale('c', 'notPickedUp'))).toBe(false);
+    expect(isKanbanVisibleSale(sale('g', 'away'))).toBe(true);
     expect(
       countKanbanVisibleSales([
         sale('a', 'new'),
@@ -83,8 +85,9 @@ describe('repair kanban visibility', () => {
         sale('d', 'notPickedUp'),
         sale('e', 'paid'),
         sale('f', 'clientRejected'),
+        sale('g', 'away'),
       ]),
-    ).toBe(3);
+    ).toBe(4);
   });
 
   it('matches kanban master filter by assigned master only', () => {
@@ -110,6 +113,7 @@ describe('repair kanban drop helpers', () => {
 
   it('parses visible column drop ids and rejects junk', () => {
     expect(parseColumnDropId('column:ready')).toBe('ready');
+    expect(parseColumnDropId('column:away')).toBe('away');
     expect(parseColumnDropId('column:notPickedUp')).toBeNull();
     expect(parseColumnDropId('ready')).toBeNull();
     expect(parseRailDropId(railDropId('paid'))).toBe('paid');

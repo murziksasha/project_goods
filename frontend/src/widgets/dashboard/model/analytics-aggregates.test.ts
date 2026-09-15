@@ -51,4 +51,13 @@ describe('frontend analytics aggregates', () => {
     expect(funnel.find((item) => item.status === 'ready')?.count).toBe(1);
     expect(funnel.find((item) => item.status === 'inRepair')?.count).toBe(1);
   });
+
+  it('counts away as its own open funnel slice', () => {
+    const funnel = getRepairFunnel(
+      [{ status: 'away' }, { status: 'issued' }],
+      (sale) => sale.status === 'issued',
+    );
+    expect(funnel.find((item) => item.status === 'away')?.count).toBe(1);
+    expect(funnel.find((item) => item.status === 'other')).toBeUndefined();
+  });
 });
