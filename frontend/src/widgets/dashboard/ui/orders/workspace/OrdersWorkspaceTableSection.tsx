@@ -5,8 +5,11 @@ import type { Sale } from '../../../../../entities/sale/model/types';
 import { PaginationPanel } from '../../../../../shared/ui/PaginationPanel';
 import { TableSkeleton } from '../../../../../shared/ui/TableSkeleton';
 import {
+  ORDER_EXTRA_LINES_MENU_WIDTH,
+  formatSaleListDropdownPrice,
   getColumnLabel,
   getOrdersColumnClassName,
+  getSaleListDropdownItems,
   getStatusOptionsForSale,
   isRepairStatusChangeLockedByStock,
   isUrgentRepairOrder,
@@ -29,6 +32,9 @@ type OrdersWorkspaceTableSectionProps = {
   openStatusSale: Sale | null;
   statusMenuPosition: OrderStatusMenuPosition | null;
   statusMenuOptionsRef: RefObject<HTMLDivElement | null>;
+  openExtraLinesSale: Sale | null;
+  extraLinesMenuPosition: OrderStatusMenuPosition | null;
+  extraLinesMenuRef: RefObject<HTMLDivElement | null>;
   getStatus: (sale: Sale) => OrderStatus;
   renderOrdersCell: (sale: Sale, columnKey: OrdersColumnKey) => ReactNode;
   totalItems: number;
@@ -53,6 +59,9 @@ export const OrdersWorkspaceTableSection = ({
   openStatusSale,
   statusMenuPosition,
   statusMenuOptionsRef,
+  openExtraLinesSale,
+  extraLinesMenuPosition,
+  extraLinesMenuRef,
   getStatus,
   renderOrdersCell,
   totalItems,
@@ -199,6 +208,44 @@ export const OrdersWorkspaceTableSection = ({
                 </button>
                 );
               })}
+            </div>,
+            document.body,
+          )
+        : null}
+
+      {openExtraLinesSale &&
+      extraLinesMenuPosition &&
+      typeof document !== 'undefined'
+        ? createPortal(
+            <div
+              ref={extraLinesMenuRef}
+              role="listbox"
+              aria-label={t('orders.toolbar.extraLinesShow')}
+              className={`create-suggestions order-extra-lines-menu order-extra-lines-menu-portal order-extra-lines-menu-portal-${extraLinesMenuPosition.placement}`}
+              style={{
+                top:
+                  extraLinesMenuPosition.bottom == null
+                    ? extraLinesMenuPosition.top
+                    : 'auto',
+                bottom: extraLinesMenuPosition.bottom,
+                left: extraLinesMenuPosition.left,
+                maxHeight: extraLinesMenuPosition.maxHeight,
+                width: ORDER_EXTRA_LINES_MENU_WIDTH,
+              }}
+            >
+              {getSaleListDropdownItems(openExtraLinesSale).map((item) => (
+                <div
+                  key={item.id}
+                  role="option"
+                  className="create-suggestion-item order-extra-lines-item"
+                >
+                  <strong title={item.name}>{item.name}</strong>
+                  <span className="order-extra-lines-serial">{item.serial}</span>
+                  <span className="order-extra-lines-price">
+                    {formatSaleListDropdownPrice(item)}
+                  </span>
+                </div>
+              ))}
             </div>,
             document.body,
           )

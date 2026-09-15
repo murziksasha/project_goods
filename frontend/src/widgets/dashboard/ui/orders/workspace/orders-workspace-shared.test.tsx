@@ -8,7 +8,11 @@ import {
   buildOrderPrintBody,
   buildOrderPrintHtml,
   buildSupplierOrderLinkNote,
+  computeOrderExtraLinesMenuPosition,
   computeOrderStatusMenuPosition,
+  EMPTY_LINE_ITEM_SERIAL,
+  formatSaleListDropdownPrice,
+  getSaleListDropdownItems,
   availableColumnsByTab,
   defaultVisibleColumns,
   formatReadyDate,
@@ -899,6 +903,88 @@ describe('order status menu position', () => {
 
     expect(position.left).toBeLessThan(1200);
     expect(position.left + 230).toBeLessThanOrEqual(1280 - 8);
+  });
+
+  it('uses a wider extra-lines menu when clamping to the viewport', () => {
+    const position = computeOrderExtraLinesMenuPosition(
+      { top: 200, bottom: 232, left: 1200, width: 40 },
+      { width: 1280, height: 900 },
+    );
+
+    expect(position.left + 360).toBeLessThanOrEqual(1280 - 8);
+  });
+
+  it('pins extra-lines menu to the trigger when flipping above', () => {
+    const position = computeOrderExtraLinesMenuPosition(
+      { top: 820, bottom: 852, left: 48, width: 40 },
+      { width: 1280, height: 900 },
+    );
+
+    expect(position.placement).toBe('above');
+    expect(position.bottom).toBe(84);
+    expect(position.top).toBeUndefined();
+  });
+});
+
+describe('sale list extra-lines dropdown items', () => {
+  it('maps every line item with serial fallback and quantity in price', () => {
+    const saleRow = repairSale({
+      kind: 'sale',
+      product: {
+        id: 'product-1',
+        article: 'ART-1',
+        name: 'Wireless mouse M22',
+        serialNumber: 'SNAP-1',
+      },
+      lineItems: [
+        {
+          id: 'a',
+          kind: 'product',
+          productId: 'product-1',
+          name: 'Wireless mouse M22',
+          price: 500,
+          quantity: 1,
+          warrantyPeriod: 0,
+          serialNumbers: [],
+        },
+        {
+          id: 'b',
+          kind: 'service',
+          name: 'Setup',
+          price: 50,
+          quantity: 2,
+          warrantyPeriod: 0,
+        },
+        {
+          id: 'c',
+          kind: 'product',
+          productId: 'product-2',
+          name: 'Cable',
+          price: 80,
+          quantity: 1,
+          warrantyPeriod: 0,
+          serialNumbers: [' SN-9 '],
+        },
+      ],
+    });
+
+    const items = getSaleListDropdownItems(saleRow);
+    expect(items).toHaveLength(3);
+    expect(items[0]).toMatchObject({
+      name: 'Wireless mouse M22',
+      serial: 'SNAP-1',
+      price: 500,
+      quantity: 1,
+    });
+    expect(items[1]).toMatchObject({
+      name: 'Setup',
+      serial: EMPTY_LINE_ITEM_SERIAL,
+      price: 50,
+      quantity: 2,
+    });
+    expect(items[2].serial).toBe('SN-9');
+    expect(formatSaleListDropdownPrice(items[0])).not.toContain('×');
+    expect(formatSaleListDropdownPrice(items[1])).toContain('× 2');
   });
 });
 

@@ -725,6 +725,7 @@
       },
       "serialPrefix": "S/N: {{serial}}",
       "extraLines": "+{{count}}",
+      "extraLinesShow": "Показати позиції в цьому замовленні",
       "warehouseLabel": "Склад: Service center",
       "assignee": {
         "master": "{{name}} (Майстер)",

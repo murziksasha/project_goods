@@ -725,6 +725,7 @@
       },
       "serialPrefix": "S/N: {{serial}}",
       "extraLines": "+{{count}}",
+      "extraLinesShow": "Show items in this order",
       "warehouseLabel": "Warehouse: Service center",
       "assignee": {
         "master": "{{name}} (Master)",

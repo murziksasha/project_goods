@@ -2327,6 +2327,13 @@
   text-decoration: underline;
 }
 
+.order-device-cell {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  justify-items: start;
+}
+
 .order-device-button {
   display: grid;
   gap: 2px;
@@ -2338,12 +2345,73 @@
   overflow-wrap: anywhere;
 }
 
-.order-device-button small {
-  color: #7f91a7;
+.order-device-button small,
+.order-extra-lines {
+  color: var(--text-soft);
   font-weight: 500;
   white-space: normal;
   word-break: break-word;
   overflow-wrap: anywhere;
+}
+
+.order-extra-lines {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  font: inherit;
+  font-size: 0.82rem;
+  line-height: 1.2;
+  cursor: pointer;
+  text-align: left;
+}
+
+.order-extra-lines:hover,
+.order-extra-lines[aria-expanded='true'] {
+  color: var(--color-primary);
+  text-decoration: underline;
+}
+
+.create-suggestions.order-extra-lines-menu-portal {
+  position: fixed;
+  z-index: 4000;
+  margin-top: 0;
+  min-width: 360px;
+  max-width: min(480px, calc(100vw - 16px));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.create-suggestion-item.order-extra-lines-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 8px 12px;
+  align-items: center;
+  width: 100%;
+  cursor: default;
+}
+
+.create-suggestion-item.order-extra-lines-item:hover {
+  transform: none;
+}
+
+.create-suggestion-item.order-extra-lines-item strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.order-extra-lines-serial {
+  color: var(--text-soft);
+  font-size: 0.9rem;
+  white-space: nowrap;
+}
+
+.order-extra-lines-price {
+  color: var(--color-text-body);
+  font-weight: 700;
+  white-space: nowrap;
+  justify-self: end;
 }
 
 .order-device-button .orders-table-cell-truncate,

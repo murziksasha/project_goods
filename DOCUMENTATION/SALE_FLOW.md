@@ -387,7 +387,7 @@ Service catalog stores three prices: retail (`service.price`), wholesale 1 (`sal
 - Default visible columns: `Order #`, `Client`, `Product`, `Status`, `Price`, `Paid`, `Manager`, `Created`.
 - Column picker extras: `Issued` (`issuedBy`). Repair-only columns stay off this tab: `Term`, `Master`, `Warehouse`, `Ready date`.
 - Saved 6-column sales layouts (`Order #`, `Client`, `Status`, `Price`, `Paid`, `Created`) migrate to the default set; `Reset columns` restores defaults.
-- `Product` shows `getSaleProductName` (first product, else first service). Serial subtitle uses `S/N:`; extra lines show `+N` when more than one line item exists.
+- `Product` shows `getSaleProductName` (first product, else first service). Serial subtitle uses `S/N:`; extra lines show `+N` when more than one line item exists. Clicking `+N` opens a dropdown of every `lineItems[]` row (name, serial, price) — see **Product extra-lines dropdown** below. Clicking the product name still opens the sale card.
 - Rapid sales keep the Client label **`Rapid sale`** (see Rapid Sale → Sales List Display And Search). The Product column still shows the sold item.
 - Toolbar search placeholder: `Order, client, phone, product or manager`. Server `q` matches record number, client, product snapshot (name/serial/article), **every** `lineItems.name` / `lineItems.serialNumbers`, and manager. Client re-filter uses the same haystack (`getSaleListSearchValues`) so a good on the card as a second Products row (shown as `+N`) is still found. Product column still shows the first item plus `+N`.
 - Filters on this tab:
@@ -395,6 +395,22 @@ Service catalog stores three prices: retail (`service.price`), wholesale 1 (`sal
   - assignee is **Manager** (active managers/owners/`sales.manage`/`orders.manage`)
   - **Sale type**: `All` / `Rapid sale` / `Regular` (wired to `GET /sales?isRapidSale=`)
   - product, service, payment method, and dates stay available
+
+### Product extra-lines dropdown
+
+Shown only on **Orders → Sales** (not the repair Orders tab) when `lineItems.length > 1`. Visible label is `+N` (`orders.toolbar.extraLines`); `N` is `lineItems.length - 1`.
+
+- Product **name** (and `S/N:` subtitle) stay a separate control and still open the sale card.
+- **`+N` is its own control.** Click toggles the dropdown and must not open the sale card (or fire the row click).
+- Dropdown lists **every** `lineItems[]` row in stored order (products and services), not only the extras.
+- Each row shows three fields, using the project suggestion-list chrome (`.create-suggestions` / `.create-suggestion-item`):
+  - **Name** — `lineItems[].name`
+  - **Serial** — trimmed `serialNumbers` joined with `, `. Empty → `-`. If a product row has no serials but matches the sale product snapshot (`productId` or name), fall back to `product.serialNumber`.
+  - **Price** — unit `formatCurrency(lineItems[].price)`. If `quantity > 1`, append ` × {quantity}`.
+- Rows are informational (not links). Clicking a row does not open the sale card or product model.
+- Close on: second `+N` click, outside click, Escape, tab change, table scroll, window resize, opening the status menu, or opening a sale card.
+- Only one extra-lines menu is open at a time.
+- The menu is a `document.body` portal (table cells clip overflow). Place it **below** the `+N` when there is more space below than above. Near the bottom of the viewport, place it **above** and grow the list **up from the trigger** (`bottom` anchored to `+N`). Do not reserve a tall empty block (status-menu max height) that would float the short list several rows higher than the control.
 
 ## Status Change: Away
 
