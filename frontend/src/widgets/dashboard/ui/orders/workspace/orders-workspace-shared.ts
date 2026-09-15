@@ -1057,26 +1057,30 @@ export const repairEditableStatuses = new Set<RepairStatus>([
 ]);
 
 export const ORDER_STATUS_MENU_WIDTH = 230;
+export const ORDER_EXTRA_LINES_MENU_WIDTH = 360;
 export const ORDER_STATUS_MENU_MAX_HEIGHT = 260;
 export const ORDER_STATUS_MENU_GAP = 4;
 export const ORDER_STATUS_MENU_VIEWPORT_PADDING = 8;
 export const ORDER_STATUS_MENU_MIN_HEIGHT = 120;
+export const EMPTY_LINE_ITEM_SERIAL = '-';
 
 export type OrderStatusMenuPosition = {
-  top: number;
+  top?: number;
   left: number;
   maxHeight: number;
   placement: 'below' | 'above';
+  /** Distance from the viewport bottom; used when placement is `above`. */
+  bottom?: number;
 };
 
-export const computeOrderStatusMenuPosition = (
+export const computeAnchoredMenuPosition = (
   anchorRect: Pick<DOMRect, 'top' | 'bottom' | 'left' | 'width'>,
   viewport: { width: number; height: number } = {
     width: window.innerWidth,
     height: window.innerHeight,
   },
+  menuWidth = ORDER_STATUS_MENU_WIDTH,
 ): OrderStatusMenuPosition => {
-  const menuWidth = ORDER_STATUS_MENU_WIDTH;
   const menuMaxHeight = ORDER_STATUS_MENU_MAX_HEIGHT;
   const gap = ORDER_STATUS_MENU_GAP;
   const pad = ORDER_STATUS_MENU_VIEWPORT_PADDING;
@@ -1103,6 +1107,38 @@ export const computeOrderStatusMenuPosition = (
     left,
     maxHeight,
     placement: openBelow ? 'below' : 'above',
+  };
+};
+
+export const computeOrderStatusMenuPosition = (
+  anchorRect: Pick<DOMRect, 'top' | 'bottom' | 'left' | 'width'>,
+  viewport: { width: number; height: number } = {
+    width: window.innerWidth,
+    height: window.innerHeight,
+  },
+): OrderStatusMenuPosition =>
+  computeAnchoredMenuPosition(anchorRect, viewport, ORDER_STATUS_MENU_WIDTH);
+
+export const computeOrderExtraLinesMenuPosition = (
+  anchorRect: Pick<DOMRect, 'top' | 'bottom' | 'left' | 'width'>,
+  viewport: { width: number; height: number } = {
+    width: window.innerWidth,
+    height: window.innerHeight,
+  },
+): OrderStatusMenuPosition => {
+  const position = computeAnchoredMenuPosition(
+    anchorRect,
+    viewport,
+    ORDER_EXTRA_LINES_MENU_WIDTH,
+  );
+  if (position.placement !== 'above') return position;
+
+  return {
+    ...position,
+    top: undefined,
+    // Grow the short item list upward from the trigger instead of
+    // reserving ORDER_STATUS_MENU_MAX_HEIGHT (260px) of empty space.
+    bottom: viewport.height - anchorRect.top + ORDER_STATUS_MENU_GAP,
   };
 };
 
@@ -1884,6 +1920,55 @@ export const getPrimaryItemCellContent = (
 export const getPrimaryItemExtraLineCount = (sale: Sale) => {
   const count = (sale.lineItems ?? []).length;
   return count > 1 ? count - 1 : 0;
+};
+
+export type SaleListDropdownItem = {
+  id: string;
+  name: string;
+  serial: string;
+  price: number;
+  quantity: number;
+};
+
+export const getSaleListDropdownItemSerial = (
+  item: Pick<OrderLineItem, 'kind' | 'name' | 'productId' | 'serialNumbers'>,
+  sale: Pick<Sale, 'product'>,
+) => {
+  const fromLine = (item.serialNumbers ?? [])
+    .map((serial) => serial.trim())
+    .filter(Boolean)
+    .join(', ');
+  if (fromLine) return fromLine;
+
+  if (item.kind !== 'product') return EMPTY_LINE_ITEM_SERIAL;
+
+  const snapshotSerial = getSaleProductSerialNumber(sale);
+  if (!snapshotSerial) return EMPTY_LINE_ITEM_SERIAL;
+
+  const snapshotName = sale.product?.name?.trim() ?? '';
+  const snapshotId = sale.product?.id ?? '';
+  const itemName = item.name?.trim() ?? '';
+  const matchesSnapshot =
+    (Boolean(snapshotId) && item.productId === snapshotId) ||
+    (Boolean(snapshotName) && itemName === snapshotName);
+
+  return matchesSnapshot ? snapshotSerial : EMPTY_LINE_ITEM_SERIAL;
+};
+
+export const getSaleListDropdownItems = (sale: Sale): SaleListDropdownItem[] =>
+  (sale.lineItems ?? []).map((item, index) => ({
+    id: item.id || `line-${index}`,
+    name: item.name?.trim() || '',
+    serial: getSaleListDropdownItemSerial(item, sale),
+    price: item.price,
+    quantity: item.quantity,
+  }));
+
+export const formatSaleListDropdownPrice = (
+  item: Pick<SaleListDropdownItem, 'price' | 'quantity'>,
+) => {
+  const price = formatCurrency(item.price);
+  return item.quantity > 1 ? `${price} × ${item.quantity}` : price;
 };
 
 export const isUrgentRepairOrder = (sale: Sale) => {

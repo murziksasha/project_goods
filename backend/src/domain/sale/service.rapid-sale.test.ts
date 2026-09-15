@@ -199,6 +199,34 @@ describe('createSale rapid sale', () => {
     expect(salePayload.productSnapshot.name).toBe('Setup');
   });
 
+  it('decrements warehouse stock when a rapid sale is created as paid', async () => {
+    vi.spyOn(Product, 'findById').mockReturnValue(leanResult(stockProduct) as never);
+
+    await createSale({
+      ...baseRapidPayload,
+      status: 'paid',
+      paidAmount: 150,
+      salePrice: '150',
+      lineItems: [
+        {
+          id: 'li-stock',
+          kind: 'product',
+          productId: stockProduct._id,
+          name: 'HDMI Cable',
+          price: '150',
+          quantity: '1',
+          warrantyPeriod: '0',
+        },
+      ],
+    });
+
+    expect(Product.findByIdAndUpdate).toHaveBeenCalledWith(
+      stockProduct._id,
+      { $inc: { quantity: -1 } },
+      expect.objectContaining({ returnDocument: 'after' }),
+    );
+  });
+
   it('rejects rapid sale without line items', async () => {
     await expect(createSale({ ...baseRapidPayload, lineItems: [] })).rejects.toThrow(
       'Rapid sale must contain at least one line item.',

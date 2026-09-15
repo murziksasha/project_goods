@@ -105,16 +105,15 @@ export const createSale = async (payloadInput: SalePayload) => {
     lineItems.find((item) => item.kind === 'product')?.name?.trim() ??
     lineItems.find((item) => item.kind === 'service')?.name?.trim() ??
     '';
-  const stockDeltas =
-    normalizedKind === 'sale' && !product
-      ? []
-      : getStockLines(
-          normalizedKind,
-          payload.status || 'new',
-          lineItems,
-          payload.quantity,
-          product?._id ?? payload.productId,
-        );
+  const stockLineItems =
+    product || payload.lineItems.length > 0 ? lineItems : [];
+  const stockDeltas = getStockLines(
+    normalizedKind,
+    payload.status || 'new',
+    stockLineItems,
+    payload.quantity,
+    product?._id ?? null,
+  );
 
   await assertSerialNumbersNotBoundToOtherSales('', lineItems);
   await assertSerializedLineItemsAreAtomic(lineItems);

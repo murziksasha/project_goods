@@ -98,7 +98,7 @@ This document defines current warehouse requirements for stock balances, receipt
 1. `Models` / `Units` view toggle (default `Models`; persisted per browser)
 2. show the number of active applied filters on the `Filter` button
 3. gear menu for column visibility (`Select` locked)
-4. search mode select + search field; placeholder matches the active search mode
+4. search mode select + search field; placeholder matches the active search mode. `By serial #` / `By article` stay exact for single-token scans (for example `S000102`). If the same query used on Receipts/Sales is a product name (spaces or non-ASCII letters), stock search also matches name + article + serial + note so remaining units are not hidden as empty stock.
 5. bulk serial print and clear-selection controls appear only when at least one row is selected
 - Table requirements:
 1. header stays sticky while scrolling the stock table

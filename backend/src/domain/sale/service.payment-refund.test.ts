@@ -1,10 +1,18 @@
 import mongoose from 'mongoose';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Employee } from '../employee/model';
+import { Product } from '../product/model';
 import * as financeService from '../finance/service';
 import { Sale } from './model';
 import { acceptSalePayment, refundSalePayment } from './service';
 import { leanResult, withFormatSaleFields } from './test-helpers';
+
+const stockProduct = {
+  _id: '507f1f77bcf86cd799439012',
+  name: 'Wireless Mouse',
+  quantity: 2,
+  reservedQuantity: 0,
+};
 
 const saleId = '507f1f77bcf86cd799439012';
 
@@ -62,6 +70,10 @@ const installSpies = () => {
       leanResult(withFormatSaleFields({ ...currentSale, ...update })) as never,
   );
   vi.spyOn(Employee, 'findById').mockReturnValue(leanResult(null) as never);
+  vi.spyOn(Product, 'findById').mockReturnValue(leanResult(stockProduct) as never);
+  vi.spyOn(Product, 'findByIdAndUpdate').mockReturnValue(
+    leanResult({ ...stockProduct, quantity: 1 }) as never,
+  );
   vi.spyOn(financeService, 'createFinanceTransaction').mockResolvedValue({
     toCashbox: { name: 'Основная' },
     fromCashbox: { name: 'Основная' },
@@ -103,6 +115,11 @@ describe('sale payment/refund finance coupling', () => {
       cashboxId: 'cashbox-1',
       cashboxName: 'Основная',
     });
+    expect(Product.findByIdAndUpdate).toHaveBeenCalledWith(
+      lineItem.productId,
+      { $inc: { quantity: -1 } },
+      expect.objectContaining({ returnDocument: 'after' }),
+    );
   });
 
   it('does not create a deposit when issuing would violate payment rules', async () => {
@@ -150,6 +167,11 @@ describe('sale payment/refund finance coupling', () => {
       amount: 100,
       cashboxId: 'cashbox-1',
     });
+    expect(Product.findByIdAndUpdate).toHaveBeenCalledWith(
+      lineItem.productId,
+      { $inc: { quantity: 1 } },
+      expect.objectContaining({ returnDocument: 'after' }),
+    );
   });
 
   it('rejects refund over paid amount before creating finance transaction', async () => {

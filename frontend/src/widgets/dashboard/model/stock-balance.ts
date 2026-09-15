@@ -286,6 +286,49 @@ export const getStockSearchText = (
   return [product.name, product.article, product.note].join(' ');
 };
 
+export const getStockIdentitySearchText = (product: Product) =>
+  [product.name, product.article, product.serialNumber, product.note].join(' ');
+
+/** Product-name queries have spaces or non-ASCII letters; serial scans do not. */
+export const isProductNameLikeStockQuery = (query: string) => {
+  const trimmed = query.trim();
+  if (!trimmed) return false;
+  return /\s/.test(trimmed) || /[^\u0000-\u007F]/.test(trimmed);
+};
+
+export const matchesStockSearchQuery = ({
+  product,
+  query,
+  searchMode,
+  meta,
+  supplierLabel,
+}: {
+  product: Product;
+  query: string;
+  searchMode: StockSearchMode;
+  meta: StockWarehouseMeta | undefined;
+  supplierLabel: string;
+}) => {
+  const normalizedQuery = normalizeText(query);
+  if (!normalizedQuery) return true;
+
+  const modeText = getStockSearchText(
+    product,
+    searchMode,
+    meta,
+    supplierLabel,
+  );
+  if (modeText.toLowerCase().includes(normalizedQuery)) return true;
+
+  if (searchMode === 'warehouse' || searchMode === 'supplier') return false;
+  if (searchMode === 'name') return false;
+  if (!isProductNameLikeStockQuery(query)) return false;
+
+  return getStockIdentitySearchText(product)
+    .toLowerCase()
+    .includes(normalizedQuery);
+};
+
 export const filterStockProducts = ({
   products,
   sales,
@@ -306,7 +349,6 @@ export const filterStockProducts = ({
   buyersByProductName: Record<string, string[]>;
 }) => {
   const issuedProductIds = getIssuedSaleProductIds(products, sales);
-  const normalizedQuery = normalizeText(query);
 
   return products
     .filter(
@@ -321,16 +363,13 @@ export const filterStockProducts = ({
         product,
         supplierOrdersByProductId[product.id],
       );
-      const matchesQuery =
-        !normalizedQuery ||
-        getStockSearchText(
-          product,
-          searchMode,
-          productMeta,
-          supplierLabel,
-        )
-          .toLowerCase()
-          .includes(normalizedQuery);
+      const matchesQuery = matchesStockSearchQuery({
+        product,
+        query,
+        searchMode,
+        meta: productMeta,
+        supplierLabel,
+      });
 
       if (!matchesQuery) return false;
       if (

@@ -14,6 +14,7 @@ import {
 } from '../../../../../entities/employee/model/permissions';
 import type { Sale } from '../../../../../entities/sale/model/types';
 import { isRepairOrder } from '../../../../../entities/sale/lib/sale-kind';
+import { getSaleListSearchValues } from '../../../../../entities/sale/lib/sale-product';
 import { formatCurrency } from '../../../../../shared/lib/format';
 import { scrollDashboardMainToTop } from '../../../../../shared/lib/scrollDashboardMain';
 import { parseMoney } from '../../../../../shared/lib/decimal';
@@ -135,6 +136,7 @@ import {
   shouldOpenPaymentModalForStatusChange,
   isUrgentRepairOrder,
   lockedColumnsByTab,
+  computeOrderExtraLinesMenuPosition,
   computeOrderStatusMenuPosition,
   normalizeOrderStatus,
 
@@ -273,6 +275,12 @@ export const OrdersWorkspace = ({
   const [statusMenuPosition, setStatusMenuPosition] =
     useState<OrderStatusMenuPosition | null>(null);
   const statusMenuOptionsRef = useRef<HTMLDivElement>(null);
+  const [openExtraLinesSaleId, setOpenExtraLinesSaleId] = useState<
+    string | null
+  >(null);
+  const [extraLinesMenuPosition, setExtraLinesMenuPosition] =
+    useState<OrderStatusMenuPosition | null>(null);
+  const extraLinesMenuRef = useRef<HTMLDivElement>(null);
   const ordersTableWrapRef = useRef<HTMLDivElement>(null);
   const [paymentSale, setPaymentSale] = useState<Sale | null>(null);
   const [refundSale, setRefundSale] = useState<Sale | null>(null);
@@ -526,7 +534,7 @@ export const OrdersWorkspace = ({
         isRepairOrdersTab(activeTab)
           ? [getPrimaryDeviceName(sale), ...clientSearchValues, ...salePhones]
           : [
-              getPrimaryItemCellContent(sale, activeTab),
+              ...getSaleListSearchValues(sale),
               ...clientSearchValues,
               ...salePhones,
               sale.manager?.name ?? '',
@@ -1234,6 +1242,74 @@ export const OrdersWorkspace = ({
     };
   }, [activeTab, openStatusSaleId]);
 
+  useEffect(() => {
+    if (!openExtraLinesSaleId) return;
+
+    const closeExtraLinesOnOutsideClick = (event: MouseEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (
+        target?.closest('[data-extra-lines-trigger-id]') ||
+        target?.closest('.order-extra-lines-menu-portal')
+      ) {
+        return;
+      }
+      setOpenExtraLinesSaleId(null);
+    };
+
+    const closeExtraLinesOnEscape = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      setOpenExtraLinesSaleId(null);
+    };
+
+    document.addEventListener('mousedown', closeExtraLinesOnOutsideClick);
+    document.addEventListener('keydown', closeExtraLinesOnEscape);
+
+    return () => {
+      document.removeEventListener(
+        'mousedown',
+        closeExtraLinesOnOutsideClick,
+      );
+      document.removeEventListener('keydown', closeExtraLinesOnEscape);
+    };
+  }, [openExtraLinesSaleId]);
+
+  useEffect(() => {
+    if (!openExtraLinesSaleId) {
+      setExtraLinesMenuPosition(null);
+      return;
+    }
+
+    const syncExtraLinesMenuPosition = () => {
+      const trigger = document.querySelector<HTMLElement>(
+        `[data-extra-lines-trigger-id="${openExtraLinesSaleId}"]`,
+      );
+      if (!trigger) {
+        setOpenExtraLinesSaleId(null);
+        setExtraLinesMenuPosition(null);
+        return;
+      }
+
+      setExtraLinesMenuPosition(
+        computeOrderExtraLinesMenuPosition(trigger.getBoundingClientRect()),
+      );
+    };
+
+    syncExtraLinesMenuPosition();
+
+    const closeExtraLinesMenu = () => {
+      setOpenExtraLinesSaleId(null);
+    };
+    const tableWrap = ordersTableWrapRef.current;
+
+    window.addEventListener('resize', closeExtraLinesMenu);
+    tableWrap?.addEventListener('scroll', closeExtraLinesMenu);
+
+    return () => {
+      window.removeEventListener('resize', closeExtraLinesMenu);
+      tableWrap?.removeEventListener('scroll', closeExtraLinesMenu);
+    };
+  }, [activeTab, openExtraLinesSaleId]);
+
   const getLineItems = (sale: Sale) => {
     const sourceItems = Array.isArray(sale.lineItems)
       ? sale.lineItems
@@ -1264,6 +1340,15 @@ export const OrdersWorkspace = ({
         : null,
     [openStatusSaleId, sales],
   );
+  const openExtraLinesSale = useMemo(() => {
+    if (!openExtraLinesSaleId) return null;
+    return (
+      paginatedOrders.find((sale) => sale.id === openExtraLinesSaleId) ??
+      filteredOrders.find((sale) => sale.id === openExtraLinesSaleId) ??
+      sales.find((sale) => sale.id === openExtraLinesSaleId) ??
+      null
+    );
+  }, [filteredOrders, openExtraLinesSaleId, paginatedOrders, sales]);
 
   useEffect(() => {
     const options = statusMenuOptionsRef.current;
@@ -1545,6 +1630,7 @@ export const OrdersWorkspace = ({
     setSelectedSaleId(sale.id);
     onSelectedSaleIdChange?.(sale.id);
     setOpenStatusSaleId(null);
+    setOpenExtraLinesSaleId(null);
     window.requestAnimationFrame(() => {
       scrollDashboardMainToTop();
     });
@@ -1555,6 +1641,7 @@ export const OrdersWorkspace = ({
     onSelectedSaleIdChange?.(null);
     onExternalSaleOpenHandled?.();
     setOpenStatusSaleId(null);
+    setOpenExtraLinesSaleId(null);
   }, [onExternalSaleOpenHandled, onSelectedSaleIdChange]);
 
   useEffect(() => {
@@ -1563,6 +1650,7 @@ export const OrdersWorkspace = ({
     setSelectedSaleId(externalSelectedSaleId);
     onSelectedSaleIdChange?.(externalSelectedSaleId);
     setOpenStatusSaleId(null);
+    setOpenExtraLinesSaleId(null);
     onExternalSaleOpenHandled?.();
     window.requestAnimationFrame(() => {
       scrollDashboardMainToTop();
@@ -1702,11 +1790,12 @@ export const OrdersWorkspace = ({
               type='button'
               className={`order-status order-status-${status}`}
               data-status-trigger-id={sale.id}
-              onClick={() =>
+              onClick={() => {
+                setOpenExtraLinesSaleId(null);
                 setOpenStatusSaleId((currentId) =>
                   currentId === sale.id ? null : sale.id,
-                )
-              }
+                );
+              }}
             >
               {getStatusLabel(sale, status)}
             </button>
@@ -1721,30 +1810,47 @@ export const OrdersWorkspace = ({
         const extraLineCount = isRepairOrdersTab(activeTab)
           ? 0
           : getPrimaryItemExtraLineCount(sale);
+        const isExtraLinesOpen = openExtraLinesSaleId === sale.id;
         return (
-          <button
-            type='button'
-            className='order-device-button'
-            onClick={() => openSaleCard(sale)}
-            title={primaryItemText}
-          >
-            <TruncatedTextTooltip
-              text={primaryItemText}
-              className="orders-table-cell-truncate"
-            />
-            {primaryDeviceSerial ? (
-              <small title={primaryDeviceSerial}>
-                {t('orders.toolbar.serialPrefix', {
-                  serial: primaryDeviceSerial,
-                })}
-              </small>
-            ) : null}
+          <div className='order-device-cell'>
+            <button
+              type='button'
+              className='order-device-button'
+              onClick={() => openSaleCard(sale)}
+              title={primaryItemText}
+            >
+              <TruncatedTextTooltip
+                text={primaryItemText}
+                className="orders-table-cell-truncate"
+              />
+              {primaryDeviceSerial ? (
+                <small title={primaryDeviceSerial}>
+                  {t('orders.toolbar.serialPrefix', {
+                    serial: primaryDeviceSerial,
+                  })}
+                </small>
+              ) : null}
+            </button>
             {extraLineCount > 0 ? (
-              <small>
+              <button
+                type='button'
+                className='order-extra-lines'
+                data-extra-lines-trigger-id={sale.id}
+                aria-expanded={isExtraLinesOpen}
+                aria-haspopup='listbox'
+                aria-label={t('orders.toolbar.extraLinesShow')}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  setOpenStatusSaleId(null);
+                  setOpenExtraLinesSaleId((currentId) =>
+                    currentId === sale.id ? null : sale.id,
+                  );
+                }}
+              >
                 {t('orders.toolbar.extraLines', { count: extraLineCount })}
-              </small>
+              </button>
             ) : null}
-          </button>
+          </div>
         );
       }
       case 'price':
@@ -3122,6 +3228,9 @@ export const OrdersWorkspace = ({
           openStatusSale={openStatusSale}
           statusMenuPosition={statusMenuPosition}
           statusMenuOptionsRef={statusMenuOptionsRef}
+          openExtraLinesSale={openExtraLinesSale}
+          extraLinesMenuPosition={extraLinesMenuPosition}
+          extraLinesMenuRef={extraLinesMenuRef}
           getStatus={getStatus}
           renderOrdersCell={renderOrdersCell}
           totalItems={visibleOrdersCount}

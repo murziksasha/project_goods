@@ -80,6 +80,8 @@ describe('list-sales-query', () => {
       expect.arrayContaining([
         { recordNumber: { $regex: 'Nokia', $options: 'i' } },
         { 'clientSnapshot.name': { $regex: 'Nokia', $options: 'i' } },
+        { 'lineItems.name': { $regex: 'Nokia', $options: 'i' } },
+        { 'lineItems.serialNumbers': { $regex: 'Nokia', $options: 'i' } },
       ]),
     );
   });

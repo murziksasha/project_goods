@@ -1482,6 +1482,288 @@ describe('OrdersWorkspace', () => {
     expect(document.querySelector('.orders-money-unpaid')).toBeTruthy();
   });
 
+  it('does not show extra-lines control for a single-item sale', () => {
+    renderWorkspace({
+      activeTab: 'sales',
+      sales: [
+        {
+          ...sale,
+          kind: 'sale',
+          recordNumber: 'r000802',
+          product: {
+            id: 'product-1',
+            article: 'ART-1',
+            name: 'Mouse',
+            serialNumber: '',
+          },
+          lineItems: [
+            {
+              id: 'li-1',
+              kind: 'product',
+              name: 'Mouse',
+              price: 100,
+              quantity: 1,
+              warrantyPeriod: 0,
+            },
+          ],
+        },
+      ],
+    });
+
+    expect(screen.getByText('Mouse')).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Show items in this order' }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText('+1')).not.toBeInTheDocument();
+  });
+
+  it('opens an extra-lines dropdown from +N without opening the sale card', async () => {
+    renderWorkspace({
+      activeTab: 'sales',
+      sales: [
+        {
+          ...sale,
+          id: 'sale-multi',
+          kind: 'sale',
+          recordNumber: 'r000801',
+          salePrice: 1500,
+          paidAmount: 0,
+          product: {
+            id: 'product-1',
+            article: 'ART-1',
+            name: 'Phone case',
+            serialNumber: 'SN-CASE',
+          },
+          lineItems: [
+            {
+              id: 'li-1',
+              kind: 'product',
+              productId: 'product-1',
+              name: 'Phone case',
+              price: 1300,
+              quantity: 1,
+              warrantyPeriod: 0,
+              serialNumbers: ['SN-CASE'],
+            },
+            {
+              id: 'li-2',
+              kind: 'service',
+              name: 'Setup',
+              price: 200,
+              quantity: 1,
+              warrantyPeriod: 0,
+            },
+          ],
+        },
+      ],
+    });
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Show items in this order' }),
+    );
+
+    const menu = await screen.findByRole('listbox');
+    expect(within(menu).getByText('Phone case')).toBeInTheDocument();
+    expect(within(menu).getByText('Setup')).toBeInTheDocument();
+    expect(within(menu).getByText('SN-CASE')).toBeInTheDocument();
+    expect(within(menu).getByText('-')).toBeInTheDocument();
+    const prices = [...menu.querySelectorAll('.order-extra-lines-price')].map(
+      (el) => el.textContent ?? '',
+    );
+    expect(prices[0]).toMatch(/1.?300/);
+    expect(prices[1]).toMatch(/200/);
+    expect(getSaleByIdMock).not.toHaveBeenCalled();
+    expect(screen.queryByLabelText('Order card')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Sale card')).not.toBeInTheDocument();
+  });
+
+  it('still opens the sale card from the product name when extra lines exist', async () => {
+    renderWorkspace({
+      activeTab: 'sales',
+      sales: [
+        {
+          ...sale,
+          id: 'sale-multi',
+          kind: 'sale',
+          recordNumber: 'r000803',
+          product: {
+            id: 'product-1',
+            article: 'ART-1',
+            name: 'Phone case',
+            serialNumber: '',
+          },
+          lineItems: [
+            {
+              id: 'li-1',
+              kind: 'product',
+              name: 'Phone case',
+              price: 1300,
+              quantity: 1,
+              warrantyPeriod: 0,
+            },
+            {
+              id: 'li-2',
+              kind: 'service',
+              name: 'Setup',
+              price: 0,
+              quantity: 1,
+              warrantyPeriod: 0,
+            },
+          ],
+        },
+      ],
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /Phone case/i }));
+
+    expect(await screen.findByLabelText('Sale card')).toBeInTheDocument();
+    expect(getSaleByIdMock).toHaveBeenCalled();
+  });
+
+  it('closes the extra-lines dropdown on outside click, Escape, and second +N click', async () => {
+    renderWorkspace({
+      activeTab: 'sales',
+      sales: [
+        {
+          ...sale,
+          id: 'sale-multi',
+          kind: 'sale',
+          recordNumber: 'r000804',
+          product: {
+            id: 'product-1',
+            article: 'ART-1',
+            name: 'Phone case',
+            serialNumber: '',
+          },
+          lineItems: [
+            {
+              id: 'li-1',
+              kind: 'product',
+              name: 'Phone case',
+              price: 1300,
+              quantity: 1,
+              warrantyPeriod: 0,
+            },
+            {
+              id: 'li-2',
+              kind: 'service',
+              name: 'Setup',
+              price: 0,
+              quantity: 1,
+              warrantyPeriod: 0,
+            },
+          ],
+        },
+      ],
+    });
+
+    const trigger = screen.getByRole('button', {
+      name: 'Show items in this order',
+    });
+    fireEvent.click(trigger);
+    expect(await screen.findByRole('listbox')).toBeInTheDocument();
+
+    fireEvent.click(trigger);
+    await waitFor(() => {
+      expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+    });
+
+    fireEvent.click(trigger);
+    expect(await screen.findByRole('listbox')).toBeInTheDocument();
+    fireEvent.mouseDown(document.body);
+    await waitFor(() => {
+      expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+    });
+
+    fireEvent.click(trigger);
+    expect(await screen.findByRole('listbox')).toBeInTheDocument();
+    fireEvent.keyDown(document, { key: 'Escape' });
+    await waitFor(() => {
+      expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+    });
+  });
+
+  it('keeps only one extra-lines dropdown open at a time', async () => {
+    renderWorkspace({
+      activeTab: 'sales',
+      sales: [
+        {
+          ...sale,
+          id: 'sale-a',
+          kind: 'sale',
+          recordNumber: 'r000805',
+          product: {
+            id: 'product-a',
+            article: 'ART-A',
+            name: 'Alpha product',
+            serialNumber: '',
+          },
+          lineItems: [
+            {
+              id: 'a-1',
+              kind: 'product',
+              name: 'Alpha product',
+              price: 100,
+              quantity: 1,
+              warrantyPeriod: 0,
+            },
+            {
+              id: 'a-2',
+              kind: 'service',
+              name: 'Alpha extra',
+              price: 10,
+              quantity: 1,
+              warrantyPeriod: 0,
+            },
+          ],
+        },
+        {
+          ...sale,
+          id: 'sale-b',
+          kind: 'sale',
+          recordNumber: 'r000806',
+          product: {
+            id: 'product-b',
+            article: 'ART-B',
+            name: 'Beta product',
+            serialNumber: '',
+          },
+          lineItems: [
+            {
+              id: 'b-1',
+              kind: 'product',
+              name: 'Beta product',
+              price: 200,
+              quantity: 1,
+              warrantyPeriod: 0,
+            },
+            {
+              id: 'b-2',
+              kind: 'service',
+              name: 'Beta extra',
+              price: 20,
+              quantity: 1,
+              warrantyPeriod: 0,
+            },
+          ],
+        },
+      ],
+    });
+
+    const triggers = screen.getAllByRole('button', {
+      name: 'Show items in this order',
+    });
+    fireEvent.click(triggers[0]);
+    const firstMenu = await screen.findByRole('listbox');
+    expect(within(firstMenu).getByText('Alpha extra')).toBeInTheDocument();
+
+    fireEvent.click(triggers[1]);
+    const secondMenu = await screen.findByRole('listbox');
+    expect(within(secondMenu).getByText('Beta extra')).toBeInTheDocument();
+    expect(within(secondMenu).queryByText('Alpha extra')).not.toBeInTheDocument();
+    expect(screen.getAllByRole('listbox')).toHaveLength(1);
+  });
+
   it('filters rapid sales from the sales filter panel', () => {
     renderWorkspace({
       activeTab: 'sales',

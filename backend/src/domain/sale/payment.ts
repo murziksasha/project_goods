@@ -6,11 +6,17 @@ import { isValidObjectIdOrThrow } from '../../shared/lib/query';
 import { createFinanceTransaction } from '../finance/service';
 import { HttpError } from '../../shared/lib/errors';
 import {
+  assertStockDeltasAvailable,
+  applyStockDeltas,
   assertWorkspaceState,
   calculateTotalAfterDiscount,
   getFallbackLineItems,
   resolveActiveEmployee,
 } from './internal';
+import {
+  getSaleStatusChangeStockDeltas,
+  type SaleLineItem,
+} from './stock';
 
 type SalePaymentAction = 'deposit' | 'depositAndIssue' | 'issueWithoutPayment';
 type SalePaymentTargetStatus = 'issued' | 'issuedWithoutRepair' | 'paid';
@@ -74,6 +80,23 @@ const getSaleWorkspaceLineItems = (sale: SaleDocument) =>
           name: sale.productSnapshot?.name ?? 'Item',
         },
       );
+
+const getSaleKind = (sale: Pick<SaleDocument, 'kind'>) =>
+  sale.kind === 'sale' ? 'sale' : 'repair';
+
+const getPaymentStockDeltas = (
+  sale: SaleDocument,
+  nextStatus: string,
+  lineItems: ReturnType<typeof getSaleWorkspaceLineItems>,
+) =>
+  getSaleStatusChangeStockDeltas(
+    getSaleKind(sale),
+    sale.status || 'new',
+    nextStatus,
+    lineItems as SaleLineItem[],
+    sale.quantity,
+    sale.product,
+  );
 
 export const acceptSalePayment = async (
   saleId: string,
@@ -165,6 +188,9 @@ export const acceptSalePayment = async (
     sale.discount,
   );
 
+  const stockDeltas = getPaymentStockDeltas(sale, nextStatus, lineItems);
+  await assertStockDeltasAvailable(stockDeltas);
+
   if (action !== 'issueWithoutPayment') {
     const cashboxId = String(payload.cashboxId ?? '').trim();
     const transaction = await createFinanceTransaction({
@@ -213,27 +239,43 @@ export const acceptSalePayment = async (
     ];
   }
 
-  const updatedSale = await Sale.findByIdAndUpdate(
-    saleId,
-    {
-      status: nextStatus,
-      paidAmount: nextPaidAmount,
-      issuedBy: shouldSetIssuedBy ? issuedBy?._id ?? null : null,
-      issuedBySnapshot:
-        shouldSetIssuedBy && issuedBy
-          ? { name: issuedBy.name, role: issuedBy.role }
-          : undefined,
-      paymentHistory: nextPaymentHistory,
-      timeline: nextTimeline,
-    },
-    { returnDocument: 'after', runValidators: true },
-  ).lean<SaleDocument | null>();
+  let stockDeltasApplied = false;
+  try {
+    await applyStockDeltas(stockDeltas);
+    stockDeltasApplied = true;
 
-  if (!updatedSale) {
-    throw new HttpError(404, 'Sale not found.');
+    const updatedSale = await Sale.findByIdAndUpdate(
+      saleId,
+      {
+        status: nextStatus,
+        paidAmount: nextPaidAmount,
+        issuedBy: shouldSetIssuedBy ? issuedBy?._id ?? null : null,
+        issuedBySnapshot:
+          shouldSetIssuedBy && issuedBy
+            ? { name: issuedBy.name, role: issuedBy.role }
+            : undefined,
+        paymentHistory: nextPaymentHistory,
+        timeline: nextTimeline,
+      },
+      { returnDocument: 'after', runValidators: true },
+    ).lean<SaleDocument | null>();
+
+    if (!updatedSale) {
+      throw new HttpError(404, 'Sale not found.');
+    }
+
+    return formatSale(updatedSale);
+  } catch (error) {
+    if (stockDeltasApplied) {
+      await applyStockDeltas(
+        stockDeltas.map((delta) => ({
+          ...delta,
+          quantity: -delta.quantity,
+        })),
+      );
+    }
+    throw error;
   }
-
-  return formatSale(updatedSale);
 };
 
 export const refundSalePayment = async (
@@ -294,6 +336,9 @@ export const refundSalePayment = async (
     sale.discount,
   );
 
+  const stockDeltas = getPaymentStockDeltas(sale, nextStatus, lineItems);
+  await assertStockDeltasAvailable(stockDeltas);
+
   const transaction = await createFinanceTransaction({
     type: 'withdraw',
     amount: String(amount),
@@ -337,25 +382,41 @@ export const refundSalePayment = async (
     ...(sale.timeline ?? []),
   ];
 
-  const updatedSale = await Sale.findByIdAndUpdate(
-    saleId,
-    {
-      status: nextStatus,
-      paidAmount: nextPaidAmount,
-      issuedBy: shouldSetIssuedBy ? issuedBy?._id ?? null : null,
-      issuedBySnapshot:
-        shouldSetIssuedBy && issuedBy
-          ? { name: issuedBy.name, role: issuedBy.role }
-          : undefined,
-      paymentHistory: nextPaymentHistory,
-      timeline: nextTimeline,
-    },
-    { returnDocument: 'after', runValidators: true },
-  ).lean<SaleDocument | null>();
+  let stockDeltasApplied = false;
+  try {
+    await applyStockDeltas(stockDeltas);
+    stockDeltasApplied = true;
 
-  if (!updatedSale) {
-    throw new HttpError(404, 'Sale not found.');
+    const updatedSale = await Sale.findByIdAndUpdate(
+      saleId,
+      {
+        status: nextStatus,
+        paidAmount: nextPaidAmount,
+        issuedBy: shouldSetIssuedBy ? issuedBy?._id ?? null : null,
+        issuedBySnapshot:
+          shouldSetIssuedBy && issuedBy
+            ? { name: issuedBy.name, role: issuedBy.role }
+            : undefined,
+        paymentHistory: nextPaymentHistory,
+        timeline: nextTimeline,
+      },
+      { returnDocument: 'after', runValidators: true },
+    ).lean<SaleDocument | null>();
+
+    if (!updatedSale) {
+      throw new HttpError(404, 'Sale not found.');
+    }
+
+    return formatSale(updatedSale);
+  } catch (error) {
+    if (stockDeltasApplied) {
+      await applyStockDeltas(
+        stockDeltas.map((delta) => ({
+          ...delta,
+          quantity: -delta.quantity,
+        })),
+      );
+    }
+    throw error;
   }
-
-  return formatSale(updatedSale);
 };

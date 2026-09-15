@@ -79,6 +79,31 @@ export const getStockLines = (
   }));
 };
 
+export const getSaleStatusChangeStockDeltas = (
+  kind: 'repair' | 'sale',
+  currentStatus: string,
+  nextStatus: string,
+  lineItems: SaleLineItem[],
+  fallbackQuantity: number,
+  fallbackProductId?: mongoose.Types.ObjectId | string | null,
+) =>
+  getStockDeltas(
+    getStockLines(
+      kind,
+      currentStatus,
+      lineItems,
+      fallbackQuantity,
+      fallbackProductId,
+    ),
+    getStockLines(
+      kind,
+      nextStatus,
+      lineItems,
+      fallbackQuantity,
+      fallbackProductId,
+    ),
+  );
+
 export const getStockDeltas = (
   currentLines: StockLine[],
   nextLines: StockLine[],
