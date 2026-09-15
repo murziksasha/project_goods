@@ -123,7 +123,7 @@ See also [SPEC_SUGGESTIONS_BEHAVIOR.md](./SPEC_SUGGESTIONS_BEHAVIOR.md) -> Rapid
 - After payment/issue/refusal, operator remains on the sales list; sale card opens only if chosen manually later.
 - Payment modal actions after rapid-sale create:
   - **Accept to cashbox** — deposit only; if remaining becomes `0`, status may auto-change to **`paid`** (sale is not issued).
-  - **Accept and issue** / allowed issue path — status becomes **`issued`** (card becomes read-only per normal sale rules). If any product line has no warehouse serial, the payment modal shows the unbound-serial confirm first (same as sale/repair cards). **Cancel** stays in payment. **Continue** issues. Rapid Sale footer **Issued** (create) does not show this alert.
+  - **Accept and issue** / allowed issue path — status becomes **`issued`** (card becomes read-only per normal sale rules). Warehouse stock is taken from `lineItems[].productId` (Rapid Sale has no top-level `product`). If any product line has no warehouse serial, the payment modal shows the unbound-serial confirm first (same as sale/repair cards). **Cancel** stays in payment. **Continue** issues. Rapid Sale footer **Issued** (create) does not show this alert.
   - Closing or partial deposit without full pay leaves a non-final editable status (`new` / partial pay) as for any sale.
 
 ### Opened Rapid Sale Card (Post-Create Edit)
@@ -389,7 +389,7 @@ Service catalog stores three prices: retail (`service.price`), wholesale 1 (`sal
 - Saved 6-column sales layouts (`Order #`, `Client`, `Status`, `Price`, `Paid`, `Created`) migrate to the default set; `Reset columns` restores defaults.
 - `Product` shows `getSaleProductName` (first product, else first service). Serial subtitle uses `S/N:`; extra lines show `+N` when more than one line item exists.
 - Rapid sales keep the Client label **`Rapid sale`** (see Rapid Sale → Sales List Display And Search). The Product column still shows the sold item.
-- Toolbar search placeholder: `Order, client, phone, product or manager`. Server `q` already matches record number, client, product snapshot (name/serial/article), line names, and manager.
+- Toolbar search placeholder: `Order, client, phone, product or manager`. Server `q` matches record number, client, product snapshot (name/serial/article), **every** `lineItems.name` / `lineItems.serialNumbers`, and manager. Client re-filter uses the same haystack (`getSaleListSearchValues`) so a good on the card as a second Products row (shown as `+N`) is still found. Product column still shows the first item plus `+N`.
 - Filters on this tab:
   - hide `Repair type`
   - assignee is **Manager** (active managers/owners/`sales.manage`/`orders.manage`)

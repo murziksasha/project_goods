@@ -10,7 +10,10 @@ import {
   getIssuedSaleProductIds,
   getStockSupplierLabel,
   groupStockProductsByModel,
+  isProductNameLikeStockQuery,
   isSaleLineItemLinkedToStockProduct,
+  matchesStockSearchQuery,
+  type StockSearchMode,
   type StockSupplierOrderLink,
 } from './stock-balance';
 
@@ -106,16 +109,20 @@ const filter = ({
   products,
   sales = [],
   supplierOrdersByProductId = {},
+  query = '',
+  searchMode = 'serial',
 }: {
   products: Product[];
   sales?: Sale[];
   supplierOrdersByProductId?: Record<string, StockSupplierOrderLink[]>;
+  query?: string;
+  searchMode?: StockSearchMode;
 }) =>
   filterStockProducts({
     products,
     sales,
-    query: '',
-    searchMode: 'serial',
+    query,
+    searchMode,
     filters: {
       name: '',
       serial: '',
@@ -430,6 +437,91 @@ describe('stock balance', () => {
         ],
       }).map((item) => item.id),
     ).toEqual(['p-1']);
+  });
+
+  it('finds remaining stock by product name even in serial search mode', () => {
+    const products = [
+      product({
+        id: 'p-sold',
+        name: '114527 Парфумована вода для жінок Bali, 50 мл',
+        serialNumber: 'S000101',
+      }),
+      product({
+        id: 'p-free',
+        name: '114527 Парфумована вода для жінок Bali, 50 мл',
+        serialNumber: 'S000102',
+      }),
+    ];
+
+    expect(
+      filter({
+        products,
+        sales: [
+          sale({
+            status: 'issued',
+            product: {
+              id: 'p-sold',
+              article: '',
+              name: '114527 Парфумована вода для жінок Bali, 50 мл',
+              serialNumber: 'S000101',
+            },
+          }),
+        ],
+        query: '114527 Парфумована вода для жінок Bali, 50 мл',
+        searchMode: 'serial',
+      }).map((item) => item.id),
+    ).toEqual(['p-free']);
+  });
+
+  it('keeps serial-mode scans matching only serials', () => {
+    const products = [
+      product({ id: 'p-1', name: 'Cable S000102', serialNumber: 'S000101' }),
+      product({ id: 'p-2', name: 'Hub', serialNumber: 'S000102' }),
+    ];
+
+    expect(
+      filter({
+        products,
+        query: 'S000102',
+        searchMode: 'serial',
+      }).map((item) => item.id),
+    ).toEqual(['p-2']);
+  });
+});
+
+describe('stock search query matching', () => {
+  it('treats spaced or cyrillic queries as product names', () => {
+    expect(isProductNameLikeStockQuery('S000102')).toBe(false);
+    expect(isProductNameLikeStockQuery('114527')).toBe(false);
+    expect(
+      isProductNameLikeStockQuery(
+        '114527 Парфумована вода для жінок Bali, 50 мл',
+      ),
+    ).toBe(true);
+    expect(isProductNameLikeStockQuery('Парфумована')).toBe(true);
+  });
+
+  it('does not broaden warehouse or supplier search modes', () => {
+    const stockProduct = product({
+      name: '114527 Парфумована вода для жінок Bali, 50 мл',
+      serialNumber: 'S000102',
+      purchasePlace: 'Main',
+    });
+
+    expect(
+      matchesStockSearchQuery({
+        product: stockProduct,
+        query: '114527 Парфумована вода для жінок Bali, 50 мл',
+        searchMode: 'warehouse',
+        meta: {
+          warehouseId: 'w-1',
+          warehouseName: 'Main',
+          locationId: 'l-1',
+          locationName: 'A1',
+        },
+        supplierLabel: 'Livesta',
+      }),
+    ).toBe(false);
   });
 });
 

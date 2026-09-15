@@ -14,6 +14,7 @@ import {
 } from '../../../../../entities/employee/model/permissions';
 import type { Sale } from '../../../../../entities/sale/model/types';
 import { isRepairOrder } from '../../../../../entities/sale/lib/sale-kind';
+import { getSaleListSearchValues } from '../../../../../entities/sale/lib/sale-product';
 import { formatCurrency } from '../../../../../shared/lib/format';
 import { scrollDashboardMainToTop } from '../../../../../shared/lib/scrollDashboardMain';
 import { parseMoney } from '../../../../../shared/lib/decimal';
@@ -526,7 +527,7 @@ export const OrdersWorkspace = ({
         isRepairOrdersTab(activeTab)
           ? [getPrimaryDeviceName(sale), ...clientSearchValues, ...salePhones]
           : [
-              getPrimaryItemCellContent(sale, activeTab),
+              ...getSaleListSearchValues(sale),
               ...clientSearchValues,
               ...salePhones,
               sale.manager?.name ?? '',

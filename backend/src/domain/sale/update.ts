@@ -107,25 +107,24 @@ export const updateSale = async (saleId: string, payloadInput: SalePayload) => {
     nextLineItems,
     payload.discount,
   );
-  const stockDeltas =
-    normalizedKind === 'sale' && !product
-      ? []
-      : getStockDeltas(
-          getStockLines(
-            existingSale.kind === 'sale' ? 'sale' : 'repair',
-            existingSale.status || 'new',
-            currentLineItems,
-            existingSale.quantity,
-            existingSale.product ?? '',
-          ),
-          getStockLines(
-            normalizedKind,
-            nextStatus,
-            nextLineItems,
-            payload.quantity,
-            product?._id ?? payload.productId,
-          ),
-        );
+  const nextStockLineItems =
+    product || payload.lineItems.length > 0 ? nextLineItems : [];
+  const stockDeltas = getStockDeltas(
+    getStockLines(
+      existingSale.kind === 'sale' ? 'sale' : 'repair',
+      existingSale.status || 'new',
+      currentLineItems,
+      existingSale.quantity,
+      existingSale.product ?? '',
+    ),
+    getStockLines(
+      normalizedKind,
+      nextStatus,
+      nextStockLineItems,
+      payload.quantity,
+      product?._id ?? null,
+    ),
+  );
 
   await assertLineItemCatalogProductIds(nextLineItems);
   assertWorkspaceState(

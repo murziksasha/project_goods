@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  getSaleStatusChangeStockDeltas,
   getStockDeltas,
   getStockLines,
   isStockCommittedRepairStatus,
@@ -35,6 +36,29 @@ describe('sale stock helpers', () => {
     expect(getStockLines('sale', 'paid', [], 4, 'fallback')).toEqual([
       { productId: 'fallback', quantity: 4 },
     ]);
+  });
+
+  it('takes warehouse stock when a sale is issued without a top-level product', () => {
+    expect(
+      getSaleStatusChangeStockDeltas(
+        'sale',
+        'new',
+        'issued',
+        [
+          {
+            id: '1',
+            kind: 'product',
+            productId: 'p1',
+            name: 'Bali',
+            price: 700,
+            quantity: 1,
+            serialNumbers: ['S000608'],
+          },
+        ],
+        1,
+        null,
+      ),
+    ).toEqual([{ productId: 'p1', quantity: 1 }]);
   });
 
   it('calculates non-zero deltas between stock line sets', () => {
