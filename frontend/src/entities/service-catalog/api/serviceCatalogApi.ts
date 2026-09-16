@@ -1,13 +1,19 @@
 import { useQuery } from '@tanstack/react-query';
 import { queryKeys } from '../../../shared/api/queryClient';
 import { useVisibleRefetchInterval } from '../../../shared/lib/visible-refetch';
-import { apiClient, getApiErrorMessage } from '../../../shared/api/http';
+import {
+  apiClient,
+  getApiErrorMessage,
+} from '../../../shared/api/http';
 import type {
   ServiceCatalogFormValues,
   ServiceCatalogItem,
 } from '../model/types';
 
-export const useServicesQuery = (enabled = true, options: { poll?: boolean } = {}) => {
+export const useServicesQuery = (
+  enabled = true,
+  options: { poll?: boolean } = {},
+) => {
   const refetchInterval = useVisibleRefetchInterval(
     60_000,
     Boolean(enabled && options.poll),
@@ -23,9 +29,12 @@ export const useServicesQuery = (enabled = true, options: { poll?: boolean } = {
 
 export const getServiceCatalogItems = async (query = '') => {
   try {
-    const response = await apiClient.get<ServiceCatalogItem[]>('/services', {
-      params: query ? { query } : undefined,
-    });
+    const response = await apiClient.get<ServiceCatalogItem[]>(
+      '/services',
+      {
+        params: query ? { query } : undefined,
+      },
+    );
 
     return response.data;
   } catch (error) {
@@ -76,12 +85,36 @@ export const deleteServiceCatalogItem = async (serviceId: string) => {
   }
 };
 
-export const archiveServiceCatalogItem = async (serviceId: string) => {
+export const archiveServiceCatalogItem = async (
+  serviceId: string,
+) => {
   try {
     const response = await apiClient.post<
       | { id: string; action: 'deleted' }
       | { action: 'deactivated'; service: ServiceCatalogItem }
     >(`/services/${serviceId}/archive`);
+
+    return response.data;
+  } catch (error) {
+    throw new Error(getApiErrorMessage(error));
+  }
+};
+
+export const mergeServices = async (
+  targetServiceId: string,
+  sourceServiceId: string,
+  draftNote?: string,
+) => {
+  try {
+    const response = await apiClient.post<{
+      service: ServiceCatalogItem;
+      removedServiceId: string;
+      movedSalesCount: number;
+    }>('/services/merge', {
+      targetServiceId,
+      sourceServiceId,
+      draftNote,
+    });
 
     return response.data;
   } catch (error) {

@@ -8,7 +8,10 @@ import type {
   CatalogProduct,
   CatalogProductFormValues,
 } from '../../../../entities/catalog-product/model/types';
-import type { Supplier, SupplierFormValues } from '../../../../entities/supplier/model/types';
+import type {
+  Supplier,
+  SupplierFormValues,
+} from '../../../../entities/supplier/model/types';
 import type {
   Product,
   ProductFormValues,
@@ -104,19 +107,53 @@ type ProductCatalogPanelProps = {
   onServiceCancelEdit: () => void;
   onServiceEdit: (service: ServiceCatalogItem) => void;
   onServiceArchive: (service: ServiceCatalogItem) => void;
-  onServiceActivate: (service: ServiceCatalogItem) => void | Promise<void>;
+  onServiceActivate: (
+    service: ServiceCatalogItem,
+  ) => void | Promise<void>;
   suppliers: Supplier[];
   onCreateSupplier: (payload: SupplierFormValues) => Promise<boolean>;
-  onUpdateSupplier: (clientId: string, payload: SupplierFormValues) => Promise<boolean>;
-  onCreateClientDevice: (payload: ClientDeviceFormValues) => Promise<boolean>;
-  onUpdateClientDevice: (deviceId: string, payload: ClientDeviceFormValues) => Promise<boolean>;
+  onUpdateSupplier: (
+    clientId: string,
+    payload: SupplierFormValues,
+  ) => Promise<boolean>;
+  onCreateClientDevice: (
+    payload: ClientDeviceFormValues,
+  ) => Promise<boolean>;
+  onUpdateClientDevice: (
+    deviceId: string,
+    payload: ClientDeviceFormValues,
+  ) => Promise<boolean>;
   onDeleteClientDevice: (deviceId: string) => Promise<boolean>;
   onUpdateCatalogProduct: (
     catalogProductId: string,
     payload: CatalogProductFormValues,
   ) => Promise<boolean>;
-  onCreateCatalogProduct: (payload: CatalogProductFormValues) => Promise<boolean>;
-  onDeleteCatalogProduct: (catalogProductId: string) => Promise<boolean>;
+  onCreateCatalogProduct: (
+    payload: CatalogProductFormValues,
+  ) => Promise<boolean>;
+  onDeleteCatalogProduct: (
+    catalogProductId: string,
+  ) => Promise<boolean>;
+  onMergeClientDevice?: (
+    targetDeviceId: string,
+    sourceDeviceId: string,
+    draftNote?: string,
+  ) => Promise<boolean>;
+  onMergeCatalogProduct?: (
+    targetCatalogProductId: string,
+    sourceCatalogProductId: string,
+    draftNote?: string,
+  ) => Promise<boolean>;
+  onMergeService?: (
+    targetServiceId: string,
+    sourceServiceId: string,
+    draftNote?: string,
+  ) => Promise<boolean>;
+  onMergeSupplier?: (
+    targetSupplierId: string,
+    sourceSupplierId: string,
+    draftNote?: string,
+  ) => Promise<boolean>;
 };
 
 export const ProductCatalogPanel = ({
@@ -160,6 +197,10 @@ export const ProductCatalogPanel = ({
   onUpdateCatalogProduct,
   onCreateCatalogProduct,
   onDeleteCatalogProduct,
+  onMergeClientDevice,
+  onMergeCatalogProduct,
+  onMergeService,
+  onMergeSupplier,
 }: ProductCatalogPanelProps) => {
   void productForm;
   void isProductSaving;
@@ -176,22 +217,31 @@ export const ProductCatalogPanel = ({
   const { t } = useTranslation();
 
   const [activeTab, setActiveTab] = useState<CatalogTab>(() => {
-    const storedTab = window.localStorage.getItem(catalogTabStorageKey);
-    return storedTab === 'products' || storedTab === 'catalogProducts' || storedTab === 'services' || storedTab === 'suppliers'
+    const storedTab = window.localStorage.getItem(
+      catalogTabStorageKey,
+    );
+    return storedTab === 'products' ||
+      storedTab === 'catalogProducts' ||
+      storedTab === 'services' ||
+      storedTab === 'suppliers'
       ? storedTab
       : 'products';
   });
   const [productsPage, setProductsPage] = useState(1);
   const [productsPageSize, setProductsPageSize] = useState(30);
   const [catalogProductsPage, setCatalogProductsPage] = useState(1);
-  const [catalogProductsPageSize, setCatalogProductsPageSize] = useState(30);
+  const [catalogProductsPageSize, setCatalogProductsPageSize] =
+    useState(30);
   const [servicesPage, setServicesPage] = useState(1);
   const [servicesPageSize, setServicesPageSize] = useState(30);
   const [suppliersPage, setSuppliersPage] = useState(1);
   const [suppliersPageSize, setSuppliersPageSize] = useState(30);
-  const [selectedService, setSelectedService] = useState<ServiceCatalogItem | null>(null);
-  const [selectedSupplier, setSelectedSupplier] = useState<Supplier | null>(null);
-  const [selectedClientDevice, setSelectedClientDevice] = useState<ClientDevice | null>(null);
+  const [selectedService, setSelectedService] =
+    useState<ServiceCatalogItem | null>(null);
+  const [selectedSupplier, setSelectedSupplier] =
+    useState<Supplier | null>(null);
+  const [selectedClientDevice, setSelectedClientDevice] =
+    useState<ClientDevice | null>(null);
   const [selectedCatalogProduct, setSelectedCatalogProduct] =
     useState<CatalogProduct | null>(null);
   const [isServiceFormOpen, setIsServiceFormOpen] = useState(false);
@@ -206,20 +256,31 @@ export const ProductCatalogPanel = ({
     Array<SavedFilter<CatalogFilters, CatalogTab>>
   >([]);
   const [newFilterName, setNewFilterName] = useState('');
-  const [newFilterIcon, setNewFilterIcon] = useState(filterIconOptions[0]);
+  const [newFilterIcon, setNewFilterIcon] = useState(
+    filterIconOptions[0],
+  );
   const [searchByTab, setSearchByTab] = useState(readCatalogSearch);
-  const [isCreateDeviceModalOpen, setIsCreateDeviceModalOpen] = useState(false);
-  const [isCreateSupplierModalOpen, setIsCreateSupplierModalOpen] = useState(false);
-  const [isCreateCatalogProductModalOpen, setIsCreateCatalogProductModalOpen] = useState(false);
-  const [isCreateCatalogProductSaving, setIsCreateCatalogProductSaving] = useState(false);
+  const [isCreateDeviceModalOpen, setIsCreateDeviceModalOpen] =
+    useState(false);
+  const [isCreateSupplierModalOpen, setIsCreateSupplierModalOpen] =
+    useState(false);
+  const [
+    isCreateCatalogProductModalOpen,
+    setIsCreateCatalogProductModalOpen,
+  ] = useState(false);
+  const [
+    isCreateCatalogProductSaving,
+    setIsCreateCatalogProductSaving,
+  ] = useState(false);
   const [createDeviceForm, setCreateDeviceForm] = useState({
     name: '',
     note: '',
   });
-  const [createCatalogProductForm, setCreateCatalogProductForm] = useState({
-    name: '',
-    note: '',
-  });
+  const [createCatalogProductForm, setCreateCatalogProductForm] =
+    useState({
+      name: '',
+      note: '',
+    });
   const [createSupplierForm, setCreateSupplierForm] = useState({
     name: '',
     phone: '+380',
@@ -228,9 +289,12 @@ export const ProductCatalogPanel = ({
   const isProductsTab = activeTab === 'products';
   const isCatalogProductsTab = activeTab === 'catalogProducts';
   const isSuppliersTab = activeTab === 'suppliers';
-  const draftFilters = draftFiltersByTab[activeTab] ?? emptyCatalogFilters;
-  const appliedFilters = appliedFiltersByTab[activeTab] ?? emptyCatalogFilters;
-  const activeFiltersCount = getActiveCatalogFiltersCount(appliedFilters);
+  const draftFilters =
+    draftFiltersByTab[activeTab] ?? emptyCatalogFilters;
+  const appliedFilters =
+    appliedFiltersByTab[activeTab] ?? emptyCatalogFilters;
+  const activeFiltersCount =
+    getActiveCatalogFiltersCount(appliedFilters);
   const visibleSavedFilters = useMemo(
     () =>
       currentEmployee?.id
@@ -304,13 +368,16 @@ export const ProductCatalogPanel = ({
     const catalogTabs = tabs.map((tab) => tab.key);
     void (async () => {
       try {
-        let remote = await listSavedFilters<CatalogFilters>('catalog');
+        let remote =
+          await listSavedFilters<CatalogFilters>('catalog');
         if (remote.length === 0) {
           const legacy = readSavedFilters<CatalogFilters, CatalogTab>(
             catalogSavedFiltersStorageKey,
             catalogTabs,
           ).filter((item) => item.employeeId === employeeId);
-          const migrated: Array<SavedFilter<CatalogFilters, CatalogTab>> = [];
+          const migrated: Array<
+            SavedFilter<CatalogFilters, CatalogTab>
+          > = [];
           for (const item of legacy) {
             try {
               const created = await createSavedFilterRequest({
@@ -345,7 +412,9 @@ export const ProductCatalogPanel = ({
               createdAt: item.createdAt,
             }));
             try {
-              window.localStorage.removeItem(catalogSavedFiltersStorageKey);
+              window.localStorage.removeItem(
+                catalogSavedFiltersStorageKey,
+              );
             } catch {
               // ignore
             }
@@ -406,7 +475,9 @@ export const ProductCatalogPanel = ({
     })();
   };
   const applySavedFilter = (filterId: string) => {
-    const savedFilter = savedFilters.find((item) => item.id === filterId);
+    const savedFilter = savedFilters.find(
+      (item) => item.id === filterId,
+    );
     if (!savedFilter) return;
     const nextFilters = normalizeCatalogFilters(savedFilter.filters);
     setDraftFiltersByTab((current) => ({
@@ -446,8 +517,10 @@ export const ProductCatalogPanel = ({
       const name = device.name.trim().toLowerCase();
       if (query && !name.includes(query)) return false;
       if (filterQuery && !name.includes(filterQuery)) return false;
-      if (filters.status === 'active' && !device.isActive) return false;
-      if (filters.status === 'inactive' && device.isActive) return false;
+      if (filters.status === 'active' && !device.isActive)
+        return false;
+      if (filters.status === 'inactive' && device.isActive)
+        return false;
       if (
         !isDateInCatalogRange(
           device.createdAt,
@@ -459,25 +532,46 @@ export const ProductCatalogPanel = ({
       }
       return true;
     });
-  }, [appliedFiltersByTab.products, clientDevices, searchByTab.products]);
+  }, [
+    appliedFiltersByTab.products,
+    clientDevices,
+    searchByTab.products,
+  ]);
   const paginatedProducts = useMemo(() => {
     const start = (productsPage - 1) * productsPageSize;
-    return filteredClientDevices.slice(start, start + productsPageSize);
+    return filteredClientDevices.slice(
+      start,
+      start + productsPageSize,
+    );
   }, [filteredClientDevices, productsPage, productsPageSize]);
   const filteredCatalogProducts = useMemo(() => {
-    const normalizedQuery = searchByTab.catalogProducts.trim().toLowerCase();
+    const normalizedQuery = searchByTab.catalogProducts
+      .trim()
+      .toLowerCase();
     const filters = appliedFiltersByTab.catalogProducts;
     const filterQuery = filters.query.trim().toLowerCase();
     const noteQuery = filters.note.trim().toLowerCase();
     return catalogProducts.filter((product) => {
-      const searchable = [product.name, product.note].join(' ').toLowerCase();
-      if (normalizedQuery && !searchable.includes(normalizedQuery)) return false;
-      if (filterQuery && !product.name.toLowerCase().includes(filterQuery)) {
+      const searchable = [product.name, product.note]
+        .join(' ')
+        .toLowerCase();
+      if (normalizedQuery && !searchable.includes(normalizedQuery))
+        return false;
+      if (
+        filterQuery &&
+        !product.name.toLowerCase().includes(filterQuery)
+      ) {
         return false;
       }
-      if (noteQuery && !product.note.toLowerCase().includes(noteQuery)) return false;
-      if (filters.status === 'active' && !product.isActive) return false;
-      if (filters.status === 'inactive' && product.isActive) return false;
+      if (
+        noteQuery &&
+        !product.note.toLowerCase().includes(noteQuery)
+      )
+        return false;
+      if (filters.status === 'active' && !product.isActive)
+        return false;
+      if (filters.status === 'inactive' && product.isActive)
+        return false;
       if (
         !isDateInCatalogRange(
           product.createdAt,
@@ -489,7 +583,11 @@ export const ProductCatalogPanel = ({
       }
       return true;
     });
-  }, [appliedFiltersByTab.catalogProducts, catalogProducts, searchByTab.catalogProducts]);
+  }, [
+    appliedFiltersByTab.catalogProducts,
+    catalogProducts,
+    searchByTab.catalogProducts,
+  ]);
   const paginatedCatalogProducts = useMemo(() => {
     const start = (catalogProductsPage - 1) * catalogProductsPageSize;
     return filteredCatalogProducts.slice(
@@ -510,15 +608,28 @@ export const ProductCatalogPanel = ({
     const priceTo = parseCatalogNumberFilter(filters.priceTo);
 
     return services.filter((service) => {
-      const searchable = [service.name, service.note].join(' ').toLowerCase();
-      if (normalizedQuery && !searchable.includes(normalizedQuery)) return false;
-      if (filterQuery && !service.name.toLowerCase().includes(filterQuery)) {
+      const searchable = [service.name, service.note]
+        .join(' ')
+        .toLowerCase();
+      if (normalizedQuery && !searchable.includes(normalizedQuery))
+        return false;
+      if (
+        filterQuery &&
+        !service.name.toLowerCase().includes(filterQuery)
+      ) {
         return false;
       }
-      if (noteQuery && !service.note.toLowerCase().includes(noteQuery)) return false;
-      if (filters.status === 'active' && !service.isActive) return false;
-      if (filters.status === 'inactive' && service.isActive) return false;
-      if (priceFrom !== null && service.price < priceFrom) return false;
+      if (
+        noteQuery &&
+        !service.note.toLowerCase().includes(noteQuery)
+      )
+        return false;
+      if (filters.status === 'active' && !service.isActive)
+        return false;
+      if (filters.status === 'inactive' && service.isActive)
+        return false;
+      if (priceFrom !== null && service.price < priceFrom)
+        return false;
       if (priceTo !== null && service.price > priceTo) return false;
       if (
         !isDateInCatalogRange(
@@ -537,15 +648,22 @@ export const ProductCatalogPanel = ({
     return filteredServices.slice(start, start + servicesPageSize);
   }, [filteredServices, servicesPage, servicesPageSize]);
   const filteredSuppliers = useMemo(() => {
-    const normalizedQuery = searchByTab.suppliers.trim().toLowerCase();
+    const normalizedQuery = searchByTab.suppliers
+      .trim()
+      .toLowerCase();
     const filters = appliedFiltersByTab.suppliers;
     const filterQuery = filters.query.trim().toLowerCase();
     const noteQuery = filters.note.trim().toLowerCase();
     return suppliers.filter((supplier) => {
-      const searchable = [supplier.name, supplier.phone, supplier.note]
+      const searchable = [
+        supplier.name,
+        supplier.phone,
+        supplier.note,
+      ]
         .join(' ')
         .toLowerCase();
-      if (normalizedQuery && !searchable.includes(normalizedQuery)) return false;
+      if (normalizedQuery && !searchable.includes(normalizedQuery))
+        return false;
       if (
         filterQuery &&
         ![supplier.name, supplier.phone]
@@ -555,9 +673,15 @@ export const ProductCatalogPanel = ({
       ) {
         return false;
       }
-      if (noteQuery && !supplier.note.toLowerCase().includes(noteQuery)) return false;
-      if (filters.status === 'active' && !supplier.isActive) return false;
-      if (filters.status === 'inactive' && supplier.isActive) return false;
+      if (
+        noteQuery &&
+        !supplier.note.toLowerCase().includes(noteQuery)
+      )
+        return false;
+      if (filters.status === 'active' && !supplier.isActive)
+        return false;
+      if (filters.status === 'inactive' && supplier.isActive)
+        return false;
       if (
         !isDateInCatalogRange(
           supplier.createdAt,
@@ -569,15 +693,21 @@ export const ProductCatalogPanel = ({
       }
       return true;
     });
-  }, [appliedFiltersByTab.suppliers, searchByTab.suppliers, suppliers]);
+  }, [
+    appliedFiltersByTab.suppliers,
+    searchByTab.suppliers,
+    suppliers,
+  ]);
   const paginatedSuppliers = useMemo(() => {
     const start = (suppliersPage - 1) * suppliersPageSize;
     return filteredSuppliers.slice(start, start + suppliersPageSize);
   }, [filteredSuppliers, suppliersPage, suppliersPageSize]);
   const catalogNumbers = new Map(
     [...products, ...services]
-      .sort((firstItem, secondItem) =>
-        new Date(firstItem.createdAt).getTime() - new Date(secondItem.createdAt).getTime(),
+      .sort(
+        (firstItem, secondItem) =>
+          new Date(firstItem.createdAt).getTime() -
+          new Date(secondItem.createdAt).getTime(),
       )
       .map((item, index) => [item.id, index + 1]),
   );
@@ -614,7 +744,9 @@ export const ProductCatalogPanel = ({
   useEffect(() => {
     const pageCount = Math.max(
       1,
-      Math.ceil(filteredCatalogProducts.length / catalogProductsPageSize),
+      Math.ceil(
+        filteredCatalogProducts.length / catalogProductsPageSize,
+      ),
     );
     if (catalogProductsPage > pageCount) {
       setCatalogProductsPage(pageCount);
@@ -665,30 +797,35 @@ export const ProductCatalogPanel = ({
 
   useEffect(() => {
     if (!selectedService) return;
-    const updatedSelectedService = services.find((service) => service.id === selectedService.id);
+    const updatedSelectedService = services.find(
+      (service) => service.id === selectedService.id,
+    );
     setSelectedService(updatedSelectedService ?? null);
   }, [services, selectedService]);
 
   return (
-    <section className="panel catalog-table-panel">
+    <section className='panel catalog-table-panel'>
       <PageHeader
         title={t('catalog.pageTitle')}
         subtitle={t('catalog.pageSubtitle', {
-          count:
-            isProductsTab
-              ? filteredClientDevices.length
-              : isSuppliersTab
-                ? filteredSuppliers.length
-                : isCatalogProductsTab
-                  ? filteredCatalogProducts.length
-                  : filteredServices.length,
+          count: isProductsTab
+            ? filteredClientDevices.length
+            : isSuppliersTab
+              ? filteredSuppliers.length
+              : isCatalogProductsTab
+                ? filteredCatalogProducts.length
+                : filteredServices.length,
         })}
       />
-      <div className="catalog-tabs" role="tablist" aria-label={t('catalog.tabsAriaLabel')}>
+      <div
+        className='catalog-tabs'
+        role='tablist'
+        aria-label={t('catalog.tabsAriaLabel')}
+      >
         {tabs.map((tab) => (
           <button
             key={tab.key}
-            type="button"
+            type='button'
             aria-selected={tab.key === activeTab}
             className={
               tab.key === activeTab
@@ -702,7 +839,7 @@ export const ProductCatalogPanel = ({
         ))}
       </div>
 
-      <div className="catalog-toolbar">
+      <div className='catalog-toolbar'>
         {isProductsTab ? (
           <CompactPaginationPanel
             totalItems={filteredClientDevices.length}
@@ -733,17 +870,19 @@ export const ProductCatalogPanel = ({
           />
         )}
         <button
-          type="button"
-          className="toolbar-filter-button toolbar-filter-toggle-button"
+          type='button'
+          className='toolbar-filter-button toolbar-filter-toggle-button'
           aria-expanded={isFilterPanelOpen}
           onClick={() => setIsFilterPanelOpen((current) => !current)}
         >
           {t('catalog.toolbar.filter')}
           {activeFiltersCount > 0 ? (
-            <span className="toolbar-filter-count">{activeFiltersCount}</span>
+            <span className='toolbar-filter-count'>
+              {activeFiltersCount}
+            </span>
           ) : null}
         </button>
-        <div className="orders-search-group orders-search-group-clearable catalog-search-group">
+        <div className='orders-search-group orders-search-group-clearable catalog-search-group'>
           <input
             value={
               activeTab === 'services'
@@ -755,9 +894,9 @@ export const ProductCatalogPanel = ({
                 ? t('catalog.toolbar.searchDeviceName')
                 : isCatalogProductsTab
                   ? t('catalog.toolbar.searchProductName')
-                : isSuppliersTab
-                  ? t('catalog.toolbar.searchSupplierNameOrPhone')
-                  : t('catalog.toolbar.searchServiceNameOrNote')
+                  : isSuppliersTab
+                    ? t('catalog.toolbar.searchSupplierNameOrPhone')
+                    : t('catalog.toolbar.searchServiceNameOrNote')
             }
             onChange={(event) => {
               const value = event.target.value;
@@ -773,9 +912,11 @@ export const ProductCatalogPanel = ({
               resetActivePage();
             }}
           />
-          {(activeTab === 'services'
-            ? currentServiceSearchValue
-            : searchByTab[activeTab]) ? (
+          {(
+            activeTab === 'services'
+              ? currentServiceSearchValue
+              : searchByTab[activeTab]
+          ) ? (
             <span
               role='button'
               tabIndex={0}
@@ -813,25 +954,37 @@ export const ProductCatalogPanel = ({
             </span>
           ) : null}
         </div>
-        <div className="catalog-toolbar-actions">
+        <div className='catalog-toolbar-actions'>
           {isProductsTab ? (
-            <button type="button" className="orders-create-button" onClick={() => setIsCreateDeviceModalOpen(true)}>
+            <button
+              type='button'
+              className='orders-create-button'
+              onClick={() => setIsCreateDeviceModalOpen(true)}
+            >
               {t('catalog.toolbar.createDevice')}
             </button>
           ) : isSuppliersTab ? (
-            <button type="button" className="orders-create-button" onClick={() => setIsCreateSupplierModalOpen(true)}>
+            <button
+              type='button'
+              className='orders-create-button'
+              onClick={() => setIsCreateSupplierModalOpen(true)}
+            >
               {t('catalog.toolbar.createSupplier')}
             </button>
           ) : isCatalogProductsTab ? (
             <button
-              type="button"
-              className="orders-create-button"
+              type='button'
+              className='orders-create-button'
               onClick={() => setIsCreateCatalogProductModalOpen(true)}
             >
               {t('catalog.toolbar.createProduct')}
             </button>
           ) : (
-            <button type="button" className="orders-create-button" onClick={openServiceForm}>
+            <button
+              type='button'
+              className='orders-create-button'
+              onClick={openServiceForm}
+            >
               {t('catalog.toolbar.createService')}
             </button>
           )}
@@ -860,7 +1013,10 @@ export const ProductCatalogPanel = ({
         onUpdate={updateDraftFilter}
       />
 
-      {isServiceFormOpen && !isProductsTab && !isSuppliersTab && !isCatalogProductsTab ? (
+      {isServiceFormOpen &&
+      !isProductsTab &&
+      !isSuppliersTab &&
+      !isCatalogProductsTab ? (
         <Modal
           isOpen
           title={
@@ -873,12 +1029,12 @@ export const ProductCatalogPanel = ({
           closeOnBackdrop={!isServiceSaving}
           closeOnEscape={!isServiceSaving}
           footer={
-            <footer className="catalog-edit-footer">
-              <Button variant="secondary" onClick={closeServiceForm}>
+            <footer className='catalog-edit-footer'>
+              <Button variant='secondary' onClick={closeServiceForm}>
                 {t('catalog.modals.cancel')}
               </Button>
               <Button
-                variant="primary"
+                variant='primary'
                 disabled={
                   isServiceSaving ||
                   !serviceForm.name.trim() ||
@@ -991,6 +1147,7 @@ export const ProductCatalogPanel = ({
       {selectedService && !isSuppliersTab ? (
         <CatalogServiceModal
           service={selectedService}
+          services={services}
           form={serviceForm}
           isSaving={isServiceSaving}
           isEditing={isServiceEditing}
@@ -1005,6 +1162,7 @@ export const ProductCatalogPanel = ({
             setSelectedService(null);
           }}
           onActivate={() => onServiceActivate(selectedService)}
+          onMerge={onMergeService}
           catalogNumber={catalogNumbers.get(selectedService.id) ?? 0}
         />
       ) : null}
@@ -1012,21 +1170,30 @@ export const ProductCatalogPanel = ({
       {selectedSupplier ? (
         <SupplierModal
           supplier={selectedSupplier}
+          suppliers={suppliers}
           onClose={() => setSelectedSupplier(null)}
           onSave={async (payload) => {
-            const ok = await onUpdateSupplier(selectedSupplier.id, payload);
+            const ok = await onUpdateSupplier(
+              selectedSupplier.id,
+              payload,
+            );
             if (ok) setSelectedSupplier(null);
           }}
           onCreate={onCreateSupplier}
+          onMerge={onMergeSupplier}
         />
       ) : null}
 
       {selectedClientDevice ? (
         <ClientDeviceModal
           device={selectedClientDevice}
+          clientDevices={clientDevices}
           onClose={() => setSelectedClientDevice(null)}
           onSave={async (payload) => {
-            const ok = await onUpdateClientDevice(selectedClientDevice.id, payload);
+            const ok = await onUpdateClientDevice(
+              selectedClientDevice.id,
+              payload,
+            );
             if (ok) setSelectedClientDevice(null);
           }}
           onRemove={async () => {
@@ -1039,18 +1206,25 @@ export const ProductCatalogPanel = ({
             ) {
               return;
             }
-            const ok = await onDeleteClientDevice(selectedClientDevice.id);
+            const ok = await onDeleteClientDevice(
+              selectedClientDevice.id,
+            );
             if (ok) setSelectedClientDevice(null);
           }}
+          onMerge={onMergeClientDevice}
         />
       ) : null}
 
       {selectedCatalogProduct ? (
         <CatalogSuggestionProductModal
           product={selectedCatalogProduct}
+          catalogProducts={catalogProducts}
           onClose={() => setSelectedCatalogProduct(null)}
           onSave={async (payload) => {
-            const ok = await onUpdateCatalogProduct(selectedCatalogProduct.id, payload);
+            const ok = await onUpdateCatalogProduct(
+              selectedCatalogProduct.id,
+              payload,
+            );
             if (ok) setSelectedCatalogProduct(null);
           }}
           onRemove={async () => {
@@ -1063,9 +1237,12 @@ export const ProductCatalogPanel = ({
             ) {
               return;
             }
-            const ok = await onDeleteCatalogProduct(selectedCatalogProduct.id);
+            const ok = await onDeleteCatalogProduct(
+              selectedCatalogProduct.id,
+            );
             if (ok) setSelectedCatalogProduct(null);
           }}
+          onMerge={onMergeCatalogProduct}
         />
       ) : null}
 
@@ -1076,12 +1253,15 @@ export const ProductCatalogPanel = ({
           onClose={() => setIsCreateDeviceModalOpen(false)}
           closeLabel={t('catalog.modals.close')}
           footer={
-            <footer className="catalog-edit-footer">
-              <Button variant="secondary" onClick={() => setIsCreateDeviceModalOpen(false)}>
+            <footer className='catalog-edit-footer'>
+              <Button
+                variant='secondary'
+                onClick={() => setIsCreateDeviceModalOpen(false)}
+              >
                 {t('catalog.modals.cancel')}
               </Button>
               <Button
-                variant="primary"
+                variant='primary'
                 disabled={!createDeviceForm.name.trim()}
                 onClick={async () => {
                   const ok = await onCreateClientDevice({
@@ -1104,8 +1284,31 @@ export const ProductCatalogPanel = ({
             </footer>
           }
         >
-          <label className="field"><span>{t('catalog.modals.deviceName')}</span><input value={createDeviceForm.name} onChange={(e) => setCreateDeviceForm((c) => ({ ...c, name: e.target.value }))} /></label>
-          <label className="field field-wide"><span>{t('catalog.modals.note')}</span><textarea rows={3} value={createDeviceForm.note} onChange={(e) => setCreateDeviceForm((c) => ({ ...c, note: e.target.value }))} /></label>
+          <label className='field'>
+            <span>{t('catalog.modals.deviceName')}</span>
+            <input
+              value={createDeviceForm.name}
+              onChange={(e) =>
+                setCreateDeviceForm((c) => ({
+                  ...c,
+                  name: e.target.value,
+                }))
+              }
+            />
+          </label>
+          <label className='field field-wide'>
+            <span>{t('catalog.modals.note')}</span>
+            <textarea
+              rows={3}
+              value={createDeviceForm.note}
+              onChange={(e) =>
+                setCreateDeviceForm((c) => ({
+                  ...c,
+                  note: e.target.value,
+                }))
+              }
+            />
+          </label>
         </Modal>
       ) : null}
 
@@ -1116,15 +1319,25 @@ export const ProductCatalogPanel = ({
           onClose={() => setIsCreateSupplierModalOpen(false)}
           closeLabel={t('catalog.modals.close')}
           footer={
-            <footer className="catalog-edit-footer">
+            <footer className='catalog-edit-footer'>
               <Button
-                variant="primary"
-                disabled={!createSupplierForm.name.trim() || !createSupplierForm.phone.trim()}
+                variant='primary'
+                disabled={
+                  !createSupplierForm.name.trim() ||
+                  !createSupplierForm.phone.trim()
+                }
                 onClick={async () => {
-                  const ok = await onCreateSupplier({ ...createSupplierForm, isActive: true });
+                  const ok = await onCreateSupplier({
+                    ...createSupplierForm,
+                    isActive: true,
+                  });
                   if (ok) {
                     setIsCreateSupplierModalOpen(false);
-                    setCreateSupplierForm({ name: '', phone: '+380', note: '' });
+                    setCreateSupplierForm({
+                      name: '',
+                      phone: '+380',
+                      note: '',
+                    });
                   }
                 }}
               >
@@ -1133,9 +1346,43 @@ export const ProductCatalogPanel = ({
             </footer>
           }
         >
-          <label className="field"><span>{t('catalog.modals.name')}</span><input value={createSupplierForm.name} onChange={(e) => setCreateSupplierForm((c) => ({ ...c, name: e.target.value }))} /></label>
-          <label className="field"><span>{t('catalog.modals.phone')}</span><input value={createSupplierForm.phone} onChange={(e) => setCreateSupplierForm((c) => ({ ...c, phone: e.target.value }))} /></label>
-          <label className="field field-wide"><span>{t('catalog.modals.note')}</span><textarea rows={3} value={createSupplierForm.note} onChange={(e) => setCreateSupplierForm((c) => ({ ...c, note: e.target.value }))} /></label>
+          <label className='field'>
+            <span>{t('catalog.modals.name')}</span>
+            <input
+              value={createSupplierForm.name}
+              onChange={(e) =>
+                setCreateSupplierForm((c) => ({
+                  ...c,
+                  name: e.target.value,
+                }))
+              }
+            />
+          </label>
+          <label className='field'>
+            <span>{t('catalog.modals.phone')}</span>
+            <input
+              value={createSupplierForm.phone}
+              onChange={(e) =>
+                setCreateSupplierForm((c) => ({
+                  ...c,
+                  phone: e.target.value,
+                }))
+              }
+            />
+          </label>
+          <label className='field field-wide'>
+            <span>{t('catalog.modals.note')}</span>
+            <textarea
+              rows={3}
+              value={createSupplierForm.note}
+              onChange={(e) =>
+                setCreateSupplierForm((c) => ({
+                  ...c,
+                  note: e.target.value,
+                }))
+              }
+            />
+          </label>
         </Modal>
       ) : null}
 
@@ -1148,23 +1395,27 @@ export const ProductCatalogPanel = ({
           closeOnBackdrop={!isCreateCatalogProductSaving}
           closeOnEscape={!isCreateCatalogProductSaving}
           footer={
-            <footer className="catalog-edit-footer">
+            <footer className='catalog-edit-footer'>
               <Button
-                variant="secondary"
-                onClick={() => setIsCreateCatalogProductModalOpen(false)}
+                variant='secondary'
+                onClick={() =>
+                  setIsCreateCatalogProductModalOpen(false)
+                }
                 disabled={isCreateCatalogProductSaving}
               >
                 {t('catalog.modals.cancel')}
               </Button>
               <Button
-                variant="primary"
+                variant='primary'
                 disabled={
                   isCreateCatalogProductSaving ||
                   createCatalogProductForm.name.trim().length < 2 ||
                   catalogProducts.some(
                     (item) =>
                       item.name.trim().toLowerCase() ===
-                      createCatalogProductForm.name.trim().toLowerCase(),
+                      createCatalogProductForm.name
+                        .trim()
+                        .toLowerCase(),
                   )
                 }
                 onClick={async () => {
@@ -1175,7 +1426,10 @@ export const ProductCatalogPanel = ({
                     isActive: true,
                   });
                   if (ok) {
-                    setCreateCatalogProductForm({ name: '', note: '' });
+                    setCreateCatalogProductForm({
+                      name: '',
+                      note: '',
+                    });
                     setIsCreateCatalogProductModalOpen(false);
                   }
                   setIsCreateCatalogProductSaving(false);
@@ -1188,7 +1442,7 @@ export const ProductCatalogPanel = ({
             </footer>
           }
         >
-          <label className="field">
+          <label className='field'>
             <span>{t('catalog.modals.productName')}</span>
             <input
               value={createCatalogProductForm.name}
@@ -1200,7 +1454,7 @@ export const ProductCatalogPanel = ({
               }
             />
           </label>
-          <label className="field field-wide">
+          <label className='field field-wide'>
             <span>{t('catalog.modals.note')}</span>
             <textarea
               rows={3}
@@ -1299,7 +1553,9 @@ const CatalogFilterPanel = ({
           <input
             type='text'
             value={draftFilters.query}
-            onChange={(event) => onUpdate('query', event.target.value)}
+            onChange={(event) =>
+              onUpdate('query', event.target.value)
+            }
             placeholder={queryLabel}
           />
         </label>
@@ -1311,7 +1567,9 @@ const CatalogFilterPanel = ({
             <input
               type='text'
               value={draftFilters.note}
-              onChange={(event) => onUpdate('note', event.target.value)}
+              onChange={(event) =>
+                onUpdate('note', event.target.value)
+              }
               placeholder={t('catalog.filters.note')}
             />
           </label>
@@ -1328,8 +1586,12 @@ const CatalogFilterPanel = ({
             }
           >
             <option value='all'>{t('catalog.filters.all')}</option>
-            <option value='active'>{t('catalog.filters.active')}</option>
-            <option value='inactive'>{t('catalog.filters.inactive')}</option>
+            <option value='active'>
+              {t('catalog.filters.active')}
+            </option>
+            <option value='inactive'>
+              {t('catalog.filters.inactive')}
+            </option>
           </select>
         </label>
         {isServicesTab ? (
@@ -1352,7 +1614,9 @@ const CatalogFilterPanel = ({
                 type='number'
                 min='0'
                 value={draftFilters.priceTo}
-                onChange={(event) => onUpdate('priceTo', event.target.value)}
+                onChange={(event) =>
+                  onUpdate('priceTo', event.target.value)
+                }
                 placeholder='0'
               />
             </label>
@@ -1363,7 +1627,9 @@ const CatalogFilterPanel = ({
           <input
             type='date'
             value={draftFilters.dateFrom}
-            onChange={(event) => onUpdate('dateFrom', event.target.value)}
+            onChange={(event) =>
+              onUpdate('dateFrom', event.target.value)
+            }
           />
         </label>
         <label className='orders-filter-field'>
@@ -1371,7 +1637,9 @@ const CatalogFilterPanel = ({
           <input
             type='date'
             value={draftFilters.dateTo}
-            onChange={(event) => onUpdate('dateTo', event.target.value)}
+            onChange={(event) =>
+              onUpdate('dateTo', event.target.value)
+            }
           />
         </label>
       </div>
@@ -1394,5 +1662,3 @@ const CatalogFilterPanel = ({
     </section>
   );
 };
-
-

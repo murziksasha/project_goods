@@ -4,9 +4,13 @@ import {
   createServiceCatalogItem,
   deleteServiceCatalogItem,
   listServiceCatalogItems,
+  mergeServices,
   updateServiceCatalogItem,
 } from '../domain/service-catalog/service';
-import type { ServiceCatalogPayload } from '../domain/shared/types';
+import type {
+  MergeServicesPayload,
+  ServiceCatalogPayload,
+} from '../domain/shared/types';
 import {
   asyncHandler,
   requireAnyPermission,
@@ -23,34 +27,72 @@ const serviceReadPermissions = [
   'finance.view',
 ] as const;
 
-serviceCatalogRouter.get('/services', asyncHandler(async (req, res) => {
-  await requireAnyPermission(req, serviceReadPermissions);
-  res.json(await listServiceCatalogItems(req.query.query));
-}));
+serviceCatalogRouter.get(
+  '/services',
+  asyncHandler(async (req, res) => {
+    await requireAnyPermission(req, serviceReadPermissions);
+    res.json(await listServiceCatalogItems(req.query.query));
+  }),
+);
 
-serviceCatalogRouter.post('/services', asyncHandler(async (req, res) => {
-  await requirePermission(req, 'inventory.manage');
-  res.status(201).json(
-    await createServiceCatalogItem(req.body as ServiceCatalogPayload),
-  );
-}));
+serviceCatalogRouter.post(
+  '/services',
+  asyncHandler(async (req, res) => {
+    await requirePermission(req, 'inventory.manage');
+    res
+      .status(201)
+      .json(
+        await createServiceCatalogItem(
+          req.body as ServiceCatalogPayload,
+        ),
+      );
+  }),
+);
 
-serviceCatalogRouter.put('/services/:serviceId', asyncHandler(async (req, res) => {
-  await requirePermission(req, 'inventory.manage');
-  res.json(
-    await updateServiceCatalogItem(
+serviceCatalogRouter.post(
+  '/services/merge',
+  asyncHandler(async (req, res) => {
+    await requirePermission(req, 'inventory.manage');
+    const payload = req.body as MergeServicesPayload;
+    res.json(
+      await mergeServices(
+        payload.targetServiceId,
+        payload.sourceServiceId,
+        payload.draftNote,
+      ),
+    );
+  }),
+);
+
+serviceCatalogRouter.put(
+  '/services/:serviceId',
+  asyncHandler(async (req, res) => {
+    await requirePermission(req, 'inventory.manage');
+    res.json(
+      await updateServiceCatalogItem(
         routeParam(req, 'serviceId'),
-      req.body as ServiceCatalogPayload,
-    ),
-  );
-}));
+        req.body as ServiceCatalogPayload,
+      ),
+    );
+  }),
+);
 
-serviceCatalogRouter.delete('/services/:serviceId', asyncHandler(async (req, res) => {
-  await requirePermission(req, 'inventory.manage');
-  res.json(await deleteServiceCatalogItem(routeParam(req, 'serviceId')));
-}));
+serviceCatalogRouter.delete(
+  '/services/:serviceId',
+  asyncHandler(async (req, res) => {
+    await requirePermission(req, 'inventory.manage');
+    res.json(
+      await deleteServiceCatalogItem(routeParam(req, 'serviceId')),
+    );
+  }),
+);
 
-serviceCatalogRouter.post('/services/:serviceId/archive', asyncHandler(async (req, res) => {
-  await requirePermission(req, 'inventory.manage');
-  res.json(await archiveServiceCatalogItem(routeParam(req, 'serviceId')));
-}));
+serviceCatalogRouter.post(
+  '/services/:serviceId/archive',
+  asyncHandler(async (req, res) => {
+    await requirePermission(req, 'inventory.manage');
+    res.json(
+      await archiveServiceCatalogItem(routeParam(req, 'serviceId')),
+    );
+  }),
+);

@@ -17,7 +17,10 @@ import {
 
 const serviceId = '507f1f77bcf86cd7994390aa';
 
-const buildService = (name: string, patch: Record<string, unknown> = {}) => ({
+const buildService = (
+  name: string,
+  patch: Record<string, unknown> = {},
+) => ({
   _id: { toString: () => String(patch.id ?? serviceId) },
   name,
   nameKey: String(name).trim().replace(/\s+/g, ' ').toLowerCase(),
@@ -27,6 +30,11 @@ const buildService = (name: string, patch: Record<string, unknown> = {}) => ({
   isActive: true,
   createdAt: new Date('2026-01-01T00:00:00.000Z'),
   updatedAt: new Date('2026-01-01T00:00:00.000Z'),
+  validate: vi.fn().mockResolvedValue(undefined),
+  save: vi.fn().mockResolvedValue(undefined),
+  toObject() {
+    return this;
+  },
   ...patch,
 });
 
@@ -47,14 +55,18 @@ beforeEach(() => {
     (value: unknown) =>
       typeof value === 'string' && /^[a-f\d]{24}$/i.test(value),
   );
-  vi.spyOn(ServiceCatalog, 'exists').mockResolvedValue({ _id: serviceId } as never);
+  vi.spyOn(ServiceCatalog, 'exists').mockResolvedValue({
+    _id: serviceId,
+  } as never);
   vi.spyOn(Sale, 'aggregate').mockResolvedValue([] as never);
 });
 
 describe('listServiceCatalogItems', () => {
   it('does not cap results when listing the full catalog', async () => {
     const items = Array.from({ length: 21 }, (_, index) =>
-      buildService(`Service ${index}`, { id: `507f1f77bcf86cd7994390${index.toString().padStart(2, '0')}` }),
+      buildService(`Service ${index}`, {
+        id: `507f1f77bcf86cd7994390${index.toString().padStart(2, '0')}`,
+      }),
     );
     const { limit } = mockFindQuery(items);
 
@@ -67,7 +79,9 @@ describe('listServiceCatalogItems', () => {
   it('keeps autocomplete results capped at 20', async () => {
     const items = [buildService('Repair')];
     const { limit } = mockFindQuery(items);
-    vi.spyOn(ServiceCatalog, 'findOne').mockReturnValue(leanResult(null) as never);
+    vi.spyOn(ServiceCatalog, 'findOne').mockReturnValue(
+      leanResult(null) as never,
+    );
 
     const result = await listServiceCatalogItems('Repair');
 
@@ -77,14 +91,21 @@ describe('listServiceCatalogItems', () => {
   });
 
   it('prepends an exact name match that fell outside the search page', async () => {
-    mockFindQuery([buildService('Screen repair', { id: '507f1f77bcf86cd7994390bb' })]);
+    mockFindQuery([
+      buildService('Screen repair', {
+        id: '507f1f77bcf86cd7994390bb',
+      }),
+    ]);
     vi.spyOn(ServiceCatalog, 'findOne').mockReturnValue(
       leanResult(buildService('ремонт')) as never,
     );
 
     const result = await listServiceCatalogItems('ремонт');
 
-    expect(result[0]).toMatchObject({ id: serviceId, name: 'ремонт' });
+    expect(result[0]).toMatchObject({
+      id: serviceId,
+      name: 'ремонт',
+    });
     expect(result).toHaveLength(2);
   });
 
@@ -93,31 +114,45 @@ describe('listServiceCatalogItems', () => {
     vi.spyOn(Sale, 'aggregate').mockResolvedValue([
       { name: 'ремонт', price: 750 },
     ] as never);
-    vi.spyOn(ServiceCatalog, 'findById').mockReturnValue(leanResult(null) as never);
-    vi.spyOn(ServiceCatalog, 'findOne').mockReturnValue(leanResult(null) as never);
-    vi.spyOn(ServiceCatalog.prototype, 'validate').mockResolvedValue(undefined as never);
-    vi.spyOn(ServiceCatalog.prototype, 'save').mockImplementation(async function saveService(
-      this: { _id?: { toString: () => string }; createdAt?: Date; updatedAt?: Date },
-    ) {
-      this._id = this._id ?? { toString: () => '507f1f77bcf86cd7994390cc' };
-      this.createdAt = this.createdAt ?? new Date('2026-01-01T00:00:00.000Z');
-      this.updatedAt = this.updatedAt ?? new Date('2026-01-01T00:00:00.000Z');
-      return this;
-    });
-    vi.spyOn(ServiceCatalog.prototype, 'toObject').mockImplementation(function toObject(
-      this: Record<string, unknown>,
-    ) {
-      return {
-        _id: this._id,
-        name: this.name,
-        price: this.price,
-        salePriceOptions: this.salePriceOptions ?? [],
-        note: this.note ?? '',
-        isActive: this.isActive ?? true,
-        createdAt: this.createdAt,
-        updatedAt: this.updatedAt,
-      };
-    });
+    vi.spyOn(ServiceCatalog, 'findById').mockReturnValue(
+      leanResult(null) as never,
+    );
+    vi.spyOn(ServiceCatalog, 'findOne').mockReturnValue(
+      leanResult(null) as never,
+    );
+    vi.spyOn(ServiceCatalog.prototype, 'validate').mockResolvedValue(
+      undefined as never,
+    );
+    vi.spyOn(ServiceCatalog.prototype, 'save').mockImplementation(
+      async function saveService(this: {
+        _id?: { toString: () => string };
+        createdAt?: Date;
+        updatedAt?: Date;
+      }) {
+        this._id = this._id ?? {
+          toString: () => '507f1f77bcf86cd7994390cc',
+        };
+        this.createdAt =
+          this.createdAt ?? new Date('2026-01-01T00:00:00.000Z');
+        this.updatedAt =
+          this.updatedAt ?? new Date('2026-01-01T00:00:00.000Z');
+        return this;
+      },
+    );
+    vi.spyOn(ServiceCatalog.prototype, 'toObject').mockImplementation(
+      function toObject(this: Record<string, unknown>) {
+        return {
+          _id: this._id,
+          name: this.name,
+          price: this.price,
+          salePriceOptions: this.salePriceOptions ?? [],
+          note: this.note ?? '',
+          isActive: this.isActive ?? true,
+          createdAt: this.createdAt,
+          updatedAt: this.updatedAt,
+        };
+      },
+    );
 
     await listServiceCatalogItems('');
     await listServiceCatalogItems('');
@@ -139,12 +174,17 @@ describe('upsertServiceCatalogItem', () => {
       serviceId,
     });
 
-    expect(result).toMatchObject({ id: serviceId, name: 'Diagnostics' });
+    expect(result).toMatchObject({
+      id: serviceId,
+      name: 'Diagnostics',
+    });
     expect(findOne).not.toHaveBeenCalled();
   });
 
   it('reuses an existing row by case-insensitive name', async () => {
-    vi.spyOn(ServiceCatalog, 'findById').mockReturnValue(leanResult(null) as never);
+    vi.spyOn(ServiceCatalog, 'findById').mockReturnValue(
+      leanResult(null) as never,
+    );
     vi.spyOn(ServiceCatalog, 'findOne').mockReturnValue(
       leanResult(buildService('Ремонт')) as never,
     );
@@ -158,13 +198,19 @@ describe('upsertServiceCatalogItem', () => {
   });
 
   it('reuses an existing row when create races with a duplicate name', async () => {
-    vi.spyOn(ServiceCatalog, 'findById').mockReturnValue(leanResult(null) as never);
-    const findOne = vi.spyOn(ServiceCatalog, 'findOne').mockReturnValueOnce(
+    vi.spyOn(ServiceCatalog, 'findById').mockReturnValue(
       leanResult(null) as never,
     );
+    const findOne = vi
+      .spyOn(ServiceCatalog, 'findOne')
+      .mockReturnValueOnce(leanResult(null) as never);
     findOne.mockReturnValueOnce(leanResult(null) as never);
-    findOne.mockReturnValue(leanResult(buildService('Ремонт')) as never);
-    vi.spyOn(ServiceCatalog.prototype, 'validate').mockResolvedValue(undefined as never);
+    findOne.mockReturnValue(
+      leanResult(buildService('Ремонт')) as never,
+    );
+    vi.spyOn(ServiceCatalog.prototype, 'validate').mockResolvedValue(
+      undefined as never,
+    );
     vi.spyOn(ServiceCatalog.prototype, 'save').mockRejectedValue({
       code: 11000,
       keyPattern: { nameKey: 1 },
@@ -179,31 +225,41 @@ describe('upsertServiceCatalogItem', () => {
   });
 
   it('creates a catalog row when the name is missing', async () => {
-    vi.spyOn(ServiceCatalog, 'findById').mockReturnValue(leanResult(null) as never);
-    vi.spyOn(ServiceCatalog, 'findOne').mockReturnValue(leanResult(null) as never);
-    vi.spyOn(ServiceCatalog.prototype, 'validate').mockResolvedValue(undefined as never);
-    vi.spyOn(ServiceCatalog.prototype, 'save').mockImplementation(async function saveService(
-      this: { _id?: { toString: () => string }; createdAt?: Date; updatedAt?: Date },
-    ) {
-      this._id = { toString: () => '507f1f77bcf86cd7994390dd' };
-      this.createdAt = new Date('2026-01-01T00:00:00.000Z');
-      this.updatedAt = new Date('2026-01-01T00:00:00.000Z');
-      return this;
-    });
-    vi.spyOn(ServiceCatalog.prototype, 'toObject').mockImplementation(function toObject(
-      this: Record<string, unknown>,
-    ) {
-      return {
-        _id: this._id,
-        name: this.name,
-        price: this.price,
-        salePriceOptions: this.salePriceOptions ?? [],
-        note: this.note ?? '',
-        isActive: this.isActive ?? true,
-        createdAt: this.createdAt,
-        updatedAt: this.updatedAt,
-      };
-    });
+    vi.spyOn(ServiceCatalog, 'findById').mockReturnValue(
+      leanResult(null) as never,
+    );
+    vi.spyOn(ServiceCatalog, 'findOne').mockReturnValue(
+      leanResult(null) as never,
+    );
+    vi.spyOn(ServiceCatalog.prototype, 'validate').mockResolvedValue(
+      undefined as never,
+    );
+    vi.spyOn(ServiceCatalog.prototype, 'save').mockImplementation(
+      async function saveService(this: {
+        _id?: { toString: () => string };
+        createdAt?: Date;
+        updatedAt?: Date;
+      }) {
+        this._id = { toString: () => '507f1f77bcf86cd7994390dd' };
+        this.createdAt = new Date('2026-01-01T00:00:00.000Z');
+        this.updatedAt = new Date('2026-01-01T00:00:00.000Z');
+        return this;
+      },
+    );
+    vi.spyOn(ServiceCatalog.prototype, 'toObject').mockImplementation(
+      function toObject(this: Record<string, unknown>) {
+        return {
+          _id: this._id,
+          name: this.name,
+          price: this.price,
+          salePriceOptions: this.salePriceOptions ?? [],
+          note: this.note ?? '',
+          isActive: this.isActive ?? true,
+          createdAt: this.createdAt,
+          updatedAt: this.updatedAt,
+        };
+      },
+    );
 
     const result = await upsertServiceCatalogItem({
       name: 'ремонт',
@@ -220,7 +276,9 @@ describe('upsertServiceCatalogItem', () => {
 
 describe('attachServiceCatalogIds', () => {
   it('sets serviceId on service lines and leaves products unchanged', async () => {
-    vi.spyOn(ServiceCatalog, 'findById').mockReturnValue(leanResult(null) as never);
+    vi.spyOn(ServiceCatalog, 'findById').mockReturnValue(
+      leanResult(null) as never,
+    );
     vi.spyOn(ServiceCatalog, 'findOne').mockReturnValue(
       leanResult(buildService('ремонт')) as never,
     );
@@ -261,9 +319,9 @@ describe('backfillMissingServicesFromSales', () => {
       { name: 'ремонт', price: 750 },
       { name: 'Diagnostics', price: 250 },
     ] as never);
-    const findOne = vi.spyOn(ServiceCatalog, 'findOne').mockReturnValue(
-      leanResult(buildService('ремонт')) as never,
-    );
+    const findOne = vi
+      .spyOn(ServiceCatalog, 'findOne')
+      .mockReturnValue(leanResult(buildService('ремонт')) as never);
 
     await backfillMissingServicesFromSales();
 
@@ -272,30 +330,49 @@ describe('backfillMissingServicesFromSales', () => {
   });
 });
 
-const mockWritableService = (name: string, patch: Record<string, unknown> = {}) => {
-  vi.spyOn(ServiceCatalog.prototype, 'validate').mockResolvedValue(undefined as never);
-  vi.spyOn(ServiceCatalog.prototype, 'save').mockImplementation(async function saveService(
-    this: { _id?: { toString: () => string }; createdAt?: Date; updatedAt?: Date },
-  ) {
-    this._id = this._id ?? { toString: () => String(patch.id ?? '507f1f77bcf86cd7994390ee') };
-    this.createdAt = this.createdAt ?? new Date('2026-01-01T00:00:00.000Z');
-    this.updatedAt = this.updatedAt ?? new Date('2026-01-01T00:00:00.000Z');
-    return this;
-  });
-  vi.spyOn(ServiceCatalog.prototype, 'toObject').mockImplementation(function toObject(
-    this: Record<string, unknown>,
-  ) {
-    return {
-      _id: this._id ?? { toString: () => String(patch.id ?? '507f1f77bcf86cd7994390ee') },
-      name: this.name ?? name,
-      price: this.price ?? 100,
-      salePriceOptions: this.salePriceOptions ?? [],
-      note: this.note ?? '',
-      isActive: this.isActive ?? true,
-      createdAt: this.createdAt ?? new Date('2026-01-01T00:00:00.000Z'),
-      updatedAt: this.updatedAt ?? new Date('2026-01-01T00:00:00.000Z'),
-    };
-  });
+const mockWritableService = (
+  name: string,
+  patch: Record<string, unknown> = {},
+) => {
+  vi.spyOn(ServiceCatalog.prototype, 'validate').mockResolvedValue(
+    undefined as never,
+  );
+  vi.spyOn(ServiceCatalog.prototype, 'save').mockImplementation(
+    async function saveService(this: {
+      _id?: { toString: () => string };
+      createdAt?: Date;
+      updatedAt?: Date;
+    }) {
+      this._id = this._id ?? {
+        toString: () =>
+          String(patch.id ?? '507f1f77bcf86cd7994390ee'),
+      };
+      this.createdAt =
+        this.createdAt ?? new Date('2026-01-01T00:00:00.000Z');
+      this.updatedAt =
+        this.updatedAt ?? new Date('2026-01-01T00:00:00.000Z');
+      return this;
+    },
+  );
+  vi.spyOn(ServiceCatalog.prototype, 'toObject').mockImplementation(
+    function toObject(this: Record<string, unknown>) {
+      return {
+        _id: this._id ?? {
+          toString: () =>
+            String(patch.id ?? '507f1f77bcf86cd7994390ee'),
+        },
+        name: this.name ?? name,
+        price: this.price ?? 100,
+        salePriceOptions: this.salePriceOptions ?? [],
+        note: this.note ?? '',
+        isActive: this.isActive ?? true,
+        createdAt:
+          this.createdAt ?? new Date('2026-01-01T00:00:00.000Z'),
+        updatedAt:
+          this.updatedAt ?? new Date('2026-01-01T00:00:00.000Z'),
+      };
+    },
+  );
 };
 
 describe('createServiceCatalogItem', () => {
@@ -313,10 +390,15 @@ describe('createServiceCatalogItem', () => {
   });
 
   it('creates a unique service name', async () => {
-    vi.spyOn(ServiceCatalog, 'findOne').mockReturnValue(leanResult(null) as never);
+    vi.spyOn(ServiceCatalog, 'findOne').mockReturnValue(
+      leanResult(null) as never,
+    );
     mockWritableService('Diagnostics');
 
-    const result = await createServiceCatalogItem({ name: 'Diagnostics', price: 250 });
+    const result = await createServiceCatalogItem({
+      name: 'Diagnostics',
+      price: 250,
+    });
 
     expect(result).toMatchObject({
       name: 'Diagnostics',
@@ -333,16 +415,26 @@ describe('updateServiceCatalogItem', () => {
       validate: vi.fn(),
       toObject: vi.fn(),
     };
-    vi.spyOn(ServiceCatalog, 'findById').mockResolvedValue(current as never);
+    vi.spyOn(ServiceCatalog, 'findById').mockResolvedValue(
+      current as never,
+    );
     vi.spyOn(ServiceCatalog, 'findOne').mockReturnValue(
-      leanResult(buildService('Ремонт', { id: '507f1f77bcf86cd7994390ff' })) as never,
+      leanResult(
+        buildService('Ремонт', { id: '507f1f77bcf86cd7994390ff' }),
+      ) as never,
     );
 
     await expect(
-      updateServiceCatalogItem(serviceId, { name: 'ремонт', price: 100 }),
+      updateServiceCatalogItem(serviceId, {
+        name: 'ремонт',
+        price: 100,
+      }),
     ).rejects.toBeInstanceOf(HttpError);
     await expect(
-      updateServiceCatalogItem(serviceId, { name: 'ремонт', price: 100 }),
+      updateServiceCatalogItem(serviceId, {
+        name: 'ремонт',
+        price: 100,
+      }),
     ).rejects.toMatchObject({ statusCode: 409 });
   });
 
@@ -358,8 +450,12 @@ describe('updateServiceCatalogItem', () => {
       save: vi.fn().mockResolvedValue(undefined),
       toObject: vi.fn().mockReturnValue(buildService('Diagnostics')),
     };
-    vi.spyOn(ServiceCatalog, 'findById').mockResolvedValue(current as never);
-    vi.spyOn(ServiceCatalog, 'findOne').mockReturnValue(leanResult(null) as never);
+    vi.spyOn(ServiceCatalog, 'findById').mockResolvedValue(
+      current as never,
+    );
+    vi.spyOn(ServiceCatalog, 'findOne').mockReturnValue(
+      leanResult(null) as never,
+    );
 
     const result = await updateServiceCatalogItem(serviceId, {
       name: 'Diagnostics',
@@ -383,8 +479,12 @@ describe('updateServiceCatalogItem', () => {
       save: vi.fn().mockResolvedValue(undefined),
       toObject: vi.fn().mockReturnValue(saved),
     };
-    vi.spyOn(ServiceCatalog, 'findById').mockResolvedValue(current as never);
-    vi.spyOn(ServiceCatalog, 'findOne').mockReturnValue(leanResult(null) as never);
+    vi.spyOn(ServiceCatalog, 'findById').mockResolvedValue(
+      current as never,
+    );
+    vi.spyOn(ServiceCatalog, 'findOne').mockReturnValue(
+      leanResult(null) as never,
+    );
 
     const result = await updateServiceCatalogItem(serviceId, {
       name: 'Ремонт',
@@ -417,10 +517,15 @@ describe('mergeDuplicateServiceCatalogItems', () => {
 
     const lean = vi.fn().mockResolvedValue([loser, winner]);
     const sort = vi.fn().mockReturnValue({ lean });
-    vi.spyOn(ServiceCatalog, 'find').mockReturnValue({ sort } as never);
-    const updateMany = vi.spyOn(Sale, 'updateMany').mockResolvedValue({} as never);
-    const deleteMany = vi.spyOn(ServiceCatalog, 'deleteMany').mockResolvedValue({} as never);
-
+    vi.spyOn(ServiceCatalog, 'find').mockReturnValue({
+      sort,
+    } as never);
+    const updateMany = vi
+      .spyOn(Sale, 'updateMany')
+      .mockResolvedValue({} as never);
+    const deleteMany = vi
+      .spyOn(ServiceCatalog, 'deleteMany')
+      .mockResolvedValue({} as never);
     await mergeDuplicateServiceCatalogItems();
 
     expect(updateMany).toHaveBeenCalledWith(
@@ -428,6 +533,8 @@ describe('mergeDuplicateServiceCatalogItems', () => {
       { $set: { 'lineItems.$[line].serviceId': winner._id } },
       { arrayFilters: [{ 'line.serviceId': { $in: [loser._id] } }] },
     );
-    expect(deleteMany).toHaveBeenCalledWith({ _id: { $in: [loser._id] } });
+    expect(deleteMany).toHaveBeenCalledWith({
+      _id: { $in: [loser._id] },
+    });
   });
 });

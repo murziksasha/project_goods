@@ -2720,6 +2720,21 @@
     }
   },
   "catalog": {
+    "merge": {
+      "title": "Confirm Catalog Record Merge",
+      "description": "An existing record with this name was found in the catalog. Saving this change will merge the edited record into the existing record.",
+      "targetSectionTitle": "Surviving Record (Target)",
+      "sourceSectionTitle": "Record to Remove (Source)",
+      "survivorNotice": "The target record \"{{name}}\" will survive with its core data.",
+      "removalNotice": "The source record will be permanently deleted after merging.",
+      "notesNotice": "Notes from both records (including draft edits) will be preserved and merged.",
+      "relinkNotice": "All sales, orders, and related data will be relinked to the surviving record without altering quantities or prices.",
+      "confirm": "Confirm Merge",
+      "cancel": "Cancel",
+      "merging": "Merging...",
+      "success": "Record merged successfully.",
+      "error": "Failed to merge records."
+    },
     "tabs": {
       "products": "Client devices",
       "catalogProducts": "Products",
@@ -3149,6 +3164,9 @@
         "clientDeviceCreated": "Client device created.",
         "clientDeviceUpdated": "Client device updated.",
         "clientDeviceRemoved": "Client device removed.",
+        "clientDevicesMerged": "Client devices merged. Moved requests: {{count}}.",
+        "catalogProductsMerged": "Catalog products merged. Moved supplier orders: {{ordersCount}}, sales: {{salesCount}}.",
+        "servicesMerged": "Services merged. Moved requests: {{count}}.",
         "clientsMerged": "Clients merged. Moved requests: {{count}}.",
         "suppliersMerged": "Suppliers merged. Moved supplier orders: {{count}}.",
         "saleUpdatedStockRecalculated": "Sale updated and stock recalculated.",
@@ -3193,6 +3211,9 @@
         "failedCreateClientDevice": "Failed to create client device.",
         "failedUpdateSupplier": "Failed to update supplier.",
         "failedMergeSuppliers": "Failed to merge suppliers.",
+        "failedMergeClientDevices": "Failed to merge client devices.",
+        "failedMergeCatalogProducts": "Failed to merge catalog products.",
+        "failedMergeServices": "Failed to merge services.",
         "failedUpdateClient": "Failed to update client.",
         "failedSaveSale": "Failed to save sale.",
         "failedSaveEmployee": "Failed to save employee.",

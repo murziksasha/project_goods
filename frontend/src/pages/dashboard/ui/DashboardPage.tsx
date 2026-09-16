@@ -31,17 +31,26 @@ import {
   hasAnyEmployeePermission,
   hasEmployeePermission,
 } from '../../../entities/employee/model/permissions';
-import { getApiErrorMessage, setApiAuthToken } from '../../../shared/api/http';
+import {
+  getApiErrorMessage,
+  setApiAuthToken,
+} from '../../../shared/api/http';
 import {
   isAuthExpiredError,
   isNetworkRequestError,
 } from '../../../shared/lib/request';
-import { getBuildLabel, getBuildSha } from '../../../shared/lib/buildInfo';
+import {
+  getBuildLabel,
+  getBuildSha,
+} from '../../../shared/lib/buildInfo';
 import { useDashboardPage } from '../model/useDashboardPage';
 import { AnalyticsHeroSection } from '../../../widgets/dashboard/ui/analytics/AnalyticsHeroSection';
 import { Notifications } from '../../../widgets/dashboard/ui/shared/Notifications';
 import { applyPrintFormLocalOverrides } from '../../../widgets/dashboard/model/print-form-local-overrides';
-import { isProductSale, isRepairOrder } from '../../../entities/sale/lib/sale-kind';
+import {
+  isProductSale,
+  isRepairOrder,
+} from '../../../entities/sale/lib/sale-kind';
 import type { Sale } from '../../../entities/sale/model/types';
 import { GlobalHorizontalScrollbar } from '../../../shared/ui/GlobalHorizontalScrollbar';
 import { ScrollToTopButton } from '../../../shared/ui/ScrollToTopButton';
@@ -101,9 +110,11 @@ const EmployeesPanel = lazy(() =>
   ),
 );
 const SettingsPanel = lazy(() =>
-  import('../../../widgets/dashboard/ui/settings/SettingsPanel').then((module) => ({
-    default: module.SettingsPanel,
-  })),
+  import('../../../widgets/dashboard/ui/settings/SettingsPanel').then(
+    (module) => ({
+      default: module.SettingsPanel,
+    }),
+  ),
 );
 const AccountingPanel = lazy(() =>
   import('../../../widgets/dashboard/ui/accounting/AccountingPanel').then(
@@ -126,11 +137,10 @@ const ClientsSuppliersWorkspace = lazy(() =>
   ),
 );
 const SupplierOrdersWorkspace = lazy(() =>
-  import(
-    '../../../widgets/dashboard/ui/supplier-orders/SupplierOrdersWorkspace'
-  ).then((module) => ({ default: module.SupplierOrdersWorkspace })),
+  import('../../../widgets/dashboard/ui/supplier-orders/SupplierOrdersWorkspace').then(
+    (module) => ({ default: module.SupplierOrdersWorkspace }),
+  ),
 );
-
 
 const pageKeys: PageKey[] = [
   'home',
@@ -147,7 +157,9 @@ const activePageStorageKey = 'project-goods.dashboard-page';
 const sidebarCollapsedStorageKey = 'project-goods.sidebar-collapsed';
 
 const readEmployeeSnapshot = (): Employee | null => {
-  const rawValue = window.localStorage.getItem(employeeSnapshotStorageKey);
+  const rawValue = window.localStorage.getItem(
+    employeeSnapshotStorageKey,
+  );
   if (!rawValue) {
     return null;
   }
@@ -161,20 +173,28 @@ const readEmployeeSnapshot = (): Employee | null => {
 };
 
 const saveEmployeeSnapshot = (employee: Employee) => {
-  window.localStorage.setItem(employeeSnapshotStorageKey, JSON.stringify(employee));
+  window.localStorage.setItem(
+    employeeSnapshotStorageKey,
+    JSON.stringify(employee),
+  );
 };
 
 const getStoredActivePage = (): PageKey => {
   const rawPage = window.localStorage.getItem(activePageStorageKey);
   if (rawPage === 'kanban') return 'orders';
-  return pageKeys.includes(rawPage as PageKey) ? (rawPage as PageKey) : 'home';
+  return pageKeys.includes(rawPage as PageKey)
+    ? (rawPage as PageKey)
+    : 'home';
 };
 
 const getInvitationTokenFromUrl = () =>
-  new URLSearchParams(window.location.search).get('inviteToken')?.trim() ?? '';
+  new URLSearchParams(window.location.search)
+    .get('inviteToken')
+    ?.trim() ?? '';
 
 const getSaleIdFromUrl = () =>
-  new URLSearchParams(window.location.search).get('saleId')?.trim() ?? '';
+  new URLSearchParams(window.location.search).get('saleId')?.trim() ??
+  '';
 
 const getStoredSidebarCollapsed = (): boolean => {
   if (
@@ -184,7 +204,9 @@ const getStoredSidebarCollapsed = (): boolean => {
     return false;
   }
 
-  const rawValue = window.localStorage.getItem(sidebarCollapsedStorageKey);
+  const rawValue = window.localStorage.getItem(
+    sidebarCollapsedStorageKey,
+  );
 
   return rawValue === 'true';
 };
@@ -216,7 +238,9 @@ const sidebarItems: DashboardSidebarItem[] = [
   { key: 'settings', labelKey: 'nav.settings' },
 ];
 
-const isPlainLeftClick = (event: ReactMouseEvent<HTMLAnchorElement>) =>
+const isPlainLeftClick = (
+  event: ReactMouseEvent<HTMLAnchorElement>,
+) =>
   event.button === 0 &&
   !event.metaKey &&
   !event.ctrlKey &&
@@ -228,11 +252,16 @@ const isTemporaryAdmin = (employee: Employee | null) =>
 
 export const DashboardPage = () => {
   const { t, i18n } = useTranslation();
-  const buildLocale = i18n.language?.startsWith('uk') ? 'uk-UA' : 'en-US';
-  const buildLabel = useMemo(() => getBuildLabel(buildLocale), [buildLocale]);
+  const buildLocale = i18n.language?.startsWith('uk')
+    ? 'uk-UA'
+    : 'en-US';
+  const buildLabel = useMemo(
+    () => getBuildLabel(buildLocale),
+    [buildLocale],
+  );
   const buildSha = useMemo(() => getBuildSha(), []);
-  const [isOnline, setIsOnline] = useState(
-    () => (typeof navigator === 'undefined' ? true : navigator.onLine),
+  const [isOnline, setIsOnline] = useState(() =>
+    typeof navigator === 'undefined' ? true : navigator.onLine,
   );
   const [authError, setAuthError] = useState('');
   const [isAuthLoading, setIsAuthLoading] = useState(() =>
@@ -240,24 +269,39 @@ export const DashboardPage = () => {
   );
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [isRegistering, setIsRegistering] = useState(false);
-  const [currentEmployee, setCurrentEmployee] = useState<Employee | null>(null);
-  const [loginForm, setLoginForm] = useState({ username: '', password: '' });
+  const [currentEmployee, setCurrentEmployee] =
+    useState<Employee | null>(null);
+  const [loginForm, setLoginForm] = useState({
+    username: '',
+    password: '',
+  });
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
-  const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
-  const [inviteToken, setInviteToken] = useState(getInvitationTokenFromUrl);
+  const [isCommandPaletteOpen, setIsCommandPaletteOpen] =
+    useState(false);
+  const [inviteToken, setInviteToken] = useState(
+    getInvitationTokenFromUrl,
+  );
   const [inviteState, setInviteState] = useState<{
     isLoading: boolean;
     name: string;
     email: string;
     role: string;
-  }>(() => (getInvitationTokenFromUrl() ? createLoadingInviteState() : createEmptyInviteState()));
-  const [activePage, setActivePage] = useState<PageKey>(() => getPageFromUrlOrNull() ?? getStoredActivePage());
+  }>(() =>
+    getInvitationTokenFromUrl()
+      ? createLoadingInviteState()
+      : createEmptyInviteState(),
+  );
+  const [activePage, setActivePage] = useState<PageKey>(
+    () => getPageFromUrlOrNull() ?? getStoredActivePage(),
+  );
   const { state, actions } = useDashboardPage(
     Boolean(currentEmployee),
     currentEmployee,
     activePage,
   );
-  const [cachedServiceName] = useState(() => readCachedServiceName() ?? '');
+  const [cachedServiceName] = useState(
+    () => readCachedServiceName() ?? '',
+  );
   const effectivePrintForms = useMemo(
     () =>
       applyPrintFormLocalOverrides(
@@ -270,51 +314,66 @@ export const DashboardPage = () => {
       state.settingsForm.printForms,
     ],
   );
-  const [isCreateOrderOpen, setIsCreateOrderOpen] = useState(() => Boolean(getCreateOrderFromUrl()));
+  const [isCreateOrderOpen, setIsCreateOrderOpen] = useState(() =>
+    Boolean(getCreateOrderFromUrl()),
+  );
   const [isCreateMenuOpen, setIsCreateMenuOpen] = useState(false);
   const [activeOrdersTab, setActiveOrdersTab] = useState<OrdersTab>(
     () => getOrdersTabFromUrl() ?? getStoredOrdersTab(),
   );
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(getStoredSidebarCollapsed);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(
+    getStoredSidebarCollapsed,
+  );
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
-  const [isNarrowLayout, setIsNarrowLayout] = useState(() =>
-    typeof window !== 'undefined' &&
-    typeof window.matchMedia === 'function' &&
-    window.matchMedia('(max-width: 1024px)').matches,
+  const [isNarrowLayout, setIsNarrowLayout] = useState(
+    () =>
+      typeof window !== 'undefined' &&
+      typeof window.matchMedia === 'function' &&
+      window.matchMedia('(max-width: 1024px)').matches,
   );
-  const [externalSelectedSaleId, setExternalSelectedSaleId] = useState<string | null>(
-    () => getSaleIdFromUrl() || null,
-  );
-  const [urlSelectedSaleId, setUrlSelectedSaleId] = useState<string | null>(
-    () => getSaleIdFromUrl() || null,
-  );
-  const [openClientCardRequestId, setOpenClientCardRequestId] = useState<string | null>(null);
-  const [pendingPaymentSale, setPendingPaymentSale] = useState<Sale | null>(null);
-  const [syncedAccountingTab, setSyncedAccountingTab] = useState<AccountingTab | null>(
-    () => parseDashboardLocationFromWindow().accountingTab,
-  );
+  const [externalSelectedSaleId, setExternalSelectedSaleId] =
+    useState<string | null>(() => getSaleIdFromUrl() || null);
+  const [urlSelectedSaleId, setUrlSelectedSaleId] = useState<
+    string | null
+  >(() => getSaleIdFromUrl() || null);
+  const [openClientCardRequestId, setOpenClientCardRequestId] =
+    useState<string | null>(null);
+  const [pendingPaymentSale, setPendingPaymentSale] =
+    useState<Sale | null>(null);
+  const [syncedAccountingTab, setSyncedAccountingTab] =
+    useState<AccountingTab | null>(
+      () => parseDashboardLocationFromWindow().accountingTab,
+    );
   const productSales = state.sales.filter(isProductSale);
   const repairOrders = state.sales.filter(isRepairOrder);
   const canCreateOrders =
     currentEmployee?.isActive === true &&
     hasEmployeePermission(currentEmployee, 'orders.manage');
-  const canViewRepairSalesOrders = hasAnyEmployeePermission(currentEmployee, [
-    'orders.view',
-    'orders.manage',
-    'repairs.execute',
-    'sales.manage',
-  ]);
-  const canViewKanban = hasEmployeePermission(currentEmployee, 'kanban.use');
-  const canViewSupplierOrders = hasAnyEmployeePermission(currentEmployee, [
-    'supplierOrders.view',
-    'supplierOrders.manage',
-  ]);
+  const canViewRepairSalesOrders = hasAnyEmployeePermission(
+    currentEmployee,
+    [
+      'orders.view',
+      'orders.manage',
+      'repairs.execute',
+      'sales.manage',
+    ],
+  );
+  const canViewKanban = hasEmployeePermission(
+    currentEmployee,
+    'kanban.use',
+  );
+  const canViewSupplierOrders = hasAnyEmployeePermission(
+    currentEmployee,
+    ['supplierOrders.view', 'supplierOrders.manage'],
+  );
   const canManageSupplierOrders = hasEmployeePermission(
     currentEmployee,
     'supplierOrders.manage',
   );
   const canViewOrders =
-    canViewRepairSalesOrders || canViewSupplierOrders || canViewKanban;
+    canViewRepairSalesOrders ||
+    canViewSupplierOrders ||
+    canViewKanban;
   const availableOrdersTabs = resolvePermittedOrdersTabs({
     canViewRepairSalesOrders,
     canViewSupplierOrders,
@@ -327,41 +386,64 @@ export const DashboardPage = () => {
     hiddenOrdersTabs,
   );
   const fallbackOrdersTab = displayedOrdersTabs[0] ?? 'orders';
-  const effectiveOrdersTab = displayedOrdersTabs.includes(activeOrdersTab)
+  const effectiveOrdersTab = displayedOrdersTabs.includes(
+    activeOrdersTab,
+  )
     ? activeOrdersTab
     : fallbackOrdersTab;
-  const canManageClients = hasEmployeePermission(currentEmployee, 'clients.manage');
-  const canManageInventory = hasEmployeePermission(currentEmployee, 'inventory.manage');
-  const canManageEmployees = hasEmployeePermission(currentEmployee, 'employees.manage');
-  const canViewAccounting = hasEmployeePermission(currentEmployee, 'finance.view');
+  const canManageClients = hasEmployeePermission(
+    currentEmployee,
+    'clients.manage',
+  );
+  const canManageInventory = hasEmployeePermission(
+    currentEmployee,
+    'inventory.manage',
+  );
+  const canManageEmployees = hasEmployeePermission(
+    currentEmployee,
+    'employees.manage',
+  );
+  const canViewAccounting = hasEmployeePermission(
+    currentEmployee,
+    'finance.view',
+  );
   const canEditSettings = currentEmployee?.role === 'owner';
   const canEditPrintForms =
-    canEditSettings || hasEmployeePermission(currentEmployee, 'printForms.manage');
-  const canManageBackups = hasEmployeePermission(currentEmployee, 'system.backups.manage');
-  const canManageSettings = canEditSettings || canManageBackups || canEditPrintForms;
+    canEditSettings ||
+    hasEmployeePermission(currentEmployee, 'printForms.manage');
+  const canManageBackups = hasEmployeePermission(
+    currentEmployee,
+    'system.backups.manage',
+  );
+  const canManageSettings =
+    canEditSettings || canManageBackups || canEditPrintForms;
   const canEraseAllData = isTemporaryAdmin(currentEmployee);
-  const canAccessPage = useCallback((page: PageKey | 'other') => {
-    if (page === 'other') return false;
-    if (page === 'home') return true;
-    if (page === 'orders') return canViewOrders;
-    if (page === 'kanban') return false;
-    if (page === 'clients') return canManageClients;
-    if (page === 'warehouse' || page === 'catalog') return canManageInventory;
-    if (page === 'employees') return canManageEmployees;
-    if (page === 'settings') return canManageSettings;
-    if (page === 'accounting') return canViewAccounting;
+  const canAccessPage = useCallback(
+    (page: PageKey | 'other') => {
+      if (page === 'other') return false;
+      if (page === 'home') return true;
+      if (page === 'orders') return canViewOrders;
+      if (page === 'kanban') return false;
+      if (page === 'clients') return canManageClients;
+      if (page === 'warehouse' || page === 'catalog')
+        return canManageInventory;
+      if (page === 'employees') return canManageEmployees;
+      if (page === 'settings') return canManageSettings;
+      if (page === 'accounting') return canViewAccounting;
 
-    return false;
-  }, [
-    canManageClients,
-    canManageEmployees,
-    canManageInventory,
-    canManageSettings,
-    canViewRepairSalesOrders,
-    canViewAccounting,
-    canViewOrders,
-    t,
-  ]);
+      return false;
+    },
+    [
+      canManageClients,
+      canManageEmployees,
+      canManageInventory,
+      canManageSettings,
+      canViewRepairSalesOrders,
+      canViewAccounting,
+      canViewOrders,
+      t,
+    ],
+  );
   const accountingPopstateSyncRef = useRef<
     ((tab: AccountingTab | null) => void) | null
   >(null);
@@ -372,8 +454,8 @@ export const DashboardPage = () => {
     },
     [],
   );
-  const buildLocationFromState = useCallback(
-    (): DashboardLocation => {
+  const buildLocationFromState =
+    useCallback((): DashboardLocation => {
       const parsed = parseDashboardLocationFromWindow();
 
       return {
@@ -390,34 +472,40 @@ export const DashboardPage = () => {
         accountingTab:
           activePage === 'accounting' ? parsed.accountingTab : null,
       };
-    },
-    [
+    }, [
       activePage,
       effectiveOrdersTab,
       isCreateOrderOpen,
       urlSelectedSaleId,
-    ],
-  );
-  const applyLocationToState = useCallback((location: DashboardLocation) => {
-    setActivePage(location.page);
-    setActiveOrdersTab(location.ordersTab);
-    setIsCreateOrderOpen(Boolean(location.createOrder));
-    setUrlSelectedSaleId(location.saleId);
-    setExternalSelectedSaleId(location.saleId);
-    if (location.page !== 'orders') {
-      setIsCreateOrderOpen(false);
-    }
+    ]);
+  const applyLocationToState = useCallback(
+    (location: DashboardLocation) => {
+      setActivePage(location.page);
+      setActiveOrdersTab(location.ordersTab);
+      setIsCreateOrderOpen(Boolean(location.createOrder));
+      setUrlSelectedSaleId(location.saleId);
+      setExternalSelectedSaleId(location.saleId);
+      if (location.page !== 'orders') {
+        setIsCreateOrderOpen(false);
+      }
 
-    const nextInviteToken = getInvitationTokenFromUrl();
-    setInviteToken(nextInviteToken);
-    setInviteState(
-      nextInviteToken ? createLoadingInviteState() : createEmptyInviteState(),
-    );
-    setSyncedAccountingTab(location.accountingTab);
-    accountingPopstateSyncRef.current?.(location.accountingTab);
-  }, []);
+      const nextInviteToken = getInvitationTokenFromUrl();
+      setInviteToken(nextInviteToken);
+      setInviteState(
+        nextInviteToken
+          ? createLoadingInviteState()
+          : createEmptyInviteState(),
+      );
+      setSyncedAccountingTab(location.accountingTab);
+      accountingPopstateSyncRef.current?.(location.accountingTab);
+    },
+    [],
+  );
   const navigateTo = useCallback(
-    (next: Partial<DashboardLocation>, options?: { replace?: boolean }) => {
+    (
+      next: Partial<DashboardLocation>,
+      options?: { replace?: boolean },
+    ) => {
       const parsed = parseDashboardLocationFromWindow();
       const location: DashboardLocation = {
         ...buildLocationFromState(),
@@ -490,7 +578,9 @@ export const DashboardPage = () => {
 
       const currentWorkspaceTab = effectiveOrdersTab;
       if (isCurrentlyVisible && tab === currentWorkspaceTab) {
-        changeOrdersTab(nextDisplayed[0] ?? 'orders', { replace: true });
+        changeOrdersTab(nextDisplayed[0] ?? 'orders', {
+          replace: true,
+        });
       }
 
       try {
@@ -515,7 +605,8 @@ export const DashboardPage = () => {
       effectiveOrdersTab,
     ],
   );
-  const shouldShowInvitation = Boolean(inviteToken) && !currentEmployee;
+  const shouldShowInvitation =
+    Boolean(inviteToken) && !currentEmployee;
   const visibleInviteState = shouldShowInvitation
     ? inviteState
     : { isLoading: false, name: '', email: '', role: '' };
@@ -538,7 +629,9 @@ export const DashboardPage = () => {
     return subscribeAuthSession((event) => {
       if (event.type === 'cleared') {
         setCurrentEmployee(null);
-        setAuthError((current) => current || t('errors.sessionExpired'));
+        setAuthError(
+          (current) => current || t('errors.sessionExpired'),
+        );
         setIsAuthLoading(false);
       }
     });
@@ -658,7 +751,10 @@ export const DashboardPage = () => {
   }, [currentEmployee]);
 
   useEffect(() => {
-    window.localStorage.setItem(sidebarCollapsedStorageKey, String(isSidebarCollapsed));
+    window.localStorage.setItem(
+      sidebarCollapsedStorageKey,
+      String(isSidebarCollapsed),
+    );
   }, [isSidebarCollapsed]);
 
   useEffect(() => {
@@ -675,7 +771,8 @@ export const DashboardPage = () => {
 
     syncNarrowLayout();
     mediaQuery.addEventListener('change', syncNarrowLayout);
-    return () => mediaQuery.removeEventListener('change', syncNarrowLayout);
+    return () =>
+      mediaQuery.removeEventListener('change', syncNarrowLayout);
   }, []);
 
   useEffect(() => {
@@ -715,7 +812,8 @@ export const DashboardPage = () => {
     };
 
     window.addEventListener('keydown', handleGlobalShortcut);
-    return () => window.removeEventListener('keydown', handleGlobalShortcut);
+    return () =>
+      window.removeEventListener('keydown', handleGlobalShortcut);
   }, [currentEmployee, isCommandPaletteOpen]);
 
   useEffect(() => {
@@ -731,7 +829,8 @@ export const DashboardPage = () => {
       ordersTab: parsed.ordersTab ?? getStoredOrdersTab(),
       createOrder: parsed.createOrder,
       saleId: parsed.saleId,
-      accountingTab: page === 'accounting' ? parsed.accountingTab : null,
+      accountingTab:
+        page === 'accounting' ? parsed.accountingTab : null,
     };
 
     applyLocationToState(initialLocation);
@@ -745,7 +844,8 @@ export const DashboardPage = () => {
 
     window.addEventListener('popstate', syncFromHistory);
 
-    return () => window.removeEventListener('popstate', syncFromHistory);
+    return () =>
+      window.removeEventListener('popstate', syncFromHistory);
   }, [applyLocationToState]);
 
   useEffect(() => {
@@ -767,7 +867,11 @@ export const DashboardPage = () => {
         });
       } catch (error) {
         if (!isActive) return;
-        setAuthError(error instanceof Error ? error.message : t('errors.invitationLoadFailed'));
+        setAuthError(
+          error instanceof Error
+            ? error.message
+            : t('errors.invitationLoadFailed'),
+        );
         setInviteState(createEmptyInviteState());
       }
     })();
@@ -795,7 +899,10 @@ export const DashboardPage = () => {
   }, [activeOrdersTab, currentEmployee, isAuthLoading, navigateTo]);
 
   useEffect(() => {
-    if (!canViewOrders || displayedOrdersTabs.includes(activeOrdersTab)) {
+    if (
+      !canViewOrders ||
+      displayedOrdersTabs.includes(activeOrdersTab)
+    ) {
       return;
     }
 
@@ -842,7 +949,9 @@ export const DashboardPage = () => {
     });
   };
 
-  const handleCommandPaletteAction = (action: CommandPaletteAction) => {
+  const handleCommandPaletteAction = (
+    action: CommandPaletteAction,
+  ) => {
     if (action.type === 'page') {
       openPage(action.page);
       return;
@@ -937,7 +1046,10 @@ export const DashboardPage = () => {
     setIsSidebarCollapsed((previousValue) => !previousValue);
   };
 
-  const openSaleFromClientCard = (sale: { id: string; kind: 'repair' | 'sale' }) => {
+  const openSaleFromClientCard = (sale: {
+    id: string;
+    kind: 'repair' | 'sale';
+  }) => {
     navigateTo({
       page: 'orders',
       ordersTab: sale.kind === 'sale' ? 'sales' : 'orders',
@@ -948,7 +1060,10 @@ export const DashboardPage = () => {
     setExternalSelectedSaleId(sale.id);
   };
 
-  const openCreatedOrder = (sale: { id: string; kind: 'repair' | 'sale' }) => {
+  const openCreatedOrder = (sale: {
+    id: string;
+    kind: 'repair' | 'sale';
+  }) => {
     navigateTo({
       page: 'orders',
       ordersTab: sale.kind === 'sale' ? 'sales' : 'orders',
@@ -1033,7 +1148,11 @@ export const DashboardPage = () => {
       actions.showError('');
       actions.showSuccessMessage('');
     } catch (error) {
-      setAuthError(error instanceof Error ? error.message : t('errors.loginFailed'));
+      setAuthError(
+        error instanceof Error
+          ? error.message
+          : t('errors.loginFailed'),
+      );
       setCurrentEmployee(null);
       setApiAuthToken(null);
     } finally {
@@ -1071,7 +1190,11 @@ export const DashboardPage = () => {
         { replace: true },
       );
     } catch (error) {
-      setAuthError(error instanceof Error ? error.message : t('errors.registerFailed'));
+      setAuthError(
+        error instanceof Error
+          ? error.message
+          : t('errors.registerFailed'),
+      );
     } finally {
       setIsRegistering(false);
     }
@@ -1101,8 +1224,8 @@ export const DashboardPage = () => {
 
   if (isAuthLoading) {
     return (
-      <main className="auth-screen">
-        <section className="panel auth-panel">
+      <main className='auth-screen'>
+        <section className='panel auth-panel'>
           <LoadingState label={t('common.loading')}>
             {t('common.loading')}
           </LoadingState>
@@ -1113,16 +1236,24 @@ export const DashboardPage = () => {
 
   if (!currentEmployee) {
     const submitAuth = () => {
-      void (inviteToken ? handleInvitationRegistration() : handleLogin());
+      void (inviteToken
+        ? handleInvitationRegistration()
+        : handleLogin());
     };
 
     return (
-      <main className="auth-screen">
-        <section className="panel auth-panel">
-          <div className="panel-header auth-panel-brand">
+      <main className='auth-screen'>
+        <section className='panel auth-panel'>
+          <div className='panel-header auth-panel-brand'>
             <div>
-              <p className="section-label">{t('common.serviceCRM')}</p>
-              <h2>{inviteToken ? t('auth.registerTitle') : t('auth.loginTitle')}</h2>
+              <p className='section-label'>
+                {t('common.serviceCRM')}
+              </p>
+              <h2>
+                {inviteToken
+                  ? t('auth.registerTitle')
+                  : t('auth.loginTitle')}
+              </h2>
             </div>
           </div>
 
@@ -1132,16 +1263,16 @@ export const DashboardPage = () => {
                 {t('common.loadingInvitation')}
               </LoadingState>
             ) : (
-              <div className="form-grid">
-                <label className="field field-wide">
+              <div className='form-grid'>
+                <label className='field field-wide'>
                   <span>{t('common.name')}</span>
                   <input value={visibleInviteState.name} disabled />
                 </label>
-                <label className="field field-wide">
+                <label className='field field-wide'>
                   <span>{t('common.email')}</span>
                   <input value={visibleInviteState.email} disabled />
                 </label>
-                <label className="field field-wide">
+                <label className='field field-wide'>
                   <span>{t('common.role')}</span>
                   <input value={visibleInviteState.role} disabled />
                 </label>
@@ -1149,15 +1280,22 @@ export const DashboardPage = () => {
             )
           ) : null}
 
-          <div className="form-grid">
-            <label className="field field-wide">
-              <span>{inviteToken ? t('auth.createLogin') : t('common.login')}</span>
+          <div className='form-grid'>
+            <label className='field field-wide'>
+              <span>
+                {inviteToken
+                  ? t('auth.createLogin')
+                  : t('common.login')}
+              </span>
               <input
                 autoFocus
-                autoComplete="username"
+                autoComplete='username'
                 value={loginForm.username}
                 onChange={(event) =>
-                  setLoginForm((current) => ({ ...current, username: event.target.value }))
+                  setLoginForm((current) => ({
+                    ...current,
+                    username: event.target.value,
+                  }))
                 }
                 placeholder={t('common.username')}
                 onKeyDown={(event) => {
@@ -1167,14 +1305,19 @@ export const DashboardPage = () => {
                 }}
               />
             </label>
-            <label className="field field-wide auth-password-field">
+            <label className='field field-wide auth-password-field'>
               <span>{t('common.password')}</span>
               <input
                 type={isPasswordVisible ? 'text' : 'password'}
-                autoComplete={inviteToken ? 'new-password' : 'current-password'}
+                autoComplete={
+                  inviteToken ? 'new-password' : 'current-password'
+                }
                 value={loginForm.password}
                 onChange={(event) =>
-                  setLoginForm((current) => ({ ...current, password: event.target.value }))
+                  setLoginForm((current) => ({
+                    ...current,
+                    password: event.target.value,
+                  }))
                 }
                 placeholder={t('common.password')}
                 onKeyDown={(event) => {
@@ -1184,16 +1327,20 @@ export const DashboardPage = () => {
                 }}
               />
               <button
-                type="button"
-                className="auth-password-toggle"
+                type='button'
+                className='auth-password-toggle'
                 aria-label={
                   isPasswordVisible
                     ? t('auth.hidePassword')
                     : t('auth.showPassword')
                 }
-                onClick={() => setIsPasswordVisible((current) => !current)}
+                onClick={() =>
+                  setIsPasswordVisible((current) => !current)
+                }
               >
-                {isPasswordVisible ? t('auth.hidePasswordShort') : t('auth.showPasswordShort')}
+                {isPasswordVisible
+                  ? t('auth.hidePasswordShort')
+                  : t('auth.showPasswordShort')}
               </button>
             </label>
           </div>
@@ -1201,8 +1348,8 @@ export const DashboardPage = () => {
           {authError ? <InlineError>{authError}</InlineError> : null}
 
           <Button
-            className="auth-submit"
-            type="button"
+            className='auth-submit'
+            type='button'
             onClick={submitAuth}
             disabled={
               (inviteToken ? isRegistering : isLoggingIn) ||
@@ -1226,8 +1373,12 @@ export const DashboardPage = () => {
 
   const shellClassName = [
     'dashboard-shell',
-    !isNarrowLayout && isSidebarCollapsed ? 'dashboard-shell-collapsed' : '',
-    isNarrowLayout && isMobileNavOpen ? 'dashboard-shell-mobile-nav-open' : '',
+    !isNarrowLayout && isSidebarCollapsed
+      ? 'dashboard-shell-collapsed'
+      : '',
+    isNarrowLayout && isMobileNavOpen
+      ? 'dashboard-shell-mobile-nav-open'
+      : '',
   ]
     .filter(Boolean)
     .join(' ');
@@ -1246,14 +1397,14 @@ export const DashboardPage = () => {
       />
       {isNarrowLayout && isMobileNavOpen ? (
         <button
-          type="button"
-          className="mobile-nav-backdrop"
+          type='button'
+          className='mobile-nav-backdrop'
           aria-label={t('common.close')}
           onClick={() => setIsMobileNavOpen(false)}
         />
       ) : null}
 
-      <section className="dashboard-main">
+      <section className='dashboard-main'>
         <DashboardTopbar
           serviceName={
             state.settings?.serviceName ||
@@ -1271,37 +1422,42 @@ export const DashboardPage = () => {
             canViewOrders &&
             canCreateOrders &&
             !isCreateOrderOpen ? (
-              <div className="topbar-primary-actions-create">
+              <div className='topbar-primary-actions-create'>
                 <button
-                  type="button"
-                  className="primary-button topbar-create-button topbar-create-desktop"
+                  type='button'
+                  className='primary-button topbar-create-button topbar-create-desktop'
                   onClick={() => openCreateOrder('orders')}
                 >
                   {t('orders.toolbar.createRepair')}
                 </button>
                 <button
-                  type="button"
-                  className="secondary-button topbar-create-button topbar-create-desktop"
+                  type='button'
+                  className='secondary-button topbar-create-button topbar-create-desktop'
                   onClick={() => openCreateOrder('sales')}
                 >
                   {t('orders.toolbar.createSale')}
                 </button>
-                <div className="topbar-create-phone">
+                <div className='topbar-create-phone'>
                   <button
-                    type="button"
-                    className="primary-button topbar-create-button"
+                    type='button'
+                    className='primary-button topbar-create-button'
                     aria-expanded={isCreateMenuOpen}
-                    aria-haspopup="menu"
-                    onClick={() => setIsCreateMenuOpen((open) => !open)}
+                    aria-haspopup='menu'
+                    onClick={() =>
+                      setIsCreateMenuOpen((open) => !open)
+                    }
                   >
                     {t('common.create')}
                   </button>
                   {isCreateMenuOpen ? (
-                    <div className="topbar-create-menu-panel" role="menu">
+                    <div
+                      className='topbar-create-menu-panel'
+                      role='menu'
+                    >
                       <button
-                        type="button"
-                        className="ghost-button"
-                        role="menuitem"
+                        type='button'
+                        className='ghost-button'
+                        role='menuitem'
                         onClick={() => {
                           setIsCreateMenuOpen(false);
                           openCreateOrder('orders');
@@ -1310,9 +1466,9 @@ export const DashboardPage = () => {
                         {t('orders.toolbar.createRepair')}
                       </button>
                       <button
-                        type="button"
-                        className="ghost-button"
-                        role="menuitem"
+                        type='button'
+                        className='ghost-button'
+                        role='menuitem'
                         onClick={() => {
                           setIsCreateMenuOpen(false);
                           openCreateOrder('sales');
@@ -1332,9 +1488,9 @@ export const DashboardPage = () => {
           onLogout={() => void handleLogout()}
         />
 
-        <div className="page-shell">
+        <div className='page-shell'>
           {isOffline ? (
-            <div className="offline-banner" role="status">
+            <div className='offline-banner' role='status'>
               {t('common.notifications.offlineViewOnly')}
             </div>
           ) : null}
@@ -1353,24 +1509,32 @@ export const DashboardPage = () => {
             isOffline={isOffline}
           />
 
-          <Suspense fallback={<LoadingState>{t('common.loading')}</LoadingState>}>
-          {!canAccessPage(activePage) ? (
-            <AccessDeniedPanel
-              page={activePage}
-              allowedPages={pageKeys.filter((page) => canAccessPage(page))}
-              onNavigate={openPage}
-            />
-          ) : activePage === 'orders' && canViewOrders ? (
-            activePage === 'orders' &&
-            isCreateOrderOpen &&
-            effectiveOrdersTab !== 'supplierOrders' &&
-            effectiveOrdersTab !== 'supplierInformation' ? (
+          <Suspense
+            fallback={
+              <LoadingState>{t('common.loading')}</LoadingState>
+            }
+          >
+            {!canAccessPage(activePage) ? (
+              <AccessDeniedPanel
+                page={activePage}
+                allowedPages={pageKeys.filter((page) =>
+                  canAccessPage(page),
+                )}
+                onNavigate={openPage}
+              />
+            ) : activePage === 'orders' && canViewOrders ? (
+              activePage === 'orders' &&
+              isCreateOrderOpen &&
+              effectiveOrdersTab !== 'supplierOrders' &&
+              effectiveOrdersTab !== 'supplierInformation' ? (
                 <CreateOrderCard
                   isSaving={state.isSaleSaving}
                   employees={state.allEmployees}
                   currentEmployee={currentEmployee}
                   onClose={openOrdersPage}
-                  initialTab={effectiveOrdersTab === 'sales' ? 'sale' : 'repair'}
+                  initialTab={
+                    effectiveOrdersTab === 'sales' ? 'sale' : 'repair'
+                  }
                   catalogProducts={state.catalogProducts}
                   products={state.allProducts}
                   sales={state.sales}
@@ -1381,10 +1545,10 @@ export const DashboardPage = () => {
                   onRapidSaleCreated={handleRapidSaleCreated}
                   onError={actions.showError}
                   onOpenClientCard={openClientCardFromOrders}
-              />
-            ) : activePage === 'orders' &&
-              (effectiveOrdersTab === 'supplierOrders' ||
-                effectiveOrdersTab === 'supplierInformation') ? (
+                />
+              ) : activePage === 'orders' &&
+                (effectiveOrdersTab === 'supplierOrders' ||
+                  effectiveOrdersTab === 'supplierInformation') ? (
                 <SupplierOrdersWorkspace
                   activeTab={effectiveOrdersTab}
                   onActiveTabChange={changeOrdersTab}
@@ -1399,7 +1563,9 @@ export const DashboardPage = () => {
                   canManageSupplierOrders={canManageSupplierOrders}
                   onCreateSupplier={actions.createSupplierCard}
                   onUpdateSupplier={actions.updateSupplierCard}
-                  onUpdateCatalogProduct={actions.updateCatalogProductCard}
+                  onUpdateCatalogProduct={
+                    actions.updateCatalogProductCard
+                  }
                   onSuccess={actions.showSuccessMessage}
                   onError={actions.showError}
                 />
@@ -1419,7 +1585,9 @@ export const DashboardPage = () => {
                   onCreateOrder={openCreateOrder}
                   createOrderHref={getDashboardHref('orders', {
                     ordersTab: effectiveOrdersTab,
-                    createOrder: getCreateOrderForOrdersTab(effectiveOrdersTab),
+                    createOrder: getCreateOrderForOrdersTab(
+                      effectiveOrdersTab,
+                    ),
                   })}
                   getCreateOrderHref={(tab) =>
                     getDashboardHref('orders', {
@@ -1433,7 +1601,9 @@ export const DashboardPage = () => {
                   onError={actions.showError}
                   onSuccess={actions.showSuccessMessage}
                   externalSelectedSaleId={externalSelectedSaleId}
-                  onExternalSaleOpenHandled={() => setExternalSelectedSaleId(null)}
+                  onExternalSaleOpenHandled={() =>
+                    setExternalSelectedSaleId(null)
+                  }
                   onSelectedSaleIdChange={handleSelectedSaleIdChange}
                   onOpenClientCard={openClientCardFromOrders}
                   clientDevices={state.clientDevices}
@@ -1441,188 +1611,244 @@ export const DashboardPage = () => {
                   printForms={effectivePrintForms}
                   printCompanySettings={{
                     serviceName:
-                      state.settings?.serviceName ?? state.settingsForm.serviceName,
-                    company: state.settings?.company ?? state.settingsForm.company,
+                      state.settings?.serviceName ??
+                      state.settingsForm.serviceName,
+                    company:
+                      state.settings?.company ??
+                      state.settingsForm.company,
                     companyAddress:
-                      state.settings?.companyAddress ?? state.settingsForm.companyAddress,
-                    companyId: state.settings?.companyId ?? state.settingsForm.companyId,
-                    companyIban: state.settings?.companyIban ?? state.settingsForm.companyIban,
+                      state.settings?.companyAddress ??
+                      state.settingsForm.companyAddress,
+                    companyId:
+                      state.settings?.companyId ??
+                      state.settingsForm.companyId,
+                    companyIban:
+                      state.settings?.companyIban ??
+                      state.settingsForm.companyIban,
                     companyEmail:
-                      state.settings?.companyEmail ?? state.settingsForm.companyEmail,
+                      state.settings?.companyEmail ??
+                      state.settingsForm.companyEmail,
                     companySite:
-                      state.settings?.companySite ?? state.settingsForm.companySite,
+                      state.settings?.companySite ??
+                      state.settingsForm.companySite,
                   }}
-                  onCreateClientDevice={actions.createClientDeviceCard}
-                  onUpdateClientDevice={actions.updateClientDeviceCard}
-                  onDeleteClientDevice={actions.deleteClientDeviceCard}
-                  onUpdateProductModel={actions.updateProductModelCard}
+                  onCreateClientDevice={
+                    actions.createClientDeviceCard
+                  }
+                  onUpdateClientDevice={
+                    actions.updateClientDeviceCard
+                  }
+                  onDeleteClientDevice={
+                    actions.deleteClientDeviceCard
+                  }
+                  onUpdateProductModel={
+                    actions.updateProductModelCard
+                  }
                   pendingPaymentSale={pendingPaymentSale}
-                  onPendingPaymentSaleHandled={() => setPendingPaymentSale(null)}
+                  onPendingPaymentSaleHandled={() =>
+                    setPendingPaymentSale(null)
+                  }
                 />
               )
-          ) : activePage === 'employees' && canManageEmployees ? (
-            <EmployeesPanel
-              employees={state.allEmployees}
-              sales={state.sales}
-              form={state.employeeForm}
-              isLoading={state.isEmployeesLoading}
-              isSalesLoading={state.isSalesLoading}
-              isSaving={state.isEmployeeSaving}
-              isEditing={Boolean(state.editingEmployeeId)}
-              canManageEmployees={canManageEmployees}
-              canManageOwnerAccounts={currentEmployee.role === 'owner'}
-              currentEmployeeId={currentEmployee.id}
-              onChange={actions.onEmployeeChange}
-              onSubmit={actions.saveEmployee}
-              onCancelEdit={actions.resetEmployeeEditor}
-              onEdit={actions.editEmployee}
-              onDelete={actions.deleteEmployee}
-            />
-          ) : activePage === 'clients' && canManageClients ? (
-            <ClientsSuppliersWorkspace
-              currentEmployee={currentEmployee}
-              clients={state.allClients}
-              suppliers={state.suppliers}
-              sales={state.sales}
-              selectedClientId={state.selectedClientId}
-              history={state.clientHistory}
-              isClientsLoading={state.isClientsLoading}
-              isHistoryLoading={state.isClientHistoryLoading}
-              isSaving={state.isClientSaving}
-              isClientImporting={state.isClientImporting}
-              isClientExporting={state.isClientExporting}
-              onSelectClient={actions.setSelectedClientId}
-              onDeleteClient={actions.deleteClient}
-              onCreateClient={actions.createClientCard}
-              onImportClients={actions.importClientsFromFile}
-              onExportClients={actions.exportClients}
-              onMergeClients={actions.mergeClients}
-              onMergeSuppliers={actions.mergeSuppliers}
-              onUpdateClient={actions.updateClientCard}
-              onCreateSupplier={actions.createSupplierCard}
-              onUpdateSupplier={actions.updateSupplierCard}
-              onOpenSaleCard={openSaleFromClientCard}
-              openClientCardRequestId={openClientCardRequestId}
-              onOpenClientCardHandled={() => setOpenClientCardRequestId(null)}
-              clientDevices={state.clientDevices}
-              onUpdateClientDevice={actions.updateClientDeviceCard}
-              onDeleteClientDevice={actions.deleteClientDeviceCard}
-            />
-          ) : activePage === 'settings' && canManageSettings ? (
-            <SettingsPanel
-              form={state.settingsForm}
-              isSaving={state.isSettingsSaving}
-              isSettingsReady={state.isSettingsReady}
-              canEditSettings={canEditSettings}
-              canEditPrintForms={canEditPrintForms}
-              canManageBackups={canManageBackups}
-              onChange={actions.onSettingsChange}
-              onSubmit={actions.saveSettings}
-            />
-          ) : activePage === 'accounting' && canViewAccounting ? (
-            <AccountingPanel
-              currentEmployee={currentEmployee}
-              onError={actions.showError}
-              onSuccess={actions.showSuccessMessage}
-              sales={state.sales}
-              onNavigateAccountingTab={handleNavigateAccountingTab}
-              registerAccountingPopstateSync={registerAccountingPopstateSync}
-              syncedAccountingTab={syncedAccountingTab}
-            />
-          ) : activePage === 'catalog' && canManageInventory ? (
-            <ProductCatalogPanel
-              currentEmployee={currentEmployee}
-              products={state.products}
-              clientDevices={state.clientDevices}
-              catalogProducts={state.catalogProducts}
-              isLoading={state.isProductsLoading}
-              isCatalogProductsLoading={state.isCatalogProductsLoading}
-              searchQuery={state.deferredProductSearchQuery}
-              currentSearchValue={state.productSearchQuery}
-              productForm={state.productForm}
-              isProductSaving={state.isProductSaving}
-              isProductEditing={Boolean(state.editingProductId)}
-              onSearchChange={actions.setProductSearchQuery}
-              onProductChange={actions.onProductChange}
-              onProductSubmit={actions.saveProduct}
-              onProductCancelEdit={actions.resetProductEditor}
-              onArchiveProduct={actions.archiveProduct}
-              onActivateProduct={actions.activateProduct}
-              services={state.services}
-              serviceForm={state.serviceForm}
-              isServicesLoading={state.isServicesLoading}
-              isServiceSaving={state.isServiceSaving}
-              isServiceEditing={Boolean(state.editingServiceId)}
-              serviceSearchQuery={state.deferredServiceSearchQuery}
-              currentServiceSearchValue={state.serviceSearchQuery}
-              onServiceSearchChange={actions.setServiceSearchQuery}
-              onServiceChange={actions.onServiceChange}
-              onServiceSubmit={actions.saveService}
-              onServiceCancelEdit={actions.resetServiceEditor}
-              onServiceEdit={actions.editService}
-              onServiceArchive={actions.archiveService}
-              onServiceActivate={actions.activateService}
-              suppliers={state.suppliers}
-              onCreateSupplier={actions.createSupplierCard}
-              onUpdateSupplier={actions.updateSupplierCard}
-              onCreateClientDevice={actions.createClientDeviceCard}
-              onUpdateClientDevice={actions.updateClientDeviceCard}
-              onDeleteClientDevice={actions.deleteClientDeviceCard}
-              onUpdateCatalogProduct={actions.updateCatalogProductCard}
-              onCreateCatalogProduct={actions.createCatalogProductCard}
-              onDeleteCatalogProduct={actions.deleteCatalogProductCard}
-            />
-          ) : activePage === 'warehouse' && canManageInventory ? (
-            <WarehousePanel
-              printForms={effectivePrintForms}
-              products={state.allProducts}
-              sales={state.sales}
-              catalogProducts={state.catalogProducts}
-              employees={state.allEmployees}
-              canViewSupplierOrders={canViewSupplierOrders}
-              canManageSupplierOrders={canManageSupplierOrders}
-              suppliers={state.suppliers}
-              isLoading={state.isProductsLoading}
-              productForm={state.productForm}
-              isProductSaving={state.isProductSaving}
-              isProductEditing={Boolean(state.editingProductId)}
-              onProductChange={actions.onProductChange}
-              onProductSubmit={actions.saveProduct}
-              onProductCancelEdit={actions.resetProductEditor}
-              onProductEdit={actions.editProduct}
-              onProductDelete={actions.deleteProduct}
-              onProductTransfer={actions.transferProduct}
-              onCreateSupplier={actions.createSupplierCard}
-              onUpdateSupplier={actions.updateSupplierCard}
-              onUpdateCatalogProduct={actions.updateCatalogProductCard}
-              onUpdateProductModel={actions.updateProductModelCard}
-              currentEmployeeId={currentEmployee.id}
-              currentEmployeeName={currentEmployee.name}
-              onError={actions.showError}
-              onSuccess={actions.showSuccessMessage}
-              onOpenSaleCard={openSaleFromClientCard}
-            />
-          ) : (
-            <AnalyticsHeroSection
-              sales={productSales}
-              orders={repairOrders}
-              products={state.allProducts}
-              isSalesLoading={state.isSalesLoading}
-              isSeeding={state.isSeeding}
-              canEraseAllData={canEraseAllData}
-              statsPeriod={state.statsPeriod}
-              analyticsDateRange={state.analyticsDateRange}
-              draftAnalyticsDateRange={state.draftAnalyticsDateRange}
-              isAnalyticsDateFilterOpen={state.isAnalyticsDateFilterOpen}
-              dashboardPreferences={state.settingsForm.dashboardPreferences}
-              onStatsPeriodChange={actions.setStatsPeriod}
-              onDraftAnalyticsDateRangeChange={actions.setDraftAnalyticsDateRange}
-              onAnalyticsDateFilterOpenChange={actions.setIsAnalyticsDateFilterOpen}
-              onApplyAnalyticsDateRange={actions.applyAnalyticsDateRange}
-              onClearAnalyticsDateRange={actions.clearAnalyticsDateRange}
-              onSeed={actions.eraseAllData}
-            />
-          )}
+            ) : activePage === 'employees' && canManageEmployees ? (
+              <EmployeesPanel
+                employees={state.allEmployees}
+                sales={state.sales}
+                form={state.employeeForm}
+                isLoading={state.isEmployeesLoading}
+                isSalesLoading={state.isSalesLoading}
+                isSaving={state.isEmployeeSaving}
+                isEditing={Boolean(state.editingEmployeeId)}
+                canManageEmployees={canManageEmployees}
+                canManageOwnerAccounts={
+                  currentEmployee.role === 'owner'
+                }
+                currentEmployeeId={currentEmployee.id}
+                onChange={actions.onEmployeeChange}
+                onSubmit={actions.saveEmployee}
+                onCancelEdit={actions.resetEmployeeEditor}
+                onEdit={actions.editEmployee}
+                onDelete={actions.deleteEmployee}
+              />
+            ) : activePage === 'clients' && canManageClients ? (
+              <ClientsSuppliersWorkspace
+                currentEmployee={currentEmployee}
+                clients={state.allClients}
+                suppliers={state.suppliers}
+                sales={state.sales}
+                selectedClientId={state.selectedClientId}
+                history={state.clientHistory}
+                isClientsLoading={state.isClientsLoading}
+                isHistoryLoading={state.isClientHistoryLoading}
+                isSaving={state.isClientSaving}
+                isClientImporting={state.isClientImporting}
+                isClientExporting={state.isClientExporting}
+                onSelectClient={actions.setSelectedClientId}
+                onDeleteClient={actions.deleteClient}
+                onCreateClient={actions.createClientCard}
+                onImportClients={actions.importClientsFromFile}
+                onExportClients={actions.exportClients}
+                onMergeClients={actions.mergeClients}
+                onMergeSuppliers={actions.mergeSuppliers}
+                onUpdateClient={actions.updateClientCard}
+                onCreateSupplier={actions.createSupplierCard}
+                onUpdateSupplier={actions.updateSupplierCard}
+                onOpenSaleCard={openSaleFromClientCard}
+                openClientCardRequestId={openClientCardRequestId}
+                onOpenClientCardHandled={() =>
+                  setOpenClientCardRequestId(null)
+                }
+                clientDevices={state.clientDevices}
+                onUpdateClientDevice={actions.updateClientDeviceCard}
+                onDeleteClientDevice={actions.deleteClientDeviceCard}
+              />
+            ) : activePage === 'settings' && canManageSettings ? (
+              <SettingsPanel
+                form={state.settingsForm}
+                isSaving={state.isSettingsSaving}
+                isSettingsReady={state.isSettingsReady}
+                canEditSettings={canEditSettings}
+                canEditPrintForms={canEditPrintForms}
+                canManageBackups={canManageBackups}
+                onChange={actions.onSettingsChange}
+                onSubmit={actions.saveSettings}
+              />
+            ) : activePage === 'accounting' && canViewAccounting ? (
+              <AccountingPanel
+                currentEmployee={currentEmployee}
+                onError={actions.showError}
+                onSuccess={actions.showSuccessMessage}
+                sales={state.sales}
+                onNavigateAccountingTab={handleNavigateAccountingTab}
+                registerAccountingPopstateSync={
+                  registerAccountingPopstateSync
+                }
+                syncedAccountingTab={syncedAccountingTab}
+              />
+            ) : activePage === 'catalog' && canManageInventory ? (
+              <ProductCatalogPanel
+                currentEmployee={currentEmployee}
+                products={state.products}
+                clientDevices={state.clientDevices}
+                catalogProducts={state.catalogProducts}
+                isLoading={state.isProductsLoading}
+                isCatalogProductsLoading={
+                  state.isCatalogProductsLoading
+                }
+                searchQuery={state.deferredProductSearchQuery}
+                currentSearchValue={state.productSearchQuery}
+                productForm={state.productForm}
+                isProductSaving={state.isProductSaving}
+                isProductEditing={Boolean(state.editingProductId)}
+                onSearchChange={actions.setProductSearchQuery}
+                onProductChange={actions.onProductChange}
+                onProductSubmit={actions.saveProduct}
+                onProductCancelEdit={actions.resetProductEditor}
+                onArchiveProduct={actions.archiveProduct}
+                onActivateProduct={actions.activateProduct}
+                services={state.services}
+                serviceForm={state.serviceForm}
+                isServicesLoading={state.isServicesLoading}
+                isServiceSaving={state.isServiceSaving}
+                isServiceEditing={Boolean(state.editingServiceId)}
+                serviceSearchQuery={state.deferredServiceSearchQuery}
+                currentServiceSearchValue={state.serviceSearchQuery}
+                onServiceSearchChange={actions.setServiceSearchQuery}
+                onServiceChange={actions.onServiceChange}
+                onServiceSubmit={actions.saveService}
+                onServiceCancelEdit={actions.resetServiceEditor}
+                onServiceEdit={actions.editService}
+                onServiceArchive={actions.archiveService}
+                onServiceActivate={actions.activateService}
+                suppliers={state.suppliers}
+                onCreateSupplier={actions.createSupplierCard}
+                onUpdateSupplier={actions.updateSupplierCard}
+                onCreateClientDevice={actions.createClientDeviceCard}
+                onUpdateClientDevice={actions.updateClientDeviceCard}
+                onDeleteClientDevice={actions.deleteClientDeviceCard}
+                onUpdateCatalogProduct={
+                  actions.updateCatalogProductCard
+                }
+                onCreateCatalogProduct={
+                  actions.createCatalogProductCard
+                }
+                onDeleteCatalogProduct={
+                  actions.deleteCatalogProductCard
+                }
+                onMergeClientDevice={actions.mergeClientDeviceCard}
+                onMergeCatalogProduct={
+                  actions.mergeCatalogProductCard
+                }
+                onMergeService={actions.mergeServiceCard}
+                onMergeSupplier={actions.mergeSupplierCard}
+              />
+            ) : activePage === 'warehouse' && canManageInventory ? (
+              <WarehousePanel
+                printForms={effectivePrintForms}
+                products={state.allProducts}
+                sales={state.sales}
+                catalogProducts={state.catalogProducts}
+                employees={state.allEmployees}
+                canViewSupplierOrders={canViewSupplierOrders}
+                canManageSupplierOrders={canManageSupplierOrders}
+                suppliers={state.suppliers}
+                isLoading={state.isProductsLoading}
+                productForm={state.productForm}
+                isProductSaving={state.isProductSaving}
+                isProductEditing={Boolean(state.editingProductId)}
+                onProductChange={actions.onProductChange}
+                onProductSubmit={actions.saveProduct}
+                onProductCancelEdit={actions.resetProductEditor}
+                onProductEdit={actions.editProduct}
+                onProductDelete={actions.deleteProduct}
+                onProductTransfer={actions.transferProduct}
+                onCreateSupplier={actions.createSupplierCard}
+                onUpdateSupplier={actions.updateSupplierCard}
+                onUpdateCatalogProduct={
+                  actions.updateCatalogProductCard
+                }
+                onUpdateProductModel={actions.updateProductModelCard}
+                currentEmployeeId={currentEmployee.id}
+                currentEmployeeName={currentEmployee.name}
+                onError={actions.showError}
+                onSuccess={actions.showSuccessMessage}
+                onOpenSaleCard={openSaleFromClientCard}
+              />
+            ) : (
+              <AnalyticsHeroSection
+                sales={productSales}
+                orders={repairOrders}
+                products={state.allProducts}
+                isSalesLoading={state.isSalesLoading}
+                isSeeding={state.isSeeding}
+                canEraseAllData={canEraseAllData}
+                statsPeriod={state.statsPeriod}
+                analyticsDateRange={state.analyticsDateRange}
+                draftAnalyticsDateRange={
+                  state.draftAnalyticsDateRange
+                }
+                isAnalyticsDateFilterOpen={
+                  state.isAnalyticsDateFilterOpen
+                }
+                dashboardPreferences={
+                  state.settingsForm.dashboardPreferences
+                }
+                onStatsPeriodChange={actions.setStatsPeriod}
+                onDraftAnalyticsDateRangeChange={
+                  actions.setDraftAnalyticsDateRange
+                }
+                onAnalyticsDateFilterOpenChange={
+                  actions.setIsAnalyticsDateFilterOpen
+                }
+                onApplyAnalyticsDateRange={
+                  actions.applyAnalyticsDateRange
+                }
+                onClearAnalyticsDateRange={
+                  actions.clearAnalyticsDateRange
+                }
+                onSeed={actions.eraseAllData}
+              />
+            )}
           </Suspense>
         </div>
         <GlobalHorizontalScrollbar />
