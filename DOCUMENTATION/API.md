@@ -233,7 +233,7 @@ Named filter presets for workspaces (orders, warehouse, clients/suppliers, produ
 - `GET /finance/profit-report` — P&L / margin report. Permission `finance.view`.
   - Query: `period` (`whole` default \| `day` \| `week` \| `month` \| `year`), optional `dateFrom`/`dateTo` (`YYYY-MM-DD`, overrides period), `source` (`all` default \| `sales` \| `services`)
   - Dates use `Europe/Kiev` business days
-  - Response: `margin` (revenue, COGS from `Product.price`, gross profit), `cash` (client payments, supplier purchases, categorized opex, refunds, net), `rows` (grouped product/service margin), `dataScope: "live_sales_only"`, `coldSalesPurgedExist`
+  - Response: `margin` (revenue, COGS from `Product.price`, gross profit), `cash` (client payments, supplier purchases, categorized opex, refunds, net), `rows` (grouped product/service margin with `catalogProductId` / `serviceId`, `null` when the group does not share one id), `dataScope: "live_sales_only"`, `coldSalesPurgedExist`
 - `POST /finance/transactions` body may include `category` (`client_payment` \| `client_refund` \| `supplier_payment` \| `rent` \| `salary` \| `utilities` \| `tax` \| `owner_draw` \| `other`). Manual withdraws should send an opex category; omitted values are inferred from the note.
 
 ## Supplier Orders

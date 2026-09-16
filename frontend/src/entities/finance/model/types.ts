@@ -167,6 +167,8 @@ export type ProfitMarginRow = {
   profit: number;
   marginPct: number | null;
   costKnown: boolean;
+  catalogProductId?: string | null;
+  serviceId?: string | null;
 };
 
 export type ProfitCashCategoryRow = {

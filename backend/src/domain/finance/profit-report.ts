@@ -75,6 +75,8 @@ export type ProfitMarginRow = {
   profit: number;
   marginPct: number | null;
   costKnown: boolean;
+  catalogProductId: string | null;
+  serviceId: string | null;
 };
 
 export type ProfitCashCategoryRow = {
@@ -370,6 +372,8 @@ export const buildProfitMarginRows = (
       cost: number;
       revenue: number;
       costKnown: boolean;
+      catalogProductId: string | null;
+      serviceId: string | null;
     }
   >();
 
@@ -400,12 +404,21 @@ export const buildProfitMarginRows = (
             : 0;
       const cost = roundMoney(unitCost * Math.max(quantity, 0));
       const key = lineGroupKey(item, type);
+      const catalogProductId =
+        type === 'product' ? toId(item.catalogProductId) || null : null;
+      const serviceId = type === 'service' ? toId(item.serviceId) || null : null;
       const current = groups.get(key);
       if (current) {
         current.quantity += quantity;
         current.cost = roundMoney(current.cost + cost);
         current.revenue = roundMoney(current.revenue + revenue);
         current.costKnown = current.costKnown && costKnown;
+        if (current.catalogProductId !== catalogProductId) {
+          current.catalogProductId = null;
+        }
+        if (current.serviceId !== serviceId) {
+          current.serviceId = null;
+        }
         return;
       }
       groups.set(key, {
@@ -415,6 +428,8 @@ export const buildProfitMarginRows = (
         cost,
         revenue,
         costKnown,
+        catalogProductId,
+        serviceId,
       });
     });
   });
@@ -436,6 +451,8 @@ export const buildProfitMarginRows = (
         profit,
         marginPct,
         costKnown: row.costKnown,
+        catalogProductId: row.catalogProductId,
+        serviceId: row.serviceId,
       };
     })
     .sort((left, right) => {

@@ -748,7 +748,11 @@ export const AccountingPanel = ({
       ) : activeTab === 'information' ? (
         <AccountingReportsView financeOverview={financeOverview} />
       ) : activeTab === 'reports' ? (
-        <AccountingProfitReportsView />
+        <AccountingProfitReportsView
+          currentEmployee={currentEmployee}
+          onError={onError}
+          onSuccess={onSuccess}
+        />
       ) : (
         <AccountingCashboxesView
           allowedTransactionCurrencies={allowedTransactionCurrencies}

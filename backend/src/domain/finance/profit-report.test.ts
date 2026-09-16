@@ -124,6 +124,8 @@ describe('profit report helpers', () => {
       profit: 200,
       marginPct: 40,
       costKnown: true,
+      catalogProductId: null,
+      serviceId: null,
     });
     expect(rows.find((row) => row.name === 'Diagnostics')).toMatchObject({
       type: 'service',
@@ -131,11 +133,77 @@ describe('profit report helpers', () => {
       revenue: 200,
       profit: 200,
       costKnown: true,
+      catalogProductId: null,
+      serviceId: 's1',
     });
     expect(rows.find((row) => row.name === 'Missing part')).toMatchObject({
       costKnown: false,
       revenue: 50,
+      catalogProductId: null,
+      serviceId: null,
     });
+  });
+
+  it('keeps shared catalog ids on grouped rows and leaves name-only groups without ids', () => {
+    const shared = buildProfitMarginRows(
+      [
+        {
+          kind: 'sale',
+          status: 'issued',
+          lineItems: [
+            {
+              kind: 'product',
+              name: 'Battery',
+              price: 100,
+              quantity: 1,
+              catalogProductId: 'cat-1',
+              productId: 'p1',
+            },
+            {
+              kind: 'product',
+              name: 'Battery',
+              price: 100,
+              quantity: 1,
+              catalogProductId: 'cat-1',
+              productId: 'p2',
+            },
+          ],
+        },
+      ],
+      { p1: 40, p2: 40 },
+      'all',
+    );
+    expect(shared.rows[0]).toMatchObject({
+      name: 'Battery',
+      quantity: 2,
+      catalogProductId: 'cat-1',
+      serviceId: null,
+    });
+
+    const mixed = buildProfitMarginRows(
+      [
+        {
+          kind: 'sale',
+          status: 'issued',
+          lineItems: [
+            { kind: 'service', name: 'Cleaning', price: 50, quantity: 1 },
+            {
+              kind: 'service',
+              name: 'Cleaning',
+              price: 50,
+              quantity: 1,
+              serviceId: 'svc-1',
+            },
+          ],
+        },
+      ],
+      {},
+      'all',
+    );
+    const unnamed = mixed.rows.find((row) => row.key === 'service:cleaning');
+    const named = mixed.rows.find((row) => row.key === 'service:svc-1');
+    expect(unnamed).toMatchObject({ serviceId: null, catalogProductId: null });
+    expect(named).toMatchObject({ serviceId: 'svc-1', catalogProductId: null });
   });
 
   it('filters margin rows by source', () => {

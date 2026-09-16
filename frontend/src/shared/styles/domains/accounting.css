@@ -629,8 +629,215 @@
   margin-top: 12px;
 }
 
+.finance-profit-kpi-card {
+  border-left: 3px solid var(--color-line-panel);
+}
+
+.finance-profit-kpi-revenue,
+.finance-profit-kpi-collected {
+  border-left-color: var(--color-primary);
+  background: var(--bg-soft-primary);
+}
+
+.finance-profit-kpi-cogs,
+.finance-profit-kpi-purchases {
+  border-left-color: #f97316;
+  background: var(--bg-soft-warning);
+}
+
+.finance-profit-kpi-opex {
+  border-left-color: var(--color-warning);
+  background: var(--bg-soft-warning);
+}
+
+.finance-profit-kpi-profit.finance-profit-kpi-positive,
+.finance-profit-kpi-margin.finance-profit-kpi-positive,
+.finance-profit-kpi-net.finance-profit-kpi-positive {
+  border-left-color: var(--color-success);
+  background: var(--bg-soft-success);
+}
+
+.finance-profit-kpi-profit.finance-profit-kpi-negative,
+.finance-profit-kpi-margin.finance-profit-kpi-negative,
+.finance-profit-kpi-net.finance-profit-kpi-negative {
+  border-left-color: var(--color-danger);
+  background: var(--bg-soft-danger);
+}
+
+.finance-profit-kpi-positive,
+.finance-profit-kpi-positive strong {
+  color: var(--color-success-accent);
+}
+
+.finance-profit-kpi-negative,
+.finance-profit-kpi-negative strong {
+  color: var(--color-danger);
+}
+
+.finance-profit-visual-panel {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  align-items: end;
+  border: 1px solid var(--color-line-panel);
+  border-radius: 8px;
+  background: var(--bg-card);
+  padding: 12px;
+}
+
+.finance-profit-visual-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--color-text-body);
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
+.finance-profit-charts {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+  gap: 14px;
+  align-items: start;
+}
+
+.finance-profit-charts > * {
+  min-width: 0;
+}
+
+.finance-profit-waterfall-panel {
+  grid-column: 1 / -1;
+}
+
+.finance-profit-chart-row,
+.finance-profit-bar-item {
+  border: 0;
+  background: transparent;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  width: 100%;
+  padding: 0;
+}
+
+.finance-profit-chart-row {
+  border: 1px solid var(--color-line-panel);
+  border-radius: 8px;
+  background: var(--bg-surface-subtle);
+  padding: 10px 12px;
+}
+
+.finance-profit-wf-collected {
+  background: var(--color-success);
+}
+
+.finance-profit-wf-purchases {
+  background: #f97316;
+}
+
+.finance-profit-wf-opex {
+  background: var(--color-warning);
+}
+
+.finance-profit-wf-refunds {
+  background: var(--color-danger);
+}
+
+.finance-profit-waterfall-legend {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.finance-profit-waterfall-legend div {
+  border: 1px solid var(--color-line-panel);
+  border-radius: 8px;
+  background: var(--bg-surface-subtle);
+  padding: 10px;
+}
+
+.finance-profit-waterfall-legend span {
+  display: block;
+  color: var(--color-text-label);
+  font-size: 0.76rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.finance-profit-waterfall-legend strong {
+  display: block;
+  margin-top: 4px;
+  color: var(--color-text-body-strong);
+}
+
+.finance-profit-table-tools {
+  display: grid;
+  grid-template-columns: minmax(160px, 1.4fr) repeat(3, minmax(120px, 0.8fr)) auto;
+  gap: 10px;
+  align-items: end;
+  margin: 12px 0;
+}
+
+.finance-profit-analysis-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  border: 1px solid var(--color-line-panel);
+  border-radius: 8px;
+  background: var(--bg-soft-primary);
+  padding: 10px 12px;
+  margin-bottom: 12px;
+}
+
+.finance-profit-analysis-strip p,
+.finance-profit-analysis-strip strong {
+  margin: 0;
+  color: var(--color-text-body-strong);
+}
+
 .finance-profit-table {
   width: 100%;
+}
+
+.finance-profit-table-compact td,
+.finance-profit-table-compact th {
+  padding: 6px 8px;
+}
+
+.finance-profit-select-col {
+  width: 36px;
+}
+
+.finance-profit-row-loss {
+  background: var(--bg-soft-danger);
+}
+
+.finance-profit-row-unknown {
+  background: var(--bg-soft-muted);
+}
+
+.finance-profit-type {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.finance-profit-type-product {
+  background: var(--bg-soft-primary);
+  color: var(--color-primary);
+}
+
+.finance-profit-type-service {
+  background: var(--bg-soft-success);
+  color: var(--color-success-accent);
 }
 
 .finance-profit-expense-list {

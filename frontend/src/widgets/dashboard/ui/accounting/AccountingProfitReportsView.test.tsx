@@ -19,10 +19,10 @@ const { report, exportMock } = vi.hoisted(() => {
     currency: 'UAH',
     otherCurrencies: [],
     margin: {
-      revenue: 500,
-      cogs: 200,
-      grossProfit: 300,
-      grossMarginPct: 60,
+      revenue: 840,
+      cogs: 330,
+      grossProfit: 510,
+      grossMarginPct: 60.7,
       unknownCostCount: 0,
     },
     cash: {
@@ -54,6 +54,47 @@ const { report, exportMock } = vi.hoisted(() => {
         profit: 300,
         marginPct: 60,
         costKnown: true,
+        catalogProductId: 'cp1',
+        serviceId: null,
+      },
+      {
+        key: 'product:p2',
+        name: 'Screen',
+        type: 'product',
+        quantity: 1,
+        cost: 80,
+        revenue: 100,
+        profit: 20,
+        marginPct: 20,
+        costKnown: true,
+        catalogProductId: null,
+        serviceId: null,
+      },
+      {
+        key: 'service:s1',
+        name: 'Diagnostics',
+        type: 'service',
+        quantity: 1,
+        cost: 0,
+        revenue: 200,
+        profit: 200,
+        marginPct: 100,
+        costKnown: true,
+        catalogProductId: null,
+        serviceId: 's1',
+      },
+      {
+        key: 'product:p3',
+        name: 'Cable',
+        type: 'product',
+        quantity: 1,
+        cost: 50,
+        revenue: 40,
+        profit: -10,
+        marginPct: -25,
+        costKnown: true,
+        catalogProductId: null,
+        serviceId: null,
       },
     ],
     dataScope: 'live_sales_only',
@@ -77,6 +118,48 @@ vi.mock('../../../../entities/finance/api/financeApi', () => ({
     isLoading: false,
     isError: false,
   }),
+}));
+
+vi.mock('../../../../entities/catalog-product/api/catalogProductApi', () => ({
+  useCatalogProductsQuery: () => ({
+    data: [
+      {
+        id: 'cp1',
+        name: 'Battery',
+        note: '',
+        isActive: true,
+        sourceTags: [],
+        lastSeenAt: '',
+        createdAt: '',
+        updatedAt: '',
+      },
+    ],
+    isLoading: false,
+    isError: false,
+  }),
+  updateCatalogProduct: vi.fn(),
+  deleteCatalogProduct: vi.fn(),
+}));
+
+vi.mock('../../../../entities/service-catalog/api/serviceCatalogApi', () => ({
+  useServicesQuery: () => ({
+    data: [
+      {
+        id: 's1',
+        name: 'Diagnostics',
+        price: 200,
+        salePriceOptions: [],
+        note: '',
+        isActive: true,
+        createdAt: '',
+        updatedAt: '',
+      },
+    ],
+    isLoading: false,
+    isError: false,
+  }),
+  updateServiceCatalogItem: vi.fn(),
+  archiveServiceCatalogItem: vi.fn(),
 }));
 
 const renderView = (ui: ReactElement) =>
@@ -105,8 +188,9 @@ describe('AccountingProfitReportsView', () => {
     );
 
     expect(screen.getByRole('heading', { name: 'Reports' })).toBeInTheDocument();
-    expect(screen.getByText('Battery')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Battery' })).toBeInTheDocument();
     expect(screen.getByText('Rent')).toBeInTheDocument();
+    expect(screen.getByText('Top items')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Services' }));
     fireEvent.click(screen.getByRole('button', { name: 'Month' }));
@@ -118,5 +202,52 @@ describe('AccountingProfitReportsView', () => {
         filename: 'profit-report_all_all-time_all-time.xlsx',
       }),
     );
+  });
+
+  it('filters the margin table by name search and analyzes a selected group', () => {
+    renderView(
+      <I18nextProvider i18n={i18n}>
+        <AccountingProfitReportsView />
+      </I18nextProvider>,
+    );
+
+    fireEvent.change(screen.getByPlaceholderText('Product or service name'), {
+      target: { value: 'Batt' },
+    });
+    expect(screen.getByRole('button', { name: 'Battery' })).toBeInTheDocument();
+    expect(screen.queryByText('Screen')).not.toBeInTheDocument();
+
+    fireEvent.change(screen.getByPlaceholderText('Product or service name'), {
+      target: { value: '' },
+    });
+    fireEvent.click(screen.getByLabelText('Select Battery'));
+    expect(screen.getByText('Analyzing 1 items')).toBeInTheDocument();
+  });
+
+  it('opens catalog modals for matched names and leaves unmatched names as text', () => {
+    renderView(
+      <I18nextProvider i18n={i18n}>
+        <AccountingProfitReportsView />
+      </I18nextProvider>,
+    );
+
+    expect(screen.queryByRole('button', { name: 'Screen' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Battery' }));
+    expect(screen.getByRole('heading', { name: 'Product' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Diagnostics' }));
+    expect(screen.getByRole('heading', { name: 'Diagnostics' })).toBeInTheDocument();
+  });
+
+  it('hides charts from visual settings', () => {
+    renderView(
+      <I18nextProvider i18n={i18n}>
+        <AccountingProfitReportsView />
+      </I18nextProvider>,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Report visual settings' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Show charts' }));
+    expect(screen.queryByText('Top items')).not.toBeInTheDocument();
   });
 });

@@ -208,7 +208,31 @@ This document defines financial behavior in the `Accounting` workspace (cashboxe
   - Refunds = `client_refund`
   - Net cash = collected − purchases − opex − refunds
 - Manual **Withdraw** in the operation modal requires a category (default Other). Order payments, refunds, and supplier-order pay set categories in the backend.
-- **Export Excel** downloads the current filter combination (Summary, Margin, Cash sheets).
+- **Export Excel** downloads the current **API** period/source/date combination (Summary, Margin, Cash sheets). Table search, type, margin band, and row selection do **not** change the workbook.
+
+### Visual analysis (Reports tab)
+
+- KPI tiles use app tokens: revenue/collected primary, COGS/purchases orange, profit/net/margin green or red by sign, opex warning.
+- **Visual** (toolbar, not the cashboxes gear) persists in `localStorage` key `project-goods.accounting-profit-visual`:
+  - show charts (default on)
+  - chart metric: profit (default) / revenue / quantity — drives mix donut and top-item bars only
+  - highlight loss rows (default on)
+  - compact table (default off)
+- Charts (no extra library, same SVG/CSS as Analytics / Warehouse Information): product vs service mix, top 8 distribution, top 3 bars, cash waterfall. Clicking a top-item bar/track sets the table search to that name.
+- Expense panel uses distribution bars by opex category (refunds as a red bar when present).
+
+### Margin table analysis
+
+- Client-side **search** (name substring), **type** (All / Product / Service), **margin** (All / Loss / Unknown cost), and **sort**. Pagination applies to the filtered set.
+- Row checkboxes build an analysis group. With 1+ selected, the strip and charts use only those visible rows; otherwise they use the filtered set.
+- Charts and the analysis strip follow the visible row set. Clearing period/source/date resets table filters and selection.
+- Product/service **name** uses the catalog copyable-name control. Click opens:
+  - `CatalogSuggestionProductModal` when `catalogProductId` matches (or a unique exact catalog-product name)
+  - `CatalogServiceModal` when `serviceId` matches (or a unique exact service name)
+  - unmatched names stay text (copy icon only; no fake editor)
+- Opening a catalog modal requires `finance.view`. Save / remove / archive require `inventory.manage`; otherwise the modal is read-only.
+- Each margin row includes `catalogProductId` and `serviceId` (`null` when the grouped lines do not share one id). Grouping key remains `product:…` / `service:…`.
+- Catalog edits from Reports invalidate catalog queries. Historical margin numbers do not recompute until the next profit-report fetch.
 
 ## Cashbox Settings Rules
 - `Cashboxes` settings section supports:
