@@ -12,9 +12,12 @@ import {
   filterProfitMarginRows,
   getStoredProfitReportFilters,
   getStoredProfitReportVisualSettings,
+  groupProfitMarginRowsByName,
   profitReportFiltersStorageKey,
+  profitReportLeadersLimit,
   profitReportVisualStorageKey,
   resolveProfitReportCatalogTarget,
+  sortProfitMarginGroups,
   storeProfitReportFilters,
   storeProfitReportVisualSettings,
   summarizeProfitMarginRows,
@@ -246,6 +249,89 @@ describe('profit report row analysis', () => {
     expect(chartRows[0]?.sharePercent).toBeGreaterThan(
       chartRows[1]?.sharePercent ?? 0,
     );
+  });
+
+  it('ranks up to 10 leaders and can sort by quantity', () => {
+    const many = Array.from({ length: 12 }, (_, index) =>
+      marginRow({
+        key: `product:p-${index}`,
+        name: `Item ${index}`,
+        quantity: index + 1,
+        profit: 100 - index,
+      }),
+    );
+    const byProfit = buildProfitChartRows(many, 'profit');
+    expect(byProfit).toHaveLength(profitReportLeadersLimit);
+    expect(byProfit[0]?.name).toBe('Item 0');
+    const byQty = buildProfitChartRows(many, 'quantity');
+    expect(byQty[0]?.name).toBe('Item 11');
+    expect(byQty).toHaveLength(profitReportLeadersLimit);
+  });
+
+  it('aggregates duplicate names in chart rows by quantity and profit', () => {
+    const rowsWithDuplicates = [
+      marginRow({ key: 'product:p1', name: 'Coffee', quantity: 2, profit: 50 }),
+      marginRow({ key: 'product:p2', name: 'Coffee', quantity: 3, profit: 75 }),
+      marginRow({ key: 'product:p3', name: 'Tea', quantity: 1, profit: 20 }),
+    ];
+    const byQty = buildProfitChartRows(rowsWithDuplicates, 'quantity');
+    expect(byQty).toHaveLength(2);
+    expect(byQty[0]?.name).toBe('Coffee');
+    expect(byQty[0]?.value).toBe(5);
+    expect(byQty[1]?.name).toBe('Tea');
+    expect(byQty[1]?.value).toBe(1);
+
+    const byProfit = buildProfitChartRows(rowsWithDuplicates, 'profit');
+    expect(byProfit[0]?.name).toBe('Coffee');
+    expect(byProfit[0]?.value).toBe(125);
+  });
+
+  it('groups identical names and aggregates money plus weighted margin', () => {
+    const grouped = groupProfitMarginRowsByName([
+      marginRow({ key: 'product:a1', name: 'Perfume 60 ml', cost: 100, revenue: 250, profit: 150, marginPct: 60, quantity: 1 }),
+      marginRow({ key: 'product:a2', name: ' perfume 60 ML ', cost: 100, revenue: 150, profit: 50, marginPct: 33.3, quantity: 1 }),
+      marginRow({ key: 'product:b1', name: 'Shampoo', cost: 80, revenue: 100, profit: 20, marginPct: 20, quantity: 2 }),
+    ]);
+    expect(grouped).toHaveLength(2);
+    expect(grouped[0]?.id).toBe('name:perfume 60 ml');
+    expect(grouped[0]?.rows).toHaveLength(2);
+    expect(grouped[0]?.summary).toMatchObject({
+      count: 2,
+      quantity: 2,
+      cost: 200,
+      revenue: 400,
+      profit: 200,
+      marginPct: 50,
+      costKnown: true,
+    });
+    expect(grouped[1]?.rows).toHaveLength(1);
+
+    const unknown = groupProfitMarginRowsByName([
+      marginRow({ key: 'product:u1', name: 'Part', costKnown: true, cost: 10, revenue: 30, profit: 20, marginPct: 66.7 }),
+      marginRow({
+        key: 'product:u2',
+        name: 'Part',
+        costKnown: false,
+        cost: 0,
+        revenue: 20,
+        profit: 20,
+        marginPct: null,
+      }),
+    ]);
+    expect(unknown[0]?.summary.costKnown).toBe(false);
+    expect(unknown[0]?.summary.marginPct).toBeNull();
+
+    const mixed = groupProfitMarginRowsByName([
+      marginRow({ key: 'product:m1', name: 'Shared', type: 'product' }),
+      marginRow({ key: 'service:m2', name: 'Shared', type: 'service', catalogProductId: null, serviceId: 's2' }),
+    ]);
+    expect(mixed[0]?.type).toBe('mixed');
+
+    const byProfit = sortProfitMarginGroups(grouped, 'profit');
+    expect(byProfit.map((group) => group.name)).toEqual([
+      grouped[0]?.name,
+      'Shampoo',
+    ]);
   });
 
   it('opens the product model for goods names and the service catalog when matched', () => {

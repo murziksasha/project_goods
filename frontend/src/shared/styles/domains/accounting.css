@@ -739,15 +739,32 @@
   grid-area: bars;
 }
 
-.finance-profit-comparison-panel .bar-chart-item span {
+.finance-profit-comparison-panel .bar-chart-item {
+  min-width: 0;
+  width: 100%;
+}
+
+.finance-profit-comparison-panel .bar-chart-item .truncated-text-tooltip,
+.finance-profit-comparison-panel .finance-profit-bar-label {
   max-width: 100%;
+  width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  text-align: center;
 }
 
 .finance-profit-waterfall-panel {
   grid-area: waterfall;
+}
+
+.finance-profit-leaders-panel .analytics-panel-header {
+  align-items: center;
+  gap: 10px;
+}
+
+.finance-profit-leaders-panel .period-toggle {
+  flex-shrink: 0;
 }
 
 .finance-profit-chart-row,
@@ -757,7 +774,6 @@
   font: inherit;
   color: inherit;
   text-align: left;
-  cursor: pointer;
   width: 100%;
   padding: 0;
 }
@@ -885,6 +901,14 @@
 .finance-profit-type-service {
   background: var(--bg-soft-success);
   color: var(--color-success-accent);
+}
+
+.finance-profit-table .warehouse-name-with-qty {
+  width: 100%;
+}
+
+.finance-profit-table .warehouse-child-row td:nth-child(2) {
+  padding-left: 28px;
 }
 
 .finance-profit-expense-list {

@@ -2547,7 +2547,11 @@
         "waterfallSection": "Грошовий потік",
         "waterfallTitle": "Гроші в касу і з каси",
         "empty": "За цими фільтрами немає даних для графіка.",
-        "filterTo": "Фільтр таблиці: {{name}}"
+        "filterTo": "Фільтр таблиці: {{name}}",
+        "metricUah": "грн",
+        "metricQty": "шт",
+        "leadersMetricAria": "Метрика лідерів: гривні або штуки",
+        "quantityValue": "{{count}} шт"
       },
       "analysis": {
         "search": "Пошук",
@@ -2568,6 +2572,10 @@
         "clearSelection": "Скинути вибір",
         "clearFilters": "Скинути",
         "selectRow": "Вибрати {{name}}",
+        "selectGroup": "Вибрати групу {{name}}",
+        "expandGroup": "Розгорнути групу {{name}}",
+        "collapseGroup": "Згорнути групу {{name}}",
+        "groupCount": "{{count}} шт",
         "noMatches": "Немає товарів або послуг за цими фільтрами.",
         "filteredSummary": "{{count}} позицій"
       },

@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useFinanceCategoriesQuery } from '../../../../entities/finance/api/financeApi';
 import type {
@@ -8,15 +9,19 @@ import {
   foldUnknownOpexCategories,
   getFinanceCategoryLabel,
 } from '../../../../entities/finance/model/category-label';
+import { TruncatedTextTooltip } from '../../../../shared/ui/TruncatedTextTooltip';
 import { formatMoney, formatPercent } from '../../model/accounting';
 import {
   buildProfitChartRows,
   buildProfitMixShare,
   profitReportCogsColor,
   profitReportChartBarColors,
+  profitReportLeadersLimit,
+  profitReportLeadersMetricOptions,
   profitReportProductColor,
   profitReportServiceColor,
   type ProfitReportChartMetric,
+  type ProfitReportLeadersMetric,
 } from '../../model/profit-report';
 
 const mixRadius = 52;
@@ -33,7 +38,6 @@ type AccountingProfitChartsProps = {
     refunds: number;
     net: number;
   };
-  onSelectName: (name: string) => void;
 };
 
 const formatChartValue = (
@@ -47,12 +51,21 @@ export const AccountingProfitCharts = ({
   chartMetric,
   currency,
   cash,
-  onSelectName,
 }: AccountingProfitChartsProps) => {
   const { t } = useTranslation();
+  const [leadersMetric, setLeadersMetric] =
+    useState<ProfitReportLeadersMetric>('profit');
   const mix = buildProfitMixShare(rows, chartMetric);
-  const distributionRows = buildProfitChartRows(rows, chartMetric, 8);
+  const distributionRows = buildProfitChartRows(
+    rows,
+    leadersMetric,
+    profitReportLeadersLimit,
+  );
   const topBarRows = distributionRows.slice(0, 3);
+  const formatLeadersValue = (value: number) =>
+    leadersMetric === 'quantity'
+      ? t('accounting.profit.charts.quantityValue', { count: value })
+      : formatMoney(value, currency);
   const maxBarValue = Math.max(
     ...topBarRows.map((row) => Math.abs(row.value)),
     1,
@@ -131,24 +144,39 @@ export const AccountingProfitCharts = ({
             <p className='section-label'>{t('accounting.profit.charts.topSection')}</p>
             <h3>{t('accounting.profit.charts.topTitle')}</h3>
           </div>
+          <div
+            className='period-toggle'
+            role='tablist'
+            aria-label={t('accounting.profit.charts.leadersMetricAria')}
+          >
+            {profitReportLeadersMetricOptions.map((option) => (
+              <button
+                key={option.value}
+                type='button'
+                className={
+                  option.value === leadersMetric
+                    ? 'period-button period-button-active'
+                    : 'period-button'
+                }
+                onClick={() => setLeadersMetric(option.value)}
+              >
+                {t(option.labelKey)}
+              </button>
+            ))}
+          </div>
         </div>
         {distributionRows.length === 0 ? (
           <p className='empty-state'>{t('accounting.profit.charts.empty')}</p>
         ) : (
           <div className='finance-cashbox-distribution'>
             {distributionRows.map((row) => (
-              <button
+              <div
                 key={row.key}
-                type='button'
                 className='finance-distribution-row finance-profit-chart-row'
-                aria-label={t('accounting.profit.charts.filterTo', { name: row.name })}
-                onClick={() => onSelectName(row.name)}
               >
                 <div>
                   <span title={row.name}>{row.name}</span>
-                  <strong>
-                    {formatChartValue(row.value, chartMetric, currency)}
-                  </strong>
+                  <strong>{formatLeadersValue(row.value)}</strong>
                 </div>
                 <div className='finance-distribution-track'>
                   <span
@@ -164,7 +192,7 @@ export const AccountingProfitCharts = ({
                   />
                 </div>
                 <small>{formatPercent(row.sharePercent)}</small>
-              </button>
+              </div>
             ))}
           </div>
         )}
@@ -184,16 +212,11 @@ export const AccountingProfitCharts = ({
             {topBarRows.map((row, index) => {
               const heightPercent = (Math.abs(row.value) / maxBarValue) * 100;
               return (
-                <button
+                <div
                   key={row.key}
-                  type='button'
                   className='bar-chart-item finance-profit-bar-item'
-                  aria-label={t('accounting.profit.charts.filterTo', { name: row.name })}
-                  onClick={() => onSelectName(row.name)}
                 >
-                  <strong>
-                    {formatChartValue(row.value, chartMetric, currency)}
-                  </strong>
+                  <strong>{formatLeadersValue(row.value)}</strong>
                   <div className='bar-chart-track'>
                     <span
                       className='bar-chart-bar'
@@ -208,8 +231,13 @@ export const AccountingProfitCharts = ({
                       }}
                     />
                   </div>
-                  <span>{row.name}</span>
-                </button>
+                  <TruncatedTextTooltip
+                    text={row.name}
+                    className='finance-profit-bar-label'
+                  >
+                    {row.name}
+                  </TruncatedTextTooltip>
+                </div>
               );
             })}
           </div>
