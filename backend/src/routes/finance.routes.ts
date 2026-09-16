@@ -3,15 +3,19 @@ import {
   cancelFinanceTransaction,
   getFinanceTransactionTypeForCancel,
   createCashbox,
+  createFinanceCategory,
   createFinanceCurrency,
   createFinanceTransaction,
+  deleteFinanceCategory,
   getFinanceReport,
   getFinanceProfitReport,
   listCashboxes,
+  listFinanceCategories,
   listFinanceCurrencies,
   listFinancePeriodSnapshots,
   listFinanceTransactions,
   updateCashbox,
+  updateFinanceCategory,
   updateFinanceCurrency,
   updateFinanceTransactionNote,
 } from '../domain/finance/service';
@@ -68,6 +72,31 @@ financeRouter.post('/finance/currencies', asyncHandler(async (req, res) => {
 financeRouter.patch('/finance/currencies/:currencyCode', asyncHandler(async (req, res) => {
   await requirePermission(req, 'finance.cashboxes.manage');
   res.json(await updateFinanceCurrency(routeParam(req, 'currencyCode'), req.body as { isArchived?: unknown }));
+}));
+
+financeRouter.get('/finance/categories', asyncHandler(async (req, res) => {
+  await requirePermission(req, 'finance.view');
+  res.json(await listFinanceCategories());
+}));
+
+financeRouter.post('/finance/categories', asyncHandler(async (req, res) => {
+  await requirePermission(req, 'finance.cashboxes.manage');
+  res.status(201).json(await createFinanceCategory(req.body as { name?: unknown }));
+}));
+
+financeRouter.patch('/finance/categories/:categorySlug', asyncHandler(async (req, res) => {
+  await requirePermission(req, 'finance.cashboxes.manage');
+  res.json(
+    await updateFinanceCategory(routeParam(req, 'categorySlug'), req.body as {
+      isActive?: unknown;
+      name?: unknown;
+    }),
+  );
+}));
+
+financeRouter.delete('/finance/categories/:categorySlug', asyncHandler(async (req, res) => {
+  await requirePermission(req, 'finance.cashboxes.manage');
+  res.json(await deleteFinanceCategory(routeParam(req, 'categorySlug')));
 }));
 
 financeRouter.get('/finance/transactions', asyncHandler(async (req, res) => {

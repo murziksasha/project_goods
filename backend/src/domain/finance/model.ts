@@ -21,9 +21,61 @@ export const financeTransactionCategories = [
 ] as const;
 export type FinanceTransactionCategory =
   (typeof financeTransactionCategories)[number];
+export const financeCategoryKinds = [
+  'system_auto',
+  'system_opex',
+  'custom_opex',
+] as const;
+export type FinanceCategoryKind = (typeof financeCategoryKinds)[number];
+export const OTHER_CATEGORY_SLUG = 'other';
+export const customFinanceCategorySlugPattern = /^c_[a-f0-9]{24}$/i;
 
 const defaultBalances = () => ({ UAH: 0, USD: 0 });
 const defaultEnabledCurrencies = () => ({ UAH: true, USD: false });
+
+export const financeCategorySchema = new mongoose.Schema(
+  {
+    slug: {
+      type: String,
+      required: true,
+      trim: true,
+      unique: true,
+      index: true,
+    },
+    name: {
+      type: String,
+      required: true,
+      trim: true,
+      maxlength: [80, 'Category name must contain no more than 80 characters'],
+    },
+    isSystem: {
+      type: Boolean,
+      required: true,
+      default: false,
+    },
+    kind: {
+      type: String,
+      enum: financeCategoryKinds,
+      required: true,
+      index: true,
+    },
+    isActive: {
+      type: Boolean,
+      required: true,
+      default: true,
+      index: true,
+    },
+    sortOrder: {
+      type: Number,
+      required: true,
+      default: 0,
+    },
+  },
+  {
+    timestamps: true,
+    versionKey: false,
+  },
+);
 
 export const financeCurrencyConfigSchema = new mongoose.Schema(
   {
@@ -133,10 +185,10 @@ export const financeTransactionSchema = new mongoose.Schema(
     },
     category: {
       type: String,
-      enum: financeTransactionCategories,
       required: false,
       default: undefined,
       index: true,
+      trim: true,
     },
     transactionDate: {
       type: Date,
@@ -227,6 +279,14 @@ export type FinanceCurrencyConfigDocument = mongoose.InferSchemaType<
   updatedAt: Date;
 };
 
+export type FinanceCategoryDocument = mongoose.InferSchemaType<
+  typeof financeCategorySchema
+> & {
+  _id: mongoose.Types.ObjectId;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
 export type FinanceTransactionDocument = mongoose.InferSchemaType<
   typeof financeTransactionSchema
 > & {
@@ -239,6 +299,10 @@ export const Cashbox = mongoose.model('Cashbox', cashboxSchema);
 export const FinanceCurrencyConfig = mongoose.model(
   'FinanceCurrencyConfig',
   financeCurrencyConfigSchema,
+);
+export const FinanceCategory = mongoose.model(
+  'FinanceCategory',
+  financeCategorySchema,
 );
 export const FinanceTransaction = mongoose.model(
   'FinanceTransaction',

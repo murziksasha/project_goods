@@ -3,11 +3,12 @@ import { useTranslation } from 'react-i18next';
 import type {
   Cashbox,
   CreateFinanceTransactionPayload,
+  FinanceCategory,
   FinanceCurrency,
   FinanceTransactionType,
-  ManualWithdrawCategory,
 } from '../../../../entities/finance/model/types';
-import { manualWithdrawCategories } from '../../../../entities/finance/model/types';
+import { OTHER_CATEGORY_SLUG } from '../../../../entities/finance/model/types';
+import { FinanceCategorySelect } from './FinanceCategorySelect';
 import { parseDecimal } from '../../../../shared/lib/decimal';
 import {
   PRICE_STEPPER_PRECISION,
@@ -30,6 +31,9 @@ type AccountingOperationFormProps = {
   isSaving: boolean;
   saveDisabled: boolean;
   transactionForm: CreateFinanceTransactionPayload;
+  categories?: FinanceCategory[];
+  canManageCategories?: boolean;
+  onRequestAddCategory?: () => void;
   onCreateTransaction: (closeAfter: boolean) => void;
   onTransactionFormChange: (
     updater: SetStateAction<CreateFinanceTransactionPayload>,
@@ -47,6 +51,9 @@ export const AccountingOperationForm = ({
   isSaving,
   saveDisabled,
   transactionForm,
+  categories = [],
+  canManageCategories = false,
+  onRequestAddCategory,
   onCreateTransaction,
   onTransactionFormChange,
   onTransactionTypeChange,
@@ -192,21 +199,19 @@ export const AccountingOperationForm = ({
         {transactionForm.type === 'withdraw' ? (
           <label className='field'>
             <span>{t('accounting.cashboxes.category')}</span>
-            <select
-              value={transactionForm.category ?? 'other'}
-              onChange={(event) =>
+            <FinanceCategorySelect
+              categories={categories}
+              value={transactionForm.category ?? OTHER_CATEGORY_SLUG}
+              canAdd={canManageCategories && Boolean(onRequestAddCategory)}
+              disabled={isSaving}
+              onChange={(slug) =>
                 onTransactionFormChange((current) => ({
                   ...current,
-                  category: event.target.value as ManualWithdrawCategory,
+                  category: slug,
                 }))
               }
-            >
-              {manualWithdrawCategories.map((category) => (
-                <option key={category} value={category}>
-                  {t(`accounting.profit.categories.${category}`)}
-                </option>
-              ))}
-            </select>
+              onAdd={() => onRequestAddCategory?.()}
+            />
           </label>
         ) : null}
         {showTo ? (

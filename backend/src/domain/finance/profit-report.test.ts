@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Product } from '../product/model';
 import { Sale } from '../sale/model';
 import * as yearlyDump from '../archive/yearly-dump';
-import { FinanceTransaction } from './model';
+import { FinanceCategory, FinanceTransaction } from './model';
 import {
   allocateLineRevenues,
   buildProfitCashSummary,
@@ -10,6 +10,7 @@ import {
   getFinanceProfitReport,
   isStockCommittedSale,
   resolveProfitReportBounds,
+  resolveReportedFinanceCategory,
   resolveTransactionCategory,
 } from './profit-report';
 
@@ -302,6 +303,61 @@ describe('profit report helpers', () => {
     ]);
   });
 
+  it('treats custom withdraw slugs as opex', () => {
+    const summary = buildProfitCashSummary([
+      {
+        type: 'withdraw',
+        amount: 80,
+        currency: 'UAH',
+        note: 'Ads',
+        category: 'c_aaaaaaaaaaaaaaaaaaaaaaaa',
+        status: 'active',
+        transactionDate: '2026-09-01T10:00:00.000Z',
+      },
+    ]);
+    expect(summary.opex).toBe(80);
+    expect(summary.opexByCategory).toEqual([
+      { category: 'c_aaaaaaaaaaaaaaaaaaaaaaaa', amount: 80, count: 1 },
+    ]);
+  });
+
+  it('folds deleted custom opex slugs into Other', () => {
+    expect(
+      resolveReportedFinanceCategory(
+        'c_aaaaaaaaaaaaaaaaaaaaaaaa',
+        new Set(['other', 'rent']),
+      ),
+    ).toBe('other');
+
+    const summary = buildProfitCashSummary(
+      [
+        {
+          type: 'withdraw',
+          amount: 1,
+          currency: 'UAH',
+          note: 'тест',
+          category: 'c_aaaaaaaaaaaaaaaaaaaaaaaa',
+          status: 'active',
+          transactionDate: '2026-09-01T10:00:00.000Z',
+        },
+        {
+          type: 'withdraw',
+          amount: 50,
+          currency: 'UAH',
+          note: 'Other',
+          category: 'other',
+          status: 'active',
+          transactionDate: '2026-09-01T11:00:00.000Z',
+        },
+      ],
+      new Set(['other', 'rent', 'utilities']),
+    );
+    expect(summary.opex).toBe(51);
+    expect(summary.opexByCategory).toEqual([
+      { category: 'other', amount: 51, count: 2 },
+    ]);
+  });
+
   it('infers category from notes when the stored field is missing', () => {
     expect(
       resolveTransactionCategory({
@@ -381,6 +437,9 @@ describe('getFinanceProfitReport', () => {
     ]);
     vi.spyOn(FinanceTransaction, 'find').mockReturnValue({
       select: vi.fn().mockReturnValue({ lean: leanTx }),
+    } as never);
+    vi.spyOn(FinanceCategory, 'find').mockReturnValue({
+      select: vi.fn().mockReturnValue({ lean: vi.fn().mockResolvedValue([]) }),
     } as never);
 
     const leanProducts = vi.fn().mockResolvedValue([

@@ -543,6 +543,7 @@ export type TransactionFilters = {
   note: string;
   dateFrom: string;
   dateTo: string;
+  category: string;
   sortBy: 'date' | 'type' | 'amount' | 'currency' | 'from' | 'to';
   sortDirection: 'asc' | 'desc';
 };
@@ -555,6 +556,7 @@ export const initialTransactionFilters: TransactionFilters = {
   note: '',
   dateFrom: '',
   dateTo: '',
+  category: '',
   sortBy: 'date',
   sortDirection: 'desc',
 };
@@ -582,6 +584,7 @@ export const toFinanceTransactionsListParams = ({
   toCashboxId: filters.toCashboxId || undefined,
   cashboxId: selectedCashboxId || undefined,
   note: filters.note.trim() || undefined,
+  category: filters.category || undefined,
   sortBy: filters.sortBy,
   sortDirection: filters.sortDirection,
 });
@@ -949,6 +952,9 @@ export const filterFinanceTransactions = ({
     if (normalizedNote) {
       const transactionNote = transaction.note.trim().toLowerCase();
       if (!transactionNote.includes(normalizedNote)) return false;
+    }
+    if (filters.category && transaction.category !== filters.category) {
+      return false;
     }
     if (
       selectedCashboxId &&

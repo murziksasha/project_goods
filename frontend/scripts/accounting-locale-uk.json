@@ -46,7 +46,9 @@
     "filter": "Фільтр",
     "date": "Дата",
     "allCashboxes": "Усі каси",
+    "allCategories": "Усі категорії",
     "filterByCashboxAriaLabel": "Фільтр транзакцій за касою",
+    "filterByCategoryAriaLabel": "Фільтр транзакцій за категорією",
     "closeFiltersPanelAriaLabel": "Закрити панель фільтрів",
     "closeDateFiltersPanelAriaLabel": "Закрити панель фільтрів дат",
     "type": "Тип",
@@ -93,6 +95,18 @@
   "financeSettings": {
     "cashboxes": "Каси",
     "currencies": "Валюти",
+    "categories": "Категорії",
+    "addCategory": "Додати категорію",
+    "categoryName": "Назва",
+    "categoryNamePlaceholder": "Наприклад, Реклама",
+    "categoryActivityHint": "Можна перейменувати категорії витрат. Автоматичні категорії та «Інше» не можна перейменовувати або вимикати. Вимкніть категорію, щоб приховати її в меню видачі. Користувацькі категорії можна видалити; їхні транзакції переходять у «Інше».",
+    "otherAlwaysActive": "Категорію «Інше» не можна вимкнути.",
+    "autoAlwaysActive": "Автоматичну категорію не можна вимкнути.",
+    "cannotRenameOtherCategory": "Категорію «Інше» не можна перейменувати.",
+    "cannotRenameAutoCategory": "Автоматичну категорію не можна перейменувати.",
+    "cannotDeleteSystemCategory": "Системну категорію не можна видалити.",
+    "deleteCategoryTitle": "Видалити категорію",
+    "deleteCategory": "Видалити",
     "createCashbox": "Створити касу",
     "receiveCurrencies": "Валюти прийому",
     "name": "Назва",
@@ -362,7 +376,13 @@
       "failedIssueWithoutPayment": "Не вдалося видати замовлення без оплати.",
       "failedPayOrder": "Не вдалося оплатити замовлення.",
       "failedUpdateNote": "Не вдалося оновити примітку.",
-      "failedLoadFinance": "Не вдалося завантажити фінансові дані."
+      "failedLoadFinance": "Не вдалося завантажити фінансові дані.",
+      "categoryNameRequired": "Введіть назву категорії.",
+      "otherCategoryAlwaysActive": "Категорію «Інше» не можна вимкнути.",
+      "autoCategoryAlwaysActive": "Автоматичну категорію не можна вимкнути.",
+      "failedCreateCategory": "Не вдалося створити категорію.",
+      "failedUpdateCategory": "Не вдалося оновити категорію.",
+      "failedDeleteCategory": "Не вдалося видалити категорію."
     },
     "success": {
       "cashboxUpdated": "Касу оновлено.",
@@ -378,7 +398,12 @@
       "transferCancelled": "Переказ скасовано. Створено зворотну транзакцію.",
       "orderIssuedWithoutPayment": "Замовлення видано без оплати.",
       "orderPaid": "Замовлення оплачено.",
-      "noteUpdated": "Примітку оновлено."
+      "noteUpdated": "Примітку оновлено.",
+      "categoryCreated": "Категорію створено.",
+      "categoryDeactivated": "Категорію вимкнено.",
+      "categoryActivated": "Категорію увімкнено.",
+      "categoryDeleted": "Категорію видалено.",
+      "categoryRenamed": "Категорію перейменовано."
     }
   }
 }

@@ -84,7 +84,12 @@ const runCreateFinanceTransaction = async (
   const amount = normalizeAmount(payload.amount);
   const currency = normalizeCurrency(payload.currency);
   const note = String(payload.note ?? '').trim();
-  const category = resolveFinanceTransactionCategory(type, note, payload.category);
+  const category = await resolveFinanceTransactionCategory(
+    type,
+    note,
+    payload.category,
+    session,
+  );
   const transactionDate = normalizeDate(payload.transactionDate);
   const idempotencyKey = String(payload.idempotencyKey ?? '').trim();
 

@@ -18,6 +18,7 @@ export const queryKeys = {
   financeCashboxes: ['financeCashboxes'] as const,
   financeAllCashboxes: ['financeCashboxes', 'all'] as const,
   financeCurrencies: ['financeCurrencies'] as const,
+  financeCategories: ['financeCategories'] as const,
   financeTransactions: ['financeTransactions'] as const,
   financeTransactionsList: (params: Record<string, unknown> = {}) =>
     ['financeTransactions', params] as const,

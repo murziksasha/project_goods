@@ -1,6 +1,7 @@
 import {
   baseFinanceCurrency,
   type CashboxDocument,
+  type FinanceCategoryDocument,
   type FinanceCurrencyConfigDocument,
   type FinanceTransactionDocument,
 } from './model';
@@ -12,6 +13,22 @@ const mapLikeToRecord = <T>(
   if (value instanceof Map) return Object.fromEntries(value.entries());
   return { ...value };
 };
+
+export const formatFinanceCategory = (
+  category: FinanceCategoryDocument,
+  usageCount = 0,
+) => ({
+  id: category._id.toString(),
+  slug: category.slug,
+  name: category.name,
+  isSystem: Boolean(category.isSystem),
+  kind: category.kind,
+  isActive: Boolean(category.isActive),
+  sortOrder: category.sortOrder,
+  usageCount,
+  createdAt: category.createdAt.toISOString(),
+  updatedAt: category.updatedAt.toISOString(),
+});
 
 export const formatCurrencyConfig = (currency: FinanceCurrencyConfigDocument) => ({
   id: currency._id.toString(),

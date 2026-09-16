@@ -118,6 +118,11 @@ vi.mock('../../../../entities/finance/api/financeApi', () => ({
     isLoading: false,
     isError: false,
   }),
+  useFinanceCategoriesQuery: () => ({
+    data: [],
+    isLoading: false,
+    isError: false,
+  }),
 }));
 
 vi.mock('../../../../entities/product/api/productApi', () => ({

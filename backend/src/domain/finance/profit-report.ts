@@ -2,12 +2,14 @@ import { coldSalesPurgedExist } from '../archive/yearly-dump';
 import { Product } from '../product/model';
 import { Sale } from '../sale/model';
 import { getAccountingBusinessDateKey } from './internal';
+import { inferFinanceTransactionCategory } from './categories';
 import {
-  inferFinanceTransactionCategory,
-  isFinanceTransactionCategory,
-  type FinanceTransactionCategory,
-} from './categories';
-import { FinanceTransaction, type TransactionType } from './model';
+  FinanceCategory,
+  FinanceTransaction,
+  OTHER_CATEGORY_SLUG,
+  financeTransactionCategories,
+  type TransactionType,
+} from './model';
 
 export const profitReportPeriods = [
   'whole',
@@ -80,14 +82,14 @@ export type ProfitMarginRow = {
 };
 
 export type ProfitCashCategoryRow = {
-  category: FinanceTransactionCategory;
+  category: string;
   amount: number;
   count: number;
 };
 
 export type ProfitCashOperation = {
   type: TransactionType;
-  category: FinanceTransactionCategory;
+  category: string;
   amount: number;
   currency: string;
   note: string;
@@ -334,20 +336,27 @@ const addMoney = (bucket: CashBucket, field: keyof Omit<CashBucket, 'net'>, amou
 
 export const resolveTransactionCategory = (
   transaction: Pick<TransactionLike, 'type' | 'note' | 'category'>,
-): FinanceTransactionCategory | undefined => {
+): string | undefined => {
   const type = String(transaction.type ?? '') as TransactionType;
   if (type !== 'deposit' && type !== 'withdraw' && type !== 'transfer') {
     return undefined;
   }
-  if (isFinanceTransactionCategory(transaction.category)) {
-    return transaction.category;
-  }
+  const stored = String(transaction.category ?? '').trim();
+  if (stored) return stored;
   return inferFinanceTransactionCategory(type, String(transaction.note ?? ''));
+};
+
+export const resolveReportedFinanceCategory = (
+  slug: string,
+  knownSlugs?: Set<string>,
+) => {
+  if (!knownSlugs || knownSlugs.has(slug)) return slug;
+  return OTHER_CATEGORY_SLUG;
 };
 
 const cashFieldForCategory = (
   type: string,
-  category: FinanceTransactionCategory,
+  category: string,
 ): keyof Omit<CashBucket, 'net'> | null => {
   if (type === 'deposit' && category === 'client_payment') return 'collected';
   if (type === 'withdraw' && category === 'client_refund') return 'refunds';
@@ -467,7 +476,10 @@ export const buildProfitMarginRows = (
   return { rows, unknownCostCount };
 };
 
-export const buildProfitCashSummary = (transactions: TransactionLike[]) => {
+export const buildProfitCashSummary = (
+  transactions: TransactionLike[],
+  knownCategorySlugs?: Set<string>,
+) => {
   const byCurrency: Record<string, CashBucket> = {};
   const opexByCategory = new Map<string, ProfitCashCategoryRow>();
   const operations: ProfitCashOperation[] = [];
@@ -477,8 +489,12 @@ export const buildProfitCashSummary = (transactions: TransactionLike[]) => {
     if (transaction.isCancellation) return;
     const type = String(transaction.type ?? '') as TransactionType;
     if (type !== 'deposit' && type !== 'withdraw') return;
-    const category = resolveTransactionCategory(transaction);
-    if (!category) return;
+    const rawCategory = resolveTransactionCategory(transaction);
+    if (!rawCategory) return;
+    const category = resolveReportedFinanceCategory(
+      rawCategory,
+      knownCategorySlugs,
+    );
     const field = cashFieldForCategory(type, category);
     if (!field) return;
     const amount = roundMoney(Math.max(Number(transaction.amount ?? 0), 0));
@@ -553,7 +569,7 @@ export const getFinanceProfitReport = async (query: ProfitReportQuery = {}) => {
   const saleFilter = dateRange ? { saleDate: dateRange } : {};
   const transactionFilter = dateRange ? { transactionDate: dateRange } : {};
 
-  const [sales, transactions, coldPurged] = await Promise.all([
+  const [sales, transactions, coldPurged, categoryDocs] = await Promise.all([
     Sale.find(saleFilter)
       .select({
         saleDate: 1,
@@ -584,6 +600,7 @@ export const getFinanceProfitReport = async (query: ProfitReportQuery = {}) => {
       })
       .lean<TransactionLike[]>(),
     coldSalesPurgedExist(),
+    FinanceCategory.find().select({ slug: 1 }).lean<Array<{ slug: string }>>(),
   ]);
 
   const scopedSales = sales.filter(
@@ -621,7 +638,11 @@ export const getFinanceProfitReport = async (query: ProfitReportQuery = {}) => {
     productCostById,
     source,
   );
-  const cash = buildProfitCashSummary(scopedTransactions);
+  const knownCategorySlugs = new Set<string>([
+    ...financeTransactionCategories,
+    ...categoryDocs.map((category) => category.slug),
+  ]);
+  const cash = buildProfitCashSummary(scopedTransactions, knownCategorySlugs);
   const revenue = roundMoney(rows.reduce((sum, row) => sum + row.revenue, 0));
   const cogs = roundMoney(rows.reduce((sum, row) => sum + row.cost, 0));
   const grossProfit = roundMoney(revenue - cogs);

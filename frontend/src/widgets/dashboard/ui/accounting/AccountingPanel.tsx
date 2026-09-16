@@ -4,16 +4,22 @@ import i18n from '../../../../shared/i18n/config';
 import {
   useCancelFinanceTransactionMutation,
   useCreateCashboxMutation,
+  useCreateFinanceCategoryMutation,
   useCreateFinanceCurrencyMutation,
   useCreateFinanceTransactionMutation,
+  useDeleteFinanceCategoryMutation,
   useIssueSupplierOrderWithoutPaymentMutation,
   usePaySupplierOrderMutation,
   useUpdateCashboxMutation,
+  useUpdateFinanceCategoryMutation,
   useUpdateFinanceCurrencyMutation,
   useUpdateFinanceTransactionMutation,
 } from '../../../../entities/finance/api/financeApi';
+import { isAlwaysActiveFinanceCategory } from '../../../../entities/finance/model/category-label';
 import type {
   Cashbox,
+  CreateFinanceCategoryPayload,
+  FinanceCategory,
   FinanceCurrency,
   FinanceTransaction,
   FinanceTransactionType,
@@ -77,6 +83,7 @@ export const AccountingPanel = ({
   const {
     allCashboxes,
     cashboxes,
+    categories,
     currencies,
     isCashboxesOrderHydrated,
     isLoading,
@@ -131,6 +138,9 @@ export const AccountingPanel = ({
   const updateCashboxMutation = useUpdateCashboxMutation();
   const createFinanceCurrencyMutation = useCreateFinanceCurrencyMutation();
   const updateFinanceCurrencyMutation = useUpdateFinanceCurrencyMutation();
+  const createFinanceCategoryMutation = useCreateFinanceCategoryMutation();
+  const updateFinanceCategoryMutation = useUpdateFinanceCategoryMutation();
+  const deleteFinanceCategoryMutation = useDeleteFinanceCategoryMutation();
   const createFinanceTransactionMutation =
     useCreateFinanceTransactionMutation();
   const cancelFinanceTransactionMutation =
@@ -416,6 +426,111 @@ export const AccountingPanel = ({
       );
     },
     [onError, runFinanceAction, updateFinanceCurrencyMutation],
+  );
+
+  const handleCreateCategory = useCallback(
+    async (payload: CreateFinanceCategoryPayload | string) => {
+      const name = (typeof payload === 'string' ? payload : payload.name).trim();
+      if (!name) {
+        onError(i18n.t('accounting.messages.errors.categoryNameRequired'));
+        return undefined as unknown as FinanceCategory;
+      }
+      if (!canManageCashboxes) {
+        onError(i18n.t('accounting.messages.errors.noPermissionManageCashboxes'));
+        return undefined as unknown as FinanceCategory;
+      }
+      const created = await runFinanceAction(
+        () => createFinanceCategoryMutation.mutateAsync({ name }),
+        i18n.t('accounting.messages.success.categoryCreated'),
+        {
+          skipRefresh: true,
+          errorFallback: i18n.t('accounting.messages.errors.failedCreateCategory'),
+        },
+      );
+      return created as FinanceCategory;
+    },
+    [
+      canManageCashboxes,
+      createFinanceCategoryMutation,
+      onError,
+      runFinanceAction,
+    ],
+  );
+
+  const handleToggleCategoryActive = useCallback(
+    (category: FinanceCategory) => {
+      if (isAlwaysActiveFinanceCategory(category)) {
+        onError(
+          category.slug === 'other'
+            ? i18n.t('accounting.messages.errors.otherCategoryAlwaysActive')
+            : i18n.t('accounting.messages.errors.autoCategoryAlwaysActive'),
+        );
+        return;
+      }
+      void runFinanceAction(
+        () =>
+          updateFinanceCategoryMutation.mutateAsync({
+            slug: category.slug,
+            payload: { isActive: !category.isActive },
+          }),
+        category.isActive
+          ? i18n.t('accounting.messages.success.categoryDeactivated')
+          : i18n.t('accounting.messages.success.categoryActivated'),
+        {
+          skipBusy: true,
+          skipRefresh: true,
+          errorFallback: i18n.t('accounting.messages.errors.failedUpdateCategory'),
+        },
+      );
+    },
+    [onError, runFinanceAction, updateFinanceCategoryMutation],
+  );
+
+  const handleRenameCategory = useCallback(
+    (category: FinanceCategory, name: string) => {
+      if (isAlwaysActiveFinanceCategory(category)) {
+        onError(
+          category.slug === 'other'
+            ? i18n.t('accounting.financeSettings.cannotRenameOtherCategory')
+            : i18n.t('accounting.financeSettings.cannotRenameAutoCategory'),
+        );
+        return;
+      }
+      const trimmed = name.trim();
+      if (trimmed.length < 2) {
+        onError(i18n.t('accounting.messages.errors.categoryNameRequired'));
+        return;
+      }
+      void runFinanceAction(
+        () =>
+          updateFinanceCategoryMutation.mutateAsync({
+            slug: category.slug,
+            payload: { name: trimmed },
+          }),
+        i18n.t('accounting.messages.success.categoryRenamed'),
+        {
+          skipBusy: true,
+          skipRefresh: true,
+          silentSuccess: true,
+          errorFallback: i18n.t('accounting.messages.errors.failedUpdateCategory'),
+        },
+      );
+    },
+    [onError, runFinanceAction, updateFinanceCategoryMutation],
+  );
+
+  const handleDeleteCategory = useCallback(
+    (slug: string) => {
+      void runFinanceAction(
+        () => deleteFinanceCategoryMutation.mutateAsync(slug),
+        i18n.t('accounting.messages.success.categoryDeleted'),
+        {
+          skipRefresh: true,
+          errorFallback: i18n.t('accounting.messages.errors.failedDeleteCategory'),
+        },
+      );
+    },
+    [deleteFinanceCategoryMutation, runFinanceAction],
   );
 
   const toggleFinanceSettingsCard = useCallback(
@@ -704,18 +819,24 @@ export const AccountingPanel = ({
           onToggleCashboxArchived={toggleCashboxArchived}
           onToggleCashboxCurrencyActivity={toggleCashboxCurrencyActivity}
           onToggleCurrencyActivity={toggleCurrencyActivity}
+          categories={categories}
+          onCreateCategory={(name) => handleCreateCategory(name)}
+          onDeleteCategory={handleDeleteCategory}
+          onRenameCategory={handleRenameCategory}
+          onToggleCategoryActive={handleToggleCategoryActive}
         />
       ) : activeTab === 'transactions' ? (
         <AccountingTransactionsView
           activeFiltersCount={activeTransactionFiltersCount}
           allCurrencyCodes={allCurrencyCodes}
+          categories={categories}
           appliedFilters={appliedTransactionFilters}
           balanceAfterByTransactionId={balanceAfterByTransactionId}
           cashboxes={cashboxes}
           draftFilters={draftTransactionFilters}
           isDateFilterOpen={isTransactionsDateFilterOpen}
           isFilterOpen={isTransactionsFilterOpen}
-          isLoading={isTransactionsLoading}
+          isLoading={isTransactionsLoading && transactions.length === 0}
           page={transactionsPage}
           pageSize={transactionsPageSize}
           totalItems={transactionsTotal}
@@ -781,6 +902,9 @@ export const AccountingPanel = ({
           permittedTransactionTypes={permittedTransactionTypes}
           totals={totals}
           transactionForm={transactionForm}
+          categories={categories}
+          canManageCategories={canManageCashboxes}
+          onCreateCategory={handleCreateCategory}
           onCreateCashbox={handleCreateCashbox}
           onCreateTransaction={handleCreateTransaction}
           onOpenCashboxTransactions={openCashboxTransactions}

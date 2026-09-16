@@ -52,7 +52,7 @@ Defaults are applied by backend when an employee is created or updated with an e
 | --- | --- |
 | `finance.view` | Open Accounting workspace, read transactions, reports, and supplier payment queue. |
 | `finance.cashboxes.view` | Read active cashboxes, mainly for payment/refund forms outside Accounting. |
-| `finance.cashboxes.manage` | Create, rename, deactivate, and reactivate cashboxes. |
+| `finance.cashboxes.manage` | Create, rename, deactivate, and reactivate cashboxes. Also create/update/delete finance categories and toggle category activity (same as currencies). |
 | `finance.transactions.deposit` | Create deposit transactions, including accepting client payments from Orders. |
 | `finance.transactions.withdraw` | Create withdraw transactions, including client refunds/returns. |
 | `finance.transactions.transfer` | Transfer money between cashboxes. |
@@ -150,6 +150,13 @@ All `/api/*` routes except health, login, and invitation flows require a valid B
 | `GET /finance/cashboxes` | `finance.cashboxes.view` or `finance.view`. |
 | `POST /finance/cashboxes` | `finance.cashboxes.manage`. |
 | `PATCH /finance/cashboxes/:cashboxId` | `finance.cashboxes.manage`. |
+| `GET /finance/currencies` | `finance.view`. |
+| `POST /finance/currencies` | `finance.cashboxes.manage`. |
+| `PATCH /finance/currencies/:currencyCode` | `finance.cashboxes.manage`. |
+| `GET /finance/categories` | `finance.view`. |
+| `POST /finance/categories` | `finance.cashboxes.manage`. |
+| `PATCH /finance/categories/:categorySlug` | `finance.cashboxes.manage`. |
+| `DELETE /finance/categories/:categorySlug` | `finance.cashboxes.manage`. Custom categories always delete; txs move to `other`. System `409`. |
 | `GET /finance/transactions` | `finance.view`. |
 | `POST /finance/transactions` with `type = deposit` | `finance.transactions.deposit`. |
 | `POST /finance/transactions` with `type = withdraw` | `finance.transactions.withdraw`. |

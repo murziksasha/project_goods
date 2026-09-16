@@ -12,8 +12,16 @@ export const financeTransactionCategories = [
   'owner_draw',
   'other',
 ] as const;
-export type FinanceTransactionCategory =
+export type SystemFinanceTransactionCategory =
   (typeof financeTransactionCategories)[number];
+export type FinanceTransactionCategory = string;
+export const OTHER_CATEGORY_SLUG = 'other';
+export const financeCategoryKinds = [
+  'system_auto',
+  'system_opex',
+  'custom_opex',
+] as const;
+export type FinanceCategoryKind = (typeof financeCategoryKinds)[number];
 export const manualWithdrawCategories = [
   'rent',
   'salary',
@@ -23,6 +31,28 @@ export const manualWithdrawCategories = [
   'other',
 ] as const;
 export type ManualWithdrawCategory = (typeof manualWithdrawCategories)[number];
+
+export type FinanceCategory = {
+  id: string;
+  slug: string;
+  name: string;
+  isSystem: boolean;
+  kind: FinanceCategoryKind;
+  isActive: boolean;
+  sortOrder: number;
+  usageCount: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type CreateFinanceCategoryPayload = {
+  name: string;
+};
+
+export type UpdateFinanceCategoryPayload = {
+  isActive?: boolean;
+  name?: string;
+};
 
 export type FinanceCurrencyConfig = {
   id: string;
@@ -84,6 +114,7 @@ export type FinanceTransactionsListParams = {
   toCashboxId?: string;
   cashboxId?: string;
   note?: string;
+  category?: string;
   sortBy?: FinanceTransactionSortField;
   sortDirection?: 'asc' | 'desc';
 };
@@ -143,7 +174,7 @@ export type CreateFinanceTransactionPayload = {
   fromCashboxId?: string;
   toCashboxId?: string;
   note: string;
-  category?: FinanceTransactionCategory;
+  category?: string;
   idempotencyKey?: string;
 };
 

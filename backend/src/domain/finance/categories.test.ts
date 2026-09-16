@@ -1,12 +1,18 @@
-import { describe, expect, it } from 'vitest';
+import mongoose from 'mongoose';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { HttpError } from '../../shared/lib/errors';
 import {
   inferFinanceTransactionCategory,
   normalizeOptionalCategory,
   resolveFinanceTransactionCategory,
 } from './categories';
+import { FinanceCategory } from './model';
 
 describe('finance transaction categories', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it('infers client payments from deposit notes and supplier payments from matching withdraw notes', () => {
     expect(
       inferFinanceTransactionCategory('deposit', 'Payment for order r000008'),
@@ -36,13 +42,13 @@ describe('finance transaction categories', () => {
     expect(inferFinanceTransactionCategory('transfer', 'Move')).toBeUndefined();
   });
 
-  it('prefers an explicit category and rejects unknown values', () => {
-    expect(
+  it('prefers an explicit category and rejects unknown values', async () => {
+    await expect(
       resolveFinanceTransactionCategory('withdraw', 'Rent May', 'rent'),
-    ).toBe('rent');
-    expect(resolveFinanceTransactionCategory('transfer', 'Move', 'rent')).toBe(
-      undefined,
-    );
+    ).resolves.toBe('rent');
+    await expect(
+      resolveFinanceTransactionCategory('transfer', 'Move', 'rent'),
+    ).resolves.toBeUndefined();
     expect(normalizeOptionalCategory(undefined)).toBeUndefined();
     expect(normalizeOptionalCategory('')).toBeUndefined();
     expect(normalizeOptionalCategory('salary')).toBe('salary');
@@ -53,5 +59,34 @@ describe('finance transaction categories', () => {
       expect(error).toBeInstanceOf(HttpError);
       expect((error as HttpError).statusCode).toBe(400);
     }
+  });
+
+  it('rejects inactive opex categories for new withdraws', async () => {
+    Object.defineProperty(mongoose.connection, 'readyState', {
+      configurable: true,
+      get: () => 1,
+    });
+    vi.spyOn(FinanceCategory, 'findOne').mockReturnValue({
+      lean: async () => ({
+        slug: 'rent',
+        kind: 'system_opex',
+        isActive: false,
+        isSystem: true,
+        name: 'Rent',
+        sortOrder: 110,
+      }),
+    } as never);
+
+    await expect(
+      resolveFinanceTransactionCategory('withdraw', 'Rent May', 'rent'),
+    ).rejects.toMatchObject({
+      statusCode: 400,
+      message: 'Inactive finance transaction category.',
+    });
+
+    Object.defineProperty(mongoose.connection, 'readyState', {
+      configurable: true,
+      get: () => 0,
+    });
   });
 });

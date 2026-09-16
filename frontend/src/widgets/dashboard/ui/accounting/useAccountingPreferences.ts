@@ -20,7 +20,7 @@ import {
   type TransactionTargetMemory,
 } from '../../model/accounting';
 
-export type FinanceSettingsTab = 'cashboxes' | 'currencies';
+export type FinanceSettingsTab = 'cashboxes' | 'currencies' | 'categories';
 
 type UseAccountingPreferencesOptions = {
   cashboxes: Cashbox[];
@@ -73,7 +73,9 @@ export const useAccountingPreferences = ({
         const storedTab = window.localStorage.getItem(
           accountingFinanceSettingsTabStorageKey,
         );
-        return storedTab === 'cashboxes' || storedTab === 'currencies'
+        return storedTab === 'cashboxes' ||
+          storedTab === 'currencies' ||
+          storedTab === 'categories'
           ? storedTab
           : 'cashboxes';
       } catch {

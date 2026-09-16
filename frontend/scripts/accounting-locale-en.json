@@ -46,7 +46,9 @@
     "filter": "Filter",
     "date": "Date",
     "allCashboxes": "All cashboxes",
+    "allCategories": "All categories",
     "filterByCashboxAriaLabel": "Filter transactions by cashbox",
+    "filterByCategoryAriaLabel": "Filter transactions by category",
     "closeFiltersPanelAriaLabel": "Close filters panel",
     "closeDateFiltersPanelAriaLabel": "Close date filters panel",
     "type": "Type",
@@ -93,6 +95,18 @@
   "financeSettings": {
     "cashboxes": "Cashboxes",
     "currencies": "Currencies",
+    "categories": "Categories",
+    "addCategory": "Add category",
+    "categoryName": "Name",
+    "categoryNamePlaceholder": "For example, Advertising",
+    "categoryActivityHint": "You can rename expense categories. Automatic categories and Other cannot be renamed or turned off. Turn a category off to hide it from the withdraw menu. Custom categories can be deleted; their transactions move to Other.",
+    "otherAlwaysActive": "The Other category cannot be turned off.",
+    "autoAlwaysActive": "Automatic categories cannot be turned off.",
+    "cannotRenameOtherCategory": "The Other category cannot be renamed.",
+    "cannotRenameAutoCategory": "Automatic categories cannot be renamed.",
+    "cannotDeleteSystemCategory": "System categories cannot be deleted.",
+    "deleteCategoryTitle": "Delete category",
+    "deleteCategory": "Delete",
     "createCashbox": "Create cashbox",
     "receiveCurrencies": "Receive currencies",
     "name": "Name",
@@ -362,7 +376,13 @@
       "failedIssueWithoutPayment": "Failed to issue order without payment.",
       "failedPayOrder": "Failed to pay order.",
       "failedUpdateNote": "Failed to update note.",
-      "failedLoadFinance": "Failed to load finance data."
+      "failedLoadFinance": "Failed to load finance data.",
+      "categoryNameRequired": "Enter a category name.",
+      "otherCategoryAlwaysActive": "The Other category cannot be turned off.",
+      "autoCategoryAlwaysActive": "Automatic categories cannot be turned off.",
+      "failedCreateCategory": "Failed to create category.",
+      "failedUpdateCategory": "Failed to update category.",
+      "failedDeleteCategory": "Failed to delete category."
     },
     "success": {
       "cashboxUpdated": "Cashbox updated.",
@@ -378,7 +398,12 @@
       "transferCancelled": "Transfer cancelled. A reverse transaction was created.",
       "orderIssuedWithoutPayment": "Order issued without payment.",
       "orderPaid": "Order has been paid.",
-      "noteUpdated": "Note updated."
+      "noteUpdated": "Note updated.",
+      "categoryCreated": "Category created.",
+      "categoryDeactivated": "Category deactivated.",
+      "categoryActivated": "Category activated.",
+      "categoryDeleted": "Category deleted.",
+      "categoryRenamed": "Category renamed."
     }
   }
 }

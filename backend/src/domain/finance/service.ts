@@ -10,6 +10,12 @@ export {
   updateFinanceCurrency,
 } from './currencies';
 export {
+  listFinanceCategories,
+  createFinanceCategory,
+  updateFinanceCategory,
+  deleteFinanceCategory,
+} from './category-crud';
+export {
   isOrderLinkedFinanceTransactionNote,
   getFinanceTransactionTypeForCancel,
   createFinanceTransaction,

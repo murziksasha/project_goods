@@ -1,5 +1,6 @@
 import type { SortOrder } from 'mongoose';
 import { escapeRegExp } from '../../shared/lib/query';
+import { isFinanceCategorySlug } from './categories';
 import { transactionTypes, type TransactionType } from './model';
 
 export const FINANCE_TRANSACTIONS_DEFAULT_RECENT_LIMIT = 200;
@@ -29,6 +30,7 @@ export type ListFinanceTransactionsOptions = {
   toCashboxId?: string;
   cashboxId?: string;
   note?: string;
+  category?: string;
   sortBy: FinanceTransactionSortField;
   sortDirection: 'asc' | 'desc';
 };
@@ -72,6 +74,11 @@ const parseObjectId = (value: unknown) => {
   return /^[a-f\d]{24}$/i.test(normalized) ? normalized : undefined;
 };
 
+const parseCategory = (value: unknown) => {
+  const normalized = String(value ?? '').trim();
+  return isFinanceCategorySlug(normalized) ? normalized : undefined;
+};
+
 export const parseListFinanceTransactionsQuery = (
   query: Record<string, unknown> = {},
 ): ListFinanceTransactionsOptions => ({
@@ -92,6 +99,7 @@ export const parseListFinanceTransactionsQuery = (
   toCashboxId: parseObjectId(query.toCashboxId),
   cashboxId: parseObjectId(query.cashboxId),
   note: String(query.note ?? '').trim() || undefined,
+  category: parseCategory(query.category),
   sortBy: parseSortField(query.sortBy),
   sortDirection: parseSortDirection(query.sortDirection),
 });
@@ -131,6 +139,10 @@ export const buildFinanceTransactionsFilter = (
       $regex: escapeRegExp(options.note),
       $options: 'i',
     };
+  }
+
+  if (options.category) {
+    filter.category = options.category;
   }
 
   if (options.dateFrom || options.dateTo) {

@@ -1,9 +1,13 @@
 import { useTranslation } from 'react-i18next';
+import { useFinanceCategoriesQuery } from '../../../../entities/finance/api/financeApi';
 import type {
-  FinanceTransactionCategory,
   ProfitCashCategoryRow,
   ProfitMarginRow,
 } from '../../../../entities/finance/model/types';
+import {
+  foldUnknownOpexCategories,
+  getFinanceCategoryLabel,
+} from '../../../../entities/finance/model/category-label';
 import { formatMoney, formatPercent } from '../../model/accounting';
 import {
   buildProfitChartRows,
@@ -290,23 +294,29 @@ export const AccountingProfitExpenseBars = ({
   currency: string;
 }) => {
   const { t } = useTranslation();
+  const categoriesQuery = useFinanceCategoriesQuery();
+  const categories = categoriesQuery.data ?? [];
+  const displayRows = categoriesQuery.data
+    ? foldUnknownOpexCategories(
+        rows,
+        categoriesQuery.data.map((category) => category.slug),
+      )
+    : rows;
   const total =
-    rows.reduce((sum, row) => sum + row.amount, 0) + Math.max(refunds, 0);
-  const categoryLabelKey = (category: FinanceTransactionCategory) =>
-    `accounting.profit.categories.${category}`;
+    displayRows.reduce((sum, row) => sum + row.amount, 0) + Math.max(refunds, 0);
 
-  if (rows.length === 0 && refunds <= 0) {
+  if (displayRows.length === 0 && refunds <= 0) {
     return <p className='empty-state'>{t('accounting.profit.noExpenses')}</p>;
   }
 
   return (
     <div className='finance-cashbox-distribution'>
-      {rows.map((row) => {
+      {displayRows.map((row) => {
         const sharePct = total > 0 ? (row.amount / total) * 100 : 0;
         return (
           <div key={row.category} className='finance-distribution-row'>
             <div>
-              <span>{t(categoryLabelKey(row.category))}</span>
+              <span>{getFinanceCategoryLabel(row.category, t, categories)}</span>
               <strong>{formatMoney(row.amount, currency)}</strong>
             </div>
             <div className='finance-distribution-track'>

@@ -1,9 +1,12 @@
 import { useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { Cashbox } from '../../../../entities/finance/model/types';
+import type {
+  Cashbox,
+  FinanceCategory,
+} from '../../../../entities/finance/model/types';
 import { isCashboxCurrencyUncheckLocked } from '../../model/accounting';
-
-type FinanceSettingsTab = 'cashboxes' | 'currencies';
+import { AccountingCategorySettings } from './AccountingCategorySettings';
+import type { FinanceSettingsTab } from './useAccountingPreferences';
 
 type AccountingFinanceSettingsProps = {
   activeTab: FinanceSettingsTab;
@@ -35,6 +38,11 @@ type AccountingFinanceSettingsProps = {
   onToggleCashboxArchived: (cashbox: Cashbox) => void;
   onToggleCashboxCurrencyActivity: (cashboxId: string, currencyCode: string) => void;
   onToggleCurrencyActivity: (currencyCode: string) => void;
+  categories: FinanceCategory[];
+  onCreateCategory: (name: string) => Promise<unknown>;
+  onDeleteCategory: (slug: string) => void;
+  onRenameCategory: (category: FinanceCategory, name: string) => void;
+  onToggleCategoryActive: (category: FinanceCategory) => void;
 };
 
 export const AccountingFinanceSettings = ({
@@ -64,6 +72,11 @@ export const AccountingFinanceSettings = ({
   onToggleCashboxArchived,
   onToggleCashboxCurrencyActivity,
   onToggleCurrencyActivity,
+  categories,
+  onCreateCategory,
+  onDeleteCategory,
+  onRenameCategory,
+  onToggleCategoryActive,
 }: AccountingFinanceSettingsProps) => {
   const { t } = useTranslation();
 
@@ -92,6 +105,17 @@ export const AccountingFinanceSettings = ({
         >
           {t('accounting.financeSettings.currencies')}
         </button>
+        <button
+          type='button'
+          className={
+            activeTab === 'categories'
+              ? 'warehouse-settings-tab warehouse-settings-tab-active'
+              : 'warehouse-settings-tab'
+          }
+          onClick={() => onTabChange('categories')}
+        >
+          {t('accounting.financeSettings.categories')}
+        </button>
       </div>
 
       {activeTab === 'cashboxes' ? (
@@ -116,7 +140,7 @@ export const AccountingFinanceSettings = ({
           onToggleCashboxArchived={onToggleCashboxArchived}
           onToggleCashboxCurrencyActivity={onToggleCashboxCurrencyActivity}
         />
-      ) : (
+      ) : activeTab === 'currencies' ? (
         <CurrencySettings
           allCurrencyCodes={allCurrencyCodes}
           expandedCard={expandedCard}
@@ -127,6 +151,15 @@ export const AccountingFinanceSettings = ({
           onRemoveCurrency={onRemoveCurrency}
           onToggleCard={onToggleCard}
           onToggleCurrencyActivity={onToggleCurrencyActivity}
+        />
+      ) : (
+        <AccountingCategorySettings
+          categories={categories}
+          isSaving={isSaving}
+          onCreateCategory={onCreateCategory}
+          onDeleteCategory={onDeleteCategory}
+          onRenameCategory={onRenameCategory}
+          onToggleCategoryActive={onToggleCategoryActive}
         />
       )}
     </section>
