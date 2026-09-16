@@ -45,6 +45,25 @@ export type MergeClientsPayload = {
 export type MergeSuppliersPayload = {
   targetSupplierId?: unknown;
   sourceSupplierId?: unknown;
+  draftNote?: unknown;
+};
+
+export type MergeClientDevicesPayload = {
+  targetDeviceId?: unknown;
+  sourceDeviceId?: unknown;
+  draftNote?: unknown;
+};
+
+export type MergeCatalogProductsPayload = {
+  targetCatalogProductId?: unknown;
+  sourceCatalogProductId?: unknown;
+  draftNote?: unknown;
+};
+
+export type MergeServicesPayload = {
+  targetServiceId?: unknown;
+  sourceServiceId?: unknown;
+  draftNote?: unknown;
 };
 
 export type SalePayload = {

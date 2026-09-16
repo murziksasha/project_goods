@@ -1,7 +1,11 @@
 import { useDeferredValue, useEffect, useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { initialClientForm } from '../../../entities/client/model/forms';
-import type { ClientFormValues, ClientHistory, ClientStatus } from '../../../entities/client/model/types';
+import type {
+  ClientFormValues,
+  ClientHistory,
+  ClientStatus,
+} from '../../../entities/client/model/types';
 import {
   createClient,
   deleteClient,
@@ -10,14 +14,20 @@ import {
 } from '../../../entities/client/api/clientApi';
 import { getEmployees } from '../../../entities/employee/api/employeeApi';
 import { initialEmployeeForm } from '../../../entities/employee/model/forms';
-import type { Employee, EmployeeFormValues } from '../../../entities/employee/model/types';
+import type {
+  Employee,
+  EmployeeFormValues,
+} from '../../../entities/employee/model/types';
 import { getSuppliers } from '../../../entities/supplier/api/supplierApi';
 import { getSettings } from '../../../entities/settings/api/settingsApi';
 import {
   filterClientsByQuery,
   filterClientsByStatus,
 } from '../../../entities/client/lib/filter-clients';
-import { initialProductForm, toProductForm } from '../../../entities/product/model/forms';
+import {
+  initialProductForm,
+  toProductForm,
+} from '../../../entities/product/model/forms';
 import type {
   Product,
   ProductFormValues,
@@ -48,6 +58,7 @@ import type { SaleFormValues } from '../../../entities/sale/model/types';
 import {
   createCatalogProduct,
   deleteCatalogProduct,
+  mergeCatalogProducts,
   updateCatalogProduct,
   useCatalogProductsQuery,
 } from '../../../entities/catalog-product/api/catalogProductApi';
@@ -59,7 +70,10 @@ import {
   useSalesQuery,
 } from '../../../entities/sale/api/saleApi';
 import type { DemoSeedKind } from '../../../features/demo-data/api/demoApi';
-import { queryClient, queryKeys } from '../../../shared/api/queryClient';
+import {
+  queryClient,
+  queryKeys,
+} from '../../../shared/api/queryClient';
 import { getRequestErrorMessage } from '../../../shared/lib/request';
 import i18n from '../../../shared/i18n/config';
 import { initialServiceCatalogForm } from '../../../entities/service-catalog/model/forms';
@@ -71,7 +85,10 @@ import {
   updateServiceCatalogItem,
   useServicesQuery,
 } from '../../../entities/service-catalog/api/serviceCatalogApi';
-import type { AppSettings, AppSettingsFormValues } from '../../../entities/settings/model/types';
+import type {
+  AppSettings,
+  AppSettingsFormValues,
+} from '../../../entities/settings/model/types';
 import { createDefaultSettingsForm } from '../../../entities/settings/model/printForms';
 import { readCachedCompanySettings } from '../../../entities/settings/model/companySettingsCache';
 import { createDashboardActions } from './dashboard-actions';
@@ -95,10 +112,12 @@ export const useDashboardPage = (
   currentEmployee: Employee | null = null,
   activePage: PageKey | null = null,
 ) => {
-  const [statsPeriod, setStatsPeriod] = useState<StatsPeriod>('today');
-  const [analyticsDateRange, setAnalyticsDateRange] = useState<AnalyticsDateRange | null>(() =>
-    getStoredAnalyticsDateRange(),
-  );
+  const [statsPeriod, setStatsPeriod] =
+    useState<StatsPeriod>('today');
+  const [analyticsDateRange, setAnalyticsDateRange] =
+    useState<AnalyticsDateRange | null>(() =>
+      getStoredAnalyticsDateRange(),
+    );
   const pollSales = !activePage || activePage === 'orders';
   const productsEnabled =
     enabled &&
@@ -120,7 +139,10 @@ export const useDashboardPage = (
       activePage === 'catalog' ||
       activePage === 'warehouse');
   const servicesEnabled =
-    enabled && (!activePage || activePage === 'catalog' || activePage === 'orders');
+    enabled &&
+    (!activePage ||
+      activePage === 'catalog' ||
+      activePage === 'orders');
 
   const productsQuery = useProductsQuery(productsEnabled, {
     poll: activePage === 'warehouse' || activePage === 'catalog',
@@ -133,9 +155,12 @@ export const useDashboardPage = (
     { limit: activePage === 'warehouse' ? 2000 : 500 },
     { poll: pollSales },
   );
-  const catalogProductsQuery = useCatalogProductsQuery(catalogEnabled, {
-    poll: activePage === 'catalog' || activePage === 'warehouse',
-  });
+  const catalogProductsQuery = useCatalogProductsQuery(
+    catalogEnabled,
+    {
+      poll: activePage === 'catalog' || activePage === 'warehouse',
+    },
+  );
   const servicesQuery = useServicesQuery(servicesEnabled, {
     poll: activePage === 'catalog',
   });
@@ -143,71 +168,118 @@ export const useDashboardPage = (
   const allProducts = enabled ? (productsQuery.data ?? []) : [];
   const allClients = enabled ? (clientsQuery.data ?? []) : [];
   const sales = enabled ? (salesQuery.data ?? []) : [];
-  const catalogProducts = enabled ? (catalogProductsQuery.data ?? []) : [];
+  const catalogProducts = enabled
+    ? (catalogProductsQuery.data ?? [])
+    : [];
   const services = enabled ? (servicesQuery.data ?? []) : [];
 
-  const [clientDevices, setClientDevices] = useState<ClientDevice[]>([]);
+  const [clientDevices, setClientDevices] = useState<ClientDevice[]>(
+    [],
+  );
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [allEmployees, setAllEmployees] = useState<Employee[]>([]);
   const [settings, setSettings] = useState<AppSettings | null>(null);
-  const [settingsForm, setSettingsForm] = useState<AppSettingsFormValues>(() => {
-    const base = createDefaultSettingsForm();
-    const cached = readCachedCompanySettings();
-    if (!cached) {
+  const [settingsForm, setSettingsForm] =
+    useState<AppSettingsFormValues>(() => {
+      const base = createDefaultSettingsForm();
+      const cached = readCachedCompanySettings();
+      if (!cached) {
+        return {
+          ...base,
+          serviceName: '',
+          company: '',
+          companyAddress: '',
+          companyId: '',
+          companyIban: '',
+          companyEmail: '',
+          companySite: '',
+        };
+      }
       return {
         ...base,
-        serviceName: '',
-        company: '',
-        companyAddress: '',
-        companyId: '',
-        companyIban: '',
-        companyEmail: '',
-        companySite: '',
+        ...cached,
       };
-    }
-    return {
-      ...base,
-      ...cached,
-    };
-  });
-  const [draftAnalyticsDateRange, setDraftAnalyticsDateRange] = useState<AnalyticsDateRange>(() => ({
-    dateFrom: getStoredAnalyticsDateRange()?.dateFrom ?? '',
-    dateTo: getStoredAnalyticsDateRange()?.dateTo ?? '',
-  }));
-  const [isAnalyticsDateFilterOpen, setIsAnalyticsDateFilterOpen] = useState(false);
-  const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
-  const [clientHistory, setClientHistory] = useState<ClientHistory | null>(null);
-  const [productForm, setProductForm] = useState<ProductFormValues>(initialProductForm);
+    });
+  const [draftAnalyticsDateRange, setDraftAnalyticsDateRange] =
+    useState<AnalyticsDateRange>(() => ({
+      dateFrom: getStoredAnalyticsDateRange()?.dateFrom ?? '',
+      dateTo: getStoredAnalyticsDateRange()?.dateTo ?? '',
+    }));
+  const [isAnalyticsDateFilterOpen, setIsAnalyticsDateFilterOpen] =
+    useState(false);
+  const [selectedClientId, setSelectedClientId] = useState<
+    string | null
+  >(null);
+  const [clientHistory, setClientHistory] =
+    useState<ClientHistory | null>(null);
+  const [productForm, setProductForm] = useState<ProductFormValues>(
+    initialProductForm,
+  );
   const [serviceForm, setServiceForm] =
     useState<ServiceCatalogFormValues>(initialServiceCatalogForm);
-  const [clientForm, setClientForm] = useState<ClientFormValues>(initialClientForm);
-  const [saleForm, setSaleForm] = useState<SaleFormValues>(initialSaleForm);
-  const [employeeForm, setEmployeeForm] = useState<EmployeeFormValues>(initialEmployeeForm);
-  const [editingProductId, setEditingProductId] = useState<string | null>(null);
-  const [editingServiceId, setEditingServiceId] = useState<string | null>(null);
-  const [editingClientId, setEditingClientId] = useState<string | null>(null);
-  const [editingSaleId, setEditingSaleId] = useState<string | null>(null);
-  const [editingEmployeeId, setEditingEmployeeId] = useState<string | null>(null);
-  const [productSearchQuery, setProductSearchQuery] = useState(() => window.localStorage.getItem(productSearchStorageKey) ?? '');
-  const [serviceSearchQuery, setServiceSearchQuery] = useState(() => window.localStorage.getItem(serviceSearchStorageKey) ?? '');
-  const [clientSearchQuery, setClientSearchQuery] = useState(() => window.localStorage.getItem(clientSearchStorageKey) ?? '');
-  const [clientStatusFilter, setClientStatusFilter] = useState<ClientStatus | 'all'>(() => {
+  const [clientForm, setClientForm] =
+    useState<ClientFormValues>(initialClientForm);
+  const [saleForm, setSaleForm] =
+    useState<SaleFormValues>(initialSaleForm);
+  const [employeeForm, setEmployeeForm] =
+    useState<EmployeeFormValues>(initialEmployeeForm);
+  const [editingProductId, setEditingProductId] = useState<
+    string | null
+  >(null);
+  const [editingServiceId, setEditingServiceId] = useState<
+    string | null
+  >(null);
+  const [editingClientId, setEditingClientId] = useState<
+    string | null
+  >(null);
+  const [editingSaleId, setEditingSaleId] = useState<string | null>(
+    null,
+  );
+  const [editingEmployeeId, setEditingEmployeeId] = useState<
+    string | null
+  >(null);
+  const [productSearchQuery, setProductSearchQuery] = useState(
+    () => window.localStorage.getItem(productSearchStorageKey) ?? '',
+  );
+  const [serviceSearchQuery, setServiceSearchQuery] = useState(
+    () => window.localStorage.getItem(serviceSearchStorageKey) ?? '',
+  );
+  const [clientSearchQuery, setClientSearchQuery] = useState(
+    () => window.localStorage.getItem(clientSearchStorageKey) ?? '',
+  );
+  const [clientStatusFilter, setClientStatusFilter] = useState<
+    ClientStatus | 'all'
+  >(() => {
     const value = window.localStorage.getItem(clientStatusStorageKey);
-    return value === 'new' || value === 'vip' || value === 'opt' || value === 'blacklist' || value === 'ok' || value === 'all'
+    return value === 'new' ||
+      value === 'vip' ||
+      value === 'opt' ||
+      value === 'blacklist' ||
+      value === 'ok' ||
+      value === 'all'
       ? value
       : 'all';
   });
-  const deferredProductSearchQuery = useDeferredValue(productSearchQuery.trim());
-  const deferredServiceSearchQuery = useDeferredValue(serviceSearchQuery.trim());
-  const deferredClientSearchQuery = useDeferredValue(clientSearchQuery.trim());
+  const deferredProductSearchQuery = useDeferredValue(
+    productSearchQuery.trim(),
+  );
+  const deferredServiceSearchQuery = useDeferredValue(
+    serviceSearchQuery.trim(),
+  );
+  const deferredClientSearchQuery = useDeferredValue(
+    clientSearchQuery.trim(),
+  );
   const isProductsLoading = enabled ? productsQuery.isLoading : false;
   const isServicesLoading = enabled ? servicesQuery.isLoading : false;
   const isClientsLoading = enabled ? clientsQuery.isLoading : false;
   const isSalesLoading = enabled ? salesQuery.isLoading : false;
-  const isCatalogProductsLoading = enabled ? catalogProductsQuery.isLoading : false;
+  const isCatalogProductsLoading = enabled
+    ? catalogProductsQuery.isLoading
+    : false;
   const [isSuppliersLoading, setIsSuppliersLoading] = useState(true);
   const [isEmployeesLoading, setIsEmployeesLoading] = useState(true);
-  const [isClientHistoryLoading, setIsClientHistoryLoading] = useState(false);
+  const [isClientHistoryLoading, setIsClientHistoryLoading] =
+    useState(false);
   const [isProductSaving, setIsProductSaving] = useState(false);
   const [isServiceSaving, setIsServiceSaving] = useState(false);
   const [isClientSaving, setIsClientSaving] = useState(false);
@@ -224,142 +296,224 @@ export const useDashboardPage = (
   const createProductMutation = useMutation({
     mutationFn: createProduct,
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: queryKeys.products });
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.products,
+      });
     },
   });
   const updateProductMutation = useMutation({
-    mutationFn: ({ productId, payload }: { productId: string; payload: ProductFormValues }) =>
-      updateProduct(productId, payload),
+    mutationFn: ({
+      productId,
+      payload,
+    }: {
+      productId: string;
+      payload: ProductFormValues;
+    }) => updateProduct(productId, payload),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: queryKeys.products });
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.products,
+      });
     },
   });
   const updateProductModelMutation = useMutation({
     mutationFn: (payload: ProductModelUpdatePayload) =>
       updateProductModelByName(payload),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: queryKeys.products });
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.products,
+      });
     },
   });
   const createSaleMutation = useMutation({
     mutationFn: createSale,
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: queryKeys.sales });
-      await queryClient.invalidateQueries({ queryKey: queryKeys.products });
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.sales,
+      });
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.products,
+      });
     },
   });
   const updateSaleMutation = useMutation({
-    mutationFn: ({ saleId, payload }: { saleId: string; payload: SaleFormValues }) =>
-      updateSale(saleId, payload),
+    mutationFn: ({
+      saleId,
+      payload,
+    }: {
+      saleId: string;
+      payload: SaleFormValues;
+    }) => updateSale(saleId, payload),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: queryKeys.sales });
-      await queryClient.invalidateQueries({ queryKey: queryKeys.products });
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.sales,
+      });
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.products,
+      });
     },
   });
   const createClientDeviceMutation = useMutation({
     mutationFn: createClientDevice,
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: queryKeys.clientDevices });
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.clientDevices,
+      });
     },
   });
   const updateClientDeviceMutation = useMutation({
-    mutationFn: ({ deviceId, payload }: { deviceId: string; payload: ClientDeviceFormValues }) =>
-      updateClientDevice(deviceId, payload),
+    mutationFn: ({
+      deviceId,
+      payload,
+    }: {
+      deviceId: string;
+      payload: ClientDeviceFormValues;
+    }) => updateClientDevice(deviceId, payload),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: queryKeys.clientDevices });
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.clientDevices,
+      });
     },
   });
   const deleteClientDeviceMutation = useMutation({
     mutationFn: deleteClientDevice,
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: queryKeys.clientDevices });
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.clientDevices,
+      });
     },
   });
   const archiveProductMutation = useMutation({
     mutationFn: archiveProduct,
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: queryKeys.products });
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.products,
+      });
     },
   });
   const deleteProductMutation = useMutation({
     mutationFn: deleteProduct,
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: queryKeys.products });
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.products,
+      });
     },
   });
   const deleteSaleMutation = useMutation({
     mutationFn: deleteSale,
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: queryKeys.sales });
-      await queryClient.invalidateQueries({ queryKey: queryKeys.products });
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.sales,
+      });
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.products,
+      });
     },
   });
   const createServiceMutation = useMutation({
     mutationFn: createServiceCatalogItem,
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: queryKeys.services });
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.services,
+      });
     },
   });
   const updateServiceMutation = useMutation({
-    mutationFn: ({ serviceId, payload }: { serviceId: string; payload: ServiceCatalogFormValues }) =>
-      updateServiceCatalogItem(serviceId, payload),
+    mutationFn: ({
+      serviceId,
+      payload,
+    }: {
+      serviceId: string;
+      payload: ServiceCatalogFormValues;
+    }) => updateServiceCatalogItem(serviceId, payload),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: queryKeys.services });
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.services,
+      });
     },
   });
   const deleteServiceMutation = useMutation({
     mutationFn: deleteServiceCatalogItem,
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: queryKeys.services });
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.services,
+      });
     },
   });
   const archiveServiceMutation = useMutation({
     mutationFn: archiveServiceCatalogItem,
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: queryKeys.services });
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.services,
+      });
     },
   });
   const createClientMutation = useMutation({
     mutationFn: createClient,
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: queryKeys.clients });
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.clients,
+      });
     },
   });
   const updateClientMutation = useMutation({
-    mutationFn: ({ clientId, payload }: { clientId: string; payload: ClientFormValues }) =>
-      updateClient(clientId, payload),
+    mutationFn: ({
+      clientId,
+      payload,
+    }: {
+      clientId: string;
+      payload: ClientFormValues;
+    }) => updateClient(clientId, payload),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: queryKeys.clients });
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.clients,
+      });
     },
   });
   const deleteClientMutation = useMutation({
     mutationFn: deleteClient,
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: queryKeys.clients });
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.clients,
+      });
     },
   });
   const updateCatalogProductMutation = useMutation({
-    mutationFn: ({ catalogProductId, payload }: { catalogProductId: string; payload: CatalogProductFormValues }) =>
-      updateCatalogProduct(catalogProductId, payload),
+    mutationFn: ({
+      catalogProductId,
+      payload,
+    }: {
+      catalogProductId: string;
+      payload: CatalogProductFormValues;
+    }) => updateCatalogProduct(catalogProductId, payload),
     onSuccess: async () => {
       await Promise.all([
-        queryClient.invalidateQueries({ queryKey: queryKeys.catalogProducts }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.products }),
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.catalogProducts,
+        }),
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.products,
+        }),
         queryClient.invalidateQueries({ queryKey: queryKeys.sales }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.supplierOrders }),
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.supplierOrders,
+        }),
       ]);
     },
   });
   const createCatalogProductMutation = useMutation({
     mutationFn: createCatalogProduct,
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: queryKeys.catalogProducts });
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.catalogProducts,
+      });
     },
   });
   const deleteCatalogProductMutation = useMutation({
     mutationFn: deleteCatalogProduct,
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: queryKeys.catalogProducts });
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.catalogProducts,
+      });
     },
   });
 
@@ -398,11 +552,19 @@ export const useDashboardPage = (
   useEffect(() => {
     if (!enabled) return;
     const handleProductsUpdated = () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.products });
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.products,
+      });
     };
-    window.addEventListener('project-goods:products-updated', handleProductsUpdated);
+    window.addEventListener(
+      'project-goods:products-updated',
+      handleProductsUpdated,
+    );
     return () => {
-      window.removeEventListener('project-goods:products-updated', handleProductsUpdated);
+      window.removeEventListener(
+        'project-goods:products-updated',
+        handleProductsUpdated,
+      );
     };
   }, [enabled]);
 
@@ -413,7 +575,10 @@ export const useDashboardPage = (
     }
     if (clientsQuery.error) {
       setError(
-        getRequestErrorMessage(clientsQuery.error, i18n.t('errors.failedLoadClients')),
+        getRequestErrorMessage(
+          clientsQuery.error,
+          i18n.t('errors.failedLoadClients'),
+        ),
       );
     }
   }, [enabled, clientsQuery.data, clientsQuery.error]);
@@ -425,7 +590,10 @@ export const useDashboardPage = (
     }
     if (salesQuery.error) {
       setError(
-        getRequestErrorMessage(salesQuery.error, i18n.t('errors.failedLoadSales')),
+        getRequestErrorMessage(
+          salesQuery.error,
+          i18n.t('errors.failedLoadSales'),
+        ),
       );
     }
   }, [enabled, salesQuery.data, salesQuery.error]);
@@ -443,7 +611,11 @@ export const useDashboardPage = (
         ),
       );
     }
-  }, [enabled, catalogProductsQuery.data, catalogProductsQuery.error]);
+  }, [
+    enabled,
+    catalogProductsQuery.data,
+    catalogProductsQuery.error,
+  ]);
 
   useEffect(() => {
     if (!enabled) return;
@@ -472,22 +644,37 @@ export const useDashboardPage = (
   }, [error, successMessage]);
 
   useEffect(() => {
-    window.localStorage.setItem(productSearchStorageKey, productSearchQuery);
+    window.localStorage.setItem(
+      productSearchStorageKey,
+      productSearchQuery,
+    );
   }, [productSearchQuery]);
 
   useEffect(() => {
-    window.localStorage.setItem(serviceSearchStorageKey, serviceSearchQuery);
+    window.localStorage.setItem(
+      serviceSearchStorageKey,
+      serviceSearchQuery,
+    );
   }, [serviceSearchQuery]);
 
   useEffect(() => {
-    window.localStorage.setItem(clientSearchStorageKey, clientSearchQuery);
+    window.localStorage.setItem(
+      clientSearchStorageKey,
+      clientSearchQuery,
+    );
   }, [clientSearchQuery]);
 
   useEffect(() => {
-    window.localStorage.setItem(clientStatusStorageKey, clientStatusFilter);
+    window.localStorage.setItem(
+      clientStatusStorageKey,
+      clientStatusFilter,
+    );
   }, [clientStatusFilter]);
 
-  const products = filterProducts(allProducts, deferredProductSearchQuery);
+  const products = filterProducts(
+    allProducts,
+    deferredProductSearchQuery,
+  );
   const filteredServices = services.filter((service) => {
     const query = deferredServiceSearchQuery.toLowerCase();
     if (!query) return true;
@@ -554,11 +741,15 @@ export const useDashboardPage = (
     setSuccessMessage,
     currentEmployee,
     refreshSales: async () => {
-      await queryClient.invalidateQueries({ queryKey: queryKeys.sales });
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.sales,
+      });
       setLastSyncAt(new Date().toISOString());
     },
     refreshProducts: async () => {
-      await queryClient.invalidateQueries({ queryKey: queryKeys.products });
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.products,
+      });
       setLastSyncAt(new Date().toISOString());
     },
     refreshClientDevices: async () => {
@@ -573,15 +764,21 @@ export const useDashboardPage = (
       setLastSyncAt(new Date().toISOString());
     },
     refreshClients: async () => {
-      await queryClient.invalidateQueries({ queryKey: queryKeys.clients });
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.clients,
+      });
       setLastSyncAt(new Date().toISOString());
     },
     refreshServices: async () => {
-      await queryClient.invalidateQueries({ queryKey: queryKeys.services });
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.services,
+      });
       setLastSyncAt(new Date().toISOString());
     },
     refreshSuppliers: async () => {
-      await queryClient.invalidateQueries({ queryKey: queryKeys.suppliers });
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.suppliers,
+      });
       const nextSuppliers = await queryClient.fetchQuery({
         queryKey: queryKeys.suppliers,
         queryFn: () => getSuppliers(),
@@ -590,7 +787,9 @@ export const useDashboardPage = (
       setLastSyncAt(new Date().toISOString());
     },
     refreshEmployees: async () => {
-      await queryClient.invalidateQueries({ queryKey: queryKeys.employees });
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.employees,
+      });
       const nextEmployees = await queryClient.fetchQuery({
         queryKey: queryKeys.employees,
         queryFn: () => getEmployees(),
@@ -599,7 +798,9 @@ export const useDashboardPage = (
       setLastSyncAt(new Date().toISOString());
     },
     refreshSettings: async () => {
-      await queryClient.invalidateQueries({ queryKey: queryKeys.settings });
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.settings,
+      });
       const nextSettings = await queryClient.fetchQuery({
         queryKey: queryKeys.settings,
         queryFn: getSettings,
@@ -607,12 +808,14 @@ export const useDashboardPage = (
       setSettings(nextSettings);
       setLastSyncAt(new Date().toISOString());
     },
-    mutateCreateProduct: async (payload) => createProductMutation.mutateAsync(payload),
+    mutateCreateProduct: async (payload) =>
+      createProductMutation.mutateAsync(payload),
     mutateUpdateProduct: async (productId, payload) =>
       updateProductMutation.mutateAsync({ productId, payload }),
     mutateUpdateProductModel: async (payload) =>
       updateProductModelMutation.mutateAsync(payload),
-    mutateCreateSale: async (payload) => createSaleMutation.mutateAsync(payload),
+    mutateCreateSale: async (payload) =>
+      createSaleMutation.mutateAsync(payload),
     mutateUpdateSale: async (saleId, payload) =>
       updateSaleMutation.mutateAsync({ saleId, payload }),
     mutateCreateClientDevice: async (payload) =>
@@ -654,7 +857,9 @@ export const useDashboardPage = (
       services: enabled ? filteredServices : [],
       allEmployees: enabled ? allEmployees : [],
       settings: enabled ? settings : null,
-      settingsForm: enabled ? settingsForm : createDefaultSettingsForm(),
+      settingsForm: enabled
+        ? settingsForm
+        : createDefaultSettingsForm(),
       isSettingsReady: enabled ? settings !== null : false,
       statsPeriod,
       products: enabled ? products : [],
@@ -685,8 +890,12 @@ export const useDashboardPage = (
       isClientsLoading: enabled ? isClientsLoading : false,
       isSalesLoading: enabled ? isSalesLoading : false,
       isEmployeesLoading: enabled ? isEmployeesLoading : false,
-      isCatalogProductsLoading: enabled ? isCatalogProductsLoading : false,
-      isClientHistoryLoading: enabled ? isClientHistoryLoading : false,
+      isCatalogProductsLoading: enabled
+        ? isCatalogProductsLoading
+        : false,
+      isClientHistoryLoading: enabled
+        ? isClientHistoryLoading
+        : false,
       isProductSaving,
       isServiceSaving,
       isClientSaving,
@@ -727,50 +936,115 @@ export const useDashboardPage = (
             payload,
           });
           setLastSyncAt(new Date().toISOString());
-          setSuccessMessage(i18n.t('dashboard.actions.success.catalogProductUpdated'));
+          setSuccessMessage(
+            i18n.t('dashboard.actions.success.catalogProductUpdated'),
+          );
           return true;
         } catch (error) {
           setError(
             error instanceof Error
               ? error.message
-              : i18n.t('dashboard.actions.errors.failedUpdateCatalogProduct'),
+              : i18n.t(
+                  'dashboard.actions.errors.failedUpdateCatalogProduct',
+                ),
           );
           return false;
         }
       },
-      createCatalogProductCard: async (payload: CatalogProductFormValues) => {
+      createCatalogProductCard: async (
+        payload: CatalogProductFormValues,
+      ) => {
         try {
           await createCatalogProductMutation.mutateAsync(payload);
           setLastSyncAt(new Date().toISOString());
-          setSuccessMessage(i18n.t('dashboard.actions.success.catalogProductCreated'));
+          setSuccessMessage(
+            i18n.t('dashboard.actions.success.catalogProductCreated'),
+          );
           return true;
         } catch (error) {
           setError(
             error instanceof Error
               ? error.message
-              : i18n.t('dashboard.actions.errors.failedCreateCatalogProduct'),
+              : i18n.t(
+                  'dashboard.actions.errors.failedCreateCatalogProduct',
+                ),
           );
           return false;
         }
       },
       deleteCatalogProductCard: async (catalogProductId: string) => {
         try {
-          await deleteCatalogProductMutation.mutateAsync(catalogProductId);
+          await deleteCatalogProductMutation.mutateAsync(
+            catalogProductId,
+          );
           setLastSyncAt(new Date().toISOString());
-          setSuccessMessage(i18n.t('dashboard.actions.success.catalogProductRemoved'));
+          setSuccessMessage(
+            i18n.t('dashboard.actions.success.catalogProductRemoved'),
+          );
           return true;
         } catch (error) {
           setError(
             error instanceof Error
               ? error.message
-              : i18n.t('dashboard.actions.errors.failedRemoveCatalogProduct'),
+              : i18n.t(
+                  'dashboard.actions.errors.failedRemoveCatalogProduct',
+                ),
+          );
+          return false;
+        }
+      },
+      mergeCatalogProductCard: async (
+        targetCatalogProductId: string,
+        sourceCatalogProductId: string,
+        draftNote?: string,
+      ) => {
+        try {
+          const result = await mergeCatalogProducts(
+            targetCatalogProductId,
+            sourceCatalogProductId,
+            draftNote,
+          );
+          await queryClient.invalidateQueries({
+            queryKey: queryKeys.catalogProducts,
+          });
+          await queryClient.invalidateQueries({
+            queryKey: queryKeys.products,
+          });
+          await queryClient.invalidateQueries({
+            queryKey: queryKeys.sales,
+          });
+          await queryClient.invalidateQueries({
+            queryKey: queryKeys.supplierOrders,
+          });
+          setLastSyncAt(new Date().toISOString());
+          setSuccessMessage(
+            i18n.t(
+              'dashboard.actions.success.catalogProductsMerged',
+              {
+                ordersCount: result.movedSupplierOrderItemsCount,
+                salesCount: result.movedSalesCount,
+              },
+            ),
+          );
+          return true;
+        } catch (error) {
+          setError(
+            error instanceof Error
+              ? error.message
+              : i18n.t(
+                  'dashboard.actions.errors.failedMergeCatalogProducts',
+                ),
           );
           return false;
         }
       },
       transferProduct: async (
         product: Product,
-        target: { warehouseId: string; locationId: string; note: string },
+        target: {
+          warehouseId: string;
+          locationId: string;
+          note: string;
+        },
       ) => {
         setIsProductSaving(true);
         setError('');
@@ -796,13 +1070,17 @@ export const useDashboardPage = (
             },
           });
           setLastSyncAt(new Date().toISOString());
-          setSuccessMessage(i18n.t('dashboard.actions.success.productTransferred'));
+          setSuccessMessage(
+            i18n.t('dashboard.actions.success.productTransferred'),
+          );
           return true;
         } catch (error) {
           setError(
             error instanceof Error
               ? error.message
-              : i18n.t('dashboard.actions.errors.failedTransferProduct'),
+              : i18n.t(
+                  'dashboard.actions.errors.failedTransferProduct',
+                ),
           );
           return false;
         } finally {
@@ -818,7 +1096,9 @@ export const useDashboardPage = (
       setDraftAnalyticsDateRange,
       setIsAnalyticsDateFilterOpen,
       applyAnalyticsDateRange: () => {
-        const normalized = normalizeAnalyticsDateRange(draftAnalyticsDateRange);
+        const normalized = normalizeAnalyticsDateRange(
+          draftAnalyticsDateRange,
+        );
         setAnalyticsDateRange(normalized);
         storeAnalyticsDateRange(normalized);
         setIsAnalyticsDateFilterOpen(false);

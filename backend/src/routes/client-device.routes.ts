@@ -1,6 +1,15 @@
 import { Router } from 'express';
-import { createClientDevice, deleteClientDevice, listClientDevices, updateClientDevice } from '../domain/client-device/service';
-import type { ClientDevicePayload } from '../domain/shared/types';
+import {
+  createClientDevice,
+  deleteClientDevice,
+  listClientDevices,
+  mergeClientDevices,
+  updateClientDevice,
+} from '../domain/client-device/service';
+import type {
+  ClientDevicePayload,
+  MergeClientDevicesPayload,
+} from '../domain/shared/types';
 import {
   asyncHandler,
   requireAnyPermission,
@@ -17,22 +26,58 @@ const clientDeviceReadPermissions = [
   'repairs.execute',
 ] as const;
 
-clientDeviceRouter.get('/client-devices', asyncHandler(async (req, res) => {
-  await requireAnyPermission(req, clientDeviceReadPermissions);
-  res.json(await listClientDevices(req.query.query));
-}));
+clientDeviceRouter.get(
+  '/client-devices',
+  asyncHandler(async (req, res) => {
+    await requireAnyPermission(req, clientDeviceReadPermissions);
+    res.json(await listClientDevices(req.query.query));
+  }),
+);
 
-clientDeviceRouter.post('/client-devices', asyncHandler(async (req, res) => {
-  await requirePermission(req, 'clients.manage');
-  res.status(201).json(await createClientDevice(req.body as ClientDevicePayload));
-}));
+clientDeviceRouter.post(
+  '/client-devices',
+  asyncHandler(async (req, res) => {
+    await requirePermission(req, 'clients.manage');
+    res
+      .status(201)
+      .json(
+        await createClientDevice(req.body as ClientDevicePayload),
+      );
+  }),
+);
 
-clientDeviceRouter.put('/client-devices/:deviceId', asyncHandler(async (req, res) => {
-  await requirePermission(req, 'clients.manage');
-  res.json(await updateClientDevice(routeParam(req, 'deviceId'), req.body as ClientDevicePayload));
-}));
+clientDeviceRouter.post(
+  '/client-devices/merge',
+  asyncHandler(async (req, res) => {
+    await requirePermission(req, 'clients.manage');
+    const payload = req.body as MergeClientDevicesPayload;
+    res.json(
+      await mergeClientDevices(
+        payload.targetDeviceId,
+        payload.sourceDeviceId,
+        payload.draftNote,
+      ),
+    );
+  }),
+);
 
-clientDeviceRouter.delete('/client-devices/:deviceId', asyncHandler(async (req, res) => {
-  await requirePermission(req, 'clients.manage');
-  res.json(await deleteClientDevice(routeParam(req, 'deviceId')));
-}));
+clientDeviceRouter.put(
+  '/client-devices/:deviceId',
+  asyncHandler(async (req, res) => {
+    await requirePermission(req, 'clients.manage');
+    res.json(
+      await updateClientDevice(
+        routeParam(req, 'deviceId'),
+        req.body as ClientDevicePayload,
+      ),
+    );
+  }),
+);
+
+clientDeviceRouter.delete(
+  '/client-devices/:deviceId',
+  asyncHandler(async (req, res) => {
+    await requirePermission(req, 'clients.manage');
+    res.json(await deleteClientDevice(routeParam(req, 'deviceId')));
+  }),
+);

@@ -6,7 +6,10 @@ import {
 } from '../../../entities/client/api/clientApi';
 import { parseDecimal } from '../../../shared/lib/decimal';
 import i18n from '../../../shared/i18n/config';
-import { initialClientForm, toClientForm } from '../../../entities/client/model/forms';
+import {
+  initialClientForm,
+  toClientForm,
+} from '../../../entities/client/model/forms';
 import type {
   Client,
   ClientFormValues,
@@ -18,20 +21,32 @@ import {
   deleteEmployee,
   updateEmployee,
 } from '../../../entities/employee/api/employeeApi';
-import { initialEmployeeForm, toEmployeeForm } from '../../../entities/employee/model/forms';
+import {
+  initialEmployeeForm,
+  toEmployeeForm,
+} from '../../../entities/employee/model/forms';
 import type {
   Employee,
   EmployeeFormValues,
 } from '../../../entities/employee/model/types';
 
-import { initialProductForm, toProductForm } from '../../../entities/product/model/forms';
+import {
+  initialProductForm,
+  toProductForm,
+} from '../../../entities/product/model/forms';
 import type {
   Product,
   ProductFormValues,
   ProductModelUpdatePayload,
 } from '../../../entities/product/model/types';
-import { initialSaleForm, toSaleForm } from '../../../entities/sale/model/forms';
-import type { Sale, SaleFormValues } from '../../../entities/sale/model/types';
+import {
+  initialSaleForm,
+  toSaleForm,
+} from '../../../entities/sale/model/forms';
+import type {
+  Sale,
+  SaleFormValues,
+} from '../../../entities/sale/model/types';
 import { getSaleProductName } from '../../../entities/sale/lib/sale-product';
 import {
   getCreateOrderSaleTitle,
@@ -62,6 +77,8 @@ import {
   mergeSuppliers as mergeSuppliersApi,
   updateSupplier,
 } from '../../../entities/supplier/api/supplierApi';
+import { mergeClientDevices as mergeClientDevicesApi } from '../../../entities/client-device/api/clientDeviceApi';
+import { mergeServices as mergeServicesApi } from '../../../entities/service-catalog/api/serviceCatalogApi';
 import type { SupplierFormValues } from '../../../entities/supplier/model/types';
 import type { ClientDevice } from '../../../entities/client-device/model/types';
 import type { ClientDeviceFormValues } from '../../../entities/client-device/model/types';
@@ -74,8 +91,14 @@ import {
   seedDemoData,
   type DemoSeedKind,
 } from '../../../features/demo-data/api/demoApi';
-import { queryClient, queryKeys } from '../../../shared/api/queryClient';
-import { getRequestErrorMessage, isConflictRequestError } from '../../../shared/lib/request';
+import {
+  queryClient,
+  queryKeys,
+} from '../../../shared/api/queryClient';
+import {
+  getRequestErrorMessage,
+  isConflictRequestError,
+} from '../../../shared/lib/request';
 import { createRuntimeId } from '../../../shared/lib/runtime-id';
 import type { CreateOrderRequestPayload } from '../../../widgets/dashboard/model/order-request';
 import { buildCreateOrderSaleLineItems } from '../../../widgets/dashboard/model/create-order-products';
@@ -159,7 +182,9 @@ type DashboardActionParams = {
   refreshSuppliers: () => Promise<void>;
   refreshEmployees: () => Promise<void>;
   refreshSettings: () => Promise<void>;
-  mutateCreateProduct: (payload: ProductFormValues) => Promise<Product>;
+  mutateCreateProduct: (
+    payload: ProductFormValues,
+  ) => Promise<Product>;
   mutateUpdateProduct: (
     productId: string,
     payload: ProductFormValues,
@@ -171,7 +196,10 @@ type DashboardActionParams = {
     sale: Sale;
     product: Product | null;
   }>;
-  mutateUpdateSale: (saleId: string, payload: SaleFormValues) => Promise<{
+  mutateUpdateSale: (
+    saleId: string,
+    payload: SaleFormValues,
+  ) => Promise<{
     sale: Sale;
     product: Product | null;
   }>;
@@ -182,11 +210,14 @@ type DashboardActionParams = {
     deviceId: string,
     payload: ClientDeviceFormValues,
   ) => Promise<ClientDevice>;
-  mutateDeleteClientDevice: (deviceId: string) => Promise<{ id: string }>;
+  mutateDeleteClientDevice: (
+    deviceId: string,
+  ) => Promise<{ id: string }>;
   mutateArchiveProduct: (
     productId: string,
   ) => Promise<
-    { id: string; action: 'deleted' } | { action: 'deactivated'; product: Product }
+    | { id: string; action: 'deleted' }
+    | { action: 'deactivated'; product: Product }
   >;
   mutateDeleteProduct: (productId: string) => Promise<void>;
   mutateDeleteSale: (
@@ -203,7 +234,8 @@ type DashboardActionParams = {
   mutateArchiveService: (
     serviceId: string,
   ) => Promise<
-    { id: string; action: 'deleted' } | { action: 'deactivated'; service: ServiceCatalogItem }
+    | { id: string; action: 'deleted' }
+    | { action: 'deactivated'; service: ServiceCatalogItem }
   >;
   mutateCreateClient: (payload: ClientFormValues) => Promise<Client>;
   mutateUpdateClient: (
@@ -353,17 +385,25 @@ export const createDashboardActions = ({
     const entityLabel = i18n.t(entityKey);
     await safeRefresh(
       refreshAction,
-      i18n.t('dashboard.actions.errors.failedRefresh', { entity: entityLabel }),
+      i18n.t('dashboard.actions.errors.failedRefresh', {
+        entity: entityLabel,
+      }),
     );
     setError(
-      i18n.t('dashboard.actions.errors.optimisticConflict', { entity: entityLabel }),
+      i18n.t('dashboard.actions.errors.optimisticConflict', {
+        entity: entityLabel,
+      }),
     );
     return true;
   };
 
-  const formatOrderDateTime = (dateValue: string, timeValue: string) => {
+  const formatOrderDateTime = (
+    dateValue: string,
+    timeValue: string,
+  ) => {
     const now = new Date();
-    const normalizedDate = dateValue || now.toISOString().slice(0, 10);
+    const normalizedDate =
+      dateValue || now.toISOString().slice(0, 10);
     const normalizedTime =
       timeValue ||
       `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
@@ -374,7 +414,9 @@ export const createDashboardActions = ({
     return `${normalizedDate}T${normalizedTime}`;
   };
 
-  const buildProductIdentity = (payload: CreateOrderRequestPayload) => {
+  const buildProductIdentity = (
+    payload: CreateOrderRequestPayload,
+  ) => {
     const uniqueSuffix = `${Date.now().toString(36)}${Math.floor(
       Math.random() * 1000,
     )
@@ -384,7 +426,9 @@ export const createDashboardActions = ({
     const articleFallback = `ORD-${uniqueSuffix}`;
 
     return {
-      serialNumber: (payload.deviceSerialNumber || serialFallback).trim().toUpperCase(),
+      serialNumber: (payload.deviceSerialNumber || serialFallback)
+        .trim()
+        .toUpperCase(),
       article: articleFallback,
     };
   };
@@ -395,7 +439,9 @@ export const createDashboardActions = ({
         { queryKey: queryKeys.sales },
         (current: unknown) => {
           if (Array.isArray(current)) {
-            return current.map((item: Sale) => (item.id === sale.id ? sale : item));
+            return current.map((item: Sale) =>
+              item.id === sale.id ? sale : item,
+            );
           }
           if (
             current &&
@@ -405,7 +451,9 @@ export const createDashboardActions = ({
             const page = current as { items: Sale[] };
             return {
               ...page,
-              items: page.items.map((item) => (item.id === sale.id ? sale : item)),
+              items: page.items.map((item) =>
+                item.id === sale.id ? sale : item,
+              ),
             };
           }
           return current;
@@ -427,25 +475,51 @@ export const createDashboardActions = ({
     onProductChange: <K extends keyof ProductFormValues>(
       field: K,
       value: ProductFormValues[K],
-    ) => setProductForm((currentForm) => ({ ...currentForm, [field]: value })),
+    ) =>
+      setProductForm((currentForm) => ({
+        ...currentForm,
+        [field]: value,
+      })),
     onServiceChange: <K extends keyof ServiceCatalogFormValues>(
       field: K,
       value: ServiceCatalogFormValues[K],
-    ) => setServiceForm((currentForm) => ({ ...currentForm, [field]: value })),
+    ) =>
+      setServiceForm((currentForm) => ({
+        ...currentForm,
+        [field]: value,
+      })),
     onClientChange: <K extends keyof ClientFormValues>(
       field: K,
       value: ClientFormValues[K],
-    ) => setClientForm((currentForm) => ({ ...currentForm, [field]: value })),
-    onSaleChange: <K extends keyof SaleFormValues>(field: K, value: SaleFormValues[K]) =>
-      setSaleForm((currentForm) => ({ ...currentForm, [field]: value })),
+    ) =>
+      setClientForm((currentForm) => ({
+        ...currentForm,
+        [field]: value,
+      })),
+    onSaleChange: <K extends keyof SaleFormValues>(
+      field: K,
+      value: SaleFormValues[K],
+    ) =>
+      setSaleForm((currentForm) => ({
+        ...currentForm,
+        [field]: value,
+      })),
     onEmployeeChange: <K extends keyof EmployeeFormValues>(
       field: K,
       value: EmployeeFormValues[K],
-    ) => setEmployeeForm((currentForm) => ({ ...currentForm, [field]: value })),
+    ) =>
+      setEmployeeForm((currentForm) => ({
+        ...currentForm,
+        [field]: value,
+      })),
     onSettingsChange: <K extends keyof AppSettingsFormValues>(
       field: K,
       value: AppSettingsFormValues[K],
-    ) => setSettingsForm((currentForm) => ({ ...currentForm, [field]: value })),
+    ) =>
+      setSettingsForm((currentForm) => ({
+        ...currentForm,
+        [field]: value,
+      })),
     editProduct: (product: Product) => {
       clearNotifications();
       setEditingProductId(product.id);
@@ -499,7 +573,9 @@ export const createDashboardActions = ({
             refreshProducts,
             i18n.t('dashboard.actions.errors.failedRefreshProducts'),
           );
-          setSuccessMessage(i18n.t('dashboard.actions.success.productSavedToMongo'));
+          setSuccessMessage(
+            i18n.t('dashboard.actions.success.productSavedToMongo'),
+          );
         }
 
         resetProductEditor();
@@ -523,7 +599,9 @@ export const createDashboardActions = ({
         setIsProductSaving(false);
       }
     },
-    updateProductModelCard: async (payload: ProductModelUpdatePayload) => {
+    updateProductModelCard: async (
+      payload: ProductModelUpdatePayload,
+    ) => {
       setIsProductSaving(true);
       clearNotifications();
 
@@ -536,14 +614,18 @@ export const createDashboardActions = ({
         setSuccessMessage(
           result.matchedCount > 0
             ? i18n.t('dashboard.actions.success.productModelUpdated')
-            : i18n.t('dashboard.actions.success.productModelNoStockRows'),
+            : i18n.t(
+                'dashboard.actions.success.productModelNoStockRows',
+              ),
         );
         return result.matchedCount > 0;
       } catch (requestError) {
         setError(
           getRequestErrorMessage(
             requestError,
-            i18n.t('dashboard.actions.errors.failedUpdateProductModel'),
+            i18n.t(
+              'dashboard.actions.errors.failedUpdateProductModel',
+            ),
           ),
         );
         return false;
@@ -554,7 +636,11 @@ export const createDashboardActions = ({
     saveService: async () => {
       clearNotifications();
       if (
-        hasDuplicateServiceName(allServices, serviceForm.name, editingServiceId)
+        hasDuplicateServiceName(
+          allServices,
+          serviceForm.name,
+          editingServiceId,
+        )
       ) {
         setError(i18n.t('dashboard.actions.errors.duplicateService'));
         return;
@@ -600,13 +686,56 @@ export const createDashboardActions = ({
         setIsServiceSaving(false);
       }
     },
+    mergeServiceCard: async (
+      targetServiceId: string,
+      sourceServiceId: string,
+      draftNote?: string,
+    ) => {
+      setIsServiceSaving(true);
+      clearNotifications();
+      try {
+        const result = await mergeServicesApi(
+          targetServiceId,
+          sourceServiceId,
+          draftNote,
+        );
+        await safeRefresh(
+          refreshServices,
+          i18n.t('errors.failedLoadServices'),
+        );
+        await safeRefresh(
+          refreshSales,
+          i18n.t('dashboard.actions.errors.failedRefreshSales'),
+        );
+        resetServiceEditor();
+        setSuccessMessage(
+          i18n.t('dashboard.actions.success.servicesMerged', {
+            count: result.movedSalesCount,
+          }),
+        );
+        return true;
+      } catch (requestError) {
+        setError(
+          getRequestErrorMessage(
+            requestError,
+            i18n.t('dashboard.actions.errors.failedMergeServices'),
+          ),
+        );
+        return false;
+      } finally {
+        setIsServiceSaving(false);
+      }
+    },
     saveClient: async () => {
       setIsClientSaving(true);
       clearNotifications();
 
       try {
         if (editingClientId) {
-          const updatedClient = await mutateUpdateClient(editingClientId, clientForm);
+          const updatedClient = await mutateUpdateClient(
+            editingClientId,
+            clientForm,
+          );
           await safeRefresh(
             refreshClients,
             i18n.t('dashboard.actions.errors.failedRefreshClients'),
@@ -669,7 +798,9 @@ export const createDashboardActions = ({
           refreshSuppliers,
           i18n.t('dashboard.actions.errors.failedRefreshSuppliers'),
         );
-        setSuccessMessage(i18n.t('dashboard.actions.success.supplierCreated'));
+        setSuccessMessage(
+          i18n.t('dashboard.actions.success.supplierCreated'),
+        );
         return true;
       } catch (requestError) {
         setError(
@@ -683,22 +814,30 @@ export const createDashboardActions = ({
         setIsClientSaving(false);
       }
     },
-    createClientDeviceCard: async (payload: ClientDeviceFormValues) => {
+    createClientDeviceCard: async (
+      payload: ClientDeviceFormValues,
+    ) => {
       setIsProductSaving(true);
       clearNotifications();
       try {
         await mutateCreateClientDevice(payload);
         await safeRefresh(
           refreshClientDevices,
-          i18n.t('dashboard.actions.errors.failedRefreshClientDevices'),
+          i18n.t(
+            'dashboard.actions.errors.failedRefreshClientDevices',
+          ),
         );
-        setSuccessMessage(i18n.t('dashboard.actions.success.clientDeviceCreated'));
+        setSuccessMessage(
+          i18n.t('dashboard.actions.success.clientDeviceCreated'),
+        );
         return true;
       } catch (requestError) {
         setError(
           getRequestErrorMessage(
             requestError,
-            i18n.t('dashboard.actions.errors.failedCreateClientDevice'),
+            i18n.t(
+              'dashboard.actions.errors.failedCreateClientDevice',
+            ),
           ),
         );
         return false;
@@ -706,7 +845,10 @@ export const createDashboardActions = ({
         setIsProductSaving(false);
       }
     },
-    updateSupplierCard: async (supplierId: string, payload: SupplierFormValues) => {
+    updateSupplierCard: async (
+      supplierId: string,
+      payload: SupplierFormValues,
+    ) => {
       setIsClientSaving(true);
       clearNotifications();
       try {
@@ -715,7 +857,9 @@ export const createDashboardActions = ({
           refreshSuppliers,
           i18n.t('dashboard.actions.errors.failedRefreshSuppliers'),
         );
-        setSuccessMessage(i18n.t('dashboard.actions.success.supplierUpdated'));
+        setSuccessMessage(
+          i18n.t('dashboard.actions.success.supplierUpdated'),
+        );
         return true;
       } catch (requestError) {
         setError(
@@ -729,12 +873,18 @@ export const createDashboardActions = ({
         setIsClientSaving(false);
       }
     },
-    mergeClients: async (targetClientId: string, sourceClientId: string) => {
+    mergeClients: async (
+      targetClientId: string,
+      sourceClientId: string,
+    ) => {
       setIsClientSaving(true);
       clearNotifications();
 
       try {
-        const result = await mergeClientsApi(targetClientId, sourceClientId);
+        const result = await mergeClientsApi(
+          targetClientId,
+          sourceClientId,
+        );
         await safeRefresh(
           refreshClients,
           i18n.t('dashboard.actions.errors.failedRefreshClients'),
@@ -773,6 +923,7 @@ export const createDashboardActions = ({
     mergeSuppliers: async (
       targetSupplierId: string,
       sourceSupplierId: string,
+      draftNote?: string,
     ) => {
       setIsClientSaving(true);
       clearNotifications();
@@ -781,6 +932,7 @@ export const createDashboardActions = ({
         const result = await mergeSuppliersApi(
           targetSupplierId,
           sourceSupplierId,
+          draftNote,
         );
         await safeRefresh(
           refreshSuppliers,
@@ -804,12 +956,54 @@ export const createDashboardActions = ({
         setIsClientSaving(false);
       }
     },
-    updateClientCard: async (clientId: string, payload: ClientFormValues) => {
+    mergeSupplierCard: async (
+      targetSupplierId: string,
+      sourceSupplierId: string,
+      draftNote?: string,
+    ) => {
       setIsClientSaving(true);
       clearNotifications();
 
       try {
-        const updatedClient = await mutateUpdateClient(clientId, payload);
+        const result = await mergeSuppliersApi(
+          targetSupplierId,
+          sourceSupplierId,
+          draftNote,
+        );
+        await safeRefresh(
+          refreshSuppliers,
+          i18n.t('dashboard.actions.errors.failedRefreshSuppliers'),
+        );
+        setSuccessMessage(
+          i18n.t('dashboard.actions.success.suppliersMerged', {
+            count: result.movedSupplierOrdersCount,
+          }),
+        );
+        return true;
+      } catch (requestError) {
+        setError(
+          getRequestErrorMessage(
+            requestError,
+            i18n.t('dashboard.actions.errors.failedMergeSuppliers'),
+          ),
+        );
+        return false;
+      } finally {
+        setIsClientSaving(false);
+      }
+    },
+    updateClientCard: async (
+      clientId: string,
+      payload: ClientFormValues,
+    ) => {
+      setIsClientSaving(true);
+      clearNotifications();
+
+      try {
+        const updatedClient = await mutateUpdateClient(
+          clientId,
+          payload,
+        );
         await safeRefresh(
           refreshClients,
           i18n.t('dashboard.actions.errors.failedRefreshClients'),
@@ -856,7 +1050,11 @@ export const createDashboardActions = ({
             refreshSales,
             i18n.t('dashboard.actions.errors.failedRefreshSales'),
           );
-          setSuccessMessage(i18n.t('dashboard.actions.success.saleUpdatedStockRecalculated'));
+          setSuccessMessage(
+            i18n.t(
+              'dashboard.actions.success.saleUpdatedStockRecalculated',
+            ),
+          );
         } else {
           await mutateCreateSale(saleForm);
           await safeRefresh(
@@ -867,7 +1065,11 @@ export const createDashboardActions = ({
             refreshSales,
             i18n.t('dashboard.actions.errors.failedRefreshSales'),
           );
-          setSuccessMessage(i18n.t('dashboard.actions.success.saleCreatedStockUpdated'));
+          setSuccessMessage(
+            i18n.t(
+              'dashboard.actions.success.saleCreatedStockUpdated',
+            ),
+          );
         }
 
         resetSaleEditor();
@@ -904,10 +1106,14 @@ export const createDashboardActions = ({
       try {
         if (editingEmployeeId) {
           await updateEmployee(editingEmployeeId, employeeForm);
-          setSuccessMessage(i18n.t('dashboard.actions.success.employeeUpdated'));
+          setSuccessMessage(
+            i18n.t('dashboard.actions.success.employeeUpdated'),
+          );
         } else {
           await createEmployee(employeeForm);
-          setSuccessMessage(i18n.t('dashboard.actions.success.employeeCreated'));
+          setSuccessMessage(
+            i18n.t('dashboard.actions.success.employeeCreated'),
+          );
         }
         await safeRefresh(
           refreshEmployees,
@@ -942,10 +1148,11 @@ export const createDashboardActions = ({
         const updated = canEditPrintFormsOnly
           ? await updatePrintForms(settingsForm.printForms)
           : await updateSettings(settingsForm);
-        const printFormsWithLocalOverrides = applyPrintFormLocalOverrides(
-          updated.printForms,
-          currentEmployee?.id,
-        );
+        const printFormsWithLocalOverrides =
+          applyPrintFormLocalOverrides(
+            updated.printForms,
+            currentEmployee?.id,
+          );
         setSettings(updated);
         if (canEditAllSettings) {
           writeCachedCompanySettings({
@@ -986,7 +1193,9 @@ export const createDashboardActions = ({
           refreshSettings,
           i18n.t('dashboard.actions.errors.failedRefreshSettings'),
         );
-        setSuccessMessage(i18n.t('dashboard.actions.success.settingsSaved'));
+        setSuccessMessage(
+          i18n.t('dashboard.actions.success.settingsSaved'),
+        );
       } catch (requestError) {
         setError(
           getRequestErrorMessage(
@@ -1002,7 +1211,9 @@ export const createDashboardActions = ({
       clearNotifications();
       if (
         !window.confirm(
-          i18n.t('dashboard.actions.confirms.deleteProduct', { name: product.name }),
+          i18n.t('dashboard.actions.confirms.deleteProduct', {
+            name: product.name,
+          }),
         )
       ) {
         return;
@@ -1015,7 +1226,9 @@ export const createDashboardActions = ({
           i18n.t('dashboard.actions.errors.failedRefreshProducts'),
         );
         if (editingProductId === product.id) resetProductEditor();
-        setSuccessMessage(i18n.t('dashboard.actions.success.productDeleted'));
+        setSuccessMessage(
+          i18n.t('dashboard.actions.success.productDeleted'),
+        );
       } catch (requestError) {
         setError(
           getRequestErrorMessage(
@@ -1029,7 +1242,9 @@ export const createDashboardActions = ({
       clearNotifications();
       if (
         !window.confirm(
-          i18n.t('dashboard.actions.confirms.archiveProduct', { name: product.name }),
+          i18n.t('dashboard.actions.confirms.archiveProduct', {
+            name: product.name,
+          }),
         )
       ) {
         return;
@@ -1043,7 +1258,9 @@ export const createDashboardActions = ({
             i18n.t('dashboard.actions.errors.failedRefreshProducts'),
           );
           if (editingProductId === product.id) resetProductEditor();
-          setSuccessMessage(i18n.t('dashboard.actions.success.productDeleted'));
+          setSuccessMessage(
+            i18n.t('dashboard.actions.success.productDeleted'),
+          );
           return;
         }
 
@@ -1051,7 +1268,9 @@ export const createDashboardActions = ({
           refreshProducts,
           i18n.t('dashboard.actions.errors.failedRefreshProducts'),
         );
-        setSuccessMessage(i18n.t('dashboard.actions.success.productDeactivated'));
+        setSuccessMessage(
+          i18n.t('dashboard.actions.success.productDeactivated'),
+        );
       } catch (requestError) {
         setError(
           getRequestErrorMessage(
@@ -1067,10 +1286,13 @@ export const createDashboardActions = ({
       setIsProductSaving(true);
 
       try {
-        const updatedProductResponse = await mutateUpdateProduct(product.id, {
-          ...toProductForm(product),
-          isActive: true,
-        });
+        const updatedProductResponse = await mutateUpdateProduct(
+          product.id,
+          {
+            ...toProductForm(product),
+            isActive: true,
+          },
+        );
         const updatedProduct = {
           ...updatedProductResponse,
           isActive: true,
@@ -1082,7 +1304,9 @@ export const createDashboardActions = ({
         if (editingProductId === updatedProduct.id) {
           setProductForm(toProductForm(updatedProduct));
         }
-        setSuccessMessage(i18n.t('dashboard.actions.success.productActivated'));
+        setSuccessMessage(
+          i18n.t('dashboard.actions.success.productActivated'),
+        );
       } catch (requestError) {
         setError(
           getRequestErrorMessage(
@@ -1098,7 +1322,9 @@ export const createDashboardActions = ({
       clearNotifications();
       if (
         !window.confirm(
-          i18n.t('dashboard.actions.confirms.deleteService', { name: service.name }),
+          i18n.t('dashboard.actions.confirms.deleteService', {
+            name: service.name,
+          }),
         )
       ) {
         return;
@@ -1111,7 +1337,9 @@ export const createDashboardActions = ({
           i18n.t('errors.failedLoadServices'),
         );
         if (editingServiceId === service.id) resetServiceEditor();
-        setSuccessMessage(i18n.t('dashboard.actions.success.serviceDeleted'));
+        setSuccessMessage(
+          i18n.t('dashboard.actions.success.serviceDeleted'),
+        );
       } catch (requestError) {
         setError(
           getRequestErrorMessage(
@@ -1125,7 +1353,9 @@ export const createDashboardActions = ({
       clearNotifications();
       if (
         !window.confirm(
-          i18n.t('dashboard.actions.confirms.archiveService', { name: service.name }),
+          i18n.t('dashboard.actions.confirms.archiveService', {
+            name: service.name,
+          }),
         )
       ) {
         return;
@@ -1139,7 +1369,9 @@ export const createDashboardActions = ({
             i18n.t('errors.failedLoadServices'),
           );
           if (editingServiceId === service.id) resetServiceEditor();
-          setSuccessMessage(i18n.t('dashboard.actions.success.serviceDeleted'));
+          setSuccessMessage(
+            i18n.t('dashboard.actions.success.serviceDeleted'),
+          );
           return;
         }
 
@@ -1147,7 +1379,9 @@ export const createDashboardActions = ({
           refreshServices,
           i18n.t('errors.failedLoadServices'),
         );
-        setSuccessMessage(i18n.t('dashboard.actions.success.serviceDeactivated'));
+        setSuccessMessage(
+          i18n.t('dashboard.actions.success.serviceDeactivated'),
+        );
       } catch (requestError) {
         setError(
           getRequestErrorMessage(
@@ -1163,10 +1397,13 @@ export const createDashboardActions = ({
       setIsServiceSaving(true);
 
       try {
-        const updatedServiceResponse = await mutateUpdateService(service.id, {
-          ...toServiceCatalogForm(service),
-          isActive: true,
-        });
+        const updatedServiceResponse = await mutateUpdateService(
+          service.id,
+          {
+            ...toServiceCatalogForm(service),
+            isActive: true,
+          },
+        );
         const updatedService = {
           ...updatedServiceResponse,
           isActive: true,
@@ -1178,7 +1415,9 @@ export const createDashboardActions = ({
         if (editingServiceId === updatedService.id) {
           setServiceForm(toServiceCatalogForm(updatedService));
         }
-        setSuccessMessage(i18n.t('dashboard.actions.success.serviceActivated'));
+        setSuccessMessage(
+          i18n.t('dashboard.actions.success.serviceActivated'),
+        );
       } catch (requestError) {
         setError(
           getRequestErrorMessage(
@@ -1192,14 +1431,18 @@ export const createDashboardActions = ({
     },
     deleteClient: async (client: Client) => {
       clearNotifications();
-      const hasSalesHistory = sales.some((sale) => sale.client.id === client.id);
+      const hasSalesHistory = sales.some(
+        (sale) => sale.client.id === client.id,
+      );
       if (hasSalesHistory) {
         setError(i18n.t('clients.messages.errors.clientHasOrders'));
         return;
       }
       if (
         !window.confirm(
-          i18n.t('dashboard.actions.confirms.deleteClient', { name: client.name }),
+          i18n.t('dashboard.actions.confirms.deleteClient', {
+            name: client.name,
+          }),
         )
       ) {
         return;
@@ -1216,7 +1459,9 @@ export const createDashboardActions = ({
           setClientHistory(null);
         }
         if (editingClientId === client.id) resetClientEditor();
-        setSuccessMessage(i18n.t('clients.messages.success.clientDeleted'));
+        setSuccessMessage(
+          i18n.t('clients.messages.success.clientDeleted'),
+        );
       } catch (requestError) {
         setError(
           getRequestErrorMessage(
@@ -1252,8 +1497,13 @@ export const createDashboardActions = ({
           i18n.t('dashboard.actions.errors.failedRefreshSales'),
         );
         if (editingSaleId === sale.id) resetSaleEditor();
-        if (selectedClientId === sale.client.id) await refreshClientHistory(sale.client.id);
-        setSuccessMessage(i18n.t('dashboard.actions.success.saleDeletedStockRestored'));
+        if (selectedClientId === sale.client.id)
+          await refreshClientHistory(sale.client.id);
+        setSuccessMessage(
+          i18n.t(
+            'dashboard.actions.success.saleDeletedStockRestored',
+          ),
+        );
       } catch (requestError) {
         setError(
           getRequestErrorMessage(
@@ -1267,7 +1517,9 @@ export const createDashboardActions = ({
       clearNotifications();
 
       if (currentEmployee?.id === employee.id) {
-        setError(i18n.t('dashboard.actions.errors.cannotDeleteOwnAccount'));
+        setError(
+          i18n.t('dashboard.actions.errors.cannotDeleteOwnAccount'),
+        );
         return;
       }
 
@@ -1282,7 +1534,9 @@ export const createDashboardActions = ({
           refreshSales,
           i18n.t('dashboard.actions.errors.failedRefreshSales'),
         );
-        setSuccessMessage(i18n.t('dashboard.actions.success.employeeDeleted'));
+        setSuccessMessage(
+          i18n.t('dashboard.actions.success.employeeDeleted'),
+        );
       } catch (requestError) {
         setError(
           getRequestErrorMessage(
@@ -1306,7 +1560,8 @@ export const createDashboardActions = ({
           i18n.t('dashboard.actions.success.clientImportCompleted', {
             created: report.created,
             skippedExisting: report.skippedExisting,
-            skippedInvalid: report.skippedMissingRequired + report.validationFailed,
+            skippedInvalid:
+              report.skippedMissingRequired + report.validationFailed,
           }),
         );
         return true;
@@ -1327,7 +1582,9 @@ export const createDashboardActions = ({
       clearNotifications();
       try {
         await exportClients();
-        setSuccessMessage(i18n.t('dashboard.actions.success.clientExportPrepared'));
+        setSuccessMessage(
+          i18n.t('dashboard.actions.success.clientExportPrepared'),
+        );
       } catch (requestError) {
         setError(
           getRequestErrorMessage(
@@ -1347,7 +1604,10 @@ export const createDashboardActions = ({
         queryClient.setQueryData(queryKeys.products, result.products);
         queryClient.setQueryData(queryKeys.catalogProducts, []);
         queryClient.setQueryData(queryKeys.clients, result.clients);
-        queryClient.setQueriesData({ queryKey: queryKeys.sales }, result.sales);
+        queryClient.setQueriesData(
+          { queryKey: queryKeys.sales },
+          result.sales,
+        );
         setSelectedClientId(null);
         setClientHistory(null);
         resetProductEditor();
@@ -1375,20 +1635,27 @@ export const createDashboardActions = ({
         setIsSeeding(false);
       }
     },
-    updateClientDeviceCard: async (deviceId: string, payload: ClientDeviceFormValues) => {
+    updateClientDeviceCard: async (
+      deviceId: string,
+      payload: ClientDeviceFormValues,
+    ) => {
       setIsProductSaving(true);
       clearNotifications();
       try {
         await mutateUpdateClientDevice(deviceId, payload);
         await safeRefresh(
           refreshClientDevices,
-          i18n.t('dashboard.actions.errors.failedRefreshClientDevices'),
+          i18n.t(
+            'dashboard.actions.errors.failedRefreshClientDevices',
+          ),
         );
         await safeRefresh(
           refreshSales,
           i18n.t('dashboard.actions.errors.failedRefreshSales'),
         );
-        setSuccessMessage(i18n.t('dashboard.actions.success.clientDeviceUpdated'));
+        setSuccessMessage(
+          i18n.t('dashboard.actions.success.clientDeviceUpdated'),
+        );
         return true;
       } catch (requestError) {
         if (
@@ -1403,7 +1670,9 @@ export const createDashboardActions = ({
         setError(
           getRequestErrorMessage(
             requestError,
-            i18n.t('dashboard.actions.errors.failedUpdateClientDevice'),
+            i18n.t(
+              'dashboard.actions.errors.failedUpdateClientDevice',
+            ),
           ),
         );
         return false;
@@ -1418,15 +1687,64 @@ export const createDashboardActions = ({
         await mutateDeleteClientDevice(deviceId);
         await safeRefresh(
           refreshClientDevices,
-          i18n.t('dashboard.actions.errors.failedRefreshClientDevices'),
+          i18n.t(
+            'dashboard.actions.errors.failedRefreshClientDevices',
+          ),
         );
-        setSuccessMessage(i18n.t('dashboard.actions.success.clientDeviceRemoved'));
+        setSuccessMessage(
+          i18n.t('dashboard.actions.success.clientDeviceRemoved'),
+        );
         return true;
       } catch (requestError) {
         setError(
           getRequestErrorMessage(
             requestError,
-            i18n.t('dashboard.actions.errors.failedRemoveClientDevice'),
+            i18n.t(
+              'dashboard.actions.errors.failedRemoveClientDevice',
+            ),
+          ),
+        );
+        return false;
+      } finally {
+        setIsProductSaving(false);
+      }
+    },
+    mergeClientDeviceCard: async (
+      targetDeviceId: string,
+      sourceDeviceId: string,
+      draftNote?: string,
+    ) => {
+      setIsProductSaving(true);
+      clearNotifications();
+      try {
+        const result = await mergeClientDevicesApi(
+          targetDeviceId,
+          sourceDeviceId,
+          draftNote,
+        );
+        await safeRefresh(
+          refreshClientDevices,
+          i18n.t(
+            'dashboard.actions.errors.failedRefreshClientDevices',
+          ),
+        );
+        await safeRefresh(
+          refreshSales,
+          i18n.t('dashboard.actions.errors.failedRefreshSales'),
+        );
+        setSuccessMessage(
+          i18n.t('dashboard.actions.success.clientDevicesMerged', {
+            count: result.movedSalesCount,
+          }),
+        );
+        return true;
+      } catch (requestError) {
+        setError(
+          getRequestErrorMessage(
+            requestError,
+            i18n.t(
+              'dashboard.actions.errors.failedMergeClientDevices',
+            ),
           ),
         );
         return false;
@@ -1442,7 +1760,10 @@ export const createDashboardActions = ({
         queryClient.setQueryData(queryKeys.products, result.products);
         queryClient.setQueryData(queryKeys.catalogProducts, []);
         queryClient.setQueryData(queryKeys.clients, result.clients);
-        queryClient.setQueriesData({ queryKey: queryKeys.sales }, result.sales);
+        queryClient.setQueriesData(
+          { queryKey: queryKeys.sales },
+          result.sales,
+        );
         setSelectedClientId(null);
         setClientHistory(null);
         resetProductEditor();
@@ -1472,19 +1793,32 @@ export const createDashboardActions = ({
         const clientName = payload.clientName.trim();
         const saleItems = (payload.saleItems ?? [])
           .map((item) => {
-            const quantity = Number.parseInt(item.quantity || '1', 10);
+            const quantity = Number.parseInt(
+              item.quantity || '1',
+              10,
+            );
             const price = parseDecimalInput(item.price);
-            const warrantyPeriod = Number.parseInt(item.warrantyPeriod || '0', 10);
+            const warrantyPeriod = Number.parseInt(
+              item.warrantyPeriod || '0',
+              10,
+            );
 
             return {
               ...item,
               name: item.name.trim(),
               serialNumbers: Array.isArray(item.serialNumbers)
                 ? item.serialNumbers
-                    .map((serial) => String(serial ?? '').trim().toUpperCase())
+                    .map((serial) =>
+                      String(serial ?? '')
+                        .trim()
+                        .toUpperCase(),
+                    )
                     .filter(Boolean)
                 : [],
-              quantity: Number.isFinite(quantity) && quantity > 0 ? quantity : 1,
+              quantity:
+                Number.isFinite(quantity) && quantity > 0
+                  ? quantity
+                  : 1,
               price: Number.isFinite(price) && price >= 0 ? price : 0,
               warrantyPeriod:
                 Number.isFinite(warrantyPeriod) && warrantyPeriod >= 0
@@ -1495,14 +1829,23 @@ export const createDashboardActions = ({
           .filter((item) => item.name.length >= 2);
         const saleServiceItems = (payload.saleServiceItems ?? [])
           .map((item) => {
-            const quantity = Number.parseInt(item.quantity || '1', 10);
+            const quantity = Number.parseInt(
+              item.quantity || '1',
+              10,
+            );
             const price = parseDecimalInput(item.price);
-            const warrantyPeriod = Number.parseInt(item.warrantyPeriod || '1', 10);
+            const warrantyPeriod = Number.parseInt(
+              item.warrantyPeriod || '1',
+              10,
+            );
 
             return {
               ...item,
               name: item.name.trim(),
-              quantity: Number.isFinite(quantity) && quantity > 0 ? quantity : 1,
+              quantity:
+                Number.isFinite(quantity) && quantity > 0
+                  ? quantity
+                  : 1,
               price: Number.isFinite(price) && price >= 0 ? price : 0,
               warrantyPeriod:
                 Number.isFinite(warrantyPeriod) && warrantyPeriod >= 0
@@ -1511,7 +1854,8 @@ export const createDashboardActions = ({
             };
           })
           .filter((item) => item.name.length >= 2);
-        const primarySaleItem = payload.sourceTab === 'sale' ? saleItems[0] : null;
+        const primarySaleItem =
+          payload.sourceTab === 'sale' ? saleItems[0] : null;
         const saleTitle =
           payload.sourceTab === 'sale'
             ? getCreateOrderSaleTitle(saleItems, saleServiceItems)
@@ -1539,41 +1883,63 @@ export const createDashboardActions = ({
         {
           const phoneDigits = normalizedPhone.replace(/\D/g, '');
           if (!phoneDigits || phoneDigits === '380') {
-            throw new Error(i18n.t('dashboard.actions.errors.clientPhoneRequired'));
+            throw new Error(
+              i18n.t('dashboard.actions.errors.clientPhoneRequired'),
+            );
           }
         }
         if (clientName.length < 2) {
-          throw new Error(i18n.t('dashboard.actions.errors.clientNameMinLength'));
+          throw new Error(
+            i18n.t('dashboard.actions.errors.clientNameMinLength'),
+          );
         }
         if (payload.sourceTab === 'sale') {
           // Sale: at least one product or service line.
-          const saleLineItemsErrorKey = validateCreateOrderSaleLineItems(
-            saleItems,
-            saleServiceItems,
-          );
+          const saleLineItemsErrorKey =
+            validateCreateOrderSaleLineItems(
+              saleItems,
+              saleServiceItems,
+            );
           if (saleLineItemsErrorKey) {
             throw new Error(i18n.t(saleLineItemsErrorKey));
           }
         } else if (deviceName.length < 2) {
           // Repair: device required in addition to client.
-          throw new Error(i18n.t('dashboard.actions.errors.deviceNameMinLength'));
+          throw new Error(
+            i18n.t('dashboard.actions.errors.deviceNameMinLength'),
+          );
         }
         if (!payload.managerId.trim()) {
-          throw new Error(i18n.t('dashboard.actions.errors.managerRequired'));
+          throw new Error(
+            i18n.t('dashboard.actions.errors.managerRequired'),
+          );
         }
         if (!Number.isFinite(estimatedCost) || estimatedCost < 0) {
-          throw new Error(i18n.t('dashboard.actions.errors.estimatedCostInvalid'));
+          throw new Error(
+            i18n.t('dashboard.actions.errors.estimatedCostInvalid'),
+          );
         }
         if (
           payload.sourceTab === 'sale' &&
-          saleItems.some((item) => item.productId && item.quantity < 1)
+          saleItems.some(
+            (item) => item.productId && item.quantity < 1,
+          )
         ) {
-          throw new Error(i18n.t('dashboard.actions.errors.saleItemQuantityMin'));
+          throw new Error(
+            i18n.t('dashboard.actions.errors.saleItemQuantityMin'),
+          );
         }
-        const normalizedPhoneDigits = normalizedPhone.replace(/\D/g, '');
+        const normalizedPhoneDigits = normalizedPhone.replace(
+          /\D/g,
+          '',
+        );
         const existingClient = allClients.find((client) =>
-          (client.phones?.length ? client.phones : [client.phone]).some(
-            (phone) => phone.replace(/\D/g, '') === normalizedPhoneDigits,
+          (client.phones?.length
+            ? client.phones
+            : [client.phone]
+          ).some(
+            (phone) =>
+              phone.replace(/\D/g, '') === normalizedPhoneDigits,
           ),
         );
         const client =
@@ -1586,7 +1952,9 @@ export const createDashboardActions = ({
             address: '',
             registrationId: '',
             iban: '',
-            note: payload.discountCode ? `Discount code: ${payload.discountCode.trim()}` : '',
+            note: payload.discountCode
+              ? `Discount code: ${payload.discountCode.trim()}`
+              : '',
             status: '',
           }));
 
@@ -1597,28 +1965,46 @@ export const createDashboardActions = ({
           );
         }
 
-        const { serialNumber: fallbackSerialNumber } = buildProductIdentity(payload);
-        const repairDeviceSerialNumber = payload.deviceSerialNumber.trim().toUpperCase();
+        const { serialNumber: fallbackSerialNumber } =
+          buildProductIdentity(payload);
+        const repairDeviceSerialNumber = payload.deviceSerialNumber
+          .trim()
+          .toUpperCase();
         const serialNumber =
           payload.sourceTab === 'repair'
             ? repairDeviceSerialNumber
             : fallbackSerialNumber;
-        const managerName = allEmployees.find((employee) => employee.id === payload.managerId)?.name ?? '';
-        const masterName = allEmployees.find((employee) => employee.id === payload.masterId)?.name ?? '';
+        const managerName =
+          allEmployees.find(
+            (employee) => employee.id === payload.managerId,
+          )?.name ?? '';
+        const masterName =
+          allEmployees.find(
+            (employee) => employee.id === payload.masterId,
+          )?.name ?? '';
         const createdAt = new Date().toISOString();
-        const author = currentEmployee?.name ?? managerName ?? i18n.t('common.system');
+        const author =
+          currentEmployee?.name ??
+          managerName ??
+          i18n.t('common.system');
 
         const kitsNote = payload.deviceKit.trim();
         const noteParts = [
           kitsNote ? `(kits: ${kitsNote})` : '',
           payload.issueFromClient.trim(),
-          payload.sourceTab === 'repair' ? payload.externalView.trim() : '',
+          payload.sourceTab === 'repair'
+            ? payload.externalView.trim()
+            : '',
           payload.serviceName.trim()
             ? `Service: ${payload.serviceName.trim()}`
             : '',
-          payload.extraFlags.length > 0 ? `Flags: ${payload.extraFlags.join(', ')}` : '',
+          payload.extraFlags.length > 0
+            ? `Flags: ${payload.extraFlags.join(', ')}`
+            : '',
           managerName ? `Manager: ${managerName}` : '',
-          payload.sourceTab === 'repair' && masterName ? `Master: ${masterName}` : '',
+          payload.sourceTab === 'repair' && masterName
+            ? `Master: ${masterName}`
+            : '',
           payload.sourceTab ? `Type: ${payload.sourceTab}` : '',
         ].filter(Boolean);
         const productLineItems =
@@ -1654,20 +2040,33 @@ export const createDashboardActions = ({
         const lineItems = [...productLineItems, ...serviceLineItems];
 
         const createdSaleResult = await mutateCreateSale({
-          saleDate: formatOrderDateTime(payload.readyDate, payload.readyTime),
+          saleDate: formatOrderDateTime(
+            payload.readyDate,
+            payload.readyTime,
+          ),
           clientId: client.id,
           productId: '',
-          quantity: String(payload.sourceTab === 'sale' && primarySaleItem ? primarySaleItem.quantity : 1),
+          quantity: String(
+            payload.sourceTab === 'sale' && primarySaleItem
+              ? primarySaleItem.quantity
+              : 1,
+          ),
           salePrice: String(estimatedCost),
           kind: payload.sourceTab,
           status: 'new',
           paidAmount: 0,
-          note: payload.sourceTab === 'repair' ? noteParts.join('\n') : '',
+          note:
+            payload.sourceTab === 'repair'
+              ? noteParts.join('\n')
+              : '',
           userNote: '',
           managerId: payload.managerId,
-          masterId: payload.sourceTab === 'repair' ? payload.masterId : '',
-          deviceName: payload.sourceTab === 'repair' ? deviceName : saleTitle,
-          serialNumber: payload.sourceTab === 'repair' ? serialNumber : '',
+          masterId:
+            payload.sourceTab === 'repair' ? payload.masterId : '',
+          deviceName:
+            payload.sourceTab === 'repair' ? deviceName : saleTitle,
+          serialNumber:
+            payload.sourceTab === 'repair' ? serialNumber : '',
           timeline: [
             ...(payload.issueFromClient.trim()
               ? [
@@ -1684,13 +2083,18 @@ export const createDashboardActions = ({
           lineItems: lineItems.length > 0 ? lineItems : undefined,
         });
         if (!isSaleResponse(createdSaleResult.sale)) {
-          throw new Error(i18n.t('dashboard.actions.errors.unexpectedCreateSaleResponse'));
+          throw new Error(
+            i18n.t(
+              'dashboard.actions.errors.unexpectedCreateSaleResponse',
+            ),
+          );
         }
 
         const deviceAlreadyExists = clientDevices.some(
           (device) =>
             device.clientId === client.id &&
-            device.name.trim().toLowerCase() === deviceName.trim().toLowerCase(),
+            device.name.trim().toLowerCase() ===
+              deviceName.trim().toLowerCase(),
         );
         if (payload.sourceTab === 'repair' && !deviceAlreadyExists) {
           await mutateCreateClientDevice({
@@ -1714,9 +2118,13 @@ export const createDashboardActions = ({
         );
         await safeRefresh(
           refreshClientDevices,
-          i18n.t('dashboard.actions.errors.failedRefreshClientDevices'),
+          i18n.t(
+            'dashboard.actions.errors.failedRefreshClientDevices',
+          ),
         );
-        setSuccessMessage(i18n.t('dashboard.actions.success.orderSaved'));
+        setSuccessMessage(
+          i18n.t('dashboard.actions.success.orderSaved'),
+        );
         return createdSaleResult.sale;
       } catch (requestError) {
         setError(
@@ -1736,14 +2144,19 @@ export const createDashboardActions = ({
 
       try {
         if (!currentEmployee?.id) {
-          throw new Error(i18n.t('dashboard.actions.errors.managerRequired'));
+          throw new Error(
+            i18n.t('dashboard.actions.errors.managerRequired'),
+          );
         }
 
         const lineItems = buildRapidSaleLineItems(items);
         const salePrice = getRapidSaleDraftTotal(items);
-        const primaryProduct = lineItems.find((item) => item.kind === 'product');
+        const primaryProduct = lineItems.find(
+          (item) => item.kind === 'product',
+        );
         const createdAt = new Date().toISOString();
-        const author = currentEmployee.name ?? i18n.t('common.system');
+        const author =
+          currentEmployee.name ?? i18n.t('common.system');
 
         const createdSaleResult = await mutateCreateSale({
           saleDate: new Date().toISOString(),
@@ -1773,7 +2186,11 @@ export const createDashboardActions = ({
         });
 
         if (!isSaleResponse(createdSaleResult.sale)) {
-          throw new Error(i18n.t('dashboard.actions.errors.unexpectedCreateSaleResponse'));
+          throw new Error(
+            i18n.t(
+              'dashboard.actions.errors.unexpectedCreateSaleResponse',
+            ),
+          );
         }
 
         await safeRefresh(
@@ -1784,7 +2201,9 @@ export const createDashboardActions = ({
           refreshSales,
           i18n.t('dashboard.actions.errors.failedRefreshSales'),
         );
-        setSuccessMessage(i18n.t('dashboard.actions.success.orderSaved'));
+        setSuccessMessage(
+          i18n.t('dashboard.actions.success.orderSaved'),
+        );
         return createdSaleResult.sale;
       } catch (requestError) {
         setError(
@@ -1800,4 +2219,3 @@ export const createDashboardActions = ({
     },
   };
 };
-

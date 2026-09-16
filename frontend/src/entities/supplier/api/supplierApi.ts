@@ -1,6 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
 import { queryKeys } from '../../../shared/api/queryClient';
-import { apiClient, getApiErrorMessage } from '../../../shared/api/http';
+import {
+  apiClient,
+  getApiErrorMessage,
+} from '../../../shared/api/http';
 import type { Supplier, SupplierFormValues } from '../model/types';
 
 export const useSuppliersQuery = (enabled = true) =>
@@ -24,16 +27,25 @@ export const getSuppliers = async (query = '') => {
 
 export const createSupplier = async (payload: SupplierFormValues) => {
   try {
-    const response = await apiClient.post<Supplier>('/suppliers', payload);
+    const response = await apiClient.post<Supplier>(
+      '/suppliers',
+      payload,
+    );
     return response.data;
   } catch (error) {
     throw new Error(getApiErrorMessage(error));
   }
 };
 
-export const updateSupplier = async (supplierId: string, payload: SupplierFormValues) => {
+export const updateSupplier = async (
+  supplierId: string,
+  payload: SupplierFormValues,
+) => {
   try {
-    const response = await apiClient.put<Supplier>(`/suppliers/${supplierId}`, payload);
+    const response = await apiClient.put<Supplier>(
+      `/suppliers/${supplierId}`,
+      payload,
+    );
     return response.data;
   } catch (error) {
     throw new Error(getApiErrorMessage(error));
@@ -43,6 +55,7 @@ export const updateSupplier = async (supplierId: string, payload: SupplierFormVa
 export const mergeSuppliers = async (
   targetSupplierId: string,
   sourceSupplierId: string,
+  draftNote?: string,
 ) => {
   try {
     const response = await apiClient.post<{
@@ -52,6 +65,7 @@ export const mergeSuppliers = async (
     }>('/suppliers/merge', {
       targetSupplierId,
       sourceSupplierId,
+      draftNote,
     });
     return response.data;
   } catch (error) {
