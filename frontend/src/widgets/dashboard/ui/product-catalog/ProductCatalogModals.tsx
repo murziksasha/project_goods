@@ -327,6 +327,7 @@ type CatalogServiceModalProps = {
   form: ServiceCatalogFormValues;
   isSaving: boolean;
   isEditing: boolean;
+  readOnly?: boolean;
   onChange: <K extends keyof ServiceCatalogFormValues>(
     field: K,
     value: ServiceCatalogFormValues[K],
@@ -343,6 +344,7 @@ export const CatalogServiceModal = ({
   form,
   isSaving,
   isEditing,
+  readOnly = false,
   onChange,
   onSubmit,
   onClose,
@@ -366,6 +368,7 @@ export const CatalogServiceModal = ({
       closeOnBackdrop={!isSaving}
       closeOnEscape={!isSaving}
       footer={
+        readOnly ? undefined : (
         <footer className="catalog-edit-footer">
           <button type="button" className="danger-button catalog-danger-wide" onClick={onArchive}>
             {t('catalog.modals.deleteDeactivate')}
@@ -382,16 +385,21 @@ export const CatalogServiceModal = ({
             {isSaving ? t('catalog.modals.saving') : t('common.save')}
           </Button>
         </footer>
+        )
       }
     >
         <h3>{t('catalog.modals.mainInformation')}</h3>
         <label className="field">
           <span>{t('catalog.modals.name')}</span>
-          <input value={form.name} onChange={(event) => onChange('name', event.target.value)} />
+          <input
+            value={form.name}
+            disabled={readOnly}
+            onChange={(event) => onChange('name', event.target.value)}
+          />
         </label>
         <label className="field">
           <span>{t('catalog.modals.retailPrice')}</span>
-          <NumberStepper min={0} step={PRICE_STEPPER_STEP} precision={PRICE_STEPPER_PRECISION} value={form.price} onChange={(value) => onChange('price', value)} />
+          <NumberStepper min={0} step={PRICE_STEPPER_STEP} precision={PRICE_STEPPER_PRECISION} value={form.price} disabled={readOnly} onChange={(value) => onChange('price', value)} />
         </label>
         <div className="catalog-price-grid">
           <label className="field">
@@ -401,6 +409,7 @@ export const CatalogServiceModal = ({
 step={PRICE_STEPPER_STEP}
               precision={PRICE_STEPPER_PRECISION}
               value={getServicePriceOption(form, 0)}
+              disabled={readOnly}
               onChange={(value) =>
                 onChange('salePriceOptions', setServicePriceOption(form, 0, value))
               }
@@ -413,6 +422,7 @@ step={PRICE_STEPPER_STEP}
 step={PRICE_STEPPER_STEP}
               precision={PRICE_STEPPER_PRECISION}
               value={getServicePriceOption(form, 1)}
+              disabled={readOnly}
               onChange={(value) =>
                 onChange('salePriceOptions', setServicePriceOption(form, 1, value))
               }
@@ -421,7 +431,12 @@ step={PRICE_STEPPER_STEP}
         </div>
         <label className="field field-wide">
           <span>{t('catalog.modals.note')}</span>
-          <textarea rows={3} value={form.note} onChange={(event) => onChange('note', event.target.value)} />
+          <textarea
+            rows={3}
+            value={form.note}
+            disabled={readOnly}
+            onChange={(event) => onChange('note', event.target.value)}
+          />
         </label>
         <div className="catalog-edit-summary">
           <p>{t('catalog.modals.retailSummary', { value: formatCurrency(parseDecimal(form.price || service.price)) })}</p>
@@ -503,11 +518,13 @@ export const CatalogSuggestionProductModal = ({
   onClose,
   onSave,
   onRemove,
+  readOnly = false,
 }: {
   product: CatalogProduct;
   onClose: () => void;
   onSave: (payload: CatalogProductFormValues) => Promise<void>;
   onRemove: () => Promise<void>;
+  readOnly?: boolean;
 }) => {
   const { t } = useTranslation();
   const [name, setName] = useState(product.name);
@@ -517,12 +534,15 @@ export const CatalogSuggestionProductModal = ({
 
   const save = async () => {
     setIsSaving(true);
-    await onSave({
-      name: name.trim(),
-      note: note.trim(),
-      isActive,
-    });
-    setIsSaving(false);
+    try {
+      await onSave({
+        name: name.trim(),
+        note: note.trim(),
+        isActive,
+      });
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -534,6 +554,7 @@ export const CatalogSuggestionProductModal = ({
       closeOnBackdrop={!isSaving}
       closeOnEscape={!isSaving}
       footer={
+        readOnly ? undefined : (
         <footer className="catalog-edit-footer">
           <button type="button" className="danger-button catalog-danger-wide" onClick={() => void onRemove()} disabled={product.canRemove === false || isSaving}>
             {t('catalog.modals.remove')}
@@ -542,13 +563,14 @@ export const CatalogSuggestionProductModal = ({
             {isSaving ? t('catalog.modals.saving') : t('common.save')}
           </Button>
         </footer>
+        )
       }
     >
-      <label className="field"><span>{t('catalog.modals.name')}</span><input value={name} onChange={(e) => setName(e.target.value)} /></label>
-      <label className="field field-wide"><span>{t('catalog.modals.note')}</span><textarea rows={3} value={note} onChange={(e) => setNote(e.target.value)} /></label>
+      <label className="field"><span>{t('catalog.modals.name')}</span><input value={name} disabled={readOnly} onChange={(e) => setName(e.target.value)} /></label>
+      <label className="field field-wide"><span>{t('catalog.modals.note')}</span><textarea rows={3} value={note} disabled={readOnly} onChange={(e) => setNote(e.target.value)} /></label>
       <label className="field">
         <span>{t('catalog.modals.status')}</span>
-        <select value={isActive ? 'active' : 'inactive'} onChange={(e) => setIsActive(e.target.value === 'active')}>
+        <select value={isActive ? 'active' : 'inactive'} disabled={readOnly} onChange={(e) => setIsActive(e.target.value === 'active')}>
           <option value="active">{t('catalog.modals.active')}</option>
           <option value="inactive">{t('catalog.modals.inactive')}</option>
         </select>

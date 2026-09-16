@@ -10,7 +10,9 @@ type FinanceActionOptions = {
 export type RunFinanceActionOptions<T> = {
   afterSuccess?: (result: T) => void | Promise<void>;
   errorFallback?: string;
+  skipBusy?: boolean;
   skipRefresh?: boolean;
+  silentSuccess?: boolean;
 };
 
 export const useFinanceAction = ({ onError, onSuccess, refresh }: FinanceActionOptions) => {
@@ -22,10 +24,10 @@ export const useFinanceAction = ({ onError, onSuccess, refresh }: FinanceActionO
       successMessage: string,
       options?: RunFinanceActionOptions<T>,
     ): Promise<T | undefined> => {
-      setIsSaving(true);
+      if (!options?.skipBusy) setIsSaving(true);
       try {
         const result = await action();
-        onSuccess(successMessage);
+        if (!options?.silentSuccess) onSuccess(successMessage);
         if (options?.afterSuccess) {
           await options.afterSuccess(result);
         }
@@ -41,7 +43,7 @@ export const useFinanceAction = ({ onError, onSuccess, refresh }: FinanceActionO
         onError(message);
         return undefined;
       } finally {
-        setIsSaving(false);
+        if (!options?.skipBusy) setIsSaving(false);
       }
     },
     [onError, onSuccess, refresh],

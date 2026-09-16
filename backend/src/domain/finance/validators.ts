@@ -1,5 +1,6 @@
 import { HttpError } from '../../shared/lib/errors';
 import { toNumber } from '../../shared/lib/parsers';
+import { normalizeOptionalCategory } from './categories';
 import { transactionTypes, type TransactionType } from './model';
 import type { TransactionPayload } from './normalizers';
 
@@ -86,6 +87,10 @@ export const validateFinanceTransactionPayload = (
     if (fromCashboxId === toCashboxId) {
       throw new HttpError(400, 'Transfer cashboxes must be different.');
     }
+  }
+
+  if (payload.category !== undefined) {
+    normalizeOptionalCategory(payload.category);
   }
 
   return payload;

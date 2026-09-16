@@ -42,6 +42,7 @@ type ProductModelModalProps = {
   printForms?: PrintForm[];
   printProduct?: Product | null;
   isSaving?: boolean;
+  readOnly?: boolean;
   onClose: () => void;
   onSave: (payload: ProductModelUpdatePayload) => Promise<boolean>;
   onOpenSupplierOrder?: (supplierOrderId: string, itemIndex: number) => void;
@@ -72,6 +73,7 @@ export const ProductModelModal = ({
   printForms = defaultPrintForms,
   printProduct = null,
   isSaving = false,
+  readOnly = false,
   onClose,
   onSave,
   onOpenSupplierOrder,
@@ -366,20 +368,22 @@ export const ProductModelModal = ({
           <Button variant="secondary" onClick={onClose} disabled={isSaving}>
             {t('common.cancel')}
           </Button>
-          <Button
-            variant="primary"
-            onClick={async () => {
-              const saved = await onSave(
-                buildProductModelSavePayload(name, form),
-              );
-              if (saved) onClose();
-            }}
-            disabled={!hasStockRows || isSaving}
-          >
-            {isSaving
-              ? t('catalog.productModel.saving')
-              : t('catalog.productModel.saveModel')}
-          </Button>
+          {readOnly ? null : (
+            <Button
+              variant="primary"
+              onClick={async () => {
+                const saved = await onSave(
+                  buildProductModelSavePayload(name, form),
+                );
+                if (saved) onClose();
+              }}
+              disabled={!hasStockRows || isSaving}
+            >
+              {isSaving
+                ? t('catalog.productModel.saving')
+                : t('catalog.productModel.saveModel')}
+            </Button>
+          )}
         </footer>
       }
     >
@@ -406,7 +410,7 @@ export const ProductModelModal = ({
                       article: event.target.value,
                     }))
                   }
-                  disabled={!hasStockRows || isSaving}
+                  disabled={!hasStockRows || isSaving || readOnly}
                 />
               </label>
               <label className='field'>
@@ -420,7 +424,7 @@ export const ProductModelModal = ({
                       note: event.target.value,
                     }))
                   }
-                  disabled={!hasStockRows || isSaving}
+                  disabled={!hasStockRows || isSaving || readOnly}
                 />
               </label>
             </div>
@@ -440,7 +444,7 @@ export const ProductModelModal = ({
                         retailPrice: normalizeDecimalInput(event.target.value),
                       }))
                     }
-                    disabled={!hasStockRows || isSaving}
+                    disabled={!hasStockRows || isSaving || readOnly}
                   />
                 </label>
                 <label className='field'>
@@ -453,7 +457,7 @@ export const ProductModelModal = ({
                         wholesalePrice: normalizeDecimalInput(event.target.value),
                       }))
                     }
-                    disabled={!hasStockRows || isSaving}
+                    disabled={!hasStockRows || isSaving || readOnly}
                   />
                 </label>
               </div>

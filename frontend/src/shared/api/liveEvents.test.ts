@@ -55,6 +55,15 @@ describe('invalidateQueriesForLivePath', () => {
     expect(spy).toHaveBeenCalledWith({ queryKey: queryKeys.sales });
     spy.mockRestore();
   });
+
+  it('invalidates category, transaction, and profit queries for category mutations', () => {
+    const spy = vi.spyOn(queryClient, 'invalidateQueries').mockResolvedValue();
+    invalidateQueriesForLivePath('/api/finance/categories/rent');
+    expect(spy).toHaveBeenCalledWith({ queryKey: queryKeys.financeCategories });
+    expect(spy).toHaveBeenCalledWith({ queryKey: queryKeys.financeTransactions });
+    expect(spy).toHaveBeenCalledWith({ queryKey: ['financeProfitReport'] });
+    spy.mockRestore();
+  });
 });
 
 describe('consumeSseBuffer', () => {

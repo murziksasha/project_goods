@@ -17,10 +17,11 @@ export const getWarehouseSettings = async () => {
   }
 };
 
-export const useWarehouseSettingsQuery = () =>
+export const useWarehouseSettingsQuery = (enabled = true) =>
   useQuery({
     queryKey: queryKeys.warehouseSettings,
     queryFn: getWarehouseSettings,
+    enabled,
     staleTime: 5 * 60_000,
   });
 

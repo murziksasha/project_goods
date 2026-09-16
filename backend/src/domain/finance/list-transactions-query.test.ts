@@ -29,6 +29,7 @@ describe('list-transactions-query', () => {
       toCashboxId: '222222222222222222222222',
       cashboxId: '333333333333333333333333',
       note: 'Payment',
+      category: 'rent',
       sortBy: 'amount',
       sortDirection: 'asc',
     });
@@ -37,6 +38,7 @@ describe('list-transactions-query', () => {
     expect(options.pageSize).toBe(200);
     expect(options.currency).toBe('UAH');
     expect(options.type).toBe('withdraw');
+    expect(options.category).toBe('rent');
     expect(hasFinanceTransactionsDateFilter(options)).toBe(true);
   });
 
@@ -47,6 +49,7 @@ describe('list-transactions-query', () => {
         dateTo: '2026-03-31',
         cashboxId: '111111111111111111111111',
         note: 'order',
+        category: 'salary',
       }),
     );
 
@@ -58,6 +61,7 @@ describe('list-transactions-query', () => {
       $regex: 'order',
       $options: 'i',
     });
+    expect(filter.category).toBe('salary');
     expect(filter.transactionDate).toEqual({
       $gte: new Date('2026-03-01T00:00:00.000Z'),
       $lte: new Date('2026-03-31T23:59:59.999Z'),

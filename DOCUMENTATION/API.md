@@ -89,7 +89,7 @@ Permission: `system.backups.manage` (except finance snapshot read).
 
 ## Products
 
-- `GET /products` - список товаров, поддерживает `query`
+- `GET /products` - список товаров, поддерживает `query`. Permission: `orders.view` \| `inventory.manage` \| `supplierOrders.view` \| `supplierOrders.manage` \| `finance.view` (so Accounting Reports can open the product-model modal)
 - `POST /products` - создать товар
 - `PUT /products/:productId` - обновить товар
 - `DELETE /products/:productId` - удалить товар
@@ -219,17 +219,26 @@ Named filter presets for workspaces (orders, warehouse, clients/suppliers, produ
 - `GET /finance/currencies` - list finance currencies. Currency responses include `code`, `isSystem`, and `isArchived`.
 - `POST /finance/currencies` - create or restore a finance currency. New currencies are full transaction currencies and are backfilled into every cashbox as disabled with zero balance.
 - `PATCH /finance/currencies/:currencyCode` - archive or restore a currency with `{ "isArchived": boolean }`; `UAH` cannot be archived.
+- `GET /finance/categories` — list finance categories (system auto, system opex, custom opex). Permission `finance.view`. Each item: `id`, `slug`, `name`, `isSystem`, `kind` (`system_auto` \| `system_opex` \| `custom_opex`), `isActive`, `sortOrder`, `usageCount`, timestamps. `usageCount` is informational (does not gate delete). System rows are seeded on first list/create.
+- `POST /finance/categories` — `{ "name": string }` creates an active `custom_opex` category (`slug` = `c_<objectId>`). Permission `finance.cashboxes.manage`. Name 2–80 chars, unique (case-insensitive), cannot match a system slug/label.
+- `PATCH /finance/categories/:categorySlug` — `{ "isActive"?: boolean, "name"?: string }`. Permission `finance.cashboxes.manage`. Name can be changed for `system_opex` and `custom_opex`. Always-active rows (`system_auto` and `other`) cannot be renamed (`400 Always-active category cannot be renamed.`). Cannot change `isActive` on `system_auto`. Cannot deactivate `other`.
+- `DELETE /finance/categories/:categorySlug` — permission `finance.cashboxes.manage`. Custom categories are always removed, including when `usageCount > 0`: transactions on that slug are reassigned to `other`, then the category document is deleted. `404` if missing. `409` if system (`isSystem`). Behavior: [ACCOUNTING.md](./ACCOUNTING.md#category-settings-rules).
 - `GET /finance/transactions` - paginated finance transactions list. Query params (all optional):
   - `page` (default `1`), `pageSize` (default `30`, max `200`)
   - `dateFrom`, `dateTo` — `YYYY-MM-DD`; when either is set, all DB rows in range are queryable (no recent-window cap)
   - without date params: only the **200** newest matching rows are in scope
-  - `type` (`deposit` | `withdraw` | `transfer`), `currency`, `fromCashboxId`, `toCashboxId`, `cashboxId`, `note`
+  - `type` (`deposit` | `withdraw` | `transfer`), `currency`, `fromCashboxId`, `toCashboxId`, `cashboxId`, `note`, `category` (system slug or `c_<24-hex>`)
   - `sortBy` (`date` | `type` | `amount` | `currency` | `from` | `to`), `sortDirection` (`asc` | `desc`)
   - Response: `{ items: FinanceTransaction[], total: number, page: number, pageSize: number }`; each item may include `balanceAfter` (post-tx cashbox balance for the affected side)
 - `POST /finance/transactions` - создать финансовую операцию; optional `idempotencyKey` deduplicates repeated manual submissions.
 - `PATCH /finance/transactions/:transactionId` - update a finance transaction. Currently supports updating the `note` field (`{ "note": "..." }`). Trims the value; max 300 characters. Not allowed on cancelled transactions.
 - `POST /finance/transactions/:transactionId/cancel` - cancel an active manual finance transaction (`deposit`, `withdraw`, or `transfer`) during the same business day (`Europe/Kiev`). Creates a linked reverse transaction and marks the original as `cancelled`. Rejects order-linked notes (payment/refund/supplier-order payment patterns). Permission is checked by the original transaction type.
-- `GET /finance/report` - получить финансовый отчет
+- `GET /finance/report` - получить финансовый отчет (cashbox snapshot: totals, today turnover)
+- `GET /finance/profit-report` — P&L / margin report. Permission `finance.view`.
+  - Query: `period` (`whole` default \| `day` \| `week` \| `month` \| `year`), optional `dateFrom`/`dateTo` (`YYYY-MM-DD`, overrides period), `source` (`all` default \| `sales` \| `services`)
+  - Dates use `Europe/Kiev` business days
+  - Response: `margin` (revenue, COGS from `Product.price`, gross profit), `cash` (client payments, supplier purchases, categorized opex, refunds, net), `rows` (grouped product/service margin with `catalogProductId` / `serviceId`, `null` when the group does not share one id), `dataScope: "live_sales_only"`, `coldSalesPurgedExist`
+- `POST /finance/transactions` body may include `category`: a system slug (`client_payment` \| `client_refund` \| `supplier_payment` \| `rent` \| `salary` \| `utilities` \| `tax` \| `owner_draw` \| `other`) or a custom slug (`c_<24-hex>`). Manual withdraws should send an **active** opex category; inactive opex is rejected. Auto flows still infer from the note when omitted.
 
 ## Supplier Orders
 

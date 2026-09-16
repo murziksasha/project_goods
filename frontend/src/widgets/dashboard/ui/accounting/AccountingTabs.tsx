@@ -13,7 +13,8 @@ const accountingTabs: Array<[AccountingTab, string]> = [
   ['cashboxes', 'accounting.tabs.cashboxes'],
   ['transactions', 'accounting.tabs.transactions'],
   ['orders', 'accounting.tabs.orders'],
-  ['reports', 'accounting.tabs.information'],
+  ['information', 'accounting.tabs.information'],
+  ['reports', 'accounting.tabs.reports'],
 ];
 
 export const AccountingTabs = ({

@@ -3,9 +3,12 @@ import { useTranslation } from 'react-i18next';
 import type {
   Cashbox,
   CreateFinanceTransactionPayload,
+  FinanceCategory,
   FinanceCurrency,
   FinanceTransactionType,
 } from '../../../../entities/finance/model/types';
+import { OTHER_CATEGORY_SLUG } from '../../../../entities/finance/model/types';
+import { FinanceCategorySelect } from './FinanceCategorySelect';
 import { parseDecimal } from '../../../../shared/lib/decimal';
 import {
   PRICE_STEPPER_PRECISION,
@@ -28,6 +31,9 @@ type AccountingOperationFormProps = {
   isSaving: boolean;
   saveDisabled: boolean;
   transactionForm: CreateFinanceTransactionPayload;
+  categories?: FinanceCategory[];
+  canManageCategories?: boolean;
+  onRequestAddCategory?: () => void;
   onCreateTransaction: (closeAfter: boolean) => void;
   onTransactionFormChange: (
     updater: SetStateAction<CreateFinanceTransactionPayload>,
@@ -45,6 +51,9 @@ export const AccountingOperationForm = ({
   isSaving,
   saveDisabled,
   transactionForm,
+  categories = [],
+  canManageCategories = false,
+  onRequestAddCategory,
   onCreateTransaction,
   onTransactionFormChange,
   onTransactionTypeChange,
@@ -185,6 +194,24 @@ export const AccountingOperationForm = ({
                 ))}
               </select>
             </TruncatedTextTooltip>
+          </label>
+        ) : null}
+        {transactionForm.type === 'withdraw' ? (
+          <label className='field'>
+            <span>{t('accounting.cashboxes.category')}</span>
+            <FinanceCategorySelect
+              categories={categories}
+              value={transactionForm.category ?? OTHER_CATEGORY_SLUG}
+              canAdd={canManageCategories && Boolean(onRequestAddCategory)}
+              disabled={isSaving}
+              onChange={(slug) =>
+                onTransactionFormChange((current) => ({
+                  ...current,
+                  category: slug,
+                }))
+              }
+              onAdd={() => onRequestAddCategory?.()}
+            />
           </label>
         ) : null}
         {showTo ? (

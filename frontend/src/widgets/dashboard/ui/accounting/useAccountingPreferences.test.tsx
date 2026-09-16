@@ -32,11 +32,21 @@ const Harness = ({
 }: {
   cashboxes?: Cashbox[];
   isCashboxesOrderHydrated?: boolean;
-  onNavigateAccountingTab?: (tab: 'cashboxes' | 'transactions' | 'orders' | 'reports') => void;
-  registerPopstateSync?: (
-    sync: ((tab: 'cashboxes' | 'transactions' | 'orders' | 'reports' | null) => void) | null,
+  onNavigateAccountingTab?: (
+    tab: 'cashboxes' | 'transactions' | 'orders' | 'information' | 'reports',
   ) => void;
-  syncedAccountingTab?: 'cashboxes' | 'transactions' | 'orders' | 'reports' | null;
+  registerPopstateSync?: (
+    sync: ((
+      tab: 'cashboxes' | 'transactions' | 'orders' | 'information' | 'reports' | null,
+    ) => void) | null,
+  ) => void;
+  syncedAccountingTab?:
+    | 'cashboxes'
+    | 'transactions'
+    | 'orders'
+    | 'information'
+    | 'reports'
+    | null;
 }) => {
   const preferences = useAccountingPreferences({
     cashboxes,
@@ -230,7 +240,9 @@ describe('useAccountingPreferences', () => {
 
   it('falls back for invalid stored values and syncs from history callbacks', async () => {
     const popstateSyncHolder: {
-      current: ((tab: 'cashboxes' | 'transactions' | 'orders' | 'reports' | null) => void) | null;
+      current: ((
+        tab: 'cashboxes' | 'transactions' | 'orders' | 'information' | 'reports' | null,
+      ) => void) | null;
     } = { current: null };
 
     window.localStorage.setItem(accountingTabStorageKey, 'bad');
@@ -275,7 +287,9 @@ describe('useAccountingPreferences', () => {
 
   it('ignores popstate sync without a valid accounting tab', () => {
     const popstateSyncHolder: {
-      current: ((tab: 'cashboxes' | 'transactions' | 'orders' | 'reports' | null) => void) | null;
+      current: ((
+        tab: 'cashboxes' | 'transactions' | 'orders' | 'information' | 'reports' | null,
+      ) => void) | null;
     } = { current: null };
 
     render(

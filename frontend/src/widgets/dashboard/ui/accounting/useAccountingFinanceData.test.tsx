@@ -59,6 +59,9 @@ const restoreHttpMock = () => {
         const includeArchived = config?.params?.includeArchived === '1';
         return { data: await getFinanceCurrenciesMock({ includeArchived }) };
       }
+      if (url === '/finance/categories') {
+        return { data: [] };
+      }
       if (url === '/finance/report') {
         return { data: await getFinanceReportMock() };
       }
@@ -234,6 +237,9 @@ const mockSuccessfulFinanceQueryHooks = () => {
   );
   vi.spyOn(financeApi, 'useFinanceCurrenciesQuery').mockReturnValue(
     createQueryResult([currency()]) as unknown as ReturnType<typeof financeApi.useFinanceCurrenciesQuery>,
+  );
+  vi.spyOn(financeApi, 'useFinanceCategoriesQuery').mockReturnValue(
+    createQueryResult([]) as unknown as ReturnType<typeof financeApi.useFinanceCategoriesQuery>,
   );
   vi.spyOn(financeApi, 'useFinanceReportQuery').mockReturnValue(
     createQueryResult(report()) as unknown as ReturnType<typeof financeApi.useFinanceReportQuery>,

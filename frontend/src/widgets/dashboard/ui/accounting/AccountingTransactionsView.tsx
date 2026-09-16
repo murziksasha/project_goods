@@ -2,9 +2,15 @@ import { Fragment, type Dispatch, type SetStateAction } from 'react';
 import { useTranslation } from 'react-i18next';
 import type {
   Cashbox,
+  FinanceCategory,
   FinanceTransaction,
   FinanceTransactionType,
 } from '../../../../entities/finance/model/types';
+import {
+  getFinanceCategoryLabel,
+  getTransactionFilterCategories,
+  shouldShowWithdrawCategorySubtitle,
+} from '../../../../entities/finance/model/category-label';
 import type { Sale } from '../../../../entities/sale/model/types';
 import type { SupplierOrder } from '../../../../entities/supplier-order/model/types';
 import {
@@ -25,6 +31,7 @@ import { getOrderLink } from '../orders/create-order/create-order-card-shared';
 type AccountingTransactionsViewProps = {
   activeFiltersCount: number;
   allCurrencyCodes: string[];
+  categories: FinanceCategory[];
   appliedFilters: TransactionFilters;
   balanceAfterByTransactionId: Record<string, number | null>;
   cashboxes: Cashbox[];
@@ -55,6 +62,7 @@ type AccountingTransactionsViewProps = {
 export const AccountingTransactionsView = ({
   activeFiltersCount,
   allCurrencyCodes,
+  categories,
   appliedFilters,
   balanceAfterByTransactionId,
   cashboxes,
@@ -119,6 +127,27 @@ export const AccountingTransactionsView = ({
               </span>
             ) : null}
           </button>
+          <div className='finance-transactions-category-select'>
+            <select
+              value={appliedFilters.category ?? ''}
+              onChange={(event) => {
+                const category = event.target.value;
+                onSetDraftFilters((current) => ({ ...current, category }));
+                onSetAppliedFilters((current) => ({ ...current, category }));
+                onPageChange(1);
+              }}
+              aria-label={t('accounting.transactions.filterByCategoryAriaLabel')}
+            >
+              <option value=''>
+                {t('accounting.transactions.allCategories')}
+              </option>
+              {getTransactionFilterCategories(categories).map((category) => (
+                <option key={category.slug} value={category.slug}>
+                  {getFinanceCategoryLabel(category.slug, t, categories)}
+                </option>
+              ))}
+            </select>
+          </div>
           <div className='finance-transactions-cashbox-select'>
             <select
               value={selectedCashboxId}
@@ -464,6 +493,15 @@ export const AccountingTransactionsView = ({
                         {isCancellation ? (
                           <span className='finance-transaction-badge finance-transaction-badge-cancellation'>
                             {t('accounting.transactions.cancellation')}
+                          </span>
+                        ) : null}
+                        {shouldShowWithdrawCategorySubtitle(transaction) ? (
+                          <span className='finance-transaction-category'>
+                            {getFinanceCategoryLabel(
+                              transaction.category as string,
+                              t,
+                              categories,
+                            )}
                           </span>
                         ) : null}
                       </td>

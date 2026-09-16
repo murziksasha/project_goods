@@ -577,6 +577,11 @@
   .finance-orders-summary-grid,
   .finance-report-grid-wide,
   .finance-information-grid,
+  .finance-profit-kpi-grid,
+  .finance-profit-kpi-cards,
+  .finance-profit-visual-panel,
+  .finance-profit-table-tools,
+  .finance-profit-waterfall-legend,
   .warehouse-information-charts,
   .finance-operation-grid,
   .finance-report-grid,
@@ -665,6 +670,11 @@
     max-width: none;
     flex: 1 1 100%;
     margin-left: 0;
+  }
+
+  .finance-transactions-category-select {
+    min-width: 0;
+    flex: 1 1 100%;
   }
 
   .orders-search-group {
@@ -1266,6 +1276,15 @@
     grid-column: auto;
   }
 
+  .finance-profit-charts {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      'mix'
+      'leaders'
+      'bars'
+      'waterfall';
+  }
+
   .warehouse-information-summary,
   .warehouse-information-filters,
   .warehouse-information-sort,
@@ -1274,6 +1293,7 @@
   }
 
   .finance-distribution-row,
+  .finance-distribution-row.finance-profit-chart-row,
   .finance-recent-row {
     grid-template-columns: 1fr;
   }
@@ -1861,6 +1881,7 @@
   }
 
   .finance-transactions-cashbox-select,
+  .finance-transactions-category-select,
   .finance-transactions-search {
     width: 100%;
     min-width: 0;
@@ -1901,6 +1922,15 @@
   .finance-currency-activity-item {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .finance-settings-body .finance-category-name-input {
+    width: auto;
+    flex: 1 1 auto;
+  }
+
+  .finance-settings-body .finance-category-name-save {
+    width: auto;
   }
 
   .finance-currency-activity-item .orders-filter-delete-button,

@@ -10,6 +10,12 @@ export {
   updateFinanceCurrency,
 } from './currencies';
 export {
+  listFinanceCategories,
+  createFinanceCategory,
+  updateFinanceCategory,
+  deleteFinanceCategory,
+} from './category-crud';
+export {
   isOrderLinkedFinanceTransactionNote,
   getFinanceTransactionTypeForCancel,
   createFinanceTransaction,
@@ -18,6 +24,7 @@ export {
   listFinanceTransactions,
   getFinanceReport,
 } from './transactions';
+export { getFinanceProfitReport } from './profit-report';
 export {
   sealFinancePeriodSnapshot,
   purgeFinanceTransactionsBeforeActiveSnapshot,

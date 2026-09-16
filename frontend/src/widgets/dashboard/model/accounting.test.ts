@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import type {
   Cashbox,
   FinanceTransaction,
@@ -27,6 +27,11 @@ import {
   resolveCashboxOperationForm,
   resolveTransactionNoteLink,
   upsertLastOperationByCashbox,
+  accountingTabInformationMigrationKey,
+  accountingTabStorageKey,
+  getStoredAccountingTab,
+  isAccountingTab,
+  migrateLegacyAccountingTabStorage,
 } from './accounting';
 
 const createCashbox = (
@@ -667,5 +672,37 @@ describe('accounting model helpers', () => {
         supplierOrders,
       )?.id,
     ).toBe('mongo-2');
+  });
+});
+
+describe('accounting tab storage', () => {
+  afterEach(() => {
+    window.localStorage.clear();
+  });
+
+  it('accepts information and reports tabs', () => {
+    expect(isAccountingTab('information')).toBe(true);
+    expect(isAccountingTab('reports')).toBe(true);
+    expect(isAccountingTab('unknown')).toBe(false);
+  });
+
+  it('migrates a stored reports tab to information once', () => {
+    window.localStorage.setItem(accountingTabStorageKey, 'reports');
+    expect(getStoredAccountingTab()).toBe('information');
+    expect(window.localStorage.getItem(accountingTabStorageKey)).toBe('information');
+    expect(window.localStorage.getItem(accountingTabInformationMigrationKey)).toBe('1');
+
+    window.localStorage.setItem(accountingTabStorageKey, 'reports');
+    expect(getStoredAccountingTab()).toBe('reports');
+  });
+
+  it('runs storage migration even when the URL already selected a tab', () => {
+    window.localStorage.setItem(accountingTabStorageKey, 'reports');
+    migrateLegacyAccountingTabStorage();
+    expect(window.localStorage.getItem(accountingTabStorageKey)).toBe('information');
+    migrateLegacyAccountingTabStorage();
+    window.localStorage.setItem(accountingTabStorageKey, 'reports');
+    migrateLegacyAccountingTabStorage();
+    expect(window.localStorage.getItem(accountingTabStorageKey)).toBe('reports');
   });
 });
