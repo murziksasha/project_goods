@@ -1,6 +1,28 @@
 export type FinanceCurrency = string;
 export type FinanceTransactionType = 'deposit' | 'withdraw' | 'transfer';
 export type FinanceTransactionStatus = 'active' | 'cancelled';
+export const financeTransactionCategories = [
+  'client_payment',
+  'client_refund',
+  'supplier_payment',
+  'rent',
+  'salary',
+  'utilities',
+  'tax',
+  'owner_draw',
+  'other',
+] as const;
+export type FinanceTransactionCategory =
+  (typeof financeTransactionCategories)[number];
+export const manualWithdrawCategories = [
+  'rent',
+  'salary',
+  'utilities',
+  'tax',
+  'owner_draw',
+  'other',
+] as const;
+export type ManualWithdrawCategory = (typeof manualWithdrawCategories)[number];
 
 export type FinanceCurrencyConfig = {
   id: string;
@@ -31,6 +53,7 @@ export type FinanceTransaction = {
   fromCashbox: { id: string; name: string } | null;
   toCashbox: { id: string; name: string } | null;
   note: string;
+  category?: FinanceTransactionCategory;
   transactionDate: string;
   status: FinanceTransactionStatus;
   isCancellation: boolean;
@@ -120,5 +143,84 @@ export type CreateFinanceTransactionPayload = {
   fromCashboxId?: string;
   toCashboxId?: string;
   note: string;
+  category?: FinanceTransactionCategory;
   idempotencyKey?: string;
+};
+
+export type ProfitReportPeriod = 'whole' | 'day' | 'week' | 'month' | 'year';
+export type ProfitReportSource = 'all' | 'sales' | 'services';
+
+export type ProfitReportParams = {
+  period?: ProfitReportPeriod;
+  dateFrom?: string;
+  dateTo?: string;
+  source?: ProfitReportSource;
+};
+
+export type ProfitMarginRow = {
+  key: string;
+  name: string;
+  type: 'product' | 'service';
+  quantity: number;
+  cost: number;
+  revenue: number;
+  profit: number;
+  marginPct: number | null;
+  costKnown: boolean;
+};
+
+export type ProfitCashCategoryRow = {
+  category: FinanceTransactionCategory;
+  amount: number;
+  count: number;
+};
+
+export type ProfitCashOperation = {
+  type: FinanceTransactionType;
+  category: FinanceTransactionCategory;
+  amount: number;
+  currency: FinanceCurrency;
+  note: string;
+  transactionDate: string;
+};
+
+export type ProfitCashBucket = {
+  collected: number;
+  inventoryPurchases: number;
+  opex: number;
+  refunds: number;
+  net: number;
+};
+
+export type FinanceProfitReport = {
+  period: {
+    key: ProfitReportPeriod | 'custom';
+    dateFrom: string | null;
+    dateTo: string | null;
+    timeZone: string;
+  };
+  source: ProfitReportSource;
+  currency: FinanceCurrency;
+  otherCurrencies: string[];
+  margin: {
+    revenue: number;
+    cogs: number;
+    grossProfit: number;
+    grossMarginPct: number | null;
+    unknownCostCount: number;
+  };
+  cash: {
+    collected: number;
+    inventoryPurchases: number;
+    opex: number;
+    refunds: number;
+    net: number;
+    opexByCategory: ProfitCashCategoryRow[];
+    byCurrency?: Record<string, ProfitCashBucket>;
+    operations: ProfitCashOperation[];
+  };
+  rows: ProfitMarginRow[];
+  dataScope: 'live_sales_only';
+  coldSalesPurgedExist: boolean;
+  saleCount: number;
 };

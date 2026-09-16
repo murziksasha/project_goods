@@ -33,6 +33,7 @@ export type TransactionPayload = {
   fromCashboxId?: unknown;
   toCashboxId?: unknown;
   note?: unknown;
+  category?: unknown;
   transactionDate?: unknown;
   idempotencyKey?: unknown;
 };

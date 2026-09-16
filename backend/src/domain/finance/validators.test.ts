@@ -136,5 +136,26 @@ describe('validateFinanceTransactionPayload', () => {
         }),
       'Transaction note must be a string.',
     );
+    expectBadRequest(
+      () =>
+        validateFinanceTransactionPayload({
+          type: 'withdraw',
+          amount: 10,
+          fromCashboxId: 'cashbox-from',
+          category: 'bonus',
+        }),
+      'Unsupported finance transaction category.',
+    );
+  });
+
+  it('accepts a known withdraw category', () => {
+    expect(
+      validateFinanceTransactionPayload({
+        type: 'withdraw',
+        amount: 10,
+        fromCashboxId: 'cashbox-from',
+        category: 'rent',
+      }),
+    ).toMatchObject({ category: 'rent' });
   });
 });

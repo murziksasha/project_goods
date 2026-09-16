@@ -22,6 +22,8 @@ export const queryKeys = {
   financeTransactionsList: (params: Record<string, unknown> = {}) =>
     ['financeTransactions', params] as const,
   financeReport: ['financeReport'] as const,
+  financeProfitReport: (params: Record<string, unknown> = {}) =>
+    ['financeProfitReport', params] as const,
   financeSupplierOrdersQueue: ['financeSupplierOrdersQueue'] as const,
   financeSettings: ['financeSettings'] as const,
   marketRates: ['marketRates'] as const,

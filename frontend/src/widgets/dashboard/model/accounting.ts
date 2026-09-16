@@ -13,9 +13,16 @@ import type { SupplierOrder } from '../../../entities/supplier-order/model/types
 import i18n from '../../../shared/i18n/config';
 import { formatDateTime } from '../../../shared/lib/format';
 
-export type AccountingTab = 'cashboxes' | 'transactions' | 'orders' | 'reports';
+export type AccountingTab =
+  | 'cashboxes'
+  | 'transactions'
+  | 'orders'
+  | 'information'
+  | 'reports';
 
 export const accountingTabStorageKey = 'project-goods.accounting-tab';
+export const accountingTabInformationMigrationKey =
+  'project-goods.accounting-tab-information-migration';
 export const accountingSettingsOpenStorageKey = 'project-goods.accounting-settings-open';
 export const accountingExpandedFinanceSettingsCardStorageKey =
   'project-goods.accounting-expanded-finance-settings-card';
@@ -340,6 +347,7 @@ export const initialTransactionForm: CreateFinanceTransactionPayload = {
   fromCashboxId: '',
   toCashboxId: '',
   note: '',
+  category: 'other',
 };
 
 export type TransactionTargetMemory = Partial<Record<'deposit' | 'transfer', string>>;
@@ -592,6 +600,7 @@ export const isAccountingTab = (value: string | null): value is AccountingTab =>
   value === 'cashboxes' ||
   value === 'transactions' ||
   value === 'orders' ||
+  value === 'information' ||
   value === 'reports';
 
 export const getAccountingTabFromUrl = (): AccountingTab | null => {
@@ -643,8 +652,23 @@ export const getStoredHideEmptyCashboxes = (): boolean => {
   }
 };
 
+export const migrateLegacyAccountingTabStorage = () => {
+  try {
+    if (window.localStorage.getItem(accountingTabInformationMigrationKey) === '1') {
+      return;
+    }
+    window.localStorage.setItem(accountingTabInformationMigrationKey, '1');
+    if (window.localStorage.getItem(accountingTabStorageKey) === 'reports') {
+      window.localStorage.setItem(accountingTabStorageKey, 'information');
+    }
+  } catch {
+    // Ignore localStorage errors.
+  }
+};
+
 export const getStoredAccountingTab = (): AccountingTab => {
   try {
+    migrateLegacyAccountingTabStorage();
     const storedTab = window.localStorage.getItem(accountingTabStorageKey);
     return isAccountingTab(storedTab) ? storedTab : 'cashboxes';
   } catch {

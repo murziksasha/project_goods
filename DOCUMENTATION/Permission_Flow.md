@@ -150,6 +150,7 @@ All `/api/*` routes except health, login, and invitation flows require a valid B
 | `PATCH /finance/transactions/:transactionId` | `finance.view`. (allows editing the note on active transactions) |
 | `POST /finance/transactions/:transactionId/cancel` for `deposit` / `withdraw` / `transfer` | `finance.transactions.deposit` / `finance.transactions.withdraw` / `finance.transactions.transfer` respectively. |
 | `GET /finance/report` | `finance.view`. |
+| `GET /finance/profit-report` | `finance.view`. |
 | `GET /finance/supplier-orders` | `finance.view`. |
 | `POST /finance/supplier-orders/:supplierOrderId/pay` | `finance.supplierOrders.pay`. |
 | `POST /finance/supplier-orders/:supplierOrderId/issue-without-payment` | `finance.supplierOrders.issueWithoutPayment`. |

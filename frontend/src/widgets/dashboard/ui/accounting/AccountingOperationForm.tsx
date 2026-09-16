@@ -5,7 +5,9 @@ import type {
   CreateFinanceTransactionPayload,
   FinanceCurrency,
   FinanceTransactionType,
+  ManualWithdrawCategory,
 } from '../../../../entities/finance/model/types';
+import { manualWithdrawCategories } from '../../../../entities/finance/model/types';
 import { parseDecimal } from '../../../../shared/lib/decimal';
 import {
   PRICE_STEPPER_PRECISION,
@@ -185,6 +187,26 @@ export const AccountingOperationForm = ({
                 ))}
               </select>
             </TruncatedTextTooltip>
+          </label>
+        ) : null}
+        {transactionForm.type === 'withdraw' ? (
+          <label className='field'>
+            <span>{t('accounting.cashboxes.category')}</span>
+            <select
+              value={transactionForm.category ?? 'other'}
+              onChange={(event) =>
+                onTransactionFormChange((current) => ({
+                  ...current,
+                  category: event.target.value as ManualWithdrawCategory,
+                }))
+              }
+            >
+              {manualWithdrawCategories.map((category) => (
+                <option key={category} value={category}>
+                  {t(`accounting.profit.categories.${category}`)}
+                </option>
+              ))}
+            </select>
           </label>
         ) : null}
         {showTo ? (

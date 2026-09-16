@@ -7,7 +7,9 @@ This document defines financial behavior in the `Accounting` workspace (cashboxe
 
 ## Sub-Tab URL and Browser History (2026-06-22)
 
-- Active accounting sub-tab is reflected in the URL as `accountingTab` when `page=accounting` (values: `cashboxes`, `transactions`, `orders`, `reports`).
+- Active accounting sub-tab is reflected in the URL as `accountingTab` when `page=accounting` (values: `cashboxes`, `transactions`, `orders`, `information`, `reports`).
+- **Information** (`accountingTab=information`) is the cashbox snapshot (balances, today turnover). Stored `reports` from before this split is migrated once to `information`.
+- **Reports** (`accountingTab=reports`) is the profit / margin report (`GET /finance/profit-report`).
 - Switching tabs pushes a new browser history entry so **Back** / **Forward** restore the previous accounting view.
 - Tab changes go through the shared dashboard navigator (`DashboardPage.navigateTo`); `useAccountingPreferences` persists the tab to `localStorage` but does not own a separate `popstate` listener.
 - On history navigation, `DashboardPage` passes `syncedAccountingTab` into `AccountingPanel` to keep the UI aligned with the URL.
@@ -193,7 +195,20 @@ This document defines financial behavior in the `Accounting` workspace (cashboxe
 ## Accounting Settings Access
 - In `Accounting`, a gear button is shown on the right side of the tabs row.
 - Clicking gear opens `Accounting settings` panel without leaving the page.
-- Top tab label is `Information` (renamed from `Reports`).
+- Top tab labels: `Information` (cashbox snapshot) and `Reports` (P&L / margin).
+
+## Profit report (`GET /finance/profit-report`)
+
+- Filters: source **All / Services / Sales**; period **All time (default) / Day / Week / Month / Year**; optional custom `dateFrom`/`dateTo`. Week is Monday–Sunday in `Europe/Kiev`.
+- **Gross margin** uses stock-committed documents only (sale `paid`/`issued`, repair `issued`/`issuedWithoutRepair`). COGS is `Product.price` of linked units. Services have cost `0`. Order discount is allocated pro-rata across lines. Open repairs are excluded.
+- **Cash result** uses active finance txs (not cancelled, not reversals). Transfers are ignored.
+  - Collected = `client_payment` deposits
+  - Inventory purchases = `supplier_payment` withdraws
+  - Operating expenses = rent / salary / utilities / tax / owner_draw / other withdraws
+  - Refunds = `client_refund`
+  - Net cash = collected − purchases − opex − refunds
+- Manual **Withdraw** in the operation modal requires a category (default Other). Order payments, refunds, and supplier-order pay set categories in the backend.
+- **Export Excel** downloads the current filter combination (Summary, Margin, Cash sheets).
 
 ## Cashbox Settings Rules
 - `Cashboxes` settings section supports:

@@ -2308,6 +2308,7 @@
       "transactions": "Транзакції",
       "orders": "Замовлення",
       "information": "Інформація",
+      "reports": "Звіти",
       "ariaLabel": "Розділи бухгалтерії",
       "settingsAriaLabel": "Налаштування бухгалтерії"
     },
@@ -2329,6 +2330,7 @@
       "noAvailableCurrencies": "Немає доступних валют",
       "fromCashbox": "З каси",
       "toCashbox": "У касу",
+      "category": "Категорія",
       "comment": "Коментар",
       "emptyOption": "-",
       "saving": "Збереження...",
@@ -2475,6 +2477,93 @@
       "recentOperations": "Останні операції",
       "noOperationsYet": "Фінансових операцій ще немає.",
       "manualOperation": "Ручна операція"
+    },
+    "profit": {
+      "sectionLabel": "Звіт про прибуток",
+      "title": "Звіти",
+      "subtitle": "Маржа виданих продажів і ремонтів плюс гроші, що зайшли й вийшли з кас. Перекази між касами — не прибуток.",
+      "sourcesAria": "Джерело звіту",
+      "periodsAria": "Період звіту",
+      "date": "Дата",
+      "sources": {
+        "all": "Усе",
+        "services": "Послуги",
+        "sales": "Продажі"
+      },
+      "periods": {
+        "whole": "Весь час",
+        "day": "День",
+        "week": "Тиждень",
+        "month": "Місяць",
+        "year": "Рік"
+      },
+      "marginSection": "Валова маржа",
+      "grossResult": "Продані товари та послуги",
+      "cashSection": "Грошовий результат",
+      "cashResult": "Гроші в касі",
+      "tableSection": "По позиціях",
+      "tableTitle": "Маржа за товаром або послугою",
+      "expensesSection": "Видачі з кас",
+      "expensesTitle": "Видатки за категоріями",
+      "empty": "За цей період немає виданих продажів, ремонтів або касових операцій.",
+      "noExpenses": "За цей період немає операційних видатків.",
+      "loadError": "Не вдалося завантажити звіт про прибуток.",
+      "incompleteHistory": "Старі продажі архівовано. Звіт рахує лише живі дані.",
+      "otherCurrencies": "Також є суми в {{currencies}} (без конвертації).",
+      "expenseCount": "{{count}} операцій",
+      "kpis": {
+        "revenue": "Виручка",
+        "cogs": "Закуп запчастин / товару",
+        "grossProfit": "Валовий прибуток",
+        "grossMargin": "Маржа",
+        "collected": "Отримано від клієнтів",
+        "purchases": "Закуп товару",
+        "opex": "Операційні витрати",
+        "refunds": "Повернення",
+        "netCash": "Чистий кеш",
+        "unknownCost": "Рядків без ціни закупки"
+      },
+      "table": {
+        "name": "Назва",
+        "type": "Тип",
+        "quantity": "К-сть",
+        "cost": "Закуп",
+        "revenue": "Виручка",
+        "profit": "Прибуток",
+        "marginPct": "Маржа %",
+        "category": "Категорія",
+        "amount": "Сума",
+        "count": "К-сть",
+        "note": "Примітка",
+        "date": "Дата",
+        "currency": "Валюта"
+      },
+      "types": {
+        "product": "Товар",
+        "service": "Послуга"
+      },
+      "categories": {
+        "client_payment": "Оплата клієнта",
+        "client_refund": "Повернення клієнту",
+        "supplier_payment": "Оплата постачальнику",
+        "rent": "Оренда",
+        "salary": "Зарплата",
+        "utilities": "Комуналка",
+        "tax": "Податки",
+        "owner_draw": "Видача власнику",
+        "other": "Інше"
+      },
+      "export": {
+        "button": "Експорт Excel",
+        "title": "Звіт про прибуток",
+        "generated": "Створено",
+        "source": "Джерело",
+        "period": "Період",
+        "filters": "Фільтри",
+        "summarySheet": "Підсумок",
+        "marginSheet": "Маржа",
+        "cashSheet": "Каса"
+      }
     },
     "confirmModals": {
       "cancelDepositTitle": "Скасувати внесення",

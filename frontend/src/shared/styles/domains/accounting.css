@@ -606,6 +606,39 @@
   align-items: start;
 }
 
+.finance-profit-report .finance-information-header {
+  align-items: flex-start;
+}
+
+.finance-profit-report .hero-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+  max-width: 100%;
+}
+
+.finance-profit-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.finance-profit-kpi-cards {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: 12px;
+}
+
+.finance-profit-table {
+  width: 100%;
+}
+
+.finance-profit-expense-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+}
+
 .finance-info-panel h3 {
   margin: 4px 0 0;
   color: var(--color-text-body);

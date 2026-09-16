@@ -8,6 +8,7 @@ import {
 import { isDuplicateKeyError } from '../../shared/lib/errors';
 import { isValidObjectIdOrThrow } from '../../shared/lib/query';
 import { formatTransaction } from './formatters';
+import { resolveFinanceTransactionCategory } from './categories';
 import {
   normalizeAmount,
   normalizeCurrency,
@@ -83,6 +84,7 @@ const runCreateFinanceTransaction = async (
   const amount = normalizeAmount(payload.amount);
   const currency = normalizeCurrency(payload.currency);
   const note = String(payload.note ?? '').trim();
+  const category = resolveFinanceTransactionCategory(type, note, payload.category);
   const transactionDate = normalizeDate(payload.transactionDate);
   const idempotencyKey = String(payload.idempotencyKey ?? '').trim();
 
@@ -135,6 +137,7 @@ const runCreateFinanceTransaction = async (
       fromSnapshot: fromCashbox ? { name: fromCashbox.name } : undefined,
       toSnapshot: toCashbox ? { name: toCashbox.name } : undefined,
       note,
+      ...(category ? { category } : {}),
       transactionDate,
       idempotencyKey,
     });
@@ -358,6 +361,7 @@ export const cancelFinanceTransaction = async (transactionId: string) => {
       const cancellation = new FinanceTransaction({
         ...cancellationPayload,
         note: cancellationNote,
+        category: transaction.category,
         transactionDate: new Date(),
         isCancellation: true,
         cancelsTransaction: transaction._id,

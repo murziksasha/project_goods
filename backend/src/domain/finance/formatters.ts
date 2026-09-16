@@ -79,6 +79,7 @@ export const formatTransaction = (transaction: FinanceTransactionDocument) => ({
       }
     : null,
   note: transaction.note,
+  category: transaction.category || undefined,
   transactionDate: transaction.transactionDate.toISOString(),
   status: transaction.status ?? 'active',
   isCancellation: Boolean(transaction.isCancellation),

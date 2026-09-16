@@ -8,6 +8,19 @@ export const transactionTypes = ['deposit', 'withdraw', 'transfer'] as const;
 export type TransactionType = (typeof transactionTypes)[number];
 export const transactionStatuses = ['active', 'cancelled'] as const;
 export type TransactionStatus = (typeof transactionStatuses)[number];
+export const financeTransactionCategories = [
+  'client_payment',
+  'client_refund',
+  'supplier_payment',
+  'rent',
+  'salary',
+  'utilities',
+  'tax',
+  'owner_draw',
+  'other',
+] as const;
+export type FinanceTransactionCategory =
+  (typeof financeTransactionCategories)[number];
 
 const defaultBalances = () => ({ UAH: 0, USD: 0 });
 const defaultEnabledCurrencies = () => ({ UAH: true, USD: false });
@@ -118,6 +131,13 @@ export const financeTransactionSchema = new mongoose.Schema(
       maxlength: [300, 'Transaction note must contain no more than 300 characters'],
       default: '',
     },
+    category: {
+      type: String,
+      enum: financeTransactionCategories,
+      required: false,
+      default: undefined,
+      index: true,
+    },
     transactionDate: {
       type: Date,
       required: true,
@@ -190,6 +210,8 @@ financeTransactionSchema.index(
     name: 'cancelsTransaction_unique_partial',
   },
 );
+
+financeTransactionSchema.index({ category: 1, transactionDate: 1 });
 
 export type CashboxDocument = mongoose.InferSchemaType<typeof cashboxSchema> & {
   _id: mongoose.Types.ObjectId;

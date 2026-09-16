@@ -2308,6 +2308,7 @@
       "transactions": "Transactions",
       "orders": "Orders",
       "information": "Information",
+      "reports": "Reports",
       "ariaLabel": "Accounting sections",
       "settingsAriaLabel": "Accounting settings"
     },
@@ -2329,6 +2330,7 @@
       "noAvailableCurrencies": "No available currencies",
       "fromCashbox": "From cashbox",
       "toCashbox": "To cashbox",
+      "category": "Category",
       "comment": "Comment",
       "emptyOption": "-",
       "saving": "Saving...",
@@ -2475,6 +2477,93 @@
       "recentOperations": "Recent operations",
       "noOperationsYet": "No finance operations yet.",
       "manualOperation": "Manual operation"
+    },
+    "profit": {
+      "sectionLabel": "Profit report",
+      "title": "Reports",
+      "subtitle": "Gross margin of issued sales and repairs, plus cash in and out of cashboxes. Transfers are not profit.",
+      "sourcesAria": "Report source",
+      "periodsAria": "Report period",
+      "date": "Date",
+      "sources": {
+        "all": "All",
+        "services": "Services",
+        "sales": "Sales"
+      },
+      "periods": {
+        "whole": "All time",
+        "day": "Day",
+        "week": "Week",
+        "month": "Month",
+        "year": "Year"
+      },
+      "marginSection": "Gross margin",
+      "grossResult": "Sold goods and services",
+      "cashSection": "Cash result",
+      "cashResult": "Money in the till",
+      "tableSection": "By item",
+      "tableTitle": "Margin by product or service",
+      "expensesSection": "Cash expenses",
+      "expensesTitle": "Withdrawals by category",
+      "empty": "No issued sales, repairs, or cash operations in this period.",
+      "noExpenses": "No operating expenses in this period.",
+      "loadError": "Failed to load the profit report.",
+      "incompleteHistory": "Older sales were archived. This report uses live data only.",
+      "otherCurrencies": "Also recorded in {{currencies}} (not converted).",
+      "expenseCount": "{{count}} operations",
+      "kpis": {
+        "revenue": "Revenue",
+        "cogs": "Parts / goods cost",
+        "grossProfit": "Gross profit",
+        "grossMargin": "Gross margin",
+        "collected": "Collected from clients",
+        "purchases": "Inventory purchases",
+        "opex": "Operating expenses",
+        "refunds": "Refunds",
+        "netCash": "Net cash",
+        "unknownCost": "Rows without purchase cost"
+      },
+      "table": {
+        "name": "Name",
+        "type": "Type",
+        "quantity": "Qty",
+        "cost": "Cost",
+        "revenue": "Revenue",
+        "profit": "Profit",
+        "marginPct": "Margin %",
+        "category": "Category",
+        "amount": "Amount",
+        "count": "Count",
+        "note": "Note",
+        "date": "Date",
+        "currency": "Currency"
+      },
+      "types": {
+        "product": "Product",
+        "service": "Service"
+      },
+      "categories": {
+        "client_payment": "Client payment",
+        "client_refund": "Client refund",
+        "supplier_payment": "Supplier payment",
+        "rent": "Rent",
+        "salary": "Salary",
+        "utilities": "Utilities",
+        "tax": "Tax",
+        "owner_draw": "Owner draw",
+        "other": "Other"
+      },
+      "export": {
+        "button": "Export Excel",
+        "title": "Profit report",
+        "generated": "Generated",
+        "source": "Source",
+        "period": "Period",
+        "filters": "Filters",
+        "summarySheet": "Summary",
+        "marginSheet": "Margin",
+        "cashSheet": "Cash"
+      }
     },
     "confirmModals": {
       "cancelDepositTitle": "Cancel deposit",

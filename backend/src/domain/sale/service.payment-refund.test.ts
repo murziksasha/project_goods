@@ -106,6 +106,7 @@ describe('sale payment/refund finance coupling', () => {
       currency: 'UAH',
       toCashboxId: 'cashbox-1',
       note: 'Payment for order r000008',
+      category: 'client_payment',
     });
     expect(updatedSale.paidAmount).toBe(290);
     expect(updatedSale.status).toBe('issued');
@@ -159,6 +160,7 @@ describe('sale payment/refund finance coupling', () => {
       currency: 'UAH',
       fromCashboxId: 'cashbox-1',
       note: 'Refund for order r000008',
+      category: 'client_refund',
     });
     expect(updatedSale.paidAmount).toBe(190);
     expect(updatedSale.status).toBe('reserved');
@@ -215,6 +217,7 @@ describe('sale payment/refund finance coupling', () => {
       currency: 'UAH',
       toCashboxId: 'cashbox-1',
       note: 'Payment for order r000008',
+      category: 'client_payment',
     });
     expect(updatedSale.paidAmount).toBe(100);
     expect(updatedSale.status).toBe('reserved');

@@ -6,6 +6,7 @@ import {
   createFinanceCurrency,
   createFinanceTransaction,
   getFinanceReport,
+  getFinanceProfitReport,
   listCashboxes,
   listFinanceCurrencies,
   listFinancePeriodSnapshots,
@@ -103,6 +104,18 @@ financeRouter.post('/finance/transactions/:transactionId/cancel', asyncHandler(a
 financeRouter.get('/finance/report', asyncHandler(async (req, res) => {
   await requirePermission(req, 'finance.view');
   res.json(await getFinanceReport());
+}));
+
+financeRouter.get('/finance/profit-report', asyncHandler(async (req, res) => {
+  await requirePermission(req, 'finance.view');
+  res.json(
+    await getFinanceProfitReport(req.query as {
+      period?: string;
+      dateFrom?: string;
+      dateTo?: string;
+      source?: string;
+    }),
+  );
 }));
 
 financeRouter.get('/finance/supplier-orders', asyncHandler(async (req, res) => {

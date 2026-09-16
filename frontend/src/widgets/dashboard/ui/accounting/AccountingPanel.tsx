@@ -37,6 +37,7 @@ import {
   IssueWithoutPaymentModal,
 } from './AccountingConfirmModals';
 import { AccountingFinanceSettings } from './AccountingFinanceSettings';
+import { AccountingProfitReportsView } from './AccountingProfitReportsView';
 import { AccountingReportsView } from './AccountingReportsView';
 import { AccountingSupplierOrdersQueue } from './AccountingSupplierOrdersQueue';
 import { AccountingTabs } from './AccountingTabs';
@@ -744,8 +745,10 @@ export const AccountingPanel = ({
           onPaySupplierOrder={handlePaySupplierOrder}
           onSelectedSupplierOrderChange={setSelectedSupplierOrder}
         />
-      ) : activeTab === 'reports' ? (
+      ) : activeTab === 'information' ? (
         <AccountingReportsView financeOverview={financeOverview} />
+      ) : activeTab === 'reports' ? (
+        <AccountingProfitReportsView />
       ) : (
         <AccountingCashboxesView
           allowedTransactionCurrencies={allowedTransactionCurrencies}

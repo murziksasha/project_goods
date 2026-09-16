@@ -229,7 +229,12 @@ Named filter presets for workspaces (orders, warehouse, clients/suppliers, produ
 - `POST /finance/transactions` - создать финансовую операцию; optional `idempotencyKey` deduplicates repeated manual submissions.
 - `PATCH /finance/transactions/:transactionId` - update a finance transaction. Currently supports updating the `note` field (`{ "note": "..." }`). Trims the value; max 300 characters. Not allowed on cancelled transactions.
 - `POST /finance/transactions/:transactionId/cancel` - cancel an active manual finance transaction (`deposit`, `withdraw`, or `transfer`) during the same business day (`Europe/Kiev`). Creates a linked reverse transaction and marks the original as `cancelled`. Rejects order-linked notes (payment/refund/supplier-order payment patterns). Permission is checked by the original transaction type.
-- `GET /finance/report` - получить финансовый отчет
+- `GET /finance/report` - получить финансовый отчет (cashbox snapshot: totals, today turnover)
+- `GET /finance/profit-report` — P&L / margin report. Permission `finance.view`.
+  - Query: `period` (`whole` default \| `day` \| `week` \| `month` \| `year`), optional `dateFrom`/`dateTo` (`YYYY-MM-DD`, overrides period), `source` (`all` default \| `sales` \| `services`)
+  - Dates use `Europe/Kiev` business days
+  - Response: `margin` (revenue, COGS from `Product.price`, gross profit), `cash` (client payments, supplier purchases, categorized opex, refunds, net), `rows` (grouped product/service margin), `dataScope: "live_sales_only"`, `coldSalesPurgedExist`
+- `POST /finance/transactions` body may include `category` (`client_payment` \| `client_refund` \| `supplier_payment` \| `rent` \| `salary` \| `utilities` \| `tax` \| `owner_draw` \| `other`). Manual withdraws should send an opex category; omitted values are inferred from the note.
 
 ## Supplier Orders
 

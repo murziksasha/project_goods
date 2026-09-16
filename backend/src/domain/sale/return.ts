@@ -77,6 +77,7 @@ export const returnSaleLineItem = async (
       currency: 'UAH',
       fromCashboxId: cashboxId,
       note: `Return for sale ${sale.recordNumber ?? sale._id.toString()}: ${lineItem.name}`,
+      category: 'client_refund',
     });
     const cashboxName = transaction.fromCashbox?.name ?? 'Cashbox';
     const nextPaymentHistory = [
@@ -257,6 +258,7 @@ export const returnSaleLineItemBySerials = async (
       currency: 'UAH',
       fromCashboxId: cashboxId,
       note: `Serial return for sale ${sale.recordNumber ?? sale._id.toString()}: ${lineItem.name}`,
+      category: 'client_refund',
     });
     const cashboxName = transaction.fromCashbox?.name ?? 'Cashbox';
     const nextPaymentHistory = [
@@ -502,6 +504,7 @@ export const returnSale = async (
       currency: 'UAH',
       fromCashboxId: cashboxId,
       note: `Full return for sale ${sale.recordNumber ?? sale._id.toString()}`,
+      category: 'client_refund',
     });
     const cashboxName = transaction.fromCashbox?.name ?? 'Cashbox';
     const nextPaymentHistory = [

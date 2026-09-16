@@ -143,6 +143,35 @@ export const installE2eApiMocks = async (page: Page) => {
         await fulfillJson({ items: [], total: 0, page: 1, pageSize: 6 });
         return;
       }
+      if (path.startsWith('/finance/profit-report')) {
+        await fulfillJson({
+          period: { key: 'whole', dateFrom: null, dateTo: null, timeZone: 'Europe/Kiev' },
+          source: 'all',
+          currency: 'UAH',
+          otherCurrencies: [],
+          margin: {
+            revenue: 0,
+            cogs: 0,
+            grossProfit: 0,
+            grossMarginPct: null,
+            unknownCostCount: 0,
+          },
+          cash: {
+            collected: 0,
+            inventoryPurchases: 0,
+            opex: 0,
+            refunds: 0,
+            net: 0,
+            opexByCategory: [],
+            operations: [],
+          },
+          rows: [],
+          dataScope: 'live_sales_only',
+          coldSalesPurgedExist: false,
+          saleCount: 0,
+        });
+        return;
+      }
       if (path.startsWith('/finance/report')) {
         await fulfillJson({
           totals: { UAH: 121030, USD: 0 },

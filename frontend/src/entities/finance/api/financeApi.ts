@@ -8,8 +8,10 @@ import type {
   CreateFinanceCurrencyPayload,
   CreateFinanceTransactionPayload,
   FinanceCurrencyConfig,
+  FinanceProfitReport,
   FinanceReport,
   FinanceTransaction,
+  ProfitReportParams,
   FinanceTransactionsListParams,
   FinanceTransactionsPage,
   SupplierOrderPaymentQueueItem,
@@ -24,6 +26,7 @@ const invalidateFinanceQueries = () => {
     queryClient.invalidateQueries({ queryKey: queryKeys.financeCurrencies }),
     queryClient.invalidateQueries({ queryKey: queryKeys.financeTransactions }),
     queryClient.invalidateQueries({ queryKey: queryKeys.financeReport }),
+    queryClient.invalidateQueries({ queryKey: ['financeProfitReport'] }),
     queryClient.invalidateQueries({
       queryKey: queryKeys.financeSupplierOrdersQueue,
     }),
@@ -188,6 +191,18 @@ export const getFinanceReport = async () => {
   }
 };
 
+export const getFinanceProfitReport = async (params: ProfitReportParams = {}) => {
+  try {
+    const response = await apiClient.get<FinanceProfitReport>(
+      '/finance/profit-report',
+      { params },
+    );
+    return response.data;
+  } catch (error) {
+    throw new Error(getApiErrorMessage(error));
+  }
+};
+
 export const getSupplierOrdersForPayment = async () => {
   try {
     const response = await apiClient.get<SupplierOrderPaymentQueueItem[]>('/finance/supplier-orders');
@@ -266,6 +281,21 @@ export const useFinanceReportQuery = (
     enabled: options.enabled,
     queryFn: getFinanceReport,
     queryKey: queryKeys.financeReport,
+  });
+
+export const useFinanceProfitReportQuery = (
+  params: ProfitReportParams = {},
+  options: { enabled?: boolean } = {},
+) =>
+  useQuery({
+    enabled: options.enabled,
+    queryFn: () => getFinanceProfitReport(params),
+    queryKey: queryKeys.financeProfitReport({
+      period: params.period ?? 'whole',
+      dateFrom: params.dateFrom ?? '',
+      dateTo: params.dateTo ?? '',
+      source: params.source ?? 'all',
+    }),
   });
 
 export const useSupplierOrdersForPaymentQuery = (

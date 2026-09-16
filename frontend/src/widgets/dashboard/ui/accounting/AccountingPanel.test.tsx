@@ -234,7 +234,12 @@ const supplierOrder = (): SupplierOrder =>
   });
 
 const mutableState = {
-  activeTab: 'cashboxes' as 'cashboxes' | 'transactions' | 'orders' | 'reports',
+  activeTab: 'cashboxes' as
+    | 'cashboxes'
+    | 'transactions'
+    | 'orders'
+    | 'information'
+    | 'reports',
   isFinanceSettingsOpen: false,
   expandedFinanceSettingsCard: null as string | null,
   financeSettingsTab: 'cashboxes' as 'cashboxes' | 'currencies',
@@ -1337,8 +1342,8 @@ describe('AccountingPanel', () => {
     expect(screen.getByRole('dialog')).toBeInTheDocument();
   });
 
-  it('renders reports tab', () => {
-    mutableState.activeTab = 'reports';
+  it('renders information tab', () => {
+    mutableState.activeTab = 'information';
     renderPanel();
 
     expect(screen.getByText('Accounting information')).toBeInTheDocument();

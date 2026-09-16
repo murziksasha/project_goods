@@ -10,6 +10,7 @@ import {
   getAccountingSettingsOpenFromUrl,
   getAccountingTabFromUrl,
   getStoredAccountingTab,
+  migrateLegacyAccountingTabStorage,
   writeAccountingSettingsOpenToUrl,
   getStoredExpandedFinanceSettingsCard,
   migrateLastTargetCashboxToOperationMemory,
@@ -58,7 +59,10 @@ export const useAccountingPreferences = ({
   syncedAccountingTab = null,
 }: UseAccountingPreferencesOptions) => {
   const [activeTab, setActiveTab] = useState<AccountingTab>(
-    () => getAccountingTabFromUrl() ?? getStoredAccountingTab(),
+    () => {
+      migrateLegacyAccountingTabStorage();
+      return getAccountingTabFromUrl() ?? getStoredAccountingTab();
+    },
   );
   const [isFinanceSettingsOpen, setIsFinanceSettingsOpen] = useState(
     getAccountingSettingsOpenFromUrl,

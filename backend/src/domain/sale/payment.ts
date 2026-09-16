@@ -199,6 +199,7 @@ export const acceptSalePayment = async (
       currency: 'UAH',
       toCashboxId: cashboxId,
       note: `Payment for order ${sale.recordNumber ?? sale._id.toString()}`,
+      category: 'client_payment',
     });
     const cashboxName = transaction.toCashbox?.name ?? 'Cashbox';
     nextPaymentHistory = [
@@ -345,6 +346,7 @@ export const refundSalePayment = async (
     currency: 'UAH',
     fromCashboxId: cashboxId,
     note: `Refund for order ${sale.recordNumber ?? sale._id.toString()}`,
+    category: 'client_refund',
   });
   const cashboxName = transaction.fromCashbox?.name ?? 'Cashbox';
   const nextPaymentHistory = [

@@ -18,6 +18,7 @@ export {
   listFinanceTransactions,
   getFinanceReport,
 } from './transactions';
+export { getFinanceProfitReport } from './profit-report';
 export {
   sealFinancePeriodSnapshot,
   purgeFinanceTransactionsBeforeActiveSnapshot,
