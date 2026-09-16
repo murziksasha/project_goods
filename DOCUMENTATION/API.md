@@ -89,7 +89,7 @@ Permission: `system.backups.manage` (except finance snapshot read).
 
 ## Products
 
-- `GET /products` - список товаров, поддерживает `query`
+- `GET /products` - список товаров, поддерживает `query`. Permission: `orders.view` \| `inventory.manage` \| `supplierOrders.view` \| `supplierOrders.manage` \| `finance.view` (so Accounting Reports can open the product-model modal)
 - `POST /products` - создать товар
 - `PUT /products/:productId` - обновить товар
 - `DELETE /products/:productId` - удалить товар

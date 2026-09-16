@@ -309,6 +309,16 @@ export const AccountingPanel = ({
     [setActiveTab, setSelectedTransactionCashboxId, setTransactionsPage],
   );
 
+  const openSupplierOrderFromReport = useCallback(
+    (supplierOrderId: string) => {
+      const order = supplierOrders.find((item) => item.id === supplierOrderId);
+      if (order) {
+        setSelectedSupplierOrder(order);
+      }
+    },
+    [supplierOrders],
+  );
+
   const startEditCashbox = useCallback(
     (cashbox: Cashbox) => {
       setEditingCashboxId(cashbox.id);
@@ -750,8 +760,11 @@ export const AccountingPanel = ({
       ) : activeTab === 'reports' ? (
         <AccountingProfitReportsView
           currentEmployee={currentEmployee}
+          sales={sales}
+          supplierOrders={supplierOrders}
           onError={onError}
           onSuccess={onSuccess}
+          onOpenSupplierOrder={openSupplierOrderFromReport}
         />
       ) : (
         <AccountingCashboxesView

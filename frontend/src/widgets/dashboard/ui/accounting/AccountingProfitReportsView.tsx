@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useCatalogProductsQuery } from '../../../../entities/catalog-product/api/catalogProductApi';
 import { hasEmployeePermission } from '../../../../entities/employee/model/permissions';
 import type { Employee } from '../../../../entities/employee/model/types';
 import { useFinanceProfitReportQuery } from '../../../../entities/finance/api/financeApi';
@@ -9,7 +8,9 @@ import type {
   ProfitReportPeriod,
   ProfitReportSource,
 } from '../../../../entities/finance/model/types';
+import type { Sale } from '../../../../entities/sale/model/types';
 import { useServicesQuery } from '../../../../entities/service-catalog/api/serviceCatalogApi';
+import type { SupplierOrder } from '../../../../entities/supplier-order/model/types';
 import { PaginationPanel } from '../../../../shared/ui/PaginationPanel';
 import { CopyableValue } from '../../../../shared/ui/CopyableValue';
 import type { AnalyticsDateRange } from '../../model/analytics-date-range';
@@ -58,14 +59,20 @@ const signedClass = (value: number | null) => {
 
 type AccountingProfitReportsViewProps = {
   currentEmployee?: Employee | null;
+  sales?: Sale[];
+  supplierOrders?: SupplierOrder[];
   onError?: (message: string) => void;
   onSuccess?: (message: string) => void;
+  onOpenSupplierOrder?: (supplierOrderId: string, itemIndex: number) => void;
 };
 
 export const AccountingProfitReportsView = ({
   currentEmployee = null,
+  sales = [],
+  supplierOrders = [],
   onError,
   onSuccess,
+  onOpenSupplierOrder,
 }: AccountingProfitReportsViewProps) => {
   const { t } = useTranslation();
   const stored = useMemo(() => getStoredProfitReportFilters(), []);
@@ -100,9 +107,7 @@ export const AccountingProfitReportsView = ({
     { enabled: true },
   );
   const report = query.data;
-  const catalogProductsQuery = useCatalogProductsQuery(true);
   const servicesQuery = useServicesQuery(true);
-  const catalogProducts = catalogProductsQuery.data ?? [];
   const services = servicesQuery.data ?? [];
   const canWriteCatalog = hasEmployeePermission(
     currentEmployee,
@@ -216,7 +221,7 @@ export const AccountingProfitReportsView = ({
   };
 
   const openCatalog = (row: ProfitMarginRow) => {
-    if (resolveProfitReportCatalogTarget(row, catalogProducts, services)) {
+    if (resolveProfitReportCatalogTarget(row, services)) {
       setCatalogRow(row);
     }
   };
@@ -578,7 +583,6 @@ export const AccountingProfitReportsView = ({
                 {pagedRows.map((row) => {
                   const catalogTarget = resolveProfitReportCatalogTarget(
                     row,
-                    catalogProducts,
                     services,
                   );
                   const loss = visual.highlightLosses && isProfitLossRow(row);
@@ -685,12 +689,14 @@ export const AccountingProfitReportsView = ({
       {catalogRow ? (
         <ProfitReportCatalogModalHost
           row={catalogRow}
-          catalogProducts={catalogProducts}
           services={services}
+          sales={sales}
+          supplierOrders={supplierOrders}
           canWrite={canWriteCatalog}
           onClose={() => setCatalogRow(null)}
           onError={onError}
           onSuccess={onSuccess}
+          onOpenSupplierOrder={onOpenSupplierOrder}
         />
       ) : null}
     </section>

@@ -62,7 +62,7 @@ export const AccountingProfitCharts = ({
 
   return (
     <div className='finance-profit-charts'>
-      <section className='finance-info-panel'>
+      <section className='finance-info-panel finance-profit-mix-panel'>
         <div className='analytics-panel-header'>
           <div>
             <p className='section-label'>{t('accounting.profit.charts.mixSection')}</p>
@@ -121,7 +121,7 @@ export const AccountingProfitCharts = ({
         )}
       </section>
 
-      <section className='finance-info-panel'>
+      <section className='finance-info-panel finance-profit-leaders-panel'>
         <div className='analytics-panel-header'>
           <div>
             <p className='section-label'>{t('accounting.profit.charts.topSection')}</p>
@@ -166,7 +166,7 @@ export const AccountingProfitCharts = ({
         )}
       </section>
 
-      <section className='finance-info-panel'>
+      <section className='finance-info-panel finance-profit-comparison-panel'>
         <div className='analytics-panel-header'>
           <div>
             <p className='section-label'>{t('accounting.profit.charts.topSection')}</p>

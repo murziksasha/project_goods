@@ -93,8 +93,15 @@ All `/api/*` routes except health, login, and invitation flows require a valid B
 ### Products
 | Endpoint | Required access |
 | --- | --- |
-| `GET /products`, `GET /products/export` | `orders.view`, `inventory.manage`, `supplierOrders.view`, or `supplierOrders.manage`. |
+| `GET /products` | `orders.view`, `inventory.manage`, `supplierOrders.view`, `supplierOrders.manage`, or `finance.view`. |
+| `GET /products/export` | `inventory.manage`. |
 | All other `/products/*` mutations | `inventory.manage`. |
+
+### Services
+| Endpoint | Required access |
+| --- | --- |
+| `GET /services` | `inventory.manage`, `orders.view`, `orders.manage`, or `finance.view`. |
+| All other `/services/*` mutations | `inventory.manage`. |
 
 ### Clients
 | Endpoint | Required access |

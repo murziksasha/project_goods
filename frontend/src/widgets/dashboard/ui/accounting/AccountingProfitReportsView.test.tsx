@@ -120,25 +120,48 @@ vi.mock('../../../../entities/finance/api/financeApi', () => ({
   }),
 }));
 
-vi.mock('../../../../entities/catalog-product/api/catalogProductApi', () => ({
-  useCatalogProductsQuery: () => ({
+vi.mock('../../../../entities/product/api/productApi', () => ({
+  useProductsQuery: () => ({
     data: [
       {
-        id: 'cp1',
+        id: 'p1',
         name: 'Battery',
+        article: 'BAT-1',
+        serialNumber: 'S000611',
+        price: 174.56,
+        salePriceOptions: [200],
         note: '',
+        quantity: 1,
+        reservedQuantity: 0,
+        freeQuantity: 1,
+        isInStock: true,
+        purchasePlace: '',
+        purchaseDate: '2026-09-15',
+        warrantyPeriod: 0,
         isActive: true,
-        sourceTags: [],
-        lastSeenAt: '',
-        createdAt: '',
-        updatedAt: '',
+        createdAt: '2026-09-15T00:00:00.000Z',
+        updatedAt: '2026-09-15T00:00:00.000Z',
       },
     ],
     isLoading: false,
     isError: false,
   }),
-  updateCatalogProduct: vi.fn(),
-  deleteCatalogProduct: vi.fn(),
+  updateProductModelByName: vi.fn(async () => ({
+    matchedCount: 1,
+    products: [],
+  })),
+}));
+
+vi.mock('../../../../entities/warehouse-settings/api/warehouseSettingsApi', () => ({
+  useWarehouseSettingsQuery: () => ({
+    data: { warehouses: [] },
+    isLoading: false,
+    isError: false,
+  }),
+}));
+
+vi.mock('../../../../entities/sale/api/saleApi', () => ({
+  getOccupiedSerialNumbers: vi.fn(async () => ({ occupied: [] })),
 }));
 
 vi.mock('../../../../entities/service-catalog/api/serviceCatalogApi', () => ({
@@ -224,17 +247,19 @@ describe('AccountingProfitReportsView', () => {
     expect(screen.getByText('Analyzing 1 items')).toBeInTheDocument();
   });
 
-  it('opens catalog modals for matched names and leaves unmatched names as text', () => {
+  it('opens the product model for goods and the service catalog for services', () => {
     renderView(
       <I18nextProvider i18n={i18n}>
         <AccountingProfitReportsView />
       </I18nextProvider>,
     );
 
-    expect(screen.queryByRole('button', { name: 'Screen' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Screen' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Battery' }));
-    expect(screen.getByRole('heading', { name: 'Product' })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+    expect(screen.getByText('Product model')).toBeInTheDocument();
+    expect(screen.getByText('Retail price')).toBeInTheDocument();
+    expect(screen.getByText('Purchase by serial')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
     fireEvent.click(screen.getByRole('button', { name: 'Diagnostics' }));
     expect(screen.getByRole('heading', { name: 'Diagnostics' })).toBeInTheDocument();
   });

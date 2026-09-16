@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { CatalogProduct } from '../../../../entities/catalog-product/model/types';
-import {
-  deleteCatalogProduct,
-  updateCatalogProduct,
-} from '../../../../entities/catalog-product/api/catalogProductApi';
 import type { ProfitMarginRow } from '../../../../entities/finance/model/types';
+import {
+  updateProductModelByName,
+  useProductsQuery,
+} from '../../../../entities/product/api/productApi';
+import type { Sale } from '../../../../entities/sale/model/types';
 import {
   archiveServiceCatalogItem,
   updateServiceCatalogItem,
@@ -18,47 +18,51 @@ import type {
   ServiceCatalogFormValues,
   ServiceCatalogItem,
 } from '../../../../entities/service-catalog/model/types';
+import type { SupplierOrder } from '../../../../entities/supplier-order/model/types';
+import { useWarehouseSettingsQuery } from '../../../../entities/warehouse-settings/api/warehouseSettingsApi';
 import { queryClient, queryKeys } from '../../../../shared/api/queryClient';
-import {
-  CatalogServiceModal,
-  CatalogSuggestionProductModal,
-} from '../product-catalog/ProductCatalogModals';
+import { ProductModelModal } from '../orders/modals/ProductModelModal';
+import { CatalogServiceModal } from '../product-catalog/ProductCatalogModals';
 import { resolveProfitReportCatalogTarget } from '../../model/profit-report';
 
 type ProfitReportCatalogModalHostProps = {
   row: ProfitMarginRow | null;
-  catalogProducts: CatalogProduct[];
   services: ServiceCatalogItem[];
+  sales: Sale[];
+  supplierOrders: SupplierOrder[];
   canWrite: boolean;
   onClose: () => void;
   onError?: (message: string) => void;
   onSuccess?: (message: string) => void;
+  onOpenSupplierOrder?: (supplierOrderId: string, itemIndex: number) => void;
 };
 
 const invalidateCatalogQueries = async () => {
   await Promise.all([
-    queryClient.invalidateQueries({ queryKey: queryKeys.catalogProducts }),
+    queryClient.invalidateQueries({ queryKey: queryKeys.products }),
     queryClient.invalidateQueries({ queryKey: queryKeys.services }),
   ]);
 };
 
 export const ProfitReportCatalogModalHost = ({
   row,
-  catalogProducts,
   services,
+  sales,
+  supplierOrders,
   canWrite,
   onClose,
   onError,
   onSuccess,
+  onOpenSupplierOrder,
 }: ProfitReportCatalogModalHostProps) => {
   const { t } = useTranslation();
   const target = useMemo(
-    () =>
-      row
-        ? resolveProfitReportCatalogTarget(row, catalogProducts, services)
-        : null,
-    [catalogProducts, row, services],
+    () => (row ? resolveProfitReportCatalogTarget(row, services) : null),
+    [row, services],
   );
+  const isProduct = target?.kind === 'product';
+  const productsQuery = useProductsQuery(isProduct);
+  const warehouseSettingsQuery = useWarehouseSettingsQuery(isProduct);
   const service = target?.kind === 'service' ? target.service : null;
   const [serviceForm, setServiceForm] = useState<ServiceCatalogFormValues>(
     initialServiceCatalogForm,
@@ -74,45 +78,34 @@ export const ProfitReportCatalogModalHost = ({
   if (!target) return null;
 
   if (target.kind === 'product') {
-    const product = target.product;
     return (
-      <CatalogSuggestionProductModal
-        product={product}
+      <ProductModelModal
+        name={target.name}
+        products={productsQuery.data ?? []}
+        sales={sales}
+        supplierOrders={supplierOrders}
+        warehouses={warehouseSettingsQuery.data?.warehouses ?? []}
+        isSaving={isSaving}
         readOnly={!canWrite}
         onClose={onClose}
+        onOpenSupplierOrder={onOpenSupplierOrder}
         onSave={async (payload) => {
+          if (!canWrite) return false;
+          setIsSaving(true);
           try {
-            await updateCatalogProduct(product.id, payload);
+            const result = await updateProductModelByName(payload);
             await invalidateCatalogQueries();
             onSuccess?.(t('accounting.profit.catalogSaved'));
-            onClose();
+            return result.matchedCount > 0;
           } catch (error) {
             onError?.(
               error instanceof Error
                 ? error.message
                 : t('accounting.profit.loadError'),
             );
-          }
-        }}
-        onRemove={async () => {
-          if (
-            !window.confirm(
-              t('catalog.modals.confirmRemoveProduct', { name: product.name }),
-            )
-          ) {
-            return;
-          }
-          try {
-            await deleteCatalogProduct(product.id);
-            await invalidateCatalogQueries();
-            onSuccess?.(t('accounting.profit.catalogRemoved'));
-            onClose();
-          } catch (error) {
-            onError?.(
-              error instanceof Error
-                ? error.message
-                : t('accounting.profit.loadError'),
-            );
+            return false;
+          } finally {
+            setIsSaving(false);
           }
         }}
       />
@@ -120,7 +113,8 @@ export const ProfitReportCatalogModalHost = ({
   }
 
   const isEditing =
-    JSON.stringify(serviceForm) !== JSON.stringify(toServiceCatalogForm(target.service));
+    JSON.stringify(serviceForm) !==
+    JSON.stringify(toServiceCatalogForm(target.service));
 
   return (
     <CatalogServiceModal

@@ -248,19 +248,7 @@ describe('profit report row analysis', () => {
     );
   });
 
-  it('resolves catalog targets by id, unique name, and not when unmatched', () => {
-    const products = [
-      {
-        id: 'cp1',
-        name: 'Battery',
-        note: '',
-        isActive: true,
-        sourceTags: [],
-        lastSeenAt: '',
-        createdAt: '',
-        updatedAt: '',
-      },
-    ];
+  it('opens the product model for goods names and the service catalog when matched', () => {
     const services = [
       {
         id: 's1',
@@ -273,28 +261,30 @@ describe('profit report row analysis', () => {
         updatedAt: '',
       },
     ];
-    expect(
-      resolveProfitReportCatalogTarget(rows[0], products, services)?.kind,
-    ).toBe('product');
-    expect(
-      resolveProfitReportCatalogTarget(rows[2], products, services)?.kind,
-    ).toBe('service');
+    expect(resolveProfitReportCatalogTarget(rows[0], services)).toEqual({
+      kind: 'product',
+      name: 'Battery',
+    });
     expect(
       resolveProfitReportCatalogTarget(
         marginRow({ name: 'Screen', catalogProductId: null }),
-        products,
         services,
       ),
-    ).toBeNull();
+    ).toEqual({ kind: 'product', name: 'Screen' });
+    expect(
+      resolveProfitReportCatalogTarget(rows[2], services)?.kind,
+    ).toBe('service');
     expect(
       resolveProfitReportCatalogTarget(
         marginRow({
-          name: 'Battery',
+          key: 'service:unknown',
+          name: 'Unknown service',
+          type: 'service',
           catalogProductId: null,
+          serviceId: null,
         }),
-        products,
         services,
-      )?.kind,
-    ).toBe('product');
+      ),
+    ).toBeNull();
   });
 });

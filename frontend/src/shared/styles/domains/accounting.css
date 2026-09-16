@@ -618,10 +618,19 @@
   max-width: 100%;
 }
 
+.finance-profit-report {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.finance-profit-report .finance-info-panel-wide {
+  grid-column: auto;
+}
+
 .finance-profit-kpi-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 14px;
+  align-items: start;
 }
 
 .finance-profit-kpi-cards {
@@ -696,7 +705,11 @@
 
 .finance-profit-charts {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+  grid-template-columns: minmax(240px, 0.9fr) minmax(0, 1.3fr);
+  grid-template-areas:
+    'mix leaders'
+    'bars leaders'
+    'waterfall waterfall';
   gap: 14px;
   align-items: start;
 }
@@ -705,8 +718,27 @@
   min-width: 0;
 }
 
+.finance-profit-mix-panel {
+  grid-area: mix;
+}
+
+.finance-profit-leaders-panel {
+  grid-area: leaders;
+}
+
+.finance-profit-comparison-panel {
+  grid-area: bars;
+}
+
+.finance-profit-comparison-panel .bar-chart-item span {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .finance-profit-waterfall-panel {
-  grid-column: 1 / -1;
+  grid-area: waterfall;
 }
 
 .finance-profit-chart-row,
@@ -726,6 +758,12 @@
   border-radius: 8px;
   background: var(--bg-surface-subtle);
   padding: 10px 12px;
+  grid-template-columns: minmax(0, 1.6fr) minmax(48px, 1fr) auto;
+  gap: 8px;
+}
+
+.finance-profit-chart-row small {
+  min-width: 3.2em;
 }
 
 .finance-profit-wf-collected {
@@ -955,6 +993,12 @@
   color: var(--text-soft);
   text-align: right;
   font-weight: 800;
+}
+
+.finance-distribution-row.finance-profit-chart-row {
+  grid-template-columns: minmax(0, 1.6fr) minmax(48px, 1fr) auto;
+  gap: 8px;
+  overflow: hidden;
 }
 
 .finance-recent-row {

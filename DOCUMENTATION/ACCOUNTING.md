@@ -227,10 +227,10 @@ This document defines financial behavior in the `Accounting` workspace (cashboxe
 - Row checkboxes build an analysis group. With 1+ selected, the strip and charts use only those visible rows; otherwise they use the filtered set.
 - Charts and the analysis strip follow the visible row set. Clearing period/source/date resets table filters and selection.
 - Product/service **name** uses the catalog copyable-name control. Click opens:
-  - `CatalogSuggestionProductModal` when `catalogProductId` matches (or a unique exact catalog-product name)
-  - `CatalogServiceModal` when `serviceId` matches (or a unique exact service name)
-  - unmatched names stay text (copy icon only; no fake editor)
-- Opening a catalog modal requires `finance.view`. Save / remove / archive require `inventory.manage`; otherwise the modal is read-only.
+  - **Goods** — warehouse `ProductModelModal` (retail/wholesale prices, purchase-by-serial, stock summary) for every product row
+  - **Services** — `CatalogServiceModal` when `serviceId` matches (or a unique exact service name)
+  - unmatched service names stay text (copy icon only; no fake editor)
+- Opening a catalog modal requires `finance.view`. `GET /products` and `GET /services` also allow `finance.view` so the modal can load stock and service prices. Save / archive require `inventory.manage`; otherwise the modal is read-only.
 - Each margin row includes `catalogProductId` and `serviceId` (`null` when the grouped lines do not share one id). Grouping key remains `product:…` / `service:…`.
 - Catalog edits from Reports invalidate catalog queries. Historical margin numbers do not recompute until the next profit-report fetch.
 

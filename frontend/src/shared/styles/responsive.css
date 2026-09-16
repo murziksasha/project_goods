@@ -579,7 +579,6 @@
   .finance-information-grid,
   .finance-profit-kpi-grid,
   .finance-profit-kpi-cards,
-  .finance-profit-charts,
   .finance-profit-visual-panel,
   .finance-profit-table-tools,
   .finance-profit-waterfall-legend,
@@ -1272,6 +1271,15 @@
     grid-column: auto;
   }
 
+  .finance-profit-charts {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      'mix'
+      'leaders'
+      'bars'
+      'waterfall';
+  }
+
   .warehouse-information-summary,
   .warehouse-information-filters,
   .warehouse-information-sort,
@@ -1280,6 +1288,7 @@
   }
 
   .finance-distribution-row,
+  .finance-distribution-row.finance-profit-chart-row,
   .finance-recent-row {
     grid-template-columns: 1fr;
   }

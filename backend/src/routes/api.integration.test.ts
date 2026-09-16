@@ -291,6 +291,18 @@ describe('API smoke reads', () => {
     expect(response.body).toEqual([]);
   });
 
+  it('lists products for finance.view', async () => {
+    activeEmployee = { role: 'support', permissions: ['finance.view'] };
+    mockEmployeeLookup();
+
+    const response = await request(app)
+      .get('/api/products')
+      .set(authHeader());
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual([]);
+  });
+
   it('lists clients for read permission', async () => {
     const response = await request(app)
       .get('/api/clients')

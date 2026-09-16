@@ -1,5 +1,4 @@
 import * as XLSX from 'xlsx';
-import type { CatalogProduct } from '../../../entities/catalog-product/model/types';
 import type {
   FinanceProfitReport,
   ProfitMarginRow,
@@ -140,7 +139,7 @@ export type ProfitMixShare = {
 };
 
 export type ProfitReportCatalogTarget =
-  | { kind: 'product'; product: CatalogProduct }
+  | { kind: 'product'; name: string }
   | { kind: 'service'; service: ServiceCatalogItem };
 
 export const profitReportProductColor = '#2d8ae3';
@@ -369,8 +368,7 @@ const exactNameMatches = <T extends { name: string }>(items: T[], name: string) 
 };
 
 export const resolveProfitReportCatalogTarget = (
-  row: Pick<ProfitMarginRow, 'name' | 'type' | 'catalogProductId' | 'serviceId'>,
-  catalogProducts: CatalogProduct[],
+  row: Pick<ProfitMarginRow, 'name' | 'type' | 'serviceId'>,
   services: ServiceCatalogItem[],
 ): ProfitReportCatalogTarget | null => {
   if (row.type === 'service') {
@@ -383,14 +381,8 @@ export const resolveProfitReportCatalogTarget = (
       ? { kind: 'service', service: matches[0] }
       : null;
   }
-  const byId = row.catalogProductId
-    ? catalogProducts.find((item) => item.id === row.catalogProductId)
-    : undefined;
-  if (byId) return { kind: 'product', product: byId };
-  const matches = exactNameMatches(catalogProducts, row.name);
-  return matches.length === 1
-    ? { kind: 'product', product: matches[0] }
-    : null;
+  const name = row.name.trim();
+  return name ? { kind: 'product', name: row.name } : null;
 };
 
 export const hasProfitReportRowFilters = (filters: ProfitReportRowFilters) =>

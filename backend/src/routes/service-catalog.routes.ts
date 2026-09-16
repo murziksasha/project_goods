@@ -20,6 +20,7 @@ const serviceReadPermissions = [
   'inventory.manage',
   'orders.view',
   'orders.manage',
+  'finance.view',
 ] as const;
 
 serviceCatalogRouter.get('/services', asyncHandler(async (req, res) => {
