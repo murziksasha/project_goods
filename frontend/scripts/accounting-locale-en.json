@@ -243,7 +243,11 @@
       "waterfallSection": "Cash flow",
       "waterfallTitle": "Money in and out",
       "empty": "No items to chart for these filters.",
-      "filterTo": "Filter table to {{name}}"
+      "filterTo": "Filter table to {{name}}",
+      "metricUah": "UAH",
+      "metricQty": "pcs",
+      "leadersMetricAria": "Leaders metric: money or pieces sold",
+      "quantityValue": "{{count}} pcs"
     },
     "analysis": {
       "search": "Search",
@@ -264,6 +268,10 @@
       "clearSelection": "Clear selection",
       "clearFilters": "Clear",
       "selectRow": "Select {{name}}",
+      "selectGroup": "Select group {{name}}",
+      "expandGroup": "Expand group {{name}}",
+      "collapseGroup": "Collapse group {{name}}",
+      "groupCount": "{{count}} pcs",
       "noMatches": "No products or services match these filters.",
       "filteredSummary": "{{count}} items"
     },

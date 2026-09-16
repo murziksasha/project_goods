@@ -27,7 +27,10 @@ export const profitReportSourceOptions: Array<{
   labelKey: string;
 }> = [
   { value: 'all', labelKey: 'accounting.profit.sources.all' },
-  { value: 'services', labelKey: 'accounting.profit.sources.services' },
+  {
+    value: 'services',
+    labelKey: 'accounting.profit.sources.services',
+  },
   { value: 'sales', labelKey: 'accounting.profit.sources.sales' },
 ];
 
@@ -48,31 +51,43 @@ const isPeriod = (value: unknown): value is ProfitReportPeriod =>
 const isSource = (value: unknown): value is ProfitReportSource =>
   value === 'all' || value === 'sales' || value === 'services';
 
-export const defaultProfitReportFilters = (): StoredProfitReportFilters => ({
-  period: 'whole',
-  source: 'all',
-  dateFrom: '',
-  dateTo: '',
-});
+export const defaultProfitReportFilters =
+  (): StoredProfitReportFilters => ({
+    period: 'whole',
+    source: 'all',
+    dateFrom: '',
+    dateTo: '',
+  });
 
-export const getStoredProfitReportFilters = (): StoredProfitReportFilters => {
-  const fallback = defaultProfitReportFilters();
-  try {
-    const raw = window.localStorage.getItem(profitReportFiltersStorageKey);
-    if (!raw) return fallback;
-    const parsed = JSON.parse(raw) as Partial<StoredProfitReportFilters>;
-    return {
-      period: isPeriod(parsed.period) ? parsed.period : fallback.period,
-      source: isSource(parsed.source) ? parsed.source : fallback.source,
-      dateFrom: String(parsed.dateFrom ?? ''),
-      dateTo: String(parsed.dateTo ?? ''),
-    };
-  } catch {
-    return fallback;
-  }
-};
+export const getStoredProfitReportFilters =
+  (): StoredProfitReportFilters => {
+    const fallback = defaultProfitReportFilters();
+    try {
+      const raw = window.localStorage.getItem(
+        profitReportFiltersStorageKey,
+      );
+      if (!raw) return fallback;
+      const parsed = JSON.parse(
+        raw,
+      ) as Partial<StoredProfitReportFilters>;
+      return {
+        period: isPeriod(parsed.period)
+          ? parsed.period
+          : fallback.period,
+        source: isSource(parsed.source)
+          ? parsed.source
+          : fallback.source,
+        dateFrom: String(parsed.dateFrom ?? ''),
+        dateTo: String(parsed.dateTo ?? ''),
+      };
+    } catch {
+      return fallback;
+    }
+  };
 
-export const storeProfitReportFilters = (filters: StoredProfitReportFilters) => {
+export const storeProfitReportFilters = (
+  filters: StoredProfitReportFilters,
+) => {
   try {
     window.localStorage.setItem(
       profitReportFiltersStorageKey,
@@ -89,7 +104,10 @@ export const hasCustomProfitDateRange = (range: AnalyticsDateRange) =>
 export const profitReportVisualStorageKey =
   'project-goods.accounting-profit-visual';
 
-export type ProfitReportChartMetric = 'profit' | 'revenue' | 'quantity';
+export type ProfitReportChartMetric =
+  | 'profit'
+  | 'revenue'
+  | 'quantity';
 export type ProfitReportTypeFilter = 'all' | 'product' | 'service';
 export type ProfitReportMarginFilter = 'all' | 'loss' | 'unknown';
 export type ProfitReportRowSort =
@@ -131,6 +149,21 @@ export type ProfitChartRow = {
   sharePercent: number;
 };
 
+export type ProfitReportLeadersMetric = Extract<
+  ProfitReportChartMetric,
+  'profit' | 'quantity'
+>;
+
+export type ProfitMarginNameGroup = {
+  id: string;
+  name: string;
+  type: 'product' | 'service' | 'mixed';
+  rows: ProfitMarginRow[];
+  summary: ProfitMarginSummary;
+};
+
+export const profitReportLeadersLimit = 10;
+
 export type ProfitMixShare = {
   product: number;
   service: number;
@@ -155,9 +188,29 @@ export const profitReportChartMetricOptions: Array<{
   value: ProfitReportChartMetric;
   labelKey: string;
 }> = [
-  { value: 'profit', labelKey: 'accounting.profit.visual.metrics.profit' },
-  { value: 'revenue', labelKey: 'accounting.profit.visual.metrics.revenue' },
-  { value: 'quantity', labelKey: 'accounting.profit.visual.metrics.quantity' },
+  {
+    value: 'profit',
+    labelKey: 'accounting.profit.visual.metrics.profit',
+  },
+  {
+    value: 'revenue',
+    labelKey: 'accounting.profit.visual.metrics.revenue',
+  },
+  {
+    value: 'quantity',
+    labelKey: 'accounting.profit.visual.metrics.quantity',
+  },
+];
+
+export const profitReportLeadersMetricOptions: Array<{
+  value: ProfitReportLeadersMetric;
+  labelKey: string;
+}> = [
+  { value: 'profit', labelKey: 'accounting.profit.charts.metricUah' },
+  {
+    value: 'quantity',
+    labelKey: 'accounting.profit.charts.metricQty',
+  },
 ];
 
 export const profitReportTypeFilterOptions: Array<{
@@ -174,19 +227,37 @@ export const profitReportMarginFilterOptions: Array<{
   labelKey: string;
 }> = [
   { value: 'all', labelKey: 'accounting.profit.analysis.marginAll' },
-  { value: 'loss', labelKey: 'accounting.profit.analysis.marginLoss' },
-  { value: 'unknown', labelKey: 'accounting.profit.analysis.marginUnknown' },
+  {
+    value: 'loss',
+    labelKey: 'accounting.profit.analysis.marginLoss',
+  },
+  {
+    value: 'unknown',
+    labelKey: 'accounting.profit.analysis.marginUnknown',
+  },
 ];
 
 export const profitReportRowSortOptions: Array<{
   value: ProfitReportRowSort;
   labelKey: string;
 }> = [
-  { value: 'default', labelKey: 'accounting.profit.analysis.sortDefault' },
+  {
+    value: 'default',
+    labelKey: 'accounting.profit.analysis.sortDefault',
+  },
   { value: 'name', labelKey: 'accounting.profit.analysis.sortName' },
-  { value: 'profit', labelKey: 'accounting.profit.analysis.sortProfit' },
-  { value: 'quantity', labelKey: 'accounting.profit.analysis.sortQuantity' },
-  { value: 'margin', labelKey: 'accounting.profit.analysis.sortMargin' },
+  {
+    value: 'profit',
+    labelKey: 'accounting.profit.analysis.sortProfit',
+  },
+  {
+    value: 'quantity',
+    labelKey: 'accounting.profit.analysis.sortQuantity',
+  },
+  {
+    value: 'margin',
+    labelKey: 'accounting.profit.analysis.sortMargin',
+  },
 ];
 
 export const defaultProfitReportVisualSettings =
@@ -197,23 +268,30 @@ export const defaultProfitReportVisualSettings =
     compactTable: false,
   });
 
-export const defaultProfitReportRowFilters = (): ProfitReportRowFilters => ({
-  search: '',
-  type: 'all',
-  margin: 'all',
-  sort: 'default',
-});
+export const defaultProfitReportRowFilters =
+  (): ProfitReportRowFilters => ({
+    search: '',
+    type: 'all',
+    margin: 'all',
+    sort: 'default',
+  });
 
-const isChartMetric = (value: unknown): value is ProfitReportChartMetric =>
+const isChartMetric = (
+  value: unknown,
+): value is ProfitReportChartMetric =>
   value === 'profit' || value === 'revenue' || value === 'quantity';
 
 export const getStoredProfitReportVisualSettings =
   (): ProfitReportVisualSettings => {
     const fallback = defaultProfitReportVisualSettings();
     try {
-      const raw = window.localStorage.getItem(profitReportVisualStorageKey);
+      const raw = window.localStorage.getItem(
+        profitReportVisualStorageKey,
+      );
       if (!raw) return fallback;
-      const parsed = JSON.parse(raw) as Partial<ProfitReportVisualSettings>;
+      const parsed = JSON.parse(
+        raw,
+      ) as Partial<ProfitReportVisualSettings>;
       return {
         showCharts:
           typeof parsed.showCharts === 'boolean'
@@ -257,6 +335,10 @@ export const formatProfitMarginPct = (value: number | null) =>
 export const isProfitLossRow = (row: ProfitMarginRow) =>
   row.profit < 0 || (row.marginPct != null && row.marginPct < 0);
 
+export const isProfitLossSummary = (summary: ProfitMarginSummary) =>
+  summary.profit < 0 ||
+  (summary.marginPct != null && summary.marginPct < 0);
+
 export const chartValueForRow = (
   row: ProfitMarginRow,
   metric: ProfitReportChartMetric,
@@ -272,9 +354,12 @@ export const filterProfitMarginRows = (
 ) => {
   const search = filters.search.trim().toLowerCase();
   return rows.filter((row) => {
-    if (search && !row.name.toLowerCase().includes(search)) return false;
-    if (filters.type !== 'all' && row.type !== filters.type) return false;
-    if (filters.margin === 'loss' && !isProfitLossRow(row)) return false;
+    if (search && !row.name.toLowerCase().includes(search))
+      return false;
+    if (filters.type !== 'all' && row.type !== filters.type)
+      return false;
+    if (filters.margin === 'loss' && !isProfitLossRow(row))
+      return false;
     if (filters.margin === 'unknown' && row.costKnown) return false;
     return true;
   });
@@ -301,12 +386,20 @@ export const summarizeProfitMarginRows = (
   rows: ProfitMarginRow[],
 ): ProfitMarginSummary => {
   const quantity = rows.reduce((sum, row) => sum + row.quantity, 0);
-  const cost = roundMoney(rows.reduce((sum, row) => sum + row.cost, 0));
-  const revenue = roundMoney(rows.reduce((sum, row) => sum + row.revenue, 0));
-  const profit = roundMoney(rows.reduce((sum, row) => sum + row.profit, 0));
+  const cost = roundMoney(
+    rows.reduce((sum, row) => sum + row.cost, 0),
+  );
+  const revenue = roundMoney(
+    rows.reduce((sum, row) => sum + row.revenue, 0),
+  );
+  const profit = roundMoney(
+    rows.reduce((sum, row) => sum + row.profit, 0),
+  );
   const costKnown = rows.every((row) => row.costKnown);
   const marginPct =
-    costKnown && revenue > 0 ? roundMoney((profit / revenue) * 100) : null;
+    costKnown && revenue > 0
+      ? roundMoney((profit / revenue) * 100)
+      : null;
   return {
     count: rows.length,
     quantity,
@@ -318,21 +411,94 @@ export const summarizeProfitMarginRows = (
   };
 };
 
+export const getProfitMarginNameGroupId = (name: string) =>
+  `name:${name.trim().toLowerCase()}`;
+
+export const groupProfitMarginRowsByName = (
+  rows: ProfitMarginRow[],
+): ProfitMarginNameGroup[] => {
+  const order: string[] = [];
+  const groups = new Map<string, ProfitMarginRow[]>();
+
+  rows.forEach((row) => {
+    const id = getProfitMarginNameGroupId(row.name);
+    const existing = groups.get(id);
+    if (existing) {
+      existing.push(row);
+      return;
+    }
+    groups.set(id, [row]);
+    order.push(id);
+  });
+
+  return order.map((id) => {
+    const groupRows = groups.get(id) ?? [];
+    const types = new Set(groupRows.map((row) => row.type));
+    const type: ProfitMarginNameGroup['type'] =
+      types.size === 1 ? (groupRows[0]?.type ?? 'product') : 'mixed';
+    return {
+      id,
+      name: groupRows[0]?.name ?? '',
+      type,
+      rows: groupRows,
+      summary: summarizeProfitMarginRows(groupRows),
+    };
+  });
+};
+
+export const sortProfitMarginGroups = (
+  groups: ProfitMarginNameGroup[],
+  sort: ProfitReportRowSort,
+) => {
+  const copy = [...groups];
+  copy.sort((left, right) => {
+    if (sort === 'name') return left.name.localeCompare(right.name);
+    if (sort === 'quantity')
+      return right.summary.quantity - left.summary.quantity;
+    if (sort === 'profit')
+      return right.summary.profit - left.summary.profit;
+    const leftMargin = left.summary.marginPct ?? -Infinity;
+    const rightMargin = right.summary.marginPct ?? -Infinity;
+    if (rightMargin !== leftMargin) return rightMargin - leftMargin;
+    if (right.summary.profit !== left.summary.profit) {
+      return right.summary.profit - left.summary.profit;
+    }
+    return left.name.localeCompare(right.name);
+  });
+  return copy;
+};
+
 export const buildProfitChartRows = (
   rows: ProfitMarginRow[],
   metric: ProfitReportChartMetric,
-  limit = 8,
+  limit = profitReportLeadersLimit,
 ): ProfitChartRow[] => {
-  const ranked = [...rows]
-    .map((row) => ({
-      key: row.key,
-      name: row.name,
-      type: row.type,
-      value: chartValueForRow(row, metric),
-    }))
-    .sort((left, right) => Math.abs(right.value) - Math.abs(left.value))
+  const groups = groupProfitMarginRowsByName(rows);
+  const ranked = groups
+    .map((group) => {
+      let value = group.summary.profit;
+      if (metric === 'quantity') value = group.summary.quantity;
+      else if (metric === 'revenue') value = group.summary.revenue;
+      return {
+        key: group.id,
+        name: group.name,
+        type:
+          group.type === 'service'
+            ? ('service' as const)
+            : ('product' as const),
+        value,
+      };
+    })
+    .sort((left, right) => {
+      const diff = Math.abs(right.value) - Math.abs(left.value);
+      if (diff !== 0) return diff;
+      return left.name.localeCompare(right.name);
+    })
     .slice(0, limit);
-  const total = ranked.reduce((sum, row) => sum + Math.abs(row.value), 0);
+  const total = ranked.reduce(
+    (sum, row) => sum + Math.abs(row.value),
+    0,
+  );
   return ranked.map((row) => ({
     ...row,
     sharePercent: total > 0 ? (Math.abs(row.value) / total) * 100 : 0,
@@ -361,10 +527,15 @@ export const buildProfitMixShare = (
   };
 };
 
-const exactNameMatches = <T extends { name: string }>(items: T[], name: string) => {
+const exactNameMatches = <T extends { name: string }>(
+  items: T[],
+  name: string,
+) => {
   const needle = name.trim().toLowerCase();
   if (!needle) return [];
-  return items.filter((item) => item.name.trim().toLowerCase() === needle);
+  return items.filter(
+    (item) => item.name.trim().toLowerCase() === needle,
+  );
 };
 
 export const resolveProfitReportCatalogTarget = (
@@ -385,17 +556,28 @@ export const resolveProfitReportCatalogTarget = (
   return name ? { kind: 'product', name: row.name } : null;
 };
 
-export const hasProfitReportRowFilters = (filters: ProfitReportRowFilters) =>
+export const hasProfitReportRowFilters = (
+  filters: ProfitReportRowFilters,
+) =>
   Boolean(filters.search.trim()) ||
   filters.type !== 'all' ||
   filters.margin !== 'all' ||
   filters.sort !== 'default';
 
 const toExcelSheetName = (value: string) =>
-  value.replace(/[\\/?*[\]:]/g, ' ').trim().slice(0, 31) || 'Report';
+  value
+    .replace(/[\\/?*[\]:]/g, ' ')
+    .trim()
+    .slice(0, 31) || 'Report';
 
-const downloadWorkbook = (workbook: XLSX.WorkBook, filename: string) => {
-  const buffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+const downloadWorkbook = (
+  workbook: XLSX.WorkBook,
+  filename: string,
+) => {
+  const buffer = XLSX.write(workbook, {
+    bookType: 'xlsx',
+    type: 'array',
+  });
   const blob = new Blob([buffer], {
     type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
   });
@@ -409,7 +591,9 @@ const downloadWorkbook = (workbook: XLSX.WorkBook, filename: string) => {
   window.URL.revokeObjectURL(url);
 };
 
-export const buildProfitReportFilename = (report: FinanceProfitReport) => {
+export const buildProfitReportFilename = (
+  report: FinanceProfitReport,
+) => {
   const from = report.period.dateFrom ?? 'all-time';
   const to = report.period.dateTo ?? from;
   return `profit-report_${report.source}_${from}_${to}.xlsx`;
@@ -519,7 +703,13 @@ export const exportProfitReportWorkbook = ({
       row.count,
     ]),
     [],
-    [labels.date, labels.category, labels.amount, labels.currency, labels.note],
+    [
+      labels.date,
+      labels.category,
+      labels.amount,
+      labels.currency,
+      labels.note,
+    ],
     ...report.cash.operations.map((row) => [
       row.transactionDate.slice(0, 10),
       row.category,

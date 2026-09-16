@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { hasEmployeePermission } from '../../../../entities/employee/model/permissions';
 import type { Employee } from '../../../../entities/employee/model/types';
@@ -23,19 +23,23 @@ import {
   formatProfitMarginPct,
   getStoredProfitReportFilters,
   getStoredProfitReportVisualSettings,
+  groupProfitMarginRowsByName,
   hasCustomProfitDateRange,
   hasProfitReportRowFilters,
   isProfitLossRow,
+  isProfitLossSummary,
   profitReportMarginFilterOptions,
   profitReportPeriodOptions,
   profitReportRowSortOptions,
   profitReportSourceOptions,
   profitReportTypeFilterOptions,
   resolveProfitReportCatalogTarget,
+  sortProfitMarginGroups,
   sortProfitMarginRows,
   storeProfitReportFilters,
   storeProfitReportVisualSettings,
   summarizeProfitMarginRows,
+  type ProfitMarginNameGroup,
   type ProfitReportRowFilters,
   type ProfitReportVisualSettings,
 } from '../../model/profit-report';
@@ -92,6 +96,7 @@ export const AccountingProfitReportsView = ({
     defaultProfitReportRowFilters(),
   );
   const [selectedKeys, setSelectedKeys] = useState<string[]>([]);
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [catalogRow, setCatalogRow] = useState<ProfitMarginRow | null>(null);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(pageSizeDefault);
@@ -129,6 +134,7 @@ export const AccountingProfitReportsView = ({
 
   useEffect(() => {
     setPage(1);
+    setExpandedIds(new Set());
   }, [
     appliedRange.dateFrom,
     appliedRange.dateTo,
@@ -143,6 +149,7 @@ export const AccountingProfitReportsView = ({
 
   useEffect(() => {
     setSelectedKeys([]);
+    setExpandedIds(new Set());
     setRowFilters(defaultProfitReportRowFilters());
   }, [appliedRange.dateFrom, appliedRange.dateTo, period, source]);
 
@@ -164,10 +171,19 @@ export const AccountingProfitReportsView = ({
     [analysisRows],
   );
 
-  const pagedRows = useMemo(() => {
+  const groupedRows = useMemo(
+    () =>
+      sortProfitMarginGroups(
+        groupProfitMarginRowsByName(filteredRows),
+        rowFilters.sort,
+      ),
+    [filteredRows, rowFilters.sort],
+  );
+
+  const pagedGroups = useMemo(() => {
     const start = (page - 1) * pageSize;
-    return filteredRows.slice(start, start + pageSize);
-  }, [filteredRows, page, pageSize]);
+    return groupedRows.slice(start, start + pageSize);
+  }, [groupedRows, page, pageSize]);
 
   const dateFilterCount =
     (appliedRange.dateFrom ? 1 : 0) + (appliedRange.dateTo ? 1 : 0);
@@ -231,6 +247,233 @@ export const AccountingProfitReportsView = ({
       current.includes(key)
         ? current.filter((item) => item !== key)
         : [...current, key],
+    );
+  };
+
+  const toggleGroupSelection = (keys: string[]) => {
+    setSelectedKeys((current) => {
+      const allSelected = keys.every((key) => current.includes(key));
+      if (allSelected) return current.filter((key) => !keys.includes(key));
+      return Array.from(new Set([...current, ...keys]));
+    });
+  };
+
+  const toggleExpanded = (id: string) => {
+    setExpandedIds((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const renderName = (
+    name: string,
+    catalogSource: ProfitMarginRow | null,
+    options?: {
+      isGroup?: boolean;
+      groupId?: string;
+      expanded?: boolean;
+      groupCount?: number;
+    },
+  ) => {
+    const catalogTarget = catalogSource
+      ? resolveProfitReportCatalogTarget(catalogSource, services)
+      : null;
+    const nameNode = catalogTarget ? (
+      <CatalogCopyableName
+        name={name}
+        onOpen={() => catalogSource && openCatalog(catalogSource)}
+      />
+    ) : (
+      <CopyableValue
+        value={name}
+        className='catalog-name-cell'
+        copyLabel={t('catalog.tables.copyName')}
+        copiedLabel={t('catalog.tables.copied')}
+        failedLabel={t('catalog.tables.copyFailed')}
+      >
+        <span>{name}</span>
+      </CopyableValue>
+    );
+
+    return (
+      <span className='warehouse-name-with-qty'>
+        {options?.isGroup ? (
+          <button
+            type='button'
+            className='warehouse-expand-button'
+            aria-expanded={options.expanded === true}
+            aria-label={
+              options.expanded
+                ? t('accounting.profit.analysis.collapseGroup', { name })
+                : t('accounting.profit.analysis.expandGroup', { name })
+            }
+            onClick={() => options.groupId && toggleExpanded(options.groupId)}
+          >
+            {options.expanded ? '\u25BE' : '\u25B8'}
+          </button>
+        ) : null}
+        {nameNode}
+        {options?.isGroup && options.groupCount ? (
+          <span className='warehouse-data-badge warehouse-data-badge-location'>
+            {t('accounting.profit.analysis.groupCount', {
+              count: options.groupCount,
+            })}
+          </span>
+        ) : null}
+      </span>
+    );
+  };
+
+  const renderTypeBadge = (type: ProfitMarginNameGroup['type']) => {
+    if (type === 'mixed') {
+      return t('accounting.profit.analysis.typeAll');
+    }
+    return (
+      <span className={`finance-profit-type finance-profit-type-${type}`}>
+        {type === 'service'
+          ? t('accounting.profit.types.service')
+          : t('accounting.profit.types.product')}
+      </span>
+    );
+  };
+
+  const renderPositionRow = (row: ProfitMarginRow, className?: string) => {
+    const catalogTarget = resolveProfitReportCatalogTarget(row, services);
+    const loss = visual.highlightLosses && isProfitLossRow(row);
+    return (
+      <tr
+        key={row.key}
+        className={[
+          className,
+          loss ? 'finance-profit-row-loss' : '',
+          !row.costKnown ? 'finance-profit-row-unknown' : '',
+        ]
+          .filter(Boolean)
+          .join(' ')}
+      >
+        <td data-label=''>
+          <input
+            type='checkbox'
+            checked={selectedKeys.includes(row.key)}
+            onChange={() => toggleRow(row.key)}
+            aria-label={t('accounting.profit.analysis.selectRow', {
+              name: row.name,
+            })}
+          />
+        </td>
+        <td data-label={t('accounting.profit.table.name')}>
+          {renderName(row.name, catalogTarget ? row : null)}
+        </td>
+        <td data-label={t('accounting.profit.table.type')}>
+          {renderTypeBadge(row.type)}
+        </td>
+        <td data-label={t('accounting.profit.table.quantity')}>{row.quantity}</td>
+        <td data-label={t('accounting.profit.table.cost')}>
+          {row.costKnown ? formatMoney(row.cost, currency) : '—'}
+        </td>
+        <td data-label={t('accounting.profit.table.revenue')}>
+          {formatMoney(row.revenue, currency)}
+        </td>
+        <td
+          data-label={t('accounting.profit.table.profit')}
+          className={signedClass(row.profit)}
+        >
+          {formatMoney(row.profit, currency)}
+        </td>
+        <td
+          data-label={t('accounting.profit.table.marginPct')}
+          className={signedClass(row.marginPct)}
+        >
+          {formatProfitMarginPct(row.marginPct)}
+        </td>
+      </tr>
+    );
+  };
+
+  const renderGroup = (group: ProfitMarginNameGroup) => {
+    const canExpand = group.rows.length > 1;
+    const firstRow = group.rows[0];
+    if (!canExpand || !firstRow) {
+      return firstRow ? renderPositionRow(firstRow) : null;
+    }
+
+    const expanded = expandedIds.has(group.id);
+    const keys = group.rows.map((row) => row.key);
+    const allSelected = keys.every((key) => selectedKeys.includes(key));
+    const catalogSource =
+      group.rows.find((row) =>
+        resolveProfitReportCatalogTarget(row, services),
+      ) ?? null;
+    const loss =
+      visual.highlightLosses && isProfitLossSummary(group.summary);
+    const parent = (
+      <tr
+        key={group.id}
+        className={[
+          'warehouse-group-row',
+          loss ? 'finance-profit-row-loss' : '',
+          !group.summary.costKnown ? 'finance-profit-row-unknown' : '',
+        ]
+          .filter(Boolean)
+          .join(' ')}
+      >
+        <td data-label=''>
+          <input
+            type='checkbox'
+            checked={allSelected}
+            onChange={() => toggleGroupSelection(keys)}
+            aria-label={t('accounting.profit.analysis.selectGroup', {
+              name: group.name,
+            })}
+          />
+        </td>
+        <td data-label={t('accounting.profit.table.name')}>
+          {renderName(group.name, catalogSource, {
+            isGroup: true,
+            groupId: group.id,
+            expanded,
+            groupCount: group.rows.length,
+          })}
+        </td>
+        <td data-label={t('accounting.profit.table.type')}>
+          {renderTypeBadge(group.type)}
+        </td>
+        <td data-label={t('accounting.profit.table.quantity')}>
+          {group.summary.quantity}
+        </td>
+        <td data-label={t('accounting.profit.table.cost')}>
+          {group.summary.costKnown
+            ? formatMoney(group.summary.cost, currency)
+            : '—'}
+        </td>
+        <td data-label={t('accounting.profit.table.revenue')}>
+          {formatMoney(group.summary.revenue, currency)}
+        </td>
+        <td
+          data-label={t('accounting.profit.table.profit')}
+          className={signedClass(group.summary.profit)}
+        >
+          {formatMoney(group.summary.profit, currency)}
+        </td>
+        <td
+          data-label={t('accounting.profit.table.marginPct')}
+          className={signedClass(group.summary.marginPct)}
+        >
+          {formatProfitMarginPct(group.summary.marginPct)}
+        </td>
+      </tr>
+    );
+
+    if (!expanded) return parent;
+    return (
+      <Fragment key={group.id}>
+        {parent}
+        {group.rows.map((row) =>
+          renderPositionRow(row, 'warehouse-child-row'),
+        )}
+      </Fragment>
     );
   };
 
@@ -417,9 +660,6 @@ export const AccountingProfitReportsView = ({
             refunds: report?.cash.refunds ?? 0,
             net: report?.cash.net ?? 0,
           }}
-          onSelectName={(name) =>
-            setRowFilters((current) => ({ ...current, search: name }))
-          }
         />
       ) : null}
 
@@ -580,90 +820,14 @@ export const AccountingProfitReportsView = ({
                 </tr>
               </thead>
               <tbody>
-                {pagedRows.map((row) => {
-                  const catalogTarget = resolveProfitReportCatalogTarget(
-                    row,
-                    services,
-                  );
-                  const loss = visual.highlightLosses && isProfitLossRow(row);
-                  return (
-                    <tr
-                      key={row.key}
-                      className={[
-                        loss ? 'finance-profit-row-loss' : '',
-                        !row.costKnown ? 'finance-profit-row-unknown' : '',
-                      ]
-                        .filter(Boolean)
-                        .join(' ')}
-                    >
-                      <td data-label=''>
-                        <input
-                          type='checkbox'
-                          checked={selectedKeys.includes(row.key)}
-                          onChange={() => toggleRow(row.key)}
-                          aria-label={t('accounting.profit.analysis.selectRow', {
-                            name: row.name,
-                          })}
-                        />
-                      </td>
-                      <td data-label={t('accounting.profit.table.name')}>
-                        {catalogTarget ? (
-                          <CatalogCopyableName
-                            name={row.name}
-                            onOpen={() => openCatalog(row)}
-                          />
-                        ) : (
-                          <CopyableValue
-                            value={row.name}
-                            className='catalog-name-cell'
-                            copyLabel={t('catalog.tables.copyName')}
-                            copiedLabel={t('catalog.tables.copied')}
-                            failedLabel={t('catalog.tables.copyFailed')}
-                          >
-                            <span>{row.name}</span>
-                          </CopyableValue>
-                        )}
-                      </td>
-                      <td data-label={t('accounting.profit.table.type')}>
-                        <span
-                          className={`finance-profit-type finance-profit-type-${row.type}`}
-                        >
-                          {row.type === 'service'
-                            ? t('accounting.profit.types.service')
-                            : t('accounting.profit.types.product')}
-                        </span>
-                      </td>
-                      <td data-label={t('accounting.profit.table.quantity')}>
-                        {row.quantity}
-                      </td>
-                      <td data-label={t('accounting.profit.table.cost')}>
-                        {row.costKnown ? formatMoney(row.cost, currency) : '—'}
-                      </td>
-                      <td data-label={t('accounting.profit.table.revenue')}>
-                        {formatMoney(row.revenue, currency)}
-                      </td>
-                      <td
-                        data-label={t('accounting.profit.table.profit')}
-                        className={signedClass(row.profit)}
-                      >
-                        {formatMoney(row.profit, currency)}
-                      </td>
-                      <td
-                        data-label={t('accounting.profit.table.marginPct')}
-                        className={signedClass(row.marginPct)}
-                      >
-                        {formatProfitMarginPct(row.marginPct)}
-                      </td>
-                    </tr>
-                  );
-                })}
+                {pagedGroups.map((group) => renderGroup(group))}
               </tbody>
             </table>
           </div>
         )}
-        {filteredRows.length > 0 ? (
+        {groupedRows.length > 0 ? (
           <PaginationPanel
-            totalItems={filteredRows.length}
+            totalItems={groupedRows.length}
             page={page}
             pageSize={pageSize}
             onPageChange={setPage}
