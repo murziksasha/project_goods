@@ -12,7 +12,10 @@ import { useTranslation } from 'react-i18next';
 import type { Product } from '../../../../entities/product/model/types';
 import type { Sale } from '../../../../entities/sale/model/types';
 import { getOrderLink } from '../../../../pages/dashboard/model/dashboard-navigation';
-import { formatCurrency, formatDate } from '../../../../shared/lib/format';
+import {
+  formatCurrency,
+  formatDate,
+} from '../../../../shared/lib/format';
 import { CopyableValue } from '../../../../shared/ui/CopyableValue';
 import { SelectableActionLink } from '../../../../shared/ui/SelectableActionLink';
 import { TableSkeleton } from '../../../../shared/ui/TableSkeleton';
@@ -59,13 +62,20 @@ const TruncatedCell = ({
   const value = text.trim();
   if (!value || value === '-') return <EmptyValue />;
   return (
-    <TruncatedTextTooltip text={value} className='warehouse-cell-truncate'>
+    <TruncatedTextTooltip
+      text={value}
+      className='warehouse-cell-truncate'
+    >
       {children}
     </TruncatedTextTooltip>
   );
 };
 
-const ReceiptStatusBadge = ({ status }: { status: ReceiptStatus }) => {
+const ReceiptStatusBadge = ({
+  status,
+}: {
+  status: ReceiptStatus;
+}) => {
   const { t } = useTranslation();
   return (
     <span className={getReceiptStatusClassName(status)}>
@@ -76,7 +86,8 @@ const ReceiptStatusBadge = ({ status }: { status: ReceiptStatus }) => {
 
 const ReceiptPaymentCell = ({ receipt }: { receipt: ReceiptRow }) => {
   const { t } = useTranslation();
-  if (receipt.status === 'new' || !receipt.paymentStatus) return <EmptyValue />;
+  if (receipt.status === 'new' || !receipt.paymentStatus)
+    return <EmptyValue />;
   const label = t(
     `warehouse.tables.receipts.paymentStatus.${receipt.paymentStatus}`,
   );
@@ -94,7 +105,9 @@ const ReceiptPaymentCell = ({ receipt }: { receipt: ReceiptRow }) => {
   );
 };
 
-const isReceiptNumColumn = (columnKey: ReceiptsColumnKey | 'expand') =>
+const isReceiptNumColumn = (
+  columnKey: ReceiptsColumnKey | 'expand',
+) =>
   columnKey === 'quantity' ||
   columnKey === 'price' ||
   columnKey === 'amount' ||
@@ -150,23 +163,31 @@ export const ReceiptsTable = ({
   view,
   visibleColumns,
   onOpenOrder,
+  onOpenGroupOrder,
   onOpenProduct,
   onOpenSupplier,
   onToggleFavorite,
   canManageSupplierOrders,
 }: {
   receipts: ReceiptRow[];
-  groups?: Array<{ id: string; number: string; receipts: ReceiptRow[] }>;
+  groups?: Array<{
+    id: string;
+    number: string;
+    receipts: ReceiptRow[];
+  }>;
   view: ReceiptsViewMode;
   visibleColumns: ReceiptsColumnKey[];
   onOpenOrder: (receipt: ReceiptRow) => void;
+  onOpenGroupOrder?: (groupId: string) => void;
   onOpenProduct: (receipt: ReceiptRow) => void;
   onOpenSupplier: (receipt: ReceiptRow) => void;
   onToggleFavorite: (receipt: ReceiptRow) => void;
   canManageSupplierOrders: boolean;
 }) => {
   const { t } = useTranslation();
-  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(
+    new Set(),
+  );
 
   const toggleExpanded = (id: string) => {
     setExpandedIds((current) => {
@@ -179,7 +200,9 @@ export const ReceiptsTable = ({
 
   if (receipts.length === 0)
     return (
-      <p className='empty-state'>{t('warehouse.tables.receipts.empty')}</p>
+      <p className='empty-state'>
+        {t('warehouse.tables.receipts.empty')}
+      </p>
     );
 
   const renderLineCell = (
@@ -246,7 +269,8 @@ export const ReceiptsTable = ({
         </button>
       );
     }
-    if (columnKey === 'receiptDate') return formatDate(receipt.createdAt);
+    if (columnKey === 'receiptDate')
+      return formatDate(receipt.createdAt);
     if (columnKey === 'acceptedBy') {
       return (
         <button
@@ -283,7 +307,9 @@ export const ReceiptsTable = ({
             <tr>
               {visibleColumns.map((columnKey) => (
                 <th key={columnKey}>
-                  {t(`warehouse.tables.receipts.columns.${columnKey}`)}
+                  {t(
+                    `warehouse.tables.receipts.columns.${columnKey}`,
+                  )}
                 </th>
               ))}
             </tr>
@@ -326,6 +352,7 @@ export const ReceiptsTable = ({
     receipt: ReceiptRow,
     groupId: string,
     expanded: boolean,
+    groupNumber?: string,
   ) => {
     const first = groupReceipts[0];
     const totals = getReceiptGroupTotals(groupReceipts);
@@ -333,6 +360,8 @@ export const ReceiptsTable = ({
     const uniquePrices = Array.from(
       new Set(groupReceipts.map((item) => item.price)),
     );
+    const parentNumber =
+      groupNumber || first.orderBaseNumber || first.number;
 
     if (column === 'expand') {
       if (isChild || groupReceipts.length < 2) return null;
@@ -344,10 +373,10 @@ export const ReceiptsTable = ({
           aria-label={
             expanded
               ? t('warehouse.tables.receipts.collapseOrder', {
-                  number: first.number,
+                  number: parentNumber,
                 })
               : t('warehouse.tables.receipts.expandOrder', {
-                  number: first.number,
+                  number: parentNumber,
                 })
           }
           onClick={() => toggleExpanded(groupId)}
@@ -357,7 +386,27 @@ export const ReceiptsTable = ({
       );
     }
     if (column === 'number') {
-      if (isChild) return null;
+      if (isChild) {
+        return (
+          <div className='supplier-order-number-cell'>
+            <span
+              className='supplier-order-row-star supplier-order-row-star-placeholder'
+              aria-hidden='true'
+            />
+            <CopyableValue value={receipt.number}>
+              <button
+                type='button'
+                className='catalog-name-button warehouse-cell-truncate'
+                onClick={() => onOpenOrder(receipt)}
+              >
+                <TruncatedCell text={receipt.number}>
+                  {receipt.number}
+                </TruncatedCell>
+              </button>
+            </CopyableValue>
+          </div>
+        );
+      }
       return (
         <div className='supplier-order-number-cell'>
           <ReceiptStarButton
@@ -365,13 +414,21 @@ export const ReceiptsTable = ({
             canManageSupplierOrders={canManageSupplierOrders}
             onToggleFavorite={onToggleFavorite}
           />
-          <CopyableValue value={first.number}>
+          <CopyableValue value={parentNumber}>
             <button
               type='button'
               className='catalog-name-button warehouse-cell-truncate'
-              onClick={() => onOpenOrder(first)}
+              onClick={() => {
+                if (onOpenGroupOrder) {
+                  onOpenGroupOrder(groupId);
+                } else {
+                  onOpenOrder(first);
+                }
+              }}
             >
-              <TruncatedCell text={first.number}>{first.number}</TruncatedCell>
+              <TruncatedCell text={parentNumber}>
+                {parentNumber}
+              </TruncatedCell>
             </button>
           </CopyableValue>
         </div>
@@ -383,7 +440,9 @@ export const ReceiptsTable = ({
         <button
           type='button'
           className={`catalog-name-button warehouse-cell-truncate${
-            target.status === 'cancelled' ? ' supplier-order-item-cancelled' : ''
+            target.status === 'cancelled'
+              ? ' supplier-order-item-cancelled'
+              : ''
           }`}
           onClick={() => onOpenProduct(target)}
         >
@@ -452,7 +511,11 @@ export const ReceiptsTable = ({
     if (column === 'status') {
       return (
         <ReceiptStatusBadge
-          status={isChild ? receipt.status : getReceiptGroupStatus(groupReceipts)}
+          status={
+            isChild
+              ? receipt.status
+              : getReceiptGroupStatus(groupReceipts)
+          }
         />
       );
     }
@@ -469,12 +532,16 @@ export const ReceiptsTable = ({
               <th
                 key={columnKey}
                 className={
-                  columnKey === 'expand' ? 'warehouse-expand-cell' : undefined
+                  columnKey === 'expand'
+                    ? 'warehouse-expand-cell'
+                    : undefined
                 }
               >
                 {columnKey === 'expand'
                   ? null
-                  : t(`warehouse.tables.receipts.columns.${columnKey}`)}
+                  : t(
+                      `warehouse.tables.receipts.columns.${columnKey}`,
+                    )}
               </th>
             ))}
           </tr>
@@ -498,7 +565,9 @@ export const ReceiptsTable = ({
                     data-label={
                       columnKey === 'expand'
                         ? ''
-                        : t(`warehouse.tables.receipts.columns.${columnKey}`)
+                        : t(
+                            `warehouse.tables.receipts.columns.${columnKey}`,
+                          )
                     }
                     className={
                       columnKey === 'expand'
@@ -515,6 +584,7 @@ export const ReceiptsTable = ({
                       group.receipts[0],
                       group.id,
                       expanded,
+                      group.number,
                     )}
                   </td>
                 ))}
@@ -535,7 +605,9 @@ export const ReceiptsTable = ({
                         data-label={
                           columnKey === 'expand'
                             ? ''
-                            : t(`warehouse.tables.receipts.columns.${columnKey}`)
+                            : t(
+                                `warehouse.tables.receipts.columns.${columnKey}`,
+                              )
                         }
                         className={
                           columnKey === 'expand'
@@ -554,6 +626,7 @@ export const ReceiptsTable = ({
                           receipt,
                           group.id,
                           expanded,
+                          group.number,
                         )}
                       </td>
                     ))}
@@ -588,10 +661,7 @@ const StockRowActions = ({
       </summary>
       <div className='warehouse-row-menu-panel'>
         {onTransfer ? (
-          <button
-            type='button'
-            onClick={() => onTransfer(product)}
-          >
+          <button type='button' onClick={() => onTransfer(product)}>
             {t('warehouse.actions.transfer')}
           </button>
         ) : null}
@@ -656,11 +726,14 @@ export const StockTable = ({
   onOpenSaleCard?: (sale: Sale) => void;
 }) => {
   const { t } = useTranslation();
-  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(
+    new Set(),
+  );
   const [nameColumnWidth, setNameColumnWidth] = useState(
     readWarehouseStockNameWidth,
   );
-  const [isNameColumnResizing, setIsNameColumnResizing] = useState(false);
+  const [isNameColumnResizing, setIsNameColumnResizing] =
+    useState(false);
 
   useEffect(() => {
     writeWarehouseStockNameWidth(nameColumnWidth);
@@ -679,7 +752,9 @@ export const StockTable = ({
 
     const onMove = (moveEvent: PointerEvent) => {
       setNameColumnWidth(
-        clampWarehouseStockNameWidth(startWidth + moveEvent.clientX - startX),
+        clampWarehouseStockNameWidth(
+          startWidth + moveEvent.clientX - startX,
+        ),
       );
     };
     const onUp = () => {
@@ -694,10 +769,14 @@ export const StockTable = ({
 
   const isPageSelected =
     products.length > 0 &&
-    products.every((product) => selectedProductIds.includes(product.id));
+    products.every((product) =>
+      selectedProductIds.includes(product.id),
+    );
   const isPagePartiallySelected =
     !isPageSelected &&
-    products.some((product) => selectedProductIds.includes(product.id));
+    products.some((product) =>
+      selectedProductIds.includes(product.id),
+    );
   const selectAllRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
@@ -708,10 +787,13 @@ export const StockTable = ({
 
   const warehouseById = useMemo(
     () =>
-      warehouses.reduce<Record<string, WarehouseItem>>((acc, warehouse) => {
-        acc[warehouse.id] = warehouse;
-        return acc;
-      }, {}),
+      warehouses.reduce<Record<string, WarehouseItem>>(
+        (acc, warehouse) => {
+          acc[warehouse.id] = warehouse;
+          return acc;
+        },
+        {},
+      ),
     [warehouses],
   );
   const serviceCenterById = useMemo(
@@ -764,23 +846,32 @@ export const StockTable = ({
     },
   ) => {
     const linkedSales = salesByProductId[product.id] ?? [];
-    const linkedSupplierOrders = supplierOrdersByProductId[product.id] ?? [];
-    const supplierLabel = getStockSupplierLabel(product, linkedSupplierOrders);
-    const warehouse = warehouseById[
-      productWarehouseMetaById[product.id]?.warehouseId ?? ''
-    ];
+    const linkedSupplierOrders =
+      supplierOrdersByProductId[product.id] ?? [];
+    const supplierLabel = getStockSupplierLabel(
+      product,
+      linkedSupplierOrders,
+    );
+    const warehouse =
+      warehouseById[
+        productWarehouseMetaById[product.id]?.warehouseId ?? ''
+      ];
     const serviceCenterColor = warehouse
       ? serviceCenterById[warehouse.serviceCenterId]?.color
       : '';
-    const warehouseBadgeStyle =
-      getWarehouseBadgeAccentStyle(serviceCenterColor);
+    const warehouseBadgeStyle = getWarehouseBadgeAccentStyle(
+      serviceCenterColor,
+    );
     const meta = productWarehouseMetaById[product.id];
     const locationName = meta?.locationName ?? '';
     const warehouseName = meta?.warehouseName ?? '';
     const groupProducts = options?.groupProducts ?? [product];
-    const isGroup = options?.isGroup === true && groupProducts.length > 1;
+    const isGroup =
+      options?.isGroup === true && groupProducts.length > 1;
     const isSelected = isGroup
-      ? groupProducts.every((item) => selectedProductIds.includes(item.id))
+      ? groupProducts.every((item) =>
+          selectedProductIds.includes(item.id),
+        )
       : selectedProductIds.includes(product.id);
 
     if (columnKey === 'select') {
@@ -799,7 +890,9 @@ export const StockTable = ({
           checked={isSelected}
           onChange={() =>
             isGroup
-              ? onToggleGroupSelection(groupProducts.map((item) => item.id))
+              ? onToggleGroupSelection(
+                  groupProducts.map((item) => item.id),
+                )
               : onToggleProductSelection(product.id)
           }
         />
@@ -822,7 +915,9 @@ export const StockTable = ({
                       name: product.name,
                     })
               }
-              onClick={() => options?.groupId && toggleExpanded(options.groupId)}
+              onClick={() =>
+                options?.groupId && toggleExpanded(options.groupId)
+              }
             >
               {options?.expanded ? '\u25BE' : '\u25B8'}
             </button>
@@ -832,7 +927,9 @@ export const StockTable = ({
               className='settings-link-button warehouse-cell-truncate'
               onAction={() => onOpenModel(product)}
             >
-              <TruncatedCell text={product.name}>{product.name}</TruncatedCell>
+              <TruncatedCell text={product.name}>
+                {product.name}
+              </TruncatedCell>
             </SelectableActionLink>
           </CopyableValue>
           {isGroup ? (
@@ -866,7 +963,9 @@ export const StockTable = ({
           className='settings-link-button warehouse-cell-truncate'
           onAction={() => onOpenModel(product)}
         >
-          <TruncatedCell text={product.article}>{product.article}</TruncatedCell>
+          <TruncatedCell text={product.article}>
+            {product.article}
+          </TruncatedCell>
         </SelectableActionLink>
       );
     }
@@ -883,7 +982,10 @@ export const StockTable = ({
     }
     if (columnKey === 'purchase') {
       if (isGroup) {
-        const total = groupProducts.reduce((sum, item) => sum + item.price, 0);
+        const total = groupProducts.reduce(
+          (sum, item) => sum + item.price,
+          0,
+        );
         return (
           <span className='warehouse-purchase-stack'>
             <span>{formatCurrency(product.price)}</span>
@@ -901,7 +1003,9 @@ export const StockTable = ({
           className={[
             'warehouse-data-badge',
             'warehouse-data-badge-warehouse',
-            serviceCenterColor ? 'warehouse-data-badge-warehouse-colored' : '',
+            serviceCenterColor
+              ? 'warehouse-data-badge-warehouse-colored'
+              : '',
           ]
             .filter(Boolean)
             .join(' ')}
@@ -978,7 +1082,9 @@ export const StockTable = ({
           className='settings-link-button warehouse-cell-truncate'
           onClick={() => onEdit(product)}
         >
-          <TruncatedCell text={supplierLabel}>{supplierLabel}</TruncatedCell>
+          <TruncatedCell text={supplierLabel}>
+            {supplierLabel}
+          </TruncatedCell>
         </button>
       );
     }
@@ -992,7 +1098,9 @@ export const StockTable = ({
           title={product.note || ''}
         >
           {product.note ? (
-            <TruncatedCell text={product.note}>{product.note}</TruncatedCell>
+            <TruncatedCell text={product.note}>
+              {product.note}
+            </TruncatedCell>
           ) : (
             <EmptyValue />
           )}
@@ -1030,7 +1138,9 @@ export const StockTable = ({
         }
         className={[
           extraClass,
-          isSelected && !options?.isGroup ? 'warehouse-row-selected' : '',
+          isSelected && !options?.isGroup
+            ? 'warehouse-row-selected'
+            : '',
         ]
           .filter(Boolean)
           .join(' ')}
@@ -1095,7 +1205,9 @@ export const StockTable = ({
           'catalog-table',
           'warehouse-stock-table',
           'table-card-stack',
-          isNameColumnResizing ? 'warehouse-stock-table-resizing' : '',
+          isNameColumnResizing
+            ? 'warehouse-stock-table-resizing'
+            : '',
         ]
           .filter(Boolean)
           .join(' ')}
@@ -1138,7 +1250,9 @@ export const StockTable = ({
                     }
                     role='separator'
                     aria-orientation='vertical'
-                    aria-label={t('warehouse.tables.stock.resizeNameColumn')}
+                    aria-label={t(
+                      'warehouse.tables.stock.resizeNameColumn',
+                    )}
                     onPointerDown={startNameColumnResize}
                   />
                 ) : null}

@@ -66,7 +66,9 @@ export const RapidSaleModal = ({
 }: RapidSaleModalProps) => {
   const { t } = useTranslation();
   const warrantyOptions = getWarrantyOptions();
-  const [draftItems, setDraftItems] = useState<RapidSaleDraftItem[]>([]);
+  const [draftItems, setDraftItems] = useState<RapidSaleDraftItem[]>(
+    [],
+  );
 
   const [productQuery, setProductQuery] = useState('');
   const [productPrice, setProductPrice] = useState('');
@@ -76,9 +78,14 @@ export const RapidSaleModal = ({
   const [productWarranty, setProductWarranty] = useState('0');
   const [selectedProductId, setSelectedProductId] = useState('');
   const [selectedProductName, setSelectedProductName] = useState('');
-  const [selectedSerialNumbers, setSelectedSerialNumbers] = useState<string[]>([]);
-  const [productSuggestions, setProductSuggestions] = useState<CreateOrderProductSuggestion[]>([]);
-  const [isProductLookupLoading, setIsProductLookupLoading] = useState(false);
+  const [selectedSerialNumbers, setSelectedSerialNumbers] = useState<
+    string[]
+  >([]);
+  const [productSuggestions, setProductSuggestions] = useState<
+    CreateOrderProductSuggestion[]
+  >([]);
+  const [isProductLookupLoading, setIsProductLookupLoading] =
+    useState(false);
 
   const [serviceQuery, setServiceQuery] = useState('');
   const [servicePrice, setServicePrice] = useState('');
@@ -89,8 +96,11 @@ export const RapidSaleModal = ({
   const [selectedServiceId, setSelectedServiceId] = useState('');
   const [selectedService, setSelectedService] =
     useState<ServiceCatalogItem | null>(null);
-  const [serviceSuggestions, setServiceSuggestions] = useState<ServiceCatalogItem[]>([]);
-  const [isServiceLookupLoading, setIsServiceLookupLoading] = useState(false);
+  const [serviceSuggestions, setServiceSuggestions] = useState<
+    ServiceCatalogItem[]
+  >([]);
+  const [isServiceLookupLoading, setIsServiceLookupLoading] =
+    useState(false);
   const productSearchInputRef = useRef<HTMLInputElement>(null);
   const serviceSearchInputRef = useRef<HTMLInputElement>(null);
   const warehouseSettingsQuery = useWarehouseSettingsQuery();
@@ -114,23 +124,40 @@ export const RapidSaleModal = ({
   }, []);
 
   const warehouseFilteredProducts = useMemo(
-    () => filterProductsByWarehouse(products, selectedWarehouseId, warehouses),
+    () =>
+      filterProductsByWarehouse(
+        products,
+        selectedWarehouseId,
+        warehouses,
+      ),
     [products, selectedWarehouseId, warehouses],
   );
   const selectedStockProduct = useMemo(
     () =>
       selectedProductId
-        ? products.find((product) => product.id === selectedProductId) ?? null
+        ? (products.find(
+            (product) => product.id === selectedProductId,
+          ) ?? null)
         : null,
     [products, selectedProductId],
   );
 
-  const draftTotal = useMemo(() => getRapidSaleDraftTotal(draftItems), [draftItems]);
-  const validationErrorKey = useMemo(() => validateRapidSaleDraft(draftItems), [draftItems]);
+  const draftTotal = useMemo(
+    () => getRapidSaleDraftTotal(draftItems),
+    [draftItems],
+  );
+  const validationErrorKey = useMemo(
+    () => validateRapidSaleDraft(draftItems),
+    [draftItems],
+  );
   const visibleProductSuggestions =
-    productQuery.trim().length >= 2 && !selectedProductId ? productSuggestions : [];
+    productQuery.trim().length >= 2 && !selectedProductId
+      ? productSuggestions
+      : [];
   const visibleServiceSuggestions =
-    serviceQuery.trim().length >= 2 && !selectedServiceId ? serviceSuggestions : [];
+    serviceQuery.trim().length >= 2 && !selectedServiceId
+      ? serviceSuggestions
+      : [];
   const {
     rootRef: productSuggestionsRootRef,
     panelRef: productSuggestionsPanelRef,
@@ -215,8 +242,14 @@ export const RapidSaleModal = ({
     const timeoutId = window.setTimeout(async () => {
       setIsServiceLookupLoading(true);
       try {
-        const services = await getServiceCatalogItems(serviceQuery.trim());
-        if (isActive) setServiceSuggestions(services.slice(0, 6));
+        const services = await getServiceCatalogItems(
+          serviceQuery.trim(),
+        );
+        const activeServices = services.filter(
+          (service) => service.isActive !== false,
+        );
+        if (isActive)
+          setServiceSuggestions(activeServices.slice(0, 6));
       } catch {
         if (isActive) setServiceSuggestions([]);
       } finally {
@@ -253,13 +286,17 @@ export const RapidSaleModal = ({
     setServiceSuggestions([]);
   };
 
-  const addProductDraft = (item: Extract<RapidSaleDraftItem, { kind: 'product' }>) => {
+  const addProductDraft = (
+    item: Extract<RapidSaleDraftItem, { kind: 'product' }>,
+  ) => {
     setDraftItems((current) => [...current, item]);
     resetProductEntry();
     productSearchInputRef.current?.focus();
   };
 
-  const applyProductSuggestion = (suggestion: CreateOrderProductSuggestion) => {
+  const applyProductSuggestion = (
+    suggestion: CreateOrderProductSuggestion,
+  ) => {
     if (!suggestion.selectable) {
       onError(
         t('orders.create.errors.productCannotBeSelected', {
@@ -269,8 +306,11 @@ export const RapidSaleModal = ({
       return;
     }
 
-    const serialNumber = normalizeSerialNumber(suggestion.serialNumber);
-    const unitPrice = suggestion.price > 0 ? String(suggestion.price) : '0';
+    const serialNumber = normalizeSerialNumber(
+      suggestion.serialNumber,
+    );
+    const unitPrice =
+      suggestion.price > 0 ? String(suggestion.price) : '0';
 
     setProductQuery(suggestion.name);
     setSelectedProductId(suggestion.productId);
@@ -332,32 +372,38 @@ export const RapidSaleModal = ({
 
     let serviceId =
       selectedServiceId ||
-      findExactServiceSuggestion(serviceSuggestions, normalizedName)?.id ||
+      findExactServiceSuggestion(serviceSuggestions, normalizedName)
+        ?.id ||
       '';
     if (
       shouldCreateMissingServiceOnSubmit({
         kind: 'service',
         normalizedName,
         selectedServiceId: serviceId,
-        suggestionNames: serviceSuggestions.map((service) => service.name),
+        suggestionNames: serviceSuggestions.map(
+          (service) => service.name,
+        ),
       })
     ) {
       try {
-        const resolvedService = await resolveOrCreateServiceCatalogItem({
-          name: normalizedName,
-          lookup: getServiceCatalogItems,
-          create: () =>
-            createServiceCatalogItem(
-              buildMissingServicePayload(
-                normalizedName,
-                parseDecimalInput(servicePrice) || 0,
+        const resolvedService =
+          await resolveOrCreateServiceCatalogItem({
+            name: normalizedName,
+            lookup: getServiceCatalogItems,
+            create: () =>
+              createServiceCatalogItem(
+                buildMissingServicePayload(
+                  normalizedName,
+                  parseDecimalInput(servicePrice) || 0,
+                ),
               ),
-            ),
-        });
+          });
         serviceId = resolvedService.id;
       } catch (error) {
         onError(
-          error instanceof Error ? error.message : t('orders.rapidSale.errors.failedCreateService'),
+          error instanceof Error
+            ? error.message
+            : t('orders.rapidSale.errors.failedCreateService'),
         );
         return;
       }
@@ -381,7 +427,9 @@ export const RapidSaleModal = ({
 
   const updateDraftItemPrice = (itemId: string, price: string) => {
     setDraftItems((current) =>
-      current.map((item) => (item.id === itemId ? { ...item, price } : item)),
+      current.map((item) =>
+        item.id === itemId ? { ...item, price } : item,
+      ),
     );
   };
 
@@ -420,7 +468,12 @@ export const RapidSaleModal = ({
         return;
       }
 
-      if (event.key === 'F4' && !event.ctrlKey && !event.metaKey && !event.altKey) {
+      if (
+        event.key === 'F4' &&
+        !event.ctrlKey &&
+        !event.metaKey &&
+        !event.altKey
+      ) {
         event.preventDefault();
         if (!isSaving && !validationErrorKey) {
           void handleIssued();
@@ -429,7 +482,8 @@ export const RapidSaleModal = ({
     };
 
     document.addEventListener('keydown', handleKeyDown, true);
-    return () => document.removeEventListener('keydown', handleKeyDown, true);
+    return () =>
+      document.removeEventListener('keydown', handleKeyDown, true);
   }, [
     draftItems.length,
     isSaving,
@@ -447,16 +501,16 @@ export const RapidSaleModal = ({
       title={t('orders.rapidSale.title')}
       onClose={onClose}
       closeLabel={t('common.close')}
-      className="rapid-sale-modal"
-      bodyClassName="rapid-sale-body"
+      className='rapid-sale-modal'
+      bodyClassName='rapid-sale-body'
       closeOnBackdrop={!isSaving}
       closeOnEscape={false}
-      initialFocusSelector=".rapid-sale-field-search input"
+      initialFocusSelector='.rapid-sale-field-search input'
       footer={
         <>
           {draftItems.length > 0 ? (
-            <section className="rapid-sale-items">
-              <table className="rapid-sale-items-table">
+            <section className='rapid-sale-items'>
+              <table className='rapid-sale-items-table'>
                 <thead>
                   <tr>
                     <th>{t('common.name')}</th>
@@ -470,11 +524,12 @@ export const RapidSaleModal = ({
                     <tr key={item.id}>
                       <td>
                         {item.name}
-                        {item.kind === 'product' && item.serialNumbers?.length
+                        {item.kind === 'product' &&
+                        item.serialNumbers?.length
                           ? ` (${item.serialNumbers.join(', ')})`
                           : ''}
                       </td>
-                      <td className="rapid-sale-draft-price-cell">
+                      <td className='rapid-sale-draft-price-cell'>
                         <NumberStepper
                           min={0}
                           step={PRICE_STEPPER_STEP}
@@ -484,19 +539,21 @@ export const RapidSaleModal = ({
                             updateDraftItemPrice(item.id, nextPrice)
                           }
                           ariaLabel={`${item.name} ${t('orders.create.price')}`}
-                          placeholder="0"
+                          placeholder='0'
                           disabled={isSaving}
-                          className="line-item-inline-input rapid-sale-draft-price"
+                          className='line-item-inline-input rapid-sale-draft-price'
                         />
                       </td>
                       <td>{item.quantity}</td>
                       <td>
                         <button
-                          type="button"
-                          className="ghost-button"
+                          type='button'
+                          className='ghost-button'
                           onClick={() =>
                             setDraftItems((current) =>
-                              current.filter((draft) => draft.id !== item.id),
+                              current.filter(
+                                (draft) => draft.id !== item.id,
+                              ),
                             )
                           }
                         >
@@ -507,27 +564,31 @@ export const RapidSaleModal = ({
                   ))}
                 </tbody>
               </table>
-              <p className="rapid-sale-total">
+              <p className='rapid-sale-total'>
                 {t('orders.rapidSale.total', {
                   amount: Math.round(draftTotal * 100) / 100,
                 })}
               </p>
             </section>
           ) : null}
-          <footer className="rapid-sale-footer catalog-edit-footer">
+          <footer className='rapid-sale-footer catalog-edit-footer'>
             <p
-              className="rapid-sale-shortcuts"
+              className='rapid-sale-shortcuts'
               aria-label={t('orders.rapidSale.shortcutsLabel')}
             >
               {t('orders.rapidSale.shortcuts')}
             </p>
-            <div className="rapid-sale-footer-actions">
-              <Button variant="secondary" onClick={onClose} disabled={isSaving}>
+            <div className='rapid-sale-footer-actions'>
+              <Button
+                variant='secondary'
+                onClick={onClose}
+                disabled={isSaving}
+              >
                 {t('common.cancel')}
               </Button>
               <Button
-                variant="primary"
-                className="rapid-sale-issued-button"
+                variant='primary'
+                className='rapid-sale-issued-button'
                 disabled={isSaving || Boolean(validationErrorKey)}
                 onClick={() => void handleIssued()}
               >
@@ -540,226 +601,252 @@ export const RapidSaleModal = ({
         </>
       }
     >
-          <section className="rapid-sale-section">
-            <h3>{t('orders.rapidSale.products')}</h3>
-            <WarehouseSelectField
-              warehouses={warehouses}
-              value={selectedWarehouseId}
-              onChange={handleWarehouseChange}
-              disabled={isSaving || warehouseSettingsQuery.isLoading}
-              className="rapid-sale-warehouse-field"
-            />
-            <div className="rapid-sale-entry-row">
-              <label
-                className="field rapid-sale-field-search"
-                ref={productSuggestionsRootRef}
-              >
-                <span>{t('orders.create.productSearchPlaceholder')}</span>
-                <input
-                  ref={productSearchInputRef}
-                  value={productQuery}
-                  onChange={(event) => {
-                    setProductQuery(event.target.value);
-                    setSelectedProductId('');
-                    setSelectedProductName('');
-                    setSelectedSerialNumbers([]);
-                  }}
-                  onKeyDown={(event) => {
-                    if (event.key !== 'Enter') return;
-                    event.preventDefault();
-                    if (selectedProductId) {
-                      handleAddProduct();
-                      return;
-                    }
-                    const firstSelectable = displayedProductSuggestions.find(
-                      (suggestion) => suggestion.selectable,
-                    );
-                    if (firstSelectable) {
-                      applyProductSuggestion(firstSelectable);
-                    }
-                  }}
-                  placeholder={t('orders.create.productSearchPlaceholder')}
-                />
-              </label>
-              <ProductSalePriceField
-                label={t('orders.create.price')}
-                fieldClassName="field sale-price-field-labeled rapid-sale-price-field"
-                tierTogglePlacement="label"
-                value={productPrice}
-                onChange={setProductPrice}
-                product={selectedStockProduct}
-                priceTier={productPriceTier}
-                onPriceTierChange={setProductPriceTier}
-                step={PRICE_STEPPER_STEP}
-                precision={PRICE_STEPPER_PRECISION}
-                placeholder="0"
-                ariaLabel={t('orders.rapidSale.productPrice')}
-              />
-              <label className="field">
-                <span>{t('orders.create.qty')}</span>
-                <NumberStepper
-                  min={1}
-                  value={productQuantity}
-                  onChange={setProductQuantity}
-                  disabled={selectedSerialNumbers.length > 0}
-                  ariaLabel={t('orders.rapidSale.productQuantity')}
-                />
-              </label>
-              <label className="field">
-                <span>{t('orders.create.warranty')}</span>
-                <select
-                  value={productWarranty}
-                  onChange={(event) => setProductWarranty(event.target.value)}
-                >
-                  {warrantyOptions.map((option) => (
-                    <option key={option.value} value={String(option.value)}>
-                      {t(option.labelKey)}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <div className="field rapid-sale-entry-action">
-                <span aria-hidden="true">&nbsp;</span>
-                <button
-                  type="button"
-                  className="secondary-button rapid-sale-entry-button"
-                  aria-label={t('orders.rapidSale.addProduct')}
-                  onClick={handleAddProduct}
-                  disabled={!selectedProductId}
-                >
-                  {t('orders.rapidSale.addProduct')}
-                </button>
-              </div>
-            </div>
-            {isProductSuggestionsVisible ? (
-              <div
-                ref={productSuggestionsPanelRef}
-                className="create-suggestions rapid-sale-suggestions"
-              >
-                {isProductLookupLoading ? (
-                  <p>{t('orders.create.searchingProducts')}</p>
-                ) : null}
-                {displayedProductSuggestions.map((suggestion) => (
-                  <button
-                    key={suggestion.id}
-                    type="button"
-                    className="create-suggestion-item"
-                    aria-label={suggestion.name}
-                    disabled={!suggestion.selectable}
-                    title={suggestion.selectable ? undefined : suggestion.availabilityLabel}
-                    onClick={() => applyProductSuggestion(suggestion)}
-                  >
-                    <strong>{suggestion.name}</strong>
-                    <span>
-                      {`${suggestion.article || '-'} / ${suggestion.serialNumber || '-'} / ${suggestion.availabilityLabel}`}
-                    </span>
-                  </button>
-                ))}
-              </div>
-            ) : null}
-          </section>
-
-          <section className="rapid-sale-section">
-            <h3>{t('orders.rapidSale.services')}</h3>
-            <div className="rapid-sale-entry-row">
-              <label
-                className="field rapid-sale-field-search"
-                ref={serviceSuggestionsRootRef}
-              >
-                <span>{t('orders.rapidSale.serviceSearch')}</span>
-                <input
-                  ref={serviceSearchInputRef}
-                  value={serviceQuery}
-                  onChange={(event) => {
-                    setServiceQuery(event.target.value);
-                    setSelectedServiceId('');
-                    setSelectedService(null);
-                    setServicePriceTier(null);
-                  }}
-                  onKeyDown={(event) => {
-                    if (event.key !== 'Enter') return;
-                    event.preventDefault();
-                    if (selectedServiceId || serviceQuery.trim().length >= 2) {
-                      void handleAddService();
-                      return;
-                    }
-                    if (displayedServiceSuggestions[0]) {
-                      applyServiceSuggestion(displayedServiceSuggestions[0]);
-                    }
-                  }}
-                  placeholder={t('orders.rapidSale.serviceSearch')}
-                />
-              </label>
-              <ServiceSalePriceField
-                label={t('orders.create.price')}
-                fieldClassName="field sale-price-field-labeled rapid-sale-price-field"
-                tierTogglePlacement="label"
-                value={servicePrice}
-                onChange={setServicePrice}
-                service={
-                  selectedService ??
-                  findExactServiceSuggestion(
-                    serviceSuggestions,
-                    serviceQuery.trim(),
-                  ) ??
-                  null
+      <section className='rapid-sale-section'>
+        <h3>{t('orders.rapidSale.products')}</h3>
+        <WarehouseSelectField
+          warehouses={warehouses}
+          value={selectedWarehouseId}
+          onChange={handleWarehouseChange}
+          disabled={isSaving || warehouseSettingsQuery.isLoading}
+          className='rapid-sale-warehouse-field'
+        />
+        <div className='rapid-sale-entry-row'>
+          <label
+            className='field rapid-sale-field-search'
+            ref={productSuggestionsRootRef}
+          >
+            <span>{t('orders.create.productSearchPlaceholder')}</span>
+            <input
+              ref={productSearchInputRef}
+              value={productQuery}
+              onChange={(event) => {
+                setProductQuery(event.target.value);
+                setSelectedProductId('');
+                setSelectedProductName('');
+                setSelectedSerialNumbers([]);
+              }}
+              onKeyDown={(event) => {
+                if (event.key !== 'Enter') return;
+                event.preventDefault();
+                if (selectedProductId) {
+                  handleAddProduct();
+                  return;
                 }
-                priceTier={servicePriceTier}
-                onPriceTierChange={setServicePriceTier}
-                placeholder="0"
-                ariaLabel={t('orders.rapidSale.servicePrice')}
-              />
-              <label className="field">
-                <span>{t('orders.create.qty')}</span>
-                <NumberStepper min={1} value={serviceQuantity} onChange={setServiceQuantity} />
-              </label>
-              <label className="field">
-                <span>{t('orders.create.warranty')}</span>
-                <select
-                  value={serviceWarranty}
-                  onChange={(event) => setServiceWarranty(event.target.value)}
+                const firstSelectable =
+                  displayedProductSuggestions.find(
+                    (suggestion) => suggestion.selectable,
+                  );
+                if (firstSelectable) {
+                  applyProductSuggestion(firstSelectable);
+                }
+              }}
+              placeholder={t(
+                'orders.create.productSearchPlaceholder',
+              )}
+            />
+          </label>
+          <ProductSalePriceField
+            label={t('orders.create.price')}
+            fieldClassName='field sale-price-field-labeled rapid-sale-price-field'
+            tierTogglePlacement='label'
+            value={productPrice}
+            onChange={setProductPrice}
+            product={selectedStockProduct}
+            priceTier={productPriceTier}
+            onPriceTierChange={setProductPriceTier}
+            step={PRICE_STEPPER_STEP}
+            precision={PRICE_STEPPER_PRECISION}
+            placeholder='0'
+            ariaLabel={t('orders.rapidSale.productPrice')}
+          />
+          <label className='field'>
+            <span>{t('orders.create.qty')}</span>
+            <NumberStepper
+              min={1}
+              value={productQuantity}
+              onChange={setProductQuantity}
+              disabled={selectedSerialNumbers.length > 0}
+              ariaLabel={t('orders.rapidSale.productQuantity')}
+            />
+          </label>
+          <label className='field'>
+            <span>{t('orders.create.warranty')}</span>
+            <select
+              value={productWarranty}
+              onChange={(event) =>
+                setProductWarranty(event.target.value)
+              }
+            >
+              {warrantyOptions.map((option) => (
+                <option
+                  key={option.value}
+                  value={String(option.value)}
                 >
-                  {warrantyOptions.map((option) => (
-                    <option key={option.value} value={String(option.value)}>
-                      {t(option.labelKey)}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <div className="field rapid-sale-entry-action">
-                <span aria-hidden="true">&nbsp;</span>
-                <button
-                  type="button"
-                  className="secondary-button rapid-sale-entry-button"
-                  aria-label={t('orders.rapidSale.addService')}
-                  onClick={() => void handleAddService()}
-                >
-                  {t('orders.rapidSale.addService')}
-                </button>
-              </div>
-            </div>
-            {isServiceSuggestionsVisible ? (
-              <div
-                ref={serviceSuggestionsPanelRef}
-                className="create-suggestions rapid-sale-suggestions"
-              >
-                {isServiceLookupLoading ? (
-                  <p>{t('orders.rapidSale.searchingServices')}</p>
-                ) : null}
-                {displayedServiceSuggestions.map((service) => (
-                  <button
-                    key={service.id}
-                    type="button"
-                    className="create-suggestion-item"
-                    onClick={() => applyServiceSuggestion(service)}
-                  >
-                    <strong>{service.name}</strong>
-                    <span>{service.price}</span>
-                  </button>
-                ))}
-              </div>
+                  {t(option.labelKey)}
+                </option>
+              ))}
+            </select>
+          </label>
+          <div className='field rapid-sale-entry-action'>
+            <span aria-hidden='true'>&nbsp;</span>
+            <button
+              type='button'
+              className='secondary-button rapid-sale-entry-button'
+              aria-label={t('orders.rapidSale.addProduct')}
+              onClick={handleAddProduct}
+              disabled={!selectedProductId}
+            >
+              {t('orders.rapidSale.addProduct')}
+            </button>
+          </div>
+        </div>
+        {isProductSuggestionsVisible ? (
+          <div
+            ref={productSuggestionsPanelRef}
+            className='create-suggestions rapid-sale-suggestions'
+          >
+            {isProductLookupLoading ? (
+              <p>{t('orders.create.searchingProducts')}</p>
             ) : null}
-          </section>
+            {displayedProductSuggestions.map((suggestion) => (
+              <button
+                key={suggestion.id}
+                type='button'
+                className='create-suggestion-item'
+                aria-label={suggestion.name}
+                disabled={!suggestion.selectable}
+                title={
+                  suggestion.selectable
+                    ? undefined
+                    : suggestion.availabilityLabel
+                }
+                onClick={() => applyProductSuggestion(suggestion)}
+              >
+                <strong>{suggestion.name}</strong>
+                <span>
+                  {`${suggestion.article || '-'} / ${suggestion.serialNumber || '-'} / ${suggestion.availabilityLabel}`}
+                </span>
+              </button>
+            ))}
+          </div>
+        ) : null}
+      </section>
+
+      <section className='rapid-sale-section'>
+        <h3>{t('orders.rapidSale.services')}</h3>
+        <div className='rapid-sale-entry-row'>
+          <label
+            className='field rapid-sale-field-search'
+            ref={serviceSuggestionsRootRef}
+          >
+            <span>{t('orders.rapidSale.serviceSearch')}</span>
+            <input
+              ref={serviceSearchInputRef}
+              value={serviceQuery}
+              onChange={(event) => {
+                setServiceQuery(event.target.value);
+                setSelectedServiceId('');
+                setSelectedService(null);
+                setServicePriceTier(null);
+              }}
+              onKeyDown={(event) => {
+                if (event.key !== 'Enter') return;
+                event.preventDefault();
+                if (
+                  selectedServiceId ||
+                  serviceQuery.trim().length >= 2
+                ) {
+                  void handleAddService();
+                  return;
+                }
+                if (displayedServiceSuggestions[0]) {
+                  applyServiceSuggestion(
+                    displayedServiceSuggestions[0],
+                  );
+                }
+              }}
+              placeholder={t('orders.rapidSale.serviceSearch')}
+            />
+          </label>
+          <ServiceSalePriceField
+            label={t('orders.create.price')}
+            fieldClassName='field sale-price-field-labeled rapid-sale-price-field'
+            tierTogglePlacement='label'
+            value={servicePrice}
+            onChange={setServicePrice}
+            service={
+              selectedService ??
+              findExactServiceSuggestion(
+                serviceSuggestions,
+                serviceQuery.trim(),
+              ) ??
+              null
+            }
+            priceTier={servicePriceTier}
+            onPriceTierChange={setServicePriceTier}
+            placeholder='0'
+            ariaLabel={t('orders.rapidSale.servicePrice')}
+          />
+          <label className='field'>
+            <span>{t('orders.create.qty')}</span>
+            <NumberStepper
+              min={1}
+              value={serviceQuantity}
+              onChange={setServiceQuantity}
+            />
+          </label>
+          <label className='field'>
+            <span>{t('orders.create.warranty')}</span>
+            <select
+              value={serviceWarranty}
+              onChange={(event) =>
+                setServiceWarranty(event.target.value)
+              }
+            >
+              {warrantyOptions.map((option) => (
+                <option
+                  key={option.value}
+                  value={String(option.value)}
+                >
+                  {t(option.labelKey)}
+                </option>
+              ))}
+            </select>
+          </label>
+          <div className='field rapid-sale-entry-action'>
+            <span aria-hidden='true'>&nbsp;</span>
+            <button
+              type='button'
+              className='secondary-button rapid-sale-entry-button'
+              aria-label={t('orders.rapidSale.addService')}
+              onClick={() => void handleAddService()}
+            >
+              {t('orders.rapidSale.addService')}
+            </button>
+          </div>
+        </div>
+        {isServiceSuggestionsVisible ? (
+          <div
+            ref={serviceSuggestionsPanelRef}
+            className='create-suggestions rapid-sale-suggestions'
+          >
+            {isServiceLookupLoading ? (
+              <p>{t('orders.rapidSale.searchingServices')}</p>
+            ) : null}
+            {displayedServiceSuggestions.map((service) => (
+              <button
+                key={service.id}
+                type='button'
+                className='create-suggestion-item'
+                onClick={() => applyServiceSuggestion(service)}
+              >
+                <strong>{service.name}</strong>
+                <span>{service.price}</span>
+              </button>
+            ))}
+          </div>
+        ) : null}
+      </section>
     </Modal>
   );
 };

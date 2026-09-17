@@ -254,9 +254,14 @@ const getDeviceUsageCount = async (device: ClientDeviceDocument) => {
 };
 
 export const listClientDevices = async (queryValue: unknown) => {
-  const query = getSearchQuery(queryValue);
+  const searchQuery = getSearchQuery(queryValue);
+  const hasQuery =
+    typeof queryValue === 'string' && queryValue.trim().length > 0;
+  const dbQuery = hasQuery
+    ? { $and: [searchQuery, { isActive: { $ne: false } }] }
+    : searchQuery;
   const [devices, sales] = await Promise.all([
-    ClientDevice.find(query)
+    ClientDevice.find(dbQuery)
       .sort({ createdAt: -1 })
       .lean<ClientDeviceDocument[]>(),
     loadSalesForDeviceUsage(),

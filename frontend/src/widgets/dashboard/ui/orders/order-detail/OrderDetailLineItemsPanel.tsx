@@ -1,4 +1,10 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Sale } from '../../../../../entities/sale/model/types';
 import {
@@ -77,7 +83,10 @@ import {
   resolveOrCreateServiceCatalogItem,
   shouldCreateMissingServiceOnSubmit,
 } from '../../../model/missingService';
-import { queryClient, queryKeys } from '../../../../../shared/api/queryClient';
+import {
+  queryClient,
+  queryKeys,
+} from '../../../../../shared/api/queryClient';
 import { canRemoveLineItemAfterPayment } from '../../../model/line-item-ops';
 import {
   getGroupedLinePriceSummary,
@@ -119,7 +128,10 @@ export type OrderDetailLineItemsPanelProps = {
   supplierOrders?: SupplierOrder[];
   printForms: PrintForm[];
   catalogProducts: CatalogProduct[];
-  onOpenSupplierOrder?: (supplierOrderId: string, itemIndex: number) => void;
+  onOpenSupplierOrder?: (
+    supplierOrderId: string,
+    itemIndex: number,
+  ) => void;
   onAddItem: (item: Omit<OrderLineItem, 'id'>) => void;
   onReplaceItem: (
     itemId: string,
@@ -207,12 +219,10 @@ export const OrderDetailLineItemsPanel = ({
   >({});
   const [servicePriceTier, setServicePriceTier] =
     useState<ServiceSalePriceTier | null>(null);
-  const [servicePriceTierByItemId, setServicePriceTierByItemId] = useState<
-    Record<string, ServiceSalePriceTier | null>
-  >({});
-  const [entryService, setEntryService] = useState<ServiceCatalogItem | null>(
-    null,
-  );
+  const [servicePriceTierByItemId, setServicePriceTierByItemId] =
+    useState<Record<string, ServiceSalePriceTier | null>>({});
+  const [entryService, setEntryService] =
+    useState<ServiceCatalogItem | null>(null);
   const [catalogServicesById, setCatalogServicesById] = useState<
     Record<string, ServiceCatalogItem>
   >({});
@@ -284,8 +294,10 @@ export const OrderDetailLineItemsPanel = ({
   );
   const [isCreateServiceSaving, setIsCreateServiceSaving] =
     useState(false);
-  const [pendingMissingServiceItemId, setPendingMissingServiceItemId] =
-    useState<string | null>(null);
+  const [
+    pendingMissingServiceItemId,
+    setPendingMissingServiceItemId,
+  ] = useState<string | null>(null);
   const [serialsEditingItem, setSerialsEditingItem] =
     useState<OrderLineItem | null>(null);
   const [serialBindWarehouses, setSerialBindWarehouses] = useState<
@@ -319,8 +331,10 @@ export const OrderDetailLineItemsPanel = ({
   const [isSuppliersLoading, setIsSuppliersLoading] = useState(false);
   const [availableSerialProducts, setAvailableSerialProducts] =
     useState<Product[]>([]);
-  const [occupiedSerialsOnOtherSales, setOccupiedSerialsOnOtherSales] =
-    useState<Set<string>>(() => new Set());
+  const [
+    occupiedSerialsOnOtherSales,
+    setOccupiedSerialsOnOtherSales,
+  ] = useState<Set<string>>(() => new Set());
   const [isSerialLookupLoading, setIsSerialLookupLoading] =
     useState(false);
   const [productModelContext, setProductModelContext] = useState<{
@@ -398,7 +412,11 @@ export const OrderDetailLineItemsPanel = ({
         const hasNewItem = group.items.some(
           (item) => item.id && !previousIds.has(item.id),
         );
-        if (hasNewItem && previousIds.size > 0 && !next.has(group.key)) {
+        if (
+          hasNewItem &&
+          previousIds.size > 0 &&
+          !next.has(group.key)
+        ) {
           next.add(group.key);
           changed = true;
         }
@@ -408,7 +426,11 @@ export const OrderDetailLineItemsPanel = ({
     previousItemIdsRef.current = items.map((item) => item.id);
   }, [currentSaleId, isProductKind, items, lineItemGroups]);
   const lastVisibleItemId = useMemo(() => {
-    for (let index = lineItemGroups.length - 1; index >= 0; index -= 1) {
+    for (
+      let index = lineItemGroups.length - 1;
+      index >= 0;
+      index -= 1
+    ) {
       const group = lineItemGroups[index];
       const isGrouped = isProductKind && group.items.length >= 2;
       const isExpanded =
@@ -455,7 +477,10 @@ export const OrderDetailLineItemsPanel = ({
 
     items.forEach((lineItem) => {
       if (lineItem.kind !== 'product') return;
-      if (serialsEditingItem && lineItem.id === serialsEditingItem.id) {
+      if (
+        serialsEditingItem &&
+        lineItem.id === serialsEditingItem.id
+      ) {
         return;
       }
 
@@ -528,7 +553,10 @@ export const OrderDetailLineItemsPanel = ({
   const openSupplierOrderModalForSerialItem = async () => {
     if (!serialsEditingItem) return;
     const productName = serialsEditingItem.name.trim();
-    const quantity = Math.max(1, Math.floor(serialsEditingItem.quantity));
+    const quantity = Math.max(
+      1,
+      Math.floor(serialsEditingItem.quantity),
+    );
     // Close serial bind first so nested scroll locks cannot leave table overflow stuck.
     setSerialsEditingItem(null);
     setIsSuppliersLoading(true);
@@ -792,7 +820,9 @@ export const OrderDetailLineItemsPanel = ({
         });
 
         const candidateSerials = filtered
-          .map((product) => normalizeSerialNumber(product.serialNumber))
+          .map((product) =>
+            normalizeSerialNumber(product.serialNumber),
+          )
           .filter(Boolean);
         let occupiedFromOtherSales: string[] = [];
         let occupancyFailed = false;
@@ -809,7 +839,9 @@ export const OrderDetailLineItemsPanel = ({
         if (!isActive) return;
 
         const occupiedOnOtherSales = new Set(
-          occupiedFromOtherSales.map(normalizeSerialNumber).filter(Boolean),
+          occupiedFromOtherSales
+            .map(normalizeSerialNumber)
+            .filter(Boolean),
         );
         if (occupancyFailed) {
           sales.forEach((candidateSale) => {
@@ -824,7 +856,9 @@ export const OrderDetailLineItemsPanel = ({
               (lineItem.serialNumbers ?? [])
                 .map(normalizeSerialNumber)
                 .filter(Boolean)
-                .forEach((serial) => occupiedOnOtherSales.add(serial));
+                .forEach((serial) =>
+                  occupiedOnOtherSales.add(serial),
+                );
             });
           });
         }
@@ -867,7 +901,13 @@ export const OrderDetailLineItemsPanel = ({
     return () => {
       isActive = false;
     };
-  }, [currentSaleId, isProductKind, items, sales, serialsEditingItem]);
+  }, [
+    currentSaleId,
+    isProductKind,
+    items,
+    sales,
+    serialsEditingItem,
+  ]);
 
   useEffect(() => {
     setWarrantyPeriod(kind === 'service' ? '1' : '0');
@@ -975,7 +1015,11 @@ export const OrderDetailLineItemsPanel = ({
         const services = await getServiceCatalogItems(
           serviceLookupQuery,
         );
-        if (isActive) setServiceSuggestions(services.slice(0, 6));
+        const activeServices = services.filter(
+          (service) => service.isActive !== false,
+        );
+        if (isActive)
+          setServiceSuggestions(activeServices.slice(0, 6));
       } catch {
         if (isActive) setServiceSuggestions([]);
       } finally {
@@ -1016,7 +1060,8 @@ export const OrderDetailLineItemsPanel = ({
     const missingItems = items.filter((item) => {
       const serviceId = item.serviceId;
       if (!serviceId) return false;
-      if (requestedCatalogServiceIdsRef.current.has(serviceId)) return false;
+      if (requestedCatalogServiceIdsRef.current.has(serviceId))
+        return false;
       return true;
     });
     if (missingItems.length === 0) return;
@@ -1036,7 +1081,9 @@ export const OrderDetailLineItemsPanel = ({
           if (!isActive) return;
           const match =
             (item.serviceId
-              ? services.find((candidate) => candidate.id === item.serviceId)
+              ? services.find(
+                  (candidate) => candidate.id === item.serviceId,
+                )
               : undefined) ??
             findExactServiceSuggestion(services, item.name) ??
             null;
@@ -1048,12 +1095,17 @@ export const OrderDetailLineItemsPanel = ({
           }
         } catch {
           if (item.serviceId) {
-            requestedCatalogServiceIdsRef.current.delete(item.serviceId);
+            requestedCatalogServiceIdsRef.current.delete(
+              item.serviceId,
+            );
           }
         }
       }
       if (!isActive || Object.keys(nextEntries).length === 0) return;
-      setCatalogServicesById((current) => ({ ...current, ...nextEntries }));
+      setCatalogServicesById((current) => ({
+        ...current,
+        ...nextEntries,
+      }));
     })();
 
     return () => {
@@ -1161,7 +1213,9 @@ export const OrderDetailLineItemsPanel = ({
         lookup: getServiceCatalogItems,
         create: () => createServiceCatalogItem(createServiceForm),
       });
-      await queryClient.invalidateQueries({ queryKey: queryKeys.services });
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.services,
+      });
       if (pendingMissingServiceItemId) {
         onUpdateItem(pendingMissingServiceItemId, undefined, {
           name: createdService.name,
@@ -1212,7 +1266,9 @@ export const OrderDetailLineItemsPanel = ({
       const services = await getServiceCatalogItems(item.name);
       const service =
         (item.serviceId
-          ? services.find((candidate) => candidate.id === item.serviceId)
+          ? services.find(
+              (candidate) => candidate.id === item.serviceId,
+            )
           : undefined) ??
         findExactServiceSuggestion(services, item.name) ??
         null;
@@ -1247,7 +1303,9 @@ export const OrderDetailLineItemsPanel = ({
         selectedService.id,
         serviceForm,
       );
-      await queryClient.invalidateQueries({ queryKey: queryKeys.services });
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.services,
+      });
       setSelectedService(updatedService);
       setServiceForm(toServiceCatalogForm(updatedService));
       rememberCatalogService(updatedService);
@@ -1291,7 +1349,10 @@ export const OrderDetailLineItemsPanel = ({
     let nextServiceId =
       kind === 'service'
         ? (selectedServiceId ??
-          findExactServiceSuggestion(serviceSuggestions, normalizedName)?.id)
+          findExactServiceSuggestion(
+            serviceSuggestions,
+            normalizedName,
+          )?.id)
         : undefined;
 
     if (
@@ -1305,15 +1366,21 @@ export const OrderDetailLineItemsPanel = ({
       })
     ) {
       try {
-        const createdService = await resolveOrCreateServiceCatalogItem({
-          name: normalizedName,
-          lookup: getServiceCatalogItems,
-          create: () =>
-            createServiceCatalogItem(
-              buildMissingServicePayload(normalizedName, normalizedPrice),
-            ),
+        const createdService =
+          await resolveOrCreateServiceCatalogItem({
+            name: normalizedName,
+            lookup: getServiceCatalogItems,
+            create: () =>
+              createServiceCatalogItem(
+                buildMissingServicePayload(
+                  normalizedName,
+                  normalizedPrice,
+                ),
+              ),
+          });
+        await queryClient.invalidateQueries({
+          queryKey: queryKeys.services,
         });
-        await queryClient.invalidateQueries({ queryKey: queryKeys.services });
         nextServiceId = createdService.id;
         setServiceSuggestions([createdService]);
         onSuccess(t('orders.messages.success.serviceSaved'));
@@ -1399,24 +1466,34 @@ export const OrderDetailLineItemsPanel = ({
     setServiceSuggestions([]);
     setProductSuggestions([]);
   };
-  const commitLineItemPrice = useCallback((itemId: string, value: string) => {
-    const item = itemsRef.current.find((lineItem) => lineItem.id === itemId);
-    if (!item || value === '') return;
-    const parsedPrice = parseDecimal(value);
-    if (!Number.isFinite(parsedPrice)) return;
-    const nextPrice = Math.round(parsedPrice * 100) / 100;
-    if (nextPrice === item.price) return;
-    onUpdateItemRef.current(itemId, undefined, { price: nextPrice });
-  }, []);
+  const commitLineItemPrice = useCallback(
+    (itemId: string, value: string) => {
+      const item = itemsRef.current.find(
+        (lineItem) => lineItem.id === itemId,
+      );
+      if (!item || value === '') return;
+      const parsedPrice = parseDecimal(value);
+      if (!Number.isFinite(parsedPrice)) return;
+      const nextPrice = Math.round(parsedPrice * 100) / 100;
+      if (nextPrice === item.price) return;
+      onUpdateItemRef.current(itemId, undefined, {
+        price: nextPrice,
+      });
+    },
+    [],
+  );
 
-  const flushLineItemPrice = useCallback((itemId: string, value: string) => {
-    const timer = priceCommitTimersRef.current[itemId];
-    if (timer) {
-      clearTimeout(timer);
-      delete priceCommitTimersRef.current[itemId];
-    }
-    commitLineItemPrice(itemId, value);
-  }, [commitLineItemPrice]);
+  const flushLineItemPrice = useCallback(
+    (itemId: string, value: string) => {
+      const timer = priceCommitTimersRef.current[itemId];
+      if (timer) {
+        clearTimeout(timer);
+        delete priceCommitTimersRef.current[itemId];
+      }
+      commitLineItemPrice(itemId, value);
+    },
+    [commitLineItemPrice],
+  );
 
   const handleLineItemPriceChange = useCallback(
     (item: OrderLineItem, value: string, commitNow = false) => {
@@ -1477,7 +1554,8 @@ export const OrderDetailLineItemsPanel = ({
       value: string,
       tier: ServiceSalePriceTier | null,
     ): ServiceSalePriceTier | null => {
-      if (!service || !hasServiceWholesaleSalePrice(service)) return null;
+      if (!service || !hasServiceWholesaleSalePrice(service))
+        return null;
       if (tier && matchesServiceSalePriceTier(service, value, tier))
         return tier;
       if (matchesServiceSalePriceTier(service, value, 'wholesale1')) {
@@ -1499,7 +1577,8 @@ export const OrderDetailLineItemsPanel = ({
       return catalogServicesById[selectedServiceId];
     }
     return (
-      findExactServiceSuggestion(serviceSuggestions, name.trim()) ?? null
+      findExactServiceSuggestion(serviceSuggestions, name.trim()) ??
+      null
     );
   }, [
     catalogServicesById,
@@ -1577,9 +1656,11 @@ export const OrderDetailLineItemsPanel = ({
   ]);
   const showPriceHeaderTierToggle = Boolean(
     activePriceHeaderTarget &&
-      (activePriceHeaderTarget.kind === 'product'
-        ? hasWholesaleSalePrice(activePriceHeaderTarget.product)
-        : hasServiceWholesaleSalePrice(activePriceHeaderTarget.service)),
+    (activePriceHeaderTarget.kind === 'product'
+      ? hasWholesaleSalePrice(activePriceHeaderTarget.product)
+      : hasServiceWholesaleSalePrice(
+          activePriceHeaderTarget.service,
+        )),
   );
   const priceHeaderActiveTier = useMemo(() => {
     if (activePriceHeaderTarget?.kind !== 'product') return null;
@@ -1603,7 +1684,10 @@ export const OrderDetailLineItemsPanel = ({
     if (activePriceHeaderTarget?.kind !== 'product') return;
 
     const nextPrice = formatProductSalePrice(
-      getProductSalePriceByTier(activePriceHeaderTarget.product, tier),
+      getProductSalePriceByTier(
+        activePriceHeaderTarget.product,
+        tier,
+      ),
     );
 
     if (activePriceHeaderTarget.itemId === null) {
@@ -1627,7 +1711,10 @@ export const OrderDetailLineItemsPanel = ({
     if (activePriceHeaderTarget?.kind !== 'service') return;
 
     const nextPrice = formatServiceSalePrice(
-      getServiceSalePriceByTier(activePriceHeaderTarget.service, tier),
+      getServiceSalePriceByTier(
+        activePriceHeaderTarget.service,
+        tier,
+      ),
     );
 
     if (activePriceHeaderTarget.itemId === null) {
@@ -1699,7 +1786,8 @@ export const OrderDetailLineItemsPanel = ({
           </div>
         ) : (
           lineItemGroups.flatMap((group) => {
-            const isGrouped = isProductKind && group.items.length >= 2;
+            const isGrouped =
+              isProductKind && group.items.length >= 2;
             const isExpanded =
               !isGrouped || expandedGroupKeys.has(group.key);
             const groupPriceSummary = isGrouped
@@ -1770,352 +1858,394 @@ export const OrderDetailLineItemsPanel = ({
             ) : null;
             const rows = isExpanded
               ? group.items.map((item, itemIndex) => {
-            const isLastRow = item.id === lastVisibleItemId;
-            const lastRowClass = isLastRow
-              ? 'order-detail-table-last-row'
-              : '';
-            return (
-              <div
-                key={`${item.id || 'line-item'}-${group.key}-${itemIndex}`}
-                className='order-detail-table-row'
-              >
-                <div
-                  key={`${item.id}-name`}
-                  className={lastRowClass || undefined}
-                  data-label={t('orders.detail.lineItems.name')}
-                >
-                  <button
-                    type='button'
-                    className='order-line-item-name-button'
-                    onClick={() => void openLineItemModal(item)}
-                    disabled={isReadOnly}
-                  >
-                    {item.name}
-                  </button>
-                </div>
-                {showSerialColumn ? (
-                  <div
-                    key={`${item.id}-serial`}
-                    className={`order-line-item-serial-cell${lastRowClass ? ` ${lastRowClass}` : ''}`}
-                    data-label={t(
-                      'orders.detail.lineItems.serialNumber',
-                    )}
-                  >
-                    {item.kind === 'product' &&
-                    (item.serialNumbers ?? []).length > 0 ? (
-                      <p className='muted-copy order-line-item-serials'>
-                        {(item.serialNumbers ?? []).map((serial) => {
-                          const normalizedSerial =
-                            normalizeSerialNumber(serial);
-                          const serialProduct =
-                            productsBySerial.get(normalizedSerial);
-                          if (!serialProduct) {
-                            return <span key={serial}>{serial}</span>;
-                          }
-
-                          return (
-                            <button
-                              key={serial}
-                              type='button'
-                              className='order-line-item-serial-button'
-                              onClick={() =>
-                                void openProductModelModal(
-                                  serialProduct.name,
-                                  serialProduct,
-                                )
-                              }
-                            >
-                              {serial}
-                            </button>
-                          );
-                        })}
-                      </p>
-                    ) : (
-                      <span className='muted-copy'>-</span>
-                    )}
-                  </div>
-                ) : null}
-                <div
-                  key={`${item.id}-price`}
-                  className={`order-line-item-price-cell${lastRowClass ? ` ${lastRowClass}` : ''}`}
-                  data-label={t('orders.detail.lineItems.price')}
-                >
-                  <NumberStepper
-                    className='line-item-inline-input'
-                    min={0}
-                    step={PRICE_STEPPER_STEP}
-                    precision={PRICE_STEPPER_PRECISION}
-                    value={priceDrafts[item.id] ?? String(item.price)}
-                    onChange={(value) =>
-                      handleLineItemPriceChange(item, value)
-                    }
-                    onFocus={() => setActivePriceContext(item.id)}
-                    onBlur={(event) =>
-                      flushLineItemPrice(item.id, event.currentTarget.value)
-                    }
-                    disabled={isReadOnly}
-                    ariaLabel={t('orders.detail.lineItems.price')}
-                  />
-                </div>
-                <div
-                  key={`${item.id}-qty`}
-                  className={lastRowClass || undefined}
-                  data-label={t('orders.detail.lineItems.qty')}
-                >
-                  <NumberStepper
-                    className='line-item-inline-input'
-                    min={1}
-                    value={String(item.quantity)}
-                    onChange={(value) => {
-                      if (
-                        item.kind === 'product' &&
-                        (item.serialNumbers ?? []).length > 0
-                      ) {
-                        onError(
-                          t(
-                            'orders.messages.errors.oneSerialPerLine',
-                          ),
-                        );
-                        return;
-                      }
-                      onUpdateItem(item.id, undefined, {
-                        quantity: Math.max(1, Number(value) || 1),
-                      });
-                    }}
-                    disabled={
-                      isReadOnly ||
-                      (item.kind === 'product' &&
-                        (item.serialNumbers ?? []).length > 0)
-                    }
-                  />
-                </div>
-                <div
-                  key={`${item.id}-warranty`}
-                  className={lastRowClass || undefined}
-                  data-label={t('orders.detail.lineItems.warranty')}
-                >
-                  <select
-                    className='line-item-inline-input'
-                    value={item.warrantyPeriod}
-                    onChange={(event) =>
-                      onUpdateItem(item.id, undefined, {
-                        warrantyPeriod: Number(event.target.value),
-                      })
-                    }
-                    disabled={isReadOnly}
-                  >
-                    {warrantyOptions.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {t(option.labelKey)}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div
-                  key={`${item.id}-action`}
-                  className={`order-line-item-action-cell${lastRowClass ? ` ${lastRowClass}` : ''}`}
-                  data-label={t('orders.detail.lineItems.action')}
-                >
-                  {(() => {
-                    const isProduct = item.kind === 'product';
-                    const hasBoundSerials =
-                      (item.serialNumbers ?? []).length > 0;
-                    const canDirectRemove =
-                      canDirectRemoveProductItem(item);
-                    const canReturnIssued =
-                      canReturnIssuedProductItem(item);
-                    const canRemoveService =
-                      canRemoveServiceItem(item);
-                    const canOpenSerials =
-                      !isReadOnly || hasBoundSerials;
-                    const actionDisabled = isProduct
-                      ? !canDirectRemove && !canReturnIssued
-                      : !canRemoveService;
-                    const actionLabel = isProduct
-                      ? canReturnIssued
-                        ? t('orders.detail.lineItems.return')
-                        : t('orders.detail.lineItems.remove')
-                      : t('orders.detail.lineItems.remove');
-                    const actionBlockedReason =
-                      isProduct && actionDisabled
-                        ? getProductActionBlockedReason(item)
-                        : !isProduct && actionDisabled
-                          ? isReadOnly
-                            ? t(
-                                'orders.messages.errors.editingBlocked',
-                              )
-                            : t(
-                                'orders.messages.errors.refundBeforeRemoveItem',
-                              )
-                          : '';
-                    return (
-                      <>
-                        {item.kind === 'product' ? (
-                          <button
-                            type='button'
-                            className='line-item-serials-button'
-                            onClick={() => {
-                              setSerialsEditingItem(item);
-                            }}
-                            disabled={!canOpenSerials}
-                            title={
-                              canOpenSerials
-                                ? undefined
-                                : t(
-                                    'orders.messages.errors.editingBlocked',
-                                  )
-                            }
-                          >
-                            <span>
-                              {t('orders.detail.lineItems.serials')}
-                            </span>
-                            <span className='line-item-serials-count'>
-                              {`${(item.serialNumbers ?? []).length}/${item.quantity}`}
-                            </span>
-                          </button>
-                        ) : null}
+                  const isLastRow = item.id === lastVisibleItemId;
+                  const lastRowClass = isLastRow
+                    ? 'order-detail-table-last-row'
+                    : '';
+                  return (
+                    <div
+                      key={`${item.id || 'line-item'}-${group.key}-${itemIndex}`}
+                      className='order-detail-table-row'
+                    >
+                      <div
+                        key={`${item.id}-name`}
+                        className={lastRowClass || undefined}
+                        data-label={t('orders.detail.lineItems.name')}
+                      >
                         <button
                           type='button'
-                          className='line-item-remove-button'
-                          onClick={() =>
-                            isProduct
-                              ? canDirectRemove
-                                ? onRemoveItem(item.id, undefined)
-                                : onReturnItem(item)
-                              : onRemoveItem(item.id, undefined)
-                          }
-                          disabled={actionDisabled}
-                          title={actionBlockedReason || undefined}
+                          className='order-line-item-name-button'
+                          onClick={() => void openLineItemModal(item)}
+                          disabled={isReadOnly}
                         >
-                          {actionLabel}
+                          {item.name}
                         </button>
-                      </>
-                    );
-                  })()}
-                </div>
-              </div>
-            );
-              })
+                      </div>
+                      {showSerialColumn ? (
+                        <div
+                          key={`${item.id}-serial`}
+                          className={`order-line-item-serial-cell${lastRowClass ? ` ${lastRowClass}` : ''}`}
+                          data-label={t(
+                            'orders.detail.lineItems.serialNumber',
+                          )}
+                        >
+                          {item.kind === 'product' &&
+                          (item.serialNumbers ?? []).length > 0 ? (
+                            <p className='muted-copy order-line-item-serials'>
+                              {(item.serialNumbers ?? []).map(
+                                (serial) => {
+                                  const normalizedSerial =
+                                    normalizeSerialNumber(serial);
+                                  const serialProduct =
+                                    productsBySerial.get(
+                                      normalizedSerial,
+                                    );
+                                  if (!serialProduct) {
+                                    return (
+                                      <span key={serial}>
+                                        {serial}
+                                      </span>
+                                    );
+                                  }
+
+                                  return (
+                                    <button
+                                      key={serial}
+                                      type='button'
+                                      className='order-line-item-serial-button'
+                                      onClick={() =>
+                                        void openProductModelModal(
+                                          serialProduct.name,
+                                          serialProduct,
+                                        )
+                                      }
+                                    >
+                                      {serial}
+                                    </button>
+                                  );
+                                },
+                              )}
+                            </p>
+                          ) : (
+                            <span className='muted-copy'>-</span>
+                          )}
+                        </div>
+                      ) : null}
+                      <div
+                        key={`${item.id}-price`}
+                        className={`order-line-item-price-cell${lastRowClass ? ` ${lastRowClass}` : ''}`}
+                        data-label={t(
+                          'orders.detail.lineItems.price',
+                        )}
+                      >
+                        <NumberStepper
+                          className='line-item-inline-input'
+                          min={0}
+                          step={PRICE_STEPPER_STEP}
+                          precision={PRICE_STEPPER_PRECISION}
+                          value={
+                            priceDrafts[item.id] ?? String(item.price)
+                          }
+                          onChange={(value) =>
+                            handleLineItemPriceChange(item, value)
+                          }
+                          onFocus={() =>
+                            setActivePriceContext(item.id)
+                          }
+                          onBlur={(event) =>
+                            flushLineItemPrice(
+                              item.id,
+                              event.currentTarget.value,
+                            )
+                          }
+                          disabled={isReadOnly}
+                          ariaLabel={t(
+                            'orders.detail.lineItems.price',
+                          )}
+                        />
+                      </div>
+                      <div
+                        key={`${item.id}-qty`}
+                        className={lastRowClass || undefined}
+                        data-label={t('orders.detail.lineItems.qty')}
+                      >
+                        <NumberStepper
+                          className='line-item-inline-input'
+                          min={1}
+                          value={String(item.quantity)}
+                          onChange={(value) => {
+                            if (
+                              item.kind === 'product' &&
+                              (item.serialNumbers ?? []).length > 0
+                            ) {
+                              onError(
+                                t(
+                                  'orders.messages.errors.oneSerialPerLine',
+                                ),
+                              );
+                              return;
+                            }
+                            onUpdateItem(item.id, undefined, {
+                              quantity: Math.max(
+                                1,
+                                Number(value) || 1,
+                              ),
+                            });
+                          }}
+                          disabled={
+                            isReadOnly ||
+                            (item.kind === 'product' &&
+                              (item.serialNumbers ?? []).length > 0)
+                          }
+                        />
+                      </div>
+                      <div
+                        key={`${item.id}-warranty`}
+                        className={lastRowClass || undefined}
+                        data-label={t(
+                          'orders.detail.lineItems.warranty',
+                        )}
+                      >
+                        <select
+                          className='line-item-inline-input'
+                          value={item.warrantyPeriod}
+                          onChange={(event) =>
+                            onUpdateItem(item.id, undefined, {
+                              warrantyPeriod: Number(
+                                event.target.value,
+                              ),
+                            })
+                          }
+                          disabled={isReadOnly}
+                        >
+                          {warrantyOptions.map((option) => (
+                            <option
+                              key={option.value}
+                              value={option.value}
+                            >
+                              {t(option.labelKey)}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div
+                        key={`${item.id}-action`}
+                        className={`order-line-item-action-cell${lastRowClass ? ` ${lastRowClass}` : ''}`}
+                        data-label={t(
+                          'orders.detail.lineItems.action',
+                        )}
+                      >
+                        {(() => {
+                          const isProduct = item.kind === 'product';
+                          const hasBoundSerials =
+                            (item.serialNumbers ?? []).length > 0;
+                          const canDirectRemove =
+                            canDirectRemoveProductItem(item);
+                          const canReturnIssued =
+                            canReturnIssuedProductItem(item);
+                          const canRemoveService =
+                            canRemoveServiceItem(item);
+                          const canOpenSerials =
+                            !isReadOnly || hasBoundSerials;
+                          const actionDisabled = isProduct
+                            ? !canDirectRemove && !canReturnIssued
+                            : !canRemoveService;
+                          const actionLabel = isProduct
+                            ? canReturnIssued
+                              ? t('orders.detail.lineItems.return')
+                              : t('orders.detail.lineItems.remove')
+                            : t('orders.detail.lineItems.remove');
+                          const actionBlockedReason =
+                            isProduct && actionDisabled
+                              ? getProductActionBlockedReason(item)
+                              : !isProduct && actionDisabled
+                                ? isReadOnly
+                                  ? t(
+                                      'orders.messages.errors.editingBlocked',
+                                    )
+                                  : t(
+                                      'orders.messages.errors.refundBeforeRemoveItem',
+                                    )
+                                : '';
+                          return (
+                            <>
+                              {item.kind === 'product' ? (
+                                <button
+                                  type='button'
+                                  className='line-item-serials-button'
+                                  onClick={() => {
+                                    setSerialsEditingItem(item);
+                                  }}
+                                  disabled={!canOpenSerials}
+                                  title={
+                                    canOpenSerials
+                                      ? undefined
+                                      : t(
+                                          'orders.messages.errors.editingBlocked',
+                                        )
+                                  }
+                                >
+                                  <span>
+                                    {t(
+                                      'orders.detail.lineItems.serials',
+                                    )}
+                                  </span>
+                                  <span className='line-item-serials-count'>
+                                    {`${(item.serialNumbers ?? []).length}/${item.quantity}`}
+                                  </span>
+                                </button>
+                              ) : null}
+                              <button
+                                type='button'
+                                className='line-item-remove-button'
+                                onClick={() =>
+                                  isProduct
+                                    ? canDirectRemove
+                                      ? onRemoveItem(
+                                          item.id,
+                                          undefined,
+                                        )
+                                      : onReturnItem(item)
+                                    : onRemoveItem(item.id, undefined)
+                                }
+                                disabled={actionDisabled}
+                                title={
+                                  actionBlockedReason || undefined
+                                }
+                              >
+                                {actionLabel}
+                              </button>
+                            </>
+                          );
+                        })()}
+                      </div>
+                    </div>
+                  );
+                })
               : [];
             return header ? [header, ...rows] : rows;
           })
         )}
         {isReadOnly ? null : (
-        <div className='order-detail-table-entry-row'>
-          <div
-            className='order-line-item-name-entry order-detail-table-entry-cell'
-            data-label={t('orders.detail.lineItems.name')}
-            ref={lineItemSuggestionsRootRef}
-          >
-            <input
-              className='line-item-inline-input'
-              value={name}
-              onChange={(event) => {
-                setName(event.target.value);
-                setSelectedServiceId(undefined);
-                setEntryService(null);
-                setSelectedProductId(undefined);
-                setSelectedCatalogProductId(undefined);
-                setPriceTier(null);
-                setServicePriceTier(null);
-              }}
-              placeholder={
-                isProductKind
-                  ? t('orders.detail.lineItems.addProductPlaceholder')
-                  : t('orders.detail.lineItems.addServicePlaceholder')
-              }
-              disabled={isReadOnly}
-            />
-          </div>
-          {isProductKind ? (
+          <div className='order-detail-table-entry-row'>
             <div
-              className='order-line-item-serial-entry-spacer order-detail-table-entry-cell'
-              data-label={t('orders.detail.lineItems.serialNumber')}
-              aria-hidden='true'
-            />
-          ) : null}
-          <div
-            className='order-line-item-price-cell order-line-item-price-entry-field order-detail-table-entry-cell'
-            data-label={t('orders.detail.lineItems.price')}
-          >
-            {isProductKind ? (
-              <ProductSalePriceField
-                tierTogglePlacement='none'
-                stepperClassName='line-item-inline-input'
-                value={price}
-                onChange={setPrice}
-                product={selectedStockProduct}
-                priceTier={priceTier}
-                onPriceTierChange={setPriceTier}
-                placeholder={t('orders.detail.lineItems.price')}
-                disabled={isReadOnly}
-                ariaLabel={t('orders.detail.lineItems.price')}
-                onFocus={() => setActivePriceContext('entry')}
-              />
-            ) : (
-              <NumberStepper
+              className='order-line-item-name-entry order-detail-table-entry-cell'
+              data-label={t('orders.detail.lineItems.name')}
+              ref={lineItemSuggestionsRootRef}
+            >
+              <input
                 className='line-item-inline-input'
-                min={0}
-                step={PRICE_STEPPER_STEP}
-                precision={PRICE_STEPPER_PRECISION}
-                value={price}
-                onChange={setPrice}
-                placeholder={t('orders.detail.lineItems.price')}
+                value={name}
+                onChange={(event) => {
+                  setName(event.target.value);
+                  setSelectedServiceId(undefined);
+                  setEntryService(null);
+                  setSelectedProductId(undefined);
+                  setSelectedCatalogProductId(undefined);
+                  setPriceTier(null);
+                  setServicePriceTier(null);
+                }}
+                placeholder={
+                  isProductKind
+                    ? t(
+                        'orders.detail.lineItems.addProductPlaceholder',
+                      )
+                    : t(
+                        'orders.detail.lineItems.addServicePlaceholder',
+                      )
+                }
                 disabled={isReadOnly}
-                ariaLabel={t('orders.detail.lineItems.price')}
-                onFocus={() => setActivePriceContext('entry')}
               />
-            )}
-          </div>
-          <div
-            className='order-line-item-entry-field order-line-item-qty-entry-field order-detail-table-entry-cell'
-            data-label={t('orders.detail.lineItems.qty')}
-          >
-            <NumberStepper
-              className='line-item-inline-input order-line-item-qty-entry-stepper'
-              min={1}
-              value={quantity}
-              onChange={setQuantity}
-              placeholder={t('orders.detail.lineItems.qty')}
-              disabled={isReadOnly}
-              ariaLabel={t('orders.detail.lineItems.qty')}
-            />
-          </div>
-          <div
-            className='order-line-item-entry-field order-detail-table-entry-cell'
-            data-label={t('orders.detail.lineItems.warranty')}
-          >
-            <select
-              className='line-item-inline-input'
-              value={warrantyPeriod}
-              onChange={(event) =>
-                setWarrantyPeriod(event.target.value)
-              }
-              disabled={isReadOnly}
+            </div>
+            {isProductKind ? (
+              <div
+                className='order-line-item-serial-entry-spacer order-detail-table-entry-cell'
+                data-label={t('orders.detail.lineItems.serialNumber')}
+                aria-hidden='true'
+              />
+            ) : null}
+            <div
+              className='order-line-item-price-cell order-line-item-price-entry-field order-detail-table-entry-cell'
+              data-label={t('orders.detail.lineItems.price')}
             >
-              {warrantyOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {t(option.labelKey)}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div
-            className='order-line-item-entry-field order-line-item-entry-action order-detail-table-entry-cell'
-            data-label={t('orders.detail.lineItems.action')}
-          >
-            <button
-              type='button'
-              className='primary-button line-item-inline-button'
-              onClick={() => void submitItem()}
-              disabled={isReadOnly}
+              {isProductKind ? (
+                <ProductSalePriceField
+                  tierTogglePlacement='none'
+                  stepperClassName='line-item-inline-input'
+                  value={price}
+                  onChange={setPrice}
+                  product={selectedStockProduct}
+                  priceTier={priceTier}
+                  onPriceTierChange={setPriceTier}
+                  placeholder={t('orders.detail.lineItems.price')}
+                  disabled={isReadOnly}
+                  ariaLabel={t('orders.detail.lineItems.price')}
+                  onFocus={() => setActivePriceContext('entry')}
+                />
+              ) : (
+                <NumberStepper
+                  className='line-item-inline-input'
+                  min={0}
+                  step={PRICE_STEPPER_STEP}
+                  precision={PRICE_STEPPER_PRECISION}
+                  value={price}
+                  onChange={setPrice}
+                  placeholder={t('orders.detail.lineItems.price')}
+                  disabled={isReadOnly}
+                  ariaLabel={t('orders.detail.lineItems.price')}
+                  onFocus={() => setActivePriceContext('entry')}
+                />
+              )}
+            </div>
+            <div
+              className='order-line-item-entry-field order-line-item-qty-entry-field order-detail-table-entry-cell'
+              data-label={t('orders.detail.lineItems.qty')}
             >
-              {isProductKind
-                ? t('orders.detail.lineItems.addProduct')
-                : t('orders.detail.lineItems.addService')}
-            </button>
+              <NumberStepper
+                className='line-item-inline-input order-line-item-qty-entry-stepper'
+                min={1}
+                value={quantity}
+                onChange={setQuantity}
+                placeholder={t('orders.detail.lineItems.qty')}
+                disabled={isReadOnly}
+                ariaLabel={t('orders.detail.lineItems.qty')}
+              />
+            </div>
+            <div
+              className='order-line-item-entry-field order-detail-table-entry-cell'
+              data-label={t('orders.detail.lineItems.warranty')}
+            >
+              <select
+                className='line-item-inline-input'
+                value={warrantyPeriod}
+                onChange={(event) =>
+                  setWarrantyPeriod(event.target.value)
+                }
+                disabled={isReadOnly}
+              >
+                {warrantyOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {t(option.labelKey)}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div
+              className='order-line-item-entry-field order-line-item-entry-action order-detail-table-entry-cell'
+              data-label={t('orders.detail.lineItems.action')}
+            >
+              <button
+                type='button'
+                className='primary-button line-item-inline-button'
+                onClick={() => void submitItem()}
+                disabled={isReadOnly}
+              >
+                {isProductKind
+                  ? t('orders.detail.lineItems.addProduct')
+                  : t('orders.detail.lineItems.addService')}
+              </button>
+            </div>
           </div>
-        </div>
         )}
       </div>
       <div className='order-line-items-form'>

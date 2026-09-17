@@ -95,7 +95,12 @@ const mergeSupplierPhones = (
 };
 
 export const listSuppliers = async (queryValue: unknown) => {
-  const query = getSearchQuery(queryValue);
+  const searchQuery = getSearchQuery(queryValue);
+  const hasQuery =
+    typeof queryValue === 'string' && queryValue.trim().length > 0;
+  const query = hasQuery
+    ? { $and: [searchQuery, { isActive: { $ne: false } }] }
+    : searchQuery;
   const suppliers = await Supplier.find(query)
     .sort({ createdAt: -1 })
     .lean<SupplierDocument[]>();

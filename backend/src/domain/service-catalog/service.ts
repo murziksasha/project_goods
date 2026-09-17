@@ -393,11 +393,13 @@ export const listServiceCatalogItems = async (
 
   const query =
     typeof queryValue === 'string' ? queryValue.trim() : '';
-  const finder = ServiceCatalog.find(getSearchQuery(queryValue)).sort(
-    {
-      createdAt: -1,
-    },
-  );
+  const searchQuery = getSearchQuery(queryValue);
+  const dbQuery = query
+    ? { $and: [searchQuery, { isActive: { $ne: false } }] }
+    : searchQuery;
+  const finder = ServiceCatalog.find(dbQuery).sort({
+    createdAt: -1,
+  });
   if (query) {
     finder.limit(SEARCH_LIMIT);
   }
@@ -407,7 +409,11 @@ export const listServiceCatalogItems = async (
 
   if (query) {
     const exact = await findServiceCatalogByName(query);
-    if (exact && !formatted.some((item) => item.id === exact.id)) {
+    if (
+      exact &&
+      exact.isActive !== false &&
+      !formatted.some((item) => item.id === exact.id)
+    ) {
       return [exact, ...formatted].slice(0, SEARCH_LIMIT);
     }
   }
