@@ -299,7 +299,7 @@ export const SupplierOrdersToolbar = ({
 };
 
 type SupplierOrdersTableProps = {
-  catalogProducts: CatalogProduct[];
+  catalogProducts?: CatalogProduct[];
   expandedOrderIds: ReadonlySet<string>;
   filteredOrdersCount: number;
   totals: {
@@ -325,7 +325,7 @@ type SupplierOrdersTableProps = {
     sourceOrder: SupplierOrder,
     itemIndex: number | null,
   ) => void;
-  onOpenCatalogProduct: (product: CatalogProduct) => void;
+  onOpenCatalogProduct?: (product: CatalogProduct) => void;
   onOpenSupplier: (supplier: Supplier) => void;
   onToggleFavorite: (order: SupplierOrder) => void;
   onToggleOrderExpanded: (orderId: string) => void;
@@ -340,7 +340,6 @@ type SupplierOrdersTableProps = {
 };
 
 export const SupplierOrdersTable = ({
-  catalogProducts,
   expandedOrderIds,
   filteredOrdersCount,
   totals,
@@ -356,7 +355,6 @@ export const SupplierOrdersTable = ({
   canManageSupplierOrders,
   onError,
   onEditOrder,
-  onOpenCatalogProduct,
   onOpenSupplier,
   onToggleFavorite,
   onToggleOrderExpanded,
@@ -457,38 +455,6 @@ export const SupplierOrdersTable = ({
                   : isChild
                     ? 'supplier-order-group-child'
                     : undefined;
-
-                const openProductCatalog = (
-                  targetItem: NonNullable<typeof item>,
-                ) => {
-                  const matchedProduct = targetItem.catalogProductId
-                    ? catalogProducts.find(
-                        (product) =>
-                          product.id === targetItem.catalogProductId,
-                      )
-                    : catalogProducts.find(
-                        (product) =>
-                          product.name.trim().toLowerCase() ===
-                          targetItem.productName.trim().toLowerCase(),
-                      );
-                  if (!matchedProduct) {
-                    onError(
-                      t(
-                        'orders.supplier.messages.errors.productNotFound',
-                      ),
-                    );
-                    return;
-                  }
-                  if (!canManageSupplierOrders) {
-                    onError(
-                      t(
-                        'orders.supplier.messages.errors.noManagePermission',
-                      ),
-                    );
-                    return;
-                  }
-                  onOpenCatalogProduct(matchedProduct);
-                };
 
                 const openOrderModal = () => {
                   if (!canViewSupplierOrders) {
@@ -655,7 +621,7 @@ export const SupplierOrdersTable = ({
                                   ? ' supplier-order-item-cancelled'
                                   : ''
                               }`}
-                              onClick={() => openProductCatalog(item)}
+                              onClick={openOrderModal}
                             >
                               <TruncatedTextTooltip
                                 text={item.productName}

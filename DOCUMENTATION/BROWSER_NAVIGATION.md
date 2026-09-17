@@ -60,7 +60,7 @@ All dashboard views share one path (`/` or the deployed SPA root). Section state
 | legacy `page=kanban` | parse only | remapped to `page=orders&ordersTab=kanban` (keeps `saleId`) |
 | `createOrder` | Create-order card open | `repair`, `sale` |
 | `saleId` | Order/sale detail card open | Sale document id |
-| `accountingTab` | `page=accounting` | `cashboxes`, `transactions`, `orders`, `reports` |
+| `accountingTab` | `page=accounting` | `cashboxes`, `transactions`, `orders`, `information`, `reports` |
 | `inviteToken` | Invitation registration | Unrelated to dashboard navigation; preserved on auth flows |
 
 Examples:
@@ -70,6 +70,8 @@ Examples:
 - Open repair card: `/?page=orders&ordersTab=orders&saleId=<id>`
 - Create sale: `/?page=orders&ordersTab=sales&createOrder=sale`
 - Accounting transactions: `/?page=accounting&accountingTab=transactions`
+- Accounting reports: `/?page=accounting&accountingTab=reports`
+- Accounting information: `/?page=accounting&accountingTab=information`
 
 ## pushState vs replaceState
 

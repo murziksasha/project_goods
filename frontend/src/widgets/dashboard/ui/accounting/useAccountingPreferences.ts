@@ -10,6 +10,7 @@ import {
   getAccountingSettingsOpenFromUrl,
   getAccountingTabFromUrl,
   getStoredAccountingTab,
+  migrateLegacyAccountingTabStorage,
   writeAccountingSettingsOpenToUrl,
   getStoredExpandedFinanceSettingsCard,
   migrateLastTargetCashboxToOperationMemory,
@@ -19,7 +20,7 @@ import {
   type TransactionTargetMemory,
 } from '../../model/accounting';
 
-export type FinanceSettingsTab = 'cashboxes' | 'currencies';
+export type FinanceSettingsTab = 'cashboxes' | 'currencies' | 'categories';
 
 type UseAccountingPreferencesOptions = {
   cashboxes: Cashbox[];
@@ -58,7 +59,10 @@ export const useAccountingPreferences = ({
   syncedAccountingTab = null,
 }: UseAccountingPreferencesOptions) => {
   const [activeTab, setActiveTab] = useState<AccountingTab>(
-    () => getAccountingTabFromUrl() ?? getStoredAccountingTab(),
+    () => {
+      migrateLegacyAccountingTabStorage();
+      return getAccountingTabFromUrl() ?? getStoredAccountingTab();
+    },
   );
   const [isFinanceSettingsOpen, setIsFinanceSettingsOpen] = useState(
     getAccountingSettingsOpenFromUrl,
@@ -69,7 +73,9 @@ export const useAccountingPreferences = ({
         const storedTab = window.localStorage.getItem(
           accountingFinanceSettingsTabStorageKey,
         );
-        return storedTab === 'cashboxes' || storedTab === 'currencies'
+        return storedTab === 'cashboxes' ||
+          storedTab === 'currencies' ||
+          storedTab === 'categories'
           ? storedTab
           : 'cashboxes';
       } catch {

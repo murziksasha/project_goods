@@ -52,6 +52,7 @@ export const paySupplierOrder = async (
         note:
           toNonEmptyString(payload.note) ||
           `Supplier order payment: ${getSupplierOrderDisplayNumber(existing)}`,
+        category: 'supplier_payment',
         transactionDate: payload.transactionDate,
       },
       { session },

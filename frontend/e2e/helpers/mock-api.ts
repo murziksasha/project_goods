@@ -45,6 +45,19 @@ const e2eCurrencies = [
   { id: 'cur-usd', code: 'USD', isSystem: true, isArchived: false, createdAt: iso, updatedAt: iso },
 ];
 
+const e2eCategories = [
+  { id: 'cat-rent', slug: 'rent', name: 'Rent', isSystem: true, kind: 'system_opex', isActive: true, sortOrder: 110, usageCount: 0, createdAt: iso, updatedAt: iso },
+  { id: 'cat-salary', slug: 'salary', name: 'Salary', isSystem: true, kind: 'system_opex', isActive: true, sortOrder: 120, usageCount: 0, createdAt: iso, updatedAt: iso },
+  { id: 'cat-utilities', slug: 'utilities', name: 'Utilities', isSystem: true, kind: 'system_opex', isActive: true, sortOrder: 130, usageCount: 0, createdAt: iso, updatedAt: iso },
+  { id: 'cat-tax', slug: 'tax', name: 'Tax', isSystem: true, kind: 'system_opex', isActive: true, sortOrder: 140, usageCount: 0, createdAt: iso, updatedAt: iso },
+  { id: 'cat-owner', slug: 'owner_draw', name: 'Owner draw', isSystem: true, kind: 'system_opex', isActive: true, sortOrder: 150, usageCount: 0, createdAt: iso, updatedAt: iso },
+  { id: 'cat-other', slug: 'other', name: 'Other', isSystem: true, kind: 'system_opex', isActive: true, sortOrder: 9999, usageCount: 0, createdAt: iso, updatedAt: iso },
+  { id: 'cat-pay', slug: 'client_payment', name: 'Client payment', isSystem: true, kind: 'system_auto', isActive: true, sortOrder: 10, usageCount: 0, createdAt: iso, updatedAt: iso },
+  { id: 'cat-refund', slug: 'client_refund', name: 'Client refund', isSystem: true, kind: 'system_auto', isActive: true, sortOrder: 20, usageCount: 0, createdAt: iso, updatedAt: iso },
+  { id: 'cat-supplier', slug: 'supplier_payment', name: 'Supplier payment', isSystem: true, kind: 'system_auto', isActive: true, sortOrder: 30, usageCount: 0, createdAt: iso, updatedAt: iso },
+  { id: 'cat-ads', slug: 'c_aaaaaaaaaaaaaaaaaaaaaaaa', name: 'Ads', isSystem: false, kind: 'custom_opex', isActive: true, sortOrder: 200, usageCount: 2, createdAt: iso, updatedAt: iso },
+];
+
 const e2eSettings = {
   id: 'settings-e2e',
   serviceName: 'E2E CRM',
@@ -65,6 +78,7 @@ const e2eSettings = {
 };
 
 export const installE2eApiMocks = async (page: Page) => {
+  const categories = e2eCategories.map((category) => ({ ...category }));
   await page.route(
     (url) => {
       const pathname = url.pathname;
@@ -116,6 +130,69 @@ export const installE2eApiMocks = async (page: Page) => {
         await fulfillJson(e2eCurrencies);
         return;
       }
+      if (path.startsWith('/finance/categories')) {
+        if (method === 'POST') {
+          let posted: { name?: string } = {};
+          try {
+            posted = (request.postDataJSON() ?? {}) as typeof posted;
+          } catch {
+            posted = {};
+          }
+          await fulfillJson(
+            {
+              id: `cat-${Date.now()}`,
+              slug: `c_${'a'.repeat(24)}`,
+              name: posted.name ?? 'Custom',
+              isSystem: false,
+              kind: 'custom_opex',
+              isActive: true,
+              sortOrder: 200,
+              usageCount: 0,
+              createdAt: iso,
+              updatedAt: iso,
+            },
+            201,
+          );
+          return;
+        }
+        if (method === 'DELETE') {
+          const slug = path.split('/').pop();
+          const index = categories.findIndex((category) => category.slug === slug);
+          if (index >= 0) categories.splice(index, 1);
+          await fulfillJson({ ok: true });
+          return;
+        }
+        if (method === 'PATCH') {
+          const slug = path.split('/').pop();
+          const existing = categories.find((category) => category.slug === slug);
+          let posted: { name?: string; isActive?: boolean } = {};
+          try {
+            posted = (request.postDataJSON() ?? {}) as typeof posted;
+          } catch {
+            posted = {};
+          }
+          const updated = {
+            ...(existing ?? {
+              id: `cat-${slug}`,
+              slug,
+              name: slug,
+              isSystem: true,
+              kind: 'system_opex',
+              isActive: true,
+              sortOrder: 0,
+              usageCount: 0,
+              createdAt: iso,
+            }),
+            ...posted,
+            updatedAt: iso,
+          };
+          if (existing) Object.assign(existing, updated);
+          await fulfillJson(updated);
+          return;
+        }
+        await fulfillJson(categories);
+        return;
+      }
       if (path.startsWith('/finance/transactions')) {
         if (method === 'POST') {
           let posted: { type?: string; amount?: string; currency?: string } = {};
@@ -141,6 +218,35 @@ export const installE2eApiMocks = async (page: Page) => {
           return;
         }
         await fulfillJson({ items: [], total: 0, page: 1, pageSize: 6 });
+        return;
+      }
+      if (path.startsWith('/finance/profit-report')) {
+        await fulfillJson({
+          period: { key: 'whole', dateFrom: null, dateTo: null, timeZone: 'Europe/Kiev' },
+          source: 'all',
+          currency: 'UAH',
+          otherCurrencies: [],
+          margin: {
+            revenue: 0,
+            cogs: 0,
+            grossProfit: 0,
+            grossMarginPct: null,
+            unknownCostCount: 0,
+          },
+          cash: {
+            collected: 0,
+            inventoryPurchases: 0,
+            opex: 0,
+            refunds: 0,
+            net: 0,
+            opexByCategory: [],
+            operations: [],
+          },
+          rows: [],
+          dataScope: 'live_sales_only',
+          coldSalesPurgedExist: false,
+          saleCount: 0,
+        });
         return;
       }
       if (path.startsWith('/finance/report')) {

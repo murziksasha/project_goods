@@ -22,6 +22,7 @@ const productReadPermissions = [
   'inventory.manage',
   'supplierOrders.view',
   'supplierOrders.manage',
+  'finance.view',
 ] as const;
 
 productRouter.get('/products', asyncHandler(async (req, res) => {

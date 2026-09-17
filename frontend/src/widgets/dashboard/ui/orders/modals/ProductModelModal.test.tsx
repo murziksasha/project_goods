@@ -129,6 +129,27 @@ afterEach(async () => {
 });
 
 describe('ProductModelModal serial printing', () => {
+  it('hides save and locks prices when read-only', () => {
+    render(
+      <ProductModelModal
+        name='БЖ Meanwell 9V 1.66A'
+        products={[createProduct({ salePriceOptions: [250, 180] })]}
+        warehouses={[]}
+        printForms={defaultPrintForms}
+        readOnly
+        onClose={vi.fn()}
+        onSave={vi.fn(async () => true)}
+      />,
+    );
+
+    expect(
+      screen.queryByRole('button', { name: 'Save model' }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Cancel' })).toBeInTheDocument();
+    expect(screen.getByDisplayValue('250')).toBeDisabled();
+    expect(screen.getByDisplayValue('180')).toBeDisabled();
+  });
+
   it('pre-selects the clicked serial and prints it by default', () => {
     const printSpy = vi
       .spyOn(ordersWorkspaceShared, 'printWarehouseSerialLabels')

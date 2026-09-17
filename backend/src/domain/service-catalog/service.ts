@@ -1,20 +1,58 @@
 import mongoose from 'mongoose';
 import { ServiceCatalog, type ServiceCatalogDocument } from './model';
 import { Sale } from '../sale/model';
-import { escapeRegExp, getSearchQuery } from '../../shared/lib/query';
+import {
+  escapeRegExp,
+  getSearchQuery,
+  isValidObjectIdOrThrow,
+} from '../../shared/lib/query';
 import { toNumber } from '../../shared/lib/parsers';
 import type { ServiceCatalogPayload } from '../shared/types';
-import { HttpError, isDuplicateKeyError } from '../../shared/lib/errors';
+import {
+  HttpError,
+  isDuplicateKeyError,
+} from '../../shared/lib/errors';
+import { withOptionalMongoSession } from '../../shared/lib/mongo-session';
+import { mergeNotes } from '../shared/merge-notes';
 
-const DUPLICATE_SERVICE_NAME_MESSAGE = 'Service with this name already exists.';
+const DUPLICATE_SERVICE_NAME_MESSAGE =
+  'Service with this name already exists.';
 
-const defaultServices: Array<{ name: string; price: number; note: string }> = [
-  { name: 'Діагностика', price: 250, note: 'Стандартна діагностика приладу' },
-  { name: 'Доналаштування ОС', price: 1000, note: 'Роботи по ОС, встановлення драйверів тощо' },
-  { name: 'Доналаштування андроїд ОС', price: 750, note: 'Доналаштування андроїд приладу' },
-  { name: 'Очищення та заміна термопасти', price: 500, note: 'Стандарнте очищення та заміна термопасти у приладі' },
-  { name: 'Очищення та заміна термопасти ноутбука', price: 1000, note: 'Обслуговування ноутбку, заміна термопасти' },
-  { name: 'Заміна термопасти ноутбука (фазовий перехід)', price: 1000, note: 'Обслуговування ноутбку, заміна термопасти' },
+const defaultServices: Array<{
+  name: string;
+  price: number;
+  note: string;
+}> = [
+  {
+    name: 'Діагностика',
+    price: 250,
+    note: 'Стандартна діагностика приладу',
+  },
+  {
+    name: 'Доналаштування ОС',
+    price: 1000,
+    note: 'Роботи по ОС, встановлення драйверів тощо',
+  },
+  {
+    name: 'Доналаштування андроїд ОС',
+    price: 750,
+    note: 'Доналаштування андроїд приладу',
+  },
+  {
+    name: 'Очищення та заміна термопасти',
+    price: 500,
+    note: 'Стандарнте очищення та заміна термопасти у приладі',
+  },
+  {
+    name: 'Очищення та заміна термопасти ноутбука',
+    price: 1000,
+    note: 'Обслуговування ноутбку, заміна термопасти',
+  },
+  {
+    name: 'Заміна термопасти ноутбука (фазовий перехід)',
+    price: 1000,
+    note: 'Обслуговування ноутбку, заміна термопасти',
+  },
 ];
 
 const SEARCH_LIMIT = 20;
@@ -23,7 +61,8 @@ const normalizeName = (value: unknown) =>
   String(value ?? '')
     .trim()
     .replace(/\s+/g, ' ');
-const toNameKey = (value: string) => normalizeName(value).toLowerCase();
+const toNameKey = (value: string) =>
+  normalizeName(value).toLowerCase();
 const mapServiceCatalogWriteError = (error: unknown) => {
   if (isDuplicateKeyError(error) && error.keyPattern?.nameKey) {
     return new HttpError(409, DUPLICATE_SERVICE_NAME_MESSAGE);
@@ -58,7 +97,9 @@ const normalizeSalePriceOptions = (value: unknown) =>
     .filter((item) => Number.isFinite(item) && item >= 0)
     .slice(0, 2);
 
-const formatServiceCatalogItem = (service: ServiceCatalogDocument) => ({
+const formatServiceCatalogItem = (
+  service: ServiceCatalogDocument,
+) => ({
   id: service._id.toString(),
   name: service.name,
   price: service.price,
@@ -78,7 +119,9 @@ const ensureDefaultServices = async () => {
     defaultServices.map((service) => ({
       ...service,
       nameKey: toNameKey(service.name),
-      searchText: [service.name, service.note].join(' ').toLowerCase(),
+      searchText: [service.name, service.note]
+        .join(' ')
+        .toLowerCase(),
     })),
   );
 };
@@ -102,24 +145,39 @@ const findServiceCatalogDocumentByName = async (
   const query: Record<string, unknown> = {
     $or: [
       { nameKey },
-      { name: { $regex: `^${escapeRegExp(normalized)}$`, $options: 'i' } },
+      {
+        name: {
+          $regex: `^${escapeRegExp(normalized)}$`,
+          $options: 'i',
+        },
+      },
     ],
   };
   if (exceptId && mongoose.isValidObjectId(exceptId)) {
     query._id = { $ne: exceptId };
   }
 
-  return ServiceCatalog.findOne(query).lean<ServiceCatalogDocument | null>();
+  return ServiceCatalog.findOne(
+    query,
+  ).lean<ServiceCatalogDocument | null>();
 };
 
-const assertUniqueServiceName = async (name: string, exceptId?: string) => {
-  const existing = await findServiceCatalogDocumentByName(name, exceptId);
+const assertUniqueServiceName = async (
+  name: string,
+  exceptId?: string,
+) => {
+  const existing = await findServiceCatalogDocumentByName(
+    name,
+    exceptId,
+  );
   if (existing) {
     throw new HttpError(409, DUPLICATE_SERVICE_NAME_MESSAGE);
   }
 };
 
-const pickDuplicateServiceWinner = (rows: ServiceCatalogDocument[]) => {
+const pickDuplicateServiceWinner = (
+  rows: ServiceCatalogDocument[],
+) => {
   const activeRows = rows.filter((row) => row.isActive !== false);
   const pool = activeRows.length > 0 ? activeRows : rows;
   return pool.reduce((winner, row) => {
@@ -148,7 +206,10 @@ export const mergeDuplicateServiceCatalogItems = async () => {
     groups.set(nameKey, group);
 
     if (item.nameKey !== nameKey) {
-      await ServiceCatalog.updateOne({ _id: item._id }, { $set: { nameKey } });
+      await ServiceCatalog.updateOne(
+        { _id: item._id },
+        { $set: { nameKey } },
+      );
     }
   }
 
@@ -156,7 +217,9 @@ export const mergeDuplicateServiceCatalogItems = async () => {
     if (group.length < 2) continue;
 
     const winner = pickDuplicateServiceWinner(group);
-    const losers = group.filter((row) => row._id.toString() !== winner._id.toString());
+    const losers = group.filter(
+      (row) => row._id.toString() !== winner._id.toString(),
+    );
     const loserIds = losers.map((row) => row._id);
     if (loserIds.length === 0) continue;
 
@@ -190,10 +253,15 @@ export const ensureServiceCatalogNameUniqueness = async () => {
 
 const ensureMergedServiceNames = async () => {
   if (!uniquenessPromise) {
-    uniquenessPromise = mergeDuplicateServiceCatalogItems().catch((error) => {
-      uniquenessPromise = null;
-      console.error('Failed to merge duplicate service catalog names', error);
-    });
+    uniquenessPromise = mergeDuplicateServiceCatalogItems().catch(
+      (error) => {
+        uniquenessPromise = null;
+        console.error(
+          'Failed to merge duplicate service catalog names',
+          error,
+        );
+      },
+    );
   }
 
   await uniquenessPromise;
@@ -218,7 +286,9 @@ export const upsertServiceCatalogItem = async ({
 
   const existingId = String(serviceId ?? '').trim();
   if (existingId && mongoose.isValidObjectId(existingId)) {
-    const byId = await ServiceCatalog.findById(existingId).lean<ServiceCatalogDocument | null>();
+    const byId = await ServiceCatalog.findById(
+      existingId,
+    ).lean<ServiceCatalogDocument | null>();
     if (byId) return formatServiceCatalogItem(byId);
   }
 
@@ -291,28 +361,43 @@ export const backfillMissingServicesFromSales = async () => {
   ]);
 
   for (const row of rows) {
-    await upsertServiceCatalogItem({ name: row.name, price: row.price });
+    await upsertServiceCatalogItem({
+      name: row.name,
+      price: row.price,
+    });
   }
 };
 
 const ensureServicesFromSales = async () => {
   if (!backfillPromise) {
-    backfillPromise = backfillMissingServicesFromSales().catch((error) => {
-      backfillPromise = null;
-      console.error('Failed to backfill service catalog from sales', error);
-    });
+    backfillPromise = backfillMissingServicesFromSales().catch(
+      (error) => {
+        backfillPromise = null;
+        console.error(
+          'Failed to backfill service catalog from sales',
+          error,
+        );
+      },
+    );
   }
 
   await backfillPromise;
 };
 
-export const listServiceCatalogItems = async (queryValue: unknown) => {
+export const listServiceCatalogItems = async (
+  queryValue: unknown,
+) => {
   await ensureDefaultServices();
   await ensureMergedServiceNames();
   await ensureServicesFromSales();
 
-  const query = typeof queryValue === 'string' ? queryValue.trim() : '';
-  const finder = ServiceCatalog.find(getSearchQuery(queryValue)).sort({
+  const query =
+    typeof queryValue === 'string' ? queryValue.trim() : '';
+  const searchQuery = getSearchQuery(queryValue);
+  const dbQuery = query
+    ? { $and: [searchQuery, { isActive: { $ne: false } }] }
+    : searchQuery;
+  const finder = ServiceCatalog.find(dbQuery).sort({
     createdAt: -1,
   });
   if (query) {
@@ -324,7 +409,11 @@ export const listServiceCatalogItems = async (queryValue: unknown) => {
 
   if (query) {
     const exact = await findServiceCatalogByName(query);
-    if (exact && !formatted.some((item) => item.id === exact.id)) {
+    if (
+      exact &&
+      exact.isActive !== false &&
+      !formatted.some((item) => item.id === exact.id)
+    ) {
       return [exact, ...formatted].slice(0, SEARCH_LIMIT);
     }
   }
@@ -341,7 +430,9 @@ export const createServiceCatalogItem = async (
   const service = new ServiceCatalog({
     name,
     price: normalizePrice(payload.price),
-    salePriceOptions: normalizeSalePriceOptions(payload.salePriceOptions),
+    salePriceOptions: normalizeSalePriceOptions(
+      payload.salePriceOptions,
+    ),
     note: String(payload.note ?? '').trim(),
   });
 
@@ -371,7 +462,9 @@ export const updateServiceCatalogItem = async (
 
   service.name = name;
   service.price = normalizePrice(payload.price);
-  service.salePriceOptions = normalizeSalePriceOptions(payload.salePriceOptions);
+  service.salePriceOptions = normalizeSalePriceOptions(
+    payload.salePriceOptions,
+  );
   service.note = String(payload.note ?? '').trim();
   if (payload.isActive !== undefined) {
     service.isActive =
@@ -392,7 +485,9 @@ export const updateServiceCatalogItem = async (
 };
 
 export const deleteServiceCatalogItem = async (serviceId: string) => {
-  const service = await ServiceCatalog.findByIdAndDelete(serviceId).lean<ServiceCatalogDocument | null>();
+  const service = await ServiceCatalog.findByIdAndDelete(
+    serviceId,
+  ).lean<ServiceCatalogDocument | null>();
   if (!service) {
     throw new HttpError(404, 'Service not found.');
   }
@@ -400,8 +495,12 @@ export const deleteServiceCatalogItem = async (serviceId: string) => {
   return { id: serviceId };
 };
 
-export const archiveServiceCatalogItem = async (serviceId: string) => {
-  const service = await ServiceCatalog.findById(serviceId).lean<ServiceCatalogDocument | null>();
+export const archiveServiceCatalogItem = async (
+  serviceId: string,
+) => {
+  const service = await ServiceCatalog.findById(
+    serviceId,
+  ).lean<ServiceCatalogDocument | null>();
   if (!service) {
     throw new HttpError(404, 'Service not found.');
   }
@@ -434,4 +533,124 @@ export const archiveServiceCatalogItem = async (serviceId: string) => {
     action: 'deactivated' as const,
     service: formatServiceCatalogItem(updatedService),
   };
+};
+
+export const mergeServices = async (
+  targetServiceIdInput: unknown,
+  sourceServiceIdInput: unknown,
+  draftNoteInput?: unknown,
+) => {
+  const targetServiceId =
+    typeof targetServiceIdInput === 'string'
+      ? targetServiceIdInput.trim()
+      : '';
+  const sourceServiceId =
+    typeof sourceServiceIdInput === 'string'
+      ? sourceServiceIdInput.trim()
+      : '';
+  const draftNote =
+    typeof draftNoteInput === 'string' ? draftNoteInput.trim() : '';
+
+  if (!targetServiceId || !sourceServiceId) {
+    throw new HttpError(
+      400,
+      'Both targetServiceId and sourceServiceId are required.',
+    );
+  }
+  if (targetServiceId === sourceServiceId) {
+    throw new HttpError(400, 'Select two different services.');
+  }
+
+  isValidObjectIdOrThrow(targetServiceId, 'targetServiceId');
+  isValidObjectIdOrThrow(sourceServiceId, 'sourceServiceId');
+
+  return withOptionalMongoSession(async (session) => {
+    const [targetService, sourceService] = await Promise.all([
+      ServiceCatalog.findById(targetServiceId, null, {
+        session: session ?? undefined,
+      }),
+      ServiceCatalog.findById(sourceServiceId, null, {
+        session: session ?? undefined,
+      }),
+    ]);
+
+    if (!targetService)
+      throw new HttpError(404, 'Target service not found.');
+    if (!sourceService)
+      throw new HttpError(404, 'Source service not found.');
+
+    const sourceName = sourceService.name;
+    const targetName = targetService.name;
+    const sourceObjectId = sourceService._id;
+    const targetObjectId = targetService._id;
+
+    const mergedNote = mergeNotes(
+      targetService.note,
+      sourceService.note,
+      draftNote,
+    );
+
+    const matchingSales = await Sale.find(
+      {
+        $or: [
+          { 'lineItems.serviceId': sourceObjectId },
+          {
+            lineItems: {
+              $elemMatch: {
+                kind: 'service',
+                name: sourceName,
+              },
+            },
+          },
+        ],
+      },
+      null,
+      { session: session ?? undefined },
+    ).lean();
+
+    for (const sale of matchingSales) {
+      const nextLineItems = (sale.lineItems ?? []).map((item) => {
+        if (item.kind !== 'service') return item;
+        const matchesById =
+          item.serviceId?.toString() === sourceServiceId;
+        const matchesByName = item.name === sourceName;
+        if (!matchesById && !matchesByName) return item;
+
+        return {
+          ...item,
+          serviceId: targetObjectId,
+          name: targetName,
+        };
+      });
+
+      await Sale.findByIdAndUpdate(
+        sale._id,
+        { lineItems: nextLineItems },
+        { session: session ?? undefined },
+      );
+    }
+
+    targetService.note = mergedNote;
+    await targetService.validate();
+    await targetService.save({ session: session ?? undefined });
+
+    const deletedSource = await ServiceCatalog.findByIdAndDelete(
+      sourceServiceId,
+      {
+        session: session ?? undefined,
+      },
+    ).lean<ServiceCatalogDocument | null>();
+
+    if (!deletedSource) {
+      throw new HttpError(500, 'Failed to delete source service.');
+    }
+
+    return {
+      service: formatServiceCatalogItem(
+        targetService.toObject<ServiceCatalogDocument>(),
+      ),
+      removedServiceId: sourceServiceId,
+      relinkedSalesCount: matchingSales.length,
+    };
+  });
 };

@@ -9,7 +9,10 @@ import { useTranslation } from 'react-i18next';
 import type { CatalogProduct } from '../../../../entities/catalog-product/model/types';
 import type { Product } from '../../../../entities/product/model/types';
 import { printSerialNumbers } from '../../../../shared/lib/serialPrint';
-import { normalizeDecimalInput, parseDecimal } from '../../../../shared/lib/decimal';
+import {
+  normalizeDecimalInput,
+  parseDecimal,
+} from '../../../../shared/lib/decimal';
 import { formatCurrency } from '../../../../shared/lib/format';
 import { PaginationPanel } from '../../../../shared/ui/PaginationPanel';
 import { Modal } from '../../../../shared/ui/Modal';
@@ -43,6 +46,7 @@ import {
 } from '../../../../entities/saved-filter/api/savedFilterApi';
 import {
   buildSupplierOrderItemNumber,
+  getSupplierOrderDisplayNumber,
   mergeSupplierOrderItemUpdate,
 } from '../../model/supplier-order-utils';
 import {
@@ -56,7 +60,10 @@ import { buildLocationUsageByWarehouse } from '../../model/warehouse-information
 import { ProductModelModal } from '../orders/modals/ProductModelModal';
 import { ModalShell } from './WarehouseModalShell';
 import { WarehouseSettings } from './WarehouseSettingsSection';
-import { ServiceCenterModal, WarehouseEditModal } from './WarehouseSettingsModals';
+import {
+  ServiceCenterModal,
+  WarehouseEditModal,
+} from './WarehouseSettingsModals';
 import { WarehouseInformationPanel } from './WarehouseInformationPanel';
 import { StockTable, ReceiptsTable } from './WarehouseTables';
 import { TransferWorkspace } from './WarehouseTransferWorkspace';
@@ -133,13 +140,18 @@ export const WarehousePanel = ({
   onOpenSaleCard,
 }: WarehousePanelProps) => {
   const { t, i18n } = useTranslation();
-  const supplierOrdersQuery = useSupplierOrdersQuery(canViewSupplierOrders);
+  const supplierOrdersQuery = useSupplierOrdersQuery(
+    canViewSupplierOrders,
+  );
   const warehouseSettingsQuery = useWarehouseSettingsQuery();
-  const createSupplierOrderMutation = useCreateSupplierOrderMutation();
-  const updateSupplierOrderMutation = useUpdateSupplierOrderMutation();
+  const createSupplierOrderMutation =
+    useCreateSupplierOrderMutation();
+  const updateSupplierOrderMutation =
+    useUpdateSupplierOrderMutation();
   const updateSupplierOrderFavoriteMutation =
     useUpdateSupplierOrderFavoriteMutation();
-  const cancelSupplierOrderMutation = useCancelSupplierOrderMutation();
+  const cancelSupplierOrderMutation =
+    useCancelSupplierOrderMutation();
   const cancelSupplierOrderItemMutation =
     useCancelSupplierOrderItemMutation();
   const takeOnChargeSupplierOrderMutation =
@@ -151,16 +163,23 @@ export const WarehousePanel = ({
   const isWarehouseSettingsSaving =
     updateWarehouseSettingsMutation.isPending;
   const normalizeWarehouseFilters = (
-    filters?: Partial<WarehouseFilters> & { status?: ReceiptStatus | '' },
+    filters?: Partial<WarehouseFilters> & {
+      status?: ReceiptStatus | '';
+    },
   ): WarehouseFilters => ({
     ...initialWarehouseFilters,
     ...(filters ?? {}),
     statuses: normalizeReceiptStatuses(filters),
     favoritesOnly: filters?.favoritesOnly === true,
   });
-  const [selectedProductModelContext, setSelectedProductModelContext] =
-    useState<{ name: string; printProduct: Product | null } | null>(null);
-  const [selectedStockProductIds, setSelectedStockProductIds] = useState<string[]>([]);
+  const [
+    selectedProductModelContext,
+    setSelectedProductModelContext,
+  ] = useState<{ name: string; printProduct: Product | null } | null>(
+    null,
+  );
+  const [selectedStockProductIds, setSelectedStockProductIds] =
+    useState<string[]>([]);
   const [activeTab, setActiveTab] = useState<WarehouseTab>(() => {
     try {
       const parsed = JSON.parse(
@@ -214,27 +233,30 @@ export const WarehousePanel = ({
         window.localStorage.getItem(warehouseFiltersStorageKey) ??
           '{}',
       ) as Partial<{ stockView: StockViewMode }>;
-      return parsed.stockView === 'units' || parsed.stockView === 'models'
+      return parsed.stockView === 'units' ||
+        parsed.stockView === 'models'
         ? parsed.stockView
         : 'models';
     } catch {
       return 'models';
     }
   });
-  const [receiptsView, setReceiptsView] = useState<ReceiptsViewMode>(() => {
-    try {
-      const parsed = JSON.parse(
-        window.localStorage.getItem(warehouseFiltersStorageKey) ??
-          '{}',
-      ) as Partial<{ receiptsView: ReceiptsViewMode }>;
-      return parsed.receiptsView === 'orders' ||
-        parsed.receiptsView === 'lines'
-        ? parsed.receiptsView
-        : 'orders';
-    } catch {
-      return 'orders';
-    }
-  });
+  const [receiptsView, setReceiptsView] = useState<ReceiptsViewMode>(
+    () => {
+      try {
+        const parsed = JSON.parse(
+          window.localStorage.getItem(warehouseFiltersStorageKey) ??
+            '{}',
+        ) as Partial<{ receiptsView: ReceiptsViewMode }>;
+        return parsed.receiptsView === 'orders' ||
+          parsed.receiptsView === 'lines'
+          ? parsed.receiptsView
+          : 'orders';
+      } catch {
+        return 'orders';
+      }
+    },
+  );
   const [currentPage, setCurrentPage] = useState(() => {
     try {
       const parsed = JSON.parse(
@@ -303,12 +325,11 @@ export const WarehousePanel = ({
   const [draftFilters, setDraftFilters] = useState<WarehouseFilters>(
     normalizeWarehouseFilters(),
   );
-  const [appliedFilters, setAppliedFilters] = useState<WarehouseFilters>(
-    normalizeWarehouseFilters(),
-  );
-  const [savedFilters, setSavedFilters] = useState<SavedWarehouseFilter[]>(
-    [],
-  );
+  const [appliedFilters, setAppliedFilters] =
+    useState<WarehouseFilters>(normalizeWarehouseFilters());
+  const [savedFilters, setSavedFilters] = useState<
+    SavedWarehouseFilter[]
+  >([]);
   const [newFilterName, setNewFilterName] = useState('');
   const [newFilterIcon, setNewFilterIcon] = useState(
     warehouseFilterIconOptions[0],
@@ -386,13 +407,17 @@ export const WarehousePanel = ({
     quantity: '1',
     note: '',
   });
-  const [manualReceiptRows, setManualReceiptRows] = useState<ReceiptRow[]>([]);
-  const [transferForm, setTransferForm] = useState<TransferFormState>({
-    productId: '',
-    toWarehouseId: '',
-    toLocationId: '',
-    note: '',
-  });
+  const [manualReceiptRows, setManualReceiptRows] = useState<
+    ReceiptRow[]
+  >([]);
+  const [transferForm, setTransferForm] = useState<TransferFormState>(
+    {
+      productId: '',
+      toWarehouseId: '',
+      toLocationId: '',
+      note: '',
+    },
+  );
   const [transferHistory, setTransferHistory] = useState<
     TransferHistoryRow[]
   >([]);
@@ -402,16 +427,20 @@ export const WarehousePanel = ({
     administrators?: Administrator[];
     successMessage?: string;
   }) => {
-    const nextServiceCenters = payload?.serviceCenters ?? serviceCenters;
+    const nextServiceCenters =
+      payload?.serviceCenters ?? serviceCenters;
     const nextWarehouses = payload?.warehouses ?? warehouses;
-    const nextAdministrators = payload?.administrators ?? administrators;
+    const nextAdministrators =
+      payload?.administrators ?? administrators;
 
     try {
-      const saved = await updateWarehouseSettingsMutation.mutateAsync({
-        serviceCenters: nextServiceCenters,
-        warehouses: nextWarehouses,
-        administrators: nextAdministrators,
-      });
+      const saved = await updateWarehouseSettingsMutation.mutateAsync(
+        {
+          serviceCenters: nextServiceCenters,
+          warehouses: nextWarehouses,
+          administrators: nextAdministrators,
+        },
+      );
       setServiceCenters(saved.serviceCenters);
       setWarehouses(saved.warehouses);
       setAdministrators(saved.administrators);
@@ -427,40 +456,44 @@ export const WarehousePanel = ({
     }
   };
 
-  const buildReceiptRows = useCallback((orders: SupplierOrder[]): ReceiptRow[] => {
-    return orders.flatMap((order) =>
-      order.items.map((item) => ({
-        id: `${order.id}-${item.itemIndex}`,
-        supplierOrderId: order.id,
-        supplierOrderItemIndex: item.itemIndex,
-        catalogProductId: item.catalogProductId,
-        supplierOrderIsFavorite: order.isFavorite,
-        number: buildSupplierOrderItemNumber(order, item.itemIndex),
-        productName: item.productName,
-        quantity: item.quantity,
-        price: item.price,
-        amount: item.price * item.quantity,
-        paid: order.paid,
-        supplierName: order.supplierName || 'Supplier',
-        createdAt: order.createdAt,
-        acceptedBy: order.createdBy || t('common.administrator'),
-        approvedBy:
-          (item.receiptStatus ?? 'new') === 'new'
-            ? '-'
-            : order.createdBy || t('common.administrator'),
-        acceptedAt: order.updatedAt,
-        status:
-          item.receiptStatus === 'cancelled' ||
-          order.status === 'cancelled' ||
-          order.status === 'unavailable' ||
-          order.paymentStatus === 'cancelled'
-            ? 'cancelled'
-            : item.receiptStatus ?? 'new',
-        paymentStatus: order.paymentStatus,
-        note: order.note || '',
-      })),
-    );
-  }, [t]);
+  const buildReceiptRows = useCallback(
+    (orders: SupplierOrder[]): ReceiptRow[] => {
+      return orders.flatMap((order) =>
+        order.items.map((item) => ({
+          id: `${order.id}-${item.itemIndex}`,
+          supplierOrderId: order.id,
+          supplierOrderItemIndex: item.itemIndex,
+          catalogProductId: item.catalogProductId,
+          supplierOrderIsFavorite: order.isFavorite,
+          orderBaseNumber: getSupplierOrderDisplayNumber(order),
+          number: buildSupplierOrderItemNumber(order, item.itemIndex),
+          productName: item.productName,
+          quantity: item.quantity,
+          price: item.price,
+          amount: item.price * item.quantity,
+          paid: order.paid,
+          supplierName: order.supplierName || 'Supplier',
+          createdAt: order.createdAt,
+          acceptedBy: order.createdBy || t('common.administrator'),
+          approvedBy:
+            (item.receiptStatus ?? 'new') === 'new'
+              ? '-'
+              : order.createdBy || t('common.administrator'),
+          acceptedAt: order.updatedAt,
+          status:
+            item.receiptStatus === 'cancelled' ||
+            order.status === 'cancelled' ||
+            order.status === 'unavailable' ||
+            order.paymentStatus === 'cancelled'
+              ? 'cancelled'
+              : (item.receiptStatus ?? 'new'),
+          paymentStatus: order.paymentStatus,
+          note: order.note || '',
+        })),
+      );
+    },
+    [t],
+  );
 
   const receiptHistory = useMemo(
     () => [
@@ -479,11 +512,18 @@ export const WarehousePanel = ({
   }, [canViewSupplierOrders, supplierOrdersQuery]);
 
   const openSupplierOrderById = useCallback(
-    (supplierOrderId: string, itemIndex: number) => {
+    (supplierOrderId: string, itemIndex?: number | null) => {
       const matchedOrder = supplierOrders.find(
         (order) => order.id === supplierOrderId,
       );
       if (!matchedOrder) return;
+      if (itemIndex === undefined || itemIndex === null) {
+        setEditingSupplierOrder(matchedOrder);
+        setEditingSupplierOrderSource(matchedOrder);
+        setEditingSupplierOrderItemIndex(null);
+        setIsSupplierOrderModalOpen(true);
+        return;
+      }
       const matchedItem = matchedOrder.items.find(
         (item) => item.itemIndex === itemIndex,
       );
@@ -568,9 +608,15 @@ export const WarehousePanel = ({
     const refreshOnFinanceUpdate = () => {
       void refreshSupplierOrders().catch(() => undefined);
     };
-    window.addEventListener('project-goods:finance-updated', refreshOnFinanceUpdate);
+    window.addEventListener(
+      'project-goods:finance-updated',
+      refreshOnFinanceUpdate,
+    );
     return () => {
-      window.removeEventListener('project-goods:finance-updated', refreshOnFinanceUpdate);
+      window.removeEventListener(
+        'project-goods:finance-updated',
+        refreshOnFinanceUpdate,
+      );
     };
   }, [refreshSupplierOrders]);
   useEffect(() => {
@@ -655,16 +701,15 @@ export const WarehousePanel = ({
   );
   const locationOptionsByWarehouseId = useMemo(
     () =>
-      warehouses.reduce<Record<string, Array<{ id: string; name: string }>>>(
-        (acc, warehouse) => {
-          acc[warehouse.id] = warehouse.locations.map((location) => ({
-            id: location.id,
-            name: location.name,
-          }));
-          return acc;
-        },
-        {},
-      ),
+      warehouses.reduce<
+        Record<string, Array<{ id: string; name: string }>>
+      >((acc, warehouse) => {
+        acc[warehouse.id] = warehouse.locations.map((location) => ({
+          id: location.id,
+          name: location.name,
+        }));
+        return acc;
+      }, {}),
     [warehouses],
   );
   const takeOnChargeWarehouseOptions = useMemo(
@@ -718,7 +763,10 @@ export const WarehousePanel = ({
     [products, sales],
   );
   const supplierOrdersByProductId = useMemo(() => {
-    return buildSupplierOrdersByProductId({ products, supplierOrders });
+    return buildSupplierOrdersByProductId({
+      products,
+      supplierOrders,
+    });
   }, [products, supplierOrders]);
   const filteredProducts = useMemo(
     () =>
@@ -811,7 +859,8 @@ export const WarehousePanel = ({
     [filteredProducts, transferForm.productId],
   );
   const transferLocationOptions = useMemo(
-    () => locationOptionsByWarehouseId[transferForm.toWarehouseId] ?? [],
+    () =>
+      locationOptionsByWarehouseId[transferForm.toWarehouseId] ?? [],
     [locationOptionsByWarehouseId, transferForm.toWarehouseId],
   );
   const employeeSavedFilters = useMemo(
@@ -854,7 +903,10 @@ export const WarehousePanel = ({
     ].filter((value) => value.trim()).length;
   const stockPurchaseValue = useMemo(
     () =>
-      filteredProducts.reduce((sum, product) => sum + product.price, 0),
+      filteredProducts.reduce(
+        (sum, product) => sum + product.price,
+        0,
+      ),
     [filteredProducts],
   );
   const receiptsUnpaidValue = useMemo(
@@ -872,7 +924,9 @@ export const WarehousePanel = ({
           value: formatCurrency(stockPurchaseValue),
         })
       : activeTab === 'transfers'
-        ? t('warehouse.summary.movableRows', { count: filteredProducts.length })
+        ? t('warehouse.summary.movableRows', {
+            count: filteredProducts.length,
+          })
         : t('warehouse.summary.linesOrdersUnpaid', {
             lines: filteredReceipts.length,
             orders: receiptOrderGroups.length,
@@ -929,7 +983,10 @@ export const WarehousePanel = ({
           : filteredProducts.length;
     const activePageSize =
       activeTab === 'transfers' ? transferPageSize : pageSize;
-    const pageCount = Math.max(1, Math.ceil(totalItems / activePageSize));
+    const pageCount = Math.max(
+      1,
+      Math.ceil(totalItems / activePageSize),
+    );
     if (currentPage > pageCount) setCurrentPage(pageCount);
   }, [
     activeTab,
@@ -1010,7 +1067,8 @@ export const WarehousePanel = ({
     let cancelled = false;
     void (async () => {
       try {
-        const remote = await listSavedFilters<WarehouseFilters>('warehouse');
+        const remote =
+          await listSavedFilters<WarehouseFilters>('warehouse');
         if (remote.length === 0) {
           try {
             const legacy = (
@@ -1175,7 +1233,9 @@ export const WarehousePanel = ({
     setServiceCenterModalId(null);
     void persistWarehouseSettings({
       serviceCenters: nextServiceCenters,
-      successMessage: i18n.t('warehouse.messages.success.serviceCenterSaved'),
+      successMessage: i18n.t(
+        'warehouse.messages.success.serviceCenterSaved',
+      ),
     });
   };
 
@@ -1187,8 +1247,8 @@ export const WarehousePanel = ({
       nextWarehouses.map((warehouse) => [warehouse.id, warehouse]),
     );
     return currentAdministrators.map((administrator) => {
-      const warehouseIds = administrator.warehouseIds.filter((warehouseId) =>
-        warehouseById.has(warehouseId),
+      const warehouseIds = administrator.warehouseIds.filter(
+        (warehouseId) => warehouseById.has(warehouseId),
       );
       const activeWarehouseIds = warehouseIds.filter(
         (warehouseId) => warehouseById.get(warehouseId)?.isActive,
@@ -1202,7 +1262,8 @@ export const WarehousePanel = ({
       const hasValidDefaultLocation =
         hasValidDefaultWarehouse &&
         defaultWarehouse.locations.some(
-          (location) => location.id === administrator.defaultLocationId,
+          (location) =>
+            location.id === administrator.defaultLocationId,
         );
 
       if (hasValidDefaultWarehouse && hasValidDefaultLocation) {
@@ -1210,7 +1271,9 @@ export const WarehousePanel = ({
       }
 
       const fallbackWarehouseId = activeWarehouseIds[0] ?? '';
-      const fallbackWarehouse = warehouseById.get(fallbackWarehouseId);
+      const fallbackWarehouse = warehouseById.get(
+        fallbackWarehouseId,
+      );
       return {
         ...administrator,
         warehouseIds,
@@ -1229,7 +1292,9 @@ export const WarehousePanel = ({
       }))
       .filter((location) => location.name);
     const uniqueLocationNames = new Set(
-      normalizedLocations.map((location) => location.name.toLowerCase()),
+      normalizedLocations.map((location) =>
+        location.name.toLowerCase(),
+      ),
     );
     if (
       !normalizedName ||
@@ -1276,7 +1341,9 @@ export const WarehousePanel = ({
     void persistWarehouseSettings({
       warehouses: nextWarehouses,
       administrators: nextAdministrators,
-      successMessage: i18n.t('warehouse.messages.success.warehouseSaved'),
+      successMessage: i18n.t(
+        'warehouse.messages.success.warehouseSaved',
+      ),
     });
   };
   const createReceipt = () => {
@@ -1389,7 +1456,9 @@ export const WarehousePanel = ({
         current.includes(productId),
       );
       if (allSelected) {
-        return current.filter((productId) => !productIds.includes(productId));
+        return current.filter(
+          (productId) => !productIds.includes(productId),
+        );
       }
       return Array.from(new Set([...current, ...productIds]));
     });
@@ -1398,7 +1467,9 @@ export const WarehousePanel = ({
     if (!receipt.supplierOrderId) return;
     if (!canManageSupplierOrders) {
       onError(
-        i18n.t('orders.supplierOrders.messages.errors.noManagePermission'),
+        i18n.t(
+          'orders.supplierOrders.messages.errors.noManagePermission',
+        ),
       );
       return;
     }
@@ -1415,7 +1486,9 @@ export const WarehousePanel = ({
       onError(
         error instanceof Error
           ? error.message
-          : i18n.t('orders.supplierOrders.messages.errors.failedUpdateStar'),
+          : i18n.t(
+              'orders.supplierOrders.messages.errors.failedUpdateStar',
+            ),
       );
     }
   };
@@ -1473,7 +1546,9 @@ export const WarehousePanel = ({
     })();
   };
   const applySavedFilter = (savedFilter: SavedWarehouseFilter) => {
-    const nextFilters = normalizeWarehouseFilters(savedFilter.filters);
+    const nextFilters = normalizeWarehouseFilters(
+      savedFilter.filters,
+    );
     setDraftFilters(nextFilters);
     setAppliedFilters(nextFilters);
     setCurrentPage(1);
@@ -1515,7 +1590,9 @@ export const WarehousePanel = ({
         current.statuses.length === receiptStatusFilterOptions.length;
       return {
         ...current,
-        statuses: isAllSelected ? [] : [...receiptStatusFilterOptions],
+        statuses: isAllSelected
+          ? []
+          : [...receiptStatusFilterOptions],
       };
     });
   };
@@ -1523,12 +1600,11 @@ export const WarehousePanel = ({
     columnKey: StockColumnKey | ReceiptsColumnKey,
   ) => {
     if (!activeColumnsTab) return;
-    const availableColumns = availableWarehouseColumns[activeColumnsTab];
+    const availableColumns =
+      availableWarehouseColumns[activeColumnsTab];
     const lockedColumns = lockedWarehouseColumns[activeColumnsTab];
     if (
-      !availableColumns.includes(
-        columnKey as never,
-      ) ||
+      !availableColumns.includes(columnKey as never) ||
       lockedColumns.includes(columnKey as never)
     ) {
       return;
@@ -1563,7 +1639,8 @@ export const WarehousePanel = ({
     const targetLocation = targetWarehouse?.locations.find(
       (location) => location.id === transferForm.toLocationId,
     );
-    const sourceMeta = productWarehouseMetaById[activeTransferProduct.id];
+    const sourceMeta =
+      productWarehouseMetaById[activeTransferProduct.id];
 
     if (!targetWarehouse || !targetLocation) {
       onError(i18n.t('warehouse.messages.errors.selectTarget'));
@@ -1582,11 +1659,14 @@ export const WarehousePanel = ({
       return;
     }
 
-    const wasTransferred = await onProductTransfer(activeTransferProduct, {
-      warehouseId: targetWarehouse.id,
-      locationId: targetLocation.id,
-      note: transferForm.note.trim(),
-    });
+    const wasTransferred = await onProductTransfer(
+      activeTransferProduct,
+      {
+        warehouseId: targetWarehouse.id,
+        locationId: targetLocation.id,
+        note: transferForm.note.trim(),
+      },
+    );
 
     if (!wasTransferred) return;
 
@@ -1610,7 +1690,9 @@ export const WarehousePanel = ({
       productId: '',
       note: '',
     }));
-    onSuccess(i18n.t('warehouse.messages.success.productTransferred'));
+    onSuccess(
+      i18n.t('warehouse.messages.success.productTransferred'),
+    );
   };
 
   return (
@@ -1656,7 +1738,9 @@ export const WarehousePanel = ({
             ) : null
           }
           selectedProductCount={selectedStockProductIds.length}
-          selectedSerialCount={selectedStockProductsWithSerials.length}
+          selectedSerialCount={
+            selectedStockProductsWithSerials.length
+          }
           activeColumnsTab={activeColumnsTab}
           columnsMenuRef={columnsMenuRef}
           isColumnsMenuOpen={isColumnsMenuOpen}
@@ -1676,7 +1760,9 @@ export const WarehousePanel = ({
             setIsColumnsMenuOpen((current) => !current)
           }
           onToggleColumnVisibility={toggleColumnVisibility}
-          onToggleFilters={() => setIsFilterPanelOpen((current) => !current)}
+          onToggleFilters={() =>
+            setIsFilterPanelOpen((current) => !current)
+          }
           onToggleFavoritesOnly={toggleReceiptFavoritesOnly}
           onStockViewChange={changeStockView}
           onReceiptsViewChange={changeReceiptsView}
@@ -1713,7 +1799,9 @@ export const WarehousePanel = ({
                     <button
                       type='button'
                       className='orders-filter-delete-button'
-                      onClick={() => removeSavedFilter(savedFilter.id)}
+                      onClick={() =>
+                        removeSavedFilter(savedFilter.id)
+                      }
                       aria-label={t('orders.filters.deleteFilter', {
                         name: savedFilter.name,
                       })}
@@ -1747,7 +1835,9 @@ export const WarehousePanel = ({
                     name: event.target.value,
                   }))
                 }
-                placeholder={t('warehouse.filters.productNamePlaceholder')}
+                placeholder={t(
+                  'warehouse.filters.productNamePlaceholder',
+                )}
               />
             </label>
             {activeTab === 'stock' ? (
@@ -1762,7 +1852,9 @@ export const WarehousePanel = ({
                       serial: event.target.value,
                     }))
                   }
-                  placeholder={t('warehouse.filters.serialPlaceholder')}
+                  placeholder={t(
+                    'warehouse.filters.serialPlaceholder',
+                  )}
                 />
               </label>
             ) : null}
@@ -1778,7 +1870,9 @@ export const WarehousePanel = ({
                       article: event.target.value,
                     }))
                   }
-                  placeholder={t('warehouse.filters.articlePlaceholder')}
+                  placeholder={t(
+                    'warehouse.filters.articlePlaceholder',
+                  )}
                 />
               </label>
             ) : null}
@@ -1815,7 +1909,9 @@ export const WarehousePanel = ({
                     supplier: event.target.value,
                   }))
                 }
-                placeholder={t('warehouse.filters.supplierPlaceholder')}
+                placeholder={t(
+                  'warehouse.filters.supplierPlaceholder',
+                )}
               />
               <datalist id='warehouse-supplier-options'>
                 {supplierOptions.map((supplierName) => (
@@ -1874,7 +1970,9 @@ export const WarehousePanel = ({
                   className='orders-filter-status-toggle'
                   aria-expanded={isReceiptStatusFilterOpen}
                   onClick={() =>
-                    setIsReceiptStatusFilterOpen((current) => !current)
+                    setIsReceiptStatusFilterOpen(
+                      (current) => !current,
+                    )
                   }
                 >
                   {draftFilters.statuses.length > 0
@@ -1900,11 +1998,17 @@ export const WarehousePanel = ({
                       <label key={status}>
                         <input
                           type='checkbox'
-                          checked={draftFilters.statuses.includes(status)}
-                          onChange={() => toggleReceiptStatusFilter(status)}
+                          checked={draftFilters.statuses.includes(
+                            status,
+                          )}
+                          onChange={() =>
+                            toggleReceiptStatusFilter(status)
+                          }
                         />
                         <span>
-                          {t(`warehouse.tables.receipts.status.${status}`)}
+                          {t(
+                            `warehouse.tables.receipts.status.${status}`,
+                          )}
                         </span>
                       </label>
                     ))}
@@ -1973,7 +2077,9 @@ export const WarehousePanel = ({
                 onChange={(event) =>
                   setNewFilterName(event.target.value)
                 }
-                placeholder={t('orders.filters.drawer.filterNamePlaceholder')}
+                placeholder={t(
+                  'orders.filters.drawer.filterNamePlaceholder',
+                )}
               />
             </label>
             <div className='orders-filter-icons'>
@@ -2012,7 +2118,9 @@ export const WarehousePanel = ({
                     <button
                       type='button'
                       className='orders-filter-delete-button'
-                      onClick={() => removeSavedFilter(savedFilter.id)}
+                      onClick={() =>
+                        removeSavedFilter(savedFilter.id)
+                      }
                       aria-label={t('orders.filters.deleteFilter', {
                         name: savedFilter.name,
                       })}
@@ -2022,7 +2130,9 @@ export const WarehousePanel = ({
                   </div>
                 ))
               ) : (
-                <small>{t('orders.filters.drawer.noFiltersYet')}</small>
+                <small>
+                  {t('orders.filters.drawer.noFiltersYet')}
+                </small>
               )}
             </div>
             <footer>
@@ -2054,7 +2164,9 @@ export const WarehousePanel = ({
           warehouses={warehouses}
           administrators={administrators}
           warehousesByServiceCenter={warehousesByServiceCenter}
-          activeWarehousesByServiceCenter={activeWarehousesByServiceCenter}
+          activeWarehousesByServiceCenter={
+            activeWarehousesByServiceCenter
+          }
           warehouseProductCounts={warehouseProductCounts}
           onCreateServiceCenter={() => {
             setServiceCenterModalId('new');
@@ -2098,10 +2210,16 @@ export const WarehousePanel = ({
           <StockTable
             products={
               stockView === 'models'
-                ? paginatedStockGroups.flatMap((group) => group.products)
+                ? paginatedStockGroups.flatMap(
+                    (group) => group.products,
+                  )
                 : paginatedProducts
             }
-            groups={stockView === 'models' ? paginatedStockGroups : undefined}
+            groups={
+              stockView === 'models'
+                ? paginatedStockGroups
+                : undefined
+            }
             view={stockView}
             isLoading={isLoading}
             visibleColumns={visibleColumns.stock}
@@ -2130,7 +2248,9 @@ export const WarehousePanel = ({
               );
               setSelectedStockProductIds((current) =>
                 isPageSelected
-                  ? current.filter((productId) => !pageIds.includes(productId))
+                  ? current.filter(
+                      (productId) => !pageIds.includes(productId),
+                    )
                   : Array.from(new Set([...current, ...pageIds])),
               );
             }}
@@ -2194,23 +2314,33 @@ export const WarehousePanel = ({
           <ReceiptsTable
             receipts={
               receiptsView === 'orders'
-                ? paginatedReceiptGroups.flatMap((group) => group.receipts)
+                ? paginatedReceiptGroups.flatMap(
+                    (group) => group.receipts,
+                  )
                 : paginatedReceipts
             }
             groups={
-              receiptsView === 'orders' ? paginatedReceiptGroups : undefined
+              receiptsView === 'orders'
+                ? paginatedReceiptGroups
+                : undefined
             }
             view={receiptsView}
             visibleColumns={visibleColumns.receipts}
             canManageSupplierOrders={canManageSupplierOrders}
-            onToggleFavorite={(receipt) => void toggleReceiptFavorite(receipt)}
+            onToggleFavorite={(receipt) =>
+              void toggleReceiptFavorite(receipt)
+            }
             onOpenOrder={(receipt) => {
               if (!receipt.supplierOrderId) return;
-              if (receipt.supplierOrderItemIndex === undefined) return;
+              if (receipt.supplierOrderItemIndex === undefined)
+                return;
               openSupplierOrderById(
                 receipt.supplierOrderId,
                 receipt.supplierOrderItemIndex,
               );
+            }}
+            onOpenGroupOrder={(groupId) => {
+              openSupplierOrderById(groupId, null);
             }}
             onOpenProduct={(receipt) => {
               const matchedProduct = receipt.catalogProductId
@@ -2225,7 +2355,9 @@ export const WarehousePanel = ({
                   );
               if (!matchedProduct) {
                 onError(
-                  i18n.t('orders.supplierOrders.messages.errors.productNotFound'),
+                  i18n.t(
+                    'orders.supplierOrders.messages.errors.productNotFound',
+                  ),
                 );
                 return;
               }
@@ -2248,7 +2380,9 @@ export const WarehousePanel = ({
                 );
               if (!matchedSupplier) {
                 onError(
-                  i18n.t('orders.supplierOrders.messages.errors.supplierNotFound'),
+                  i18n.t(
+                    'orders.supplierOrders.messages.errors.supplierNotFound',
+                  ),
                 );
                 return;
               }
@@ -2274,7 +2408,9 @@ export const WarehousePanel = ({
         <TransferWorkspace
           products={paginatedTransferProducts}
           selectableProducts={filteredProducts}
-          warehouses={warehouses.filter((warehouse) => warehouse.isActive)}
+          warehouses={warehouses.filter(
+            (warehouse) => warehouse.isActive,
+          )}
           productWarehouseMetaById={productWarehouseMetaById}
           form={transferForm}
           selectedProduct={activeTransferProduct}
@@ -2285,9 +2421,7 @@ export const WarehousePanel = ({
           onSubmit={submitTransfer}
         />
       ) : (
-        <p className='empty-state'>
-          {t('warehouse.emptySection')}
-        </p>
+        <p className='empty-state'>{t('warehouse.emptySection')}</p>
       )}
       <ServiceCenterModal
         modalId={serviceCenterModalId}
@@ -2303,7 +2437,7 @@ export const WarehousePanel = ({
         serviceCenters={serviceCenters}
         locationUsage={
           warehouseModalId && warehouseModalId !== 'new'
-            ? locationUsageByWarehouse[warehouseModalId] ?? {}
+            ? (locationUsageByWarehouse[warehouseModalId] ?? {})
             : {}
         }
         onFormChange={setWarehouseForm}
@@ -2336,7 +2470,9 @@ export const WarehousePanel = ({
                   }))
                 }
               >
-                <option value=''>{t('warehouse.modals.supplierPlaceholder')}</option>
+                <option value=''>
+                  {t('warehouse.modals.supplierPlaceholder')}
+                </option>
                 {suppliers.map((supplier) => (
                   <option key={supplier.id} value={supplier.id}>
                     {supplier.name}
@@ -2354,7 +2490,9 @@ export const WarehousePanel = ({
                     productName: event.target.value,
                   }))
                 }
-                placeholder={t('warehouse.modals.productNamePlaceholder')}
+                placeholder={t(
+                  'warehouse.modals.productNamePlaceholder',
+                )}
               />
             </label>
             <label className='field'>
@@ -2429,24 +2567,29 @@ export const WarehousePanel = ({
           if (!editingSupplierOrder) return;
           const orderId =
             editingSupplierOrderSource?.id ?? editingSupplierOrder.id;
-          const result = await takeOnChargeSupplierOrderMutation.mutateAsync({
-            supplierOrderId: orderId,
-            payload: {
-              autoGenerateSerialNumbers,
-              serialNumbers,
-              autoGenerateArticles,
-              articleBase: articleBase.trim().toUpperCase(),
-              itemIndex:
-                editingSupplierOrderItemIndex === null
-                  ? undefined
-                  : editingSupplierOrderItemIndex,
-              warehouseId,
-              locationId,
-            },
-          });
+          const result =
+            await takeOnChargeSupplierOrderMutation.mutateAsync({
+              supplierOrderId: orderId,
+              payload: {
+                autoGenerateSerialNumbers,
+                serialNumbers,
+                autoGenerateArticles,
+                articleBase: articleBase.trim().toUpperCase(),
+                itemIndex:
+                  editingSupplierOrderItemIndex === null
+                    ? undefined
+                    : editingSupplierOrderItemIndex,
+                warehouseId,
+                locationId,
+              },
+            });
           onSuccess(i18n.t('orders.messages.success.takenOnCharge'));
-          window.dispatchEvent(new Event('project-goods:finance-updated'));
-          window.dispatchEvent(new Event('project-goods:products-updated'));
+          window.dispatchEvent(
+            new Event('project-goods:finance-updated'),
+          );
+          window.dispatchEvent(
+            new Event('project-goods:products-updated'),
+          );
           await refreshSupplierOrders();
           return result;
         }}
@@ -2477,7 +2620,9 @@ export const WarehousePanel = ({
               reason,
             },
           });
-          onSuccess(i18n.t('orders.supplier.messages.success.itemCancelled'));
+          onSuccess(
+            i18n.t('orders.supplier.messages.success.itemCancelled'),
+          );
           await refreshSupplierOrders();
         }}
         isItemScopedView={
@@ -2491,7 +2636,9 @@ export const WarehousePanel = ({
         ) => {
           if (!canManageSupplierOrders) {
             onError(
-              i18n.t('orders.supplierOrders.messages.errors.noManagePermission'),
+              i18n.t(
+                'orders.supplierOrders.messages.errors.noManagePermission',
+              ),
             );
             return;
           }
@@ -2526,7 +2673,8 @@ export const WarehousePanel = ({
               supplyType: payload.supplyType,
               number: payload.number,
               note: payload.note,
-              createdBy: currentEmployeeName || t('common.administrator'),
+              createdBy:
+                currentEmployeeName || t('common.administrator'),
               status: editingSupplierOrder
                 ? editingSupplierOrder.status
                 : 'approved',
@@ -2541,7 +2689,8 @@ export const WarehousePanel = ({
                   ? payload.items
                   : mergeSupplierOrderItemUpdate({
                       sourceOrder: orderSource,
-                      selectedItemIndex: editingSupplierOrderItemIndex,
+                      selectedItemIndex:
+                        editingSupplierOrderItemIndex,
                       updatedItem: payload.items[0],
                     });
               await updateSupplierOrderMutation.mutateAsync({
@@ -2553,14 +2702,20 @@ export const WarehousePanel = ({
                   items: mergedItems,
                 },
               });
-              onSuccess(i18n.t('warehouse.messages.success.receiptOrderUpdated'));
+              onSuccess(
+                i18n.t(
+                  'warehouse.messages.success.receiptOrderUpdated',
+                ),
+              );
             } else {
               await createSupplierOrderMutation.mutateAsync({
                 ...supplierOrderPayload,
                 orderBaseId: `SO-${Date.now()}`,
               });
               onSuccess(
-                i18n.t('warehouse.messages.success.receiptOrderCreated'),
+                i18n.t(
+                  'warehouse.messages.success.receiptOrderCreated',
+                ),
               );
             }
             setIsSupplierOrderModalOpen(false);
@@ -2572,7 +2727,9 @@ export const WarehousePanel = ({
             onError(
               error instanceof Error
                 ? error.message
-                : i18n.t('warehouse.messages.errors.failedCreateReceiptOrder'),
+                : i18n.t(
+                    'warehouse.messages.errors.failedCreateReceiptOrder',
+                  ),
             );
           }
         }}
@@ -2613,13 +2770,17 @@ export const WarehousePanel = ({
                   setIsSupplierSaving(false);
                   if (!ok) return;
                   onSuccess(
-                    i18n.t('orders.supplierOrders.messages.success.supplierUpdated'),
+                    i18n.t(
+                      'orders.supplierOrders.messages.success.supplierUpdated',
+                    ),
                   );
                   await refreshSupplierOrders();
                   setSelectedSupplierForEdit(null);
                 }}
               >
-                {isSupplierSaving ? t('warehouse.modals.saving') : t('common.save')}
+                {isSupplierSaving
+                  ? t('warehouse.modals.saving')
+                  : t('common.save')}
               </Button>
             </footer>
           }
@@ -2745,4 +2906,3 @@ export const WarehousePanel = ({
     </section>
   );
 };
-

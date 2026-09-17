@@ -8,6 +8,7 @@ import {
 import i18n from '../../../../shared/i18n/config';
 import {
   useCashboxesQuery,
+  useFinanceCategoriesQuery,
   useFinanceCurrenciesQuery,
   useFinanceReportQuery,
   useFinanceTransactionsQuery,
@@ -44,6 +45,7 @@ export const useAccountingFinanceData = ({
     { page: 1, pageSize: 6, sortBy: 'date', sortDirection: 'desc' },
   );
   const currenciesQuery = useFinanceCurrenciesQuery({ includeArchived: true });
+  const categoriesQuery = useFinanceCategoriesQuery();
   const reportQuery = useFinanceReportQuery();
   const supplierOrdersQueueQuery = useSupplierOrdersForPaymentQuery();
   const supplierOrdersQuery = useSupplierOrdersQuery();
@@ -64,6 +66,10 @@ export const useAccountingFinanceData = ({
     () => currenciesQuery.data ?? [],
     [currenciesQuery.data],
   );
+  const categories = useMemo(
+    () => categoriesQuery.data ?? [],
+    [categoriesQuery.data],
+  );
   const supplierOrders = useMemo(
     () => supplierOrdersQuery.data ?? [],
     [supplierOrdersQuery.data],
@@ -79,6 +85,7 @@ export const useAccountingFinanceData = ({
       allCashboxesQuery.refetch(),
       recentTransactionsQuery.refetch(),
       currenciesQuery.refetch(),
+      categoriesQuery.refetch(),
       reportQuery.refetch(),
       supplierOrdersQueueQuery.refetch(),
       supplierOrdersQuery.refetch(),
@@ -93,6 +100,7 @@ export const useAccountingFinanceData = ({
   }, [
     activeCashboxesQuery,
     allCashboxesQuery,
+    categoriesQuery,
     currenciesQuery,
     onError,
     reportQuery,
@@ -140,6 +148,7 @@ export const useAccountingFinanceData = ({
       allCashboxesQuery.error,
       recentTransactionsQuery.error,
       currenciesQuery.error,
+      categoriesQuery.error,
       reportQuery.error,
       supplierOrdersQueueQuery.error,
       supplierOrdersQuery.error,
@@ -151,6 +160,7 @@ export const useAccountingFinanceData = ({
   }, [
     activeCashboxesQuery.error,
     allCashboxesQuery.error,
+    categoriesQuery.error,
     currenciesQuery.error,
     onError,
     reportQuery.error,
@@ -183,6 +193,7 @@ export const useAccountingFinanceData = ({
   return {
     allCashboxes,
     cashboxes,
+    categories,
     currencies,
     isCashboxesOrderHydrated,
     isLoading,

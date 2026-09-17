@@ -69,7 +69,11 @@ export type WarehouseSearchMode =
   | 'article'
   | 'warehouse'
   | 'supplier';
-export type ReceiptStatus = 'new' | 'approved' | 'received' | 'cancelled';
+export type ReceiptStatus =
+  | 'new'
+  | 'approved'
+  | 'received'
+  | 'cancelled';
 export const receiptStatusFilterOptions: ReceiptStatus[] = [
   'new',
   'approved',
@@ -114,6 +118,7 @@ export type WarehouseLocation = { id: string; name: string };
 export type ReceiptRow = {
   id: string;
   number: string;
+  orderBaseNumber?: string;
   supplierOrderId?: string;
   supplierOrderItemIndex?: number;
   catalogProductId?: string;
@@ -128,7 +133,11 @@ export type ReceiptRow = {
   approvedBy: string;
   acceptedAt: string;
   status: ReceiptStatus;
-  paymentStatus?: 'pending' | 'paid' | 'without_payment' | 'cancelled';
+  paymentStatus?:
+    | 'pending'
+    | 'paid'
+    | 'without_payment'
+    | 'cancelled';
   supplierOrderIsFavorite?: boolean;
   note: string;
 };
@@ -225,12 +234,17 @@ export type WarehousePanelProps = {
     catalogProductId: string,
     payload: CatalogProductFormValues,
   ) => Promise<boolean>;
-  onUpdateProductModel: (payload: ProductModelUpdatePayload) => Promise<boolean>;
+  onUpdateProductModel: (
+    payload: ProductModelUpdatePayload,
+  ) => Promise<boolean>;
   currentEmployeeId: string;
   currentEmployeeName: string;
   onSuccess: (message: string) => void;
   onError: (message: string) => void;
-  onOpenSaleCard?: (sale: { id: string; kind: 'repair' | 'sale' }) => void;
+  onOpenSaleCard?: (sale: {
+    id: string;
+    kind: 'repair' | 'sale';
+  }) => void;
 };
 
 export const tabs: Array<{
@@ -256,12 +270,18 @@ export const searchModes: Array<{
   { key: 'supplier', labelKey: 'warehouse.searchModes.supplier' },
 ];
 
-export const settingsTabs: Array<{ key: SettingsTab; labelKey: string }> = [
+export const settingsTabs: Array<{
+  key: SettingsTab;
+  labelKey: string;
+}> = [
   {
     key: 'service-centers',
     labelKey: 'warehouse.settings.tabs.serviceCenters',
   },
-  { key: 'warehouses', labelKey: 'warehouse.settings.tabs.warehouses' },
+  {
+    key: 'warehouses',
+    labelKey: 'warehouse.settings.tabs.warehouses',
+  },
   {
     key: 'administrators',
     labelKey: 'warehouse.settings.tabs.administrators',
@@ -273,14 +293,19 @@ export const initialWarehouses: WarehouseItem[] = [];
 export const initialAdministrators: Administrator[] = [];
 export const emptySupplierOrders: SupplierOrder[] = [];
 export const transferPageSize = 8;
-export const warehouseFiltersStorageKey = 'project-goods.warehouse-filters';
-export const warehouseColumnsStorageKey = 'project-goods.warehouse-columns';
+export const warehouseFiltersStorageKey =
+  'project-goods.warehouse-filters';
+export const warehouseColumnsStorageKey =
+  'project-goods.warehouse-columns';
 export const warehouseStockNameWidthStorageKey =
   'project-goods.warehouse-stock-name-width';
 export const warehouseStockNameWidthMin = 180;
 export const warehouseStockNameWidthMax = 720;
 export const warehouseStockNameWidthDefault = 320;
-export const warehouseStockColumnWidths: Record<StockColumnKey, number> = {
+export const warehouseStockColumnWidths: Record<
+  StockColumnKey,
+  number
+> = {
   select: 44,
   name: warehouseStockNameWidthDefault,
   serial: 130,
@@ -349,7 +374,9 @@ export const initialWarehouseFilters: WarehouseFilters = {
 };
 
 export const normalizeReceiptStatuses = (
-  filters?: Partial<WarehouseFilters> & { status?: ReceiptStatus | '' },
+  filters?: Partial<WarehouseFilters> & {
+    status?: ReceiptStatus | '';
+  },
 ): ReceiptStatus[] => {
   if (Array.isArray(filters?.statuses)) {
     return filters.statuses.filter((status) =>
@@ -358,7 +385,9 @@ export const normalizeReceiptStatuses = (
   }
   if (
     filters?.status &&
-    receiptStatusFilterOptions.includes(filters.status as ReceiptStatus)
+    receiptStatusFilterOptions.includes(
+      filters.status as ReceiptStatus,
+    )
   ) {
     return [filters.status as ReceiptStatus];
   }
@@ -444,27 +473,28 @@ export const availableWarehouseColumns: {
     'payment',
   ],
 };
-export const defaultWarehouseVisibleColumns: WarehouseColumnVisibility = {
-  stock: [
-    'select',
-    'name',
-    'serial',
-    'date',
-    'purchase',
-    'warehouse',
-    'supplierOrder',
-    'supplier',
-    'action',
-  ],
-  receipts: [
-    'number',
-    'product',
-    'quantity',
-    'price',
-    'amount',
-    'supplier',
-  ],
-};
+export const defaultWarehouseVisibleColumns: WarehouseColumnVisibility =
+  {
+    stock: [
+      'select',
+      'name',
+      'serial',
+      'date',
+      'purchase',
+      'warehouse',
+      'supplierOrder',
+      'supplier',
+      'action',
+    ],
+    receipts: [
+      'number',
+      'product',
+      'quantity',
+      'price',
+      'amount',
+      'supplier',
+    ],
+  };
 export const lockedWarehouseColumns: {
   stock: StockColumnKey[];
   receipts: ReceiptsColumnKey[];
@@ -494,7 +524,9 @@ export const toServiceCenterForm = (
   phone: c?.phone ?? '+380',
 });
 
-export const toWarehouseForm = (w?: WarehouseItem): WarehouseFormState => ({
+export const toWarehouseForm = (
+  w?: WarehouseItem,
+): WarehouseFormState => ({
   name: w?.name ?? '',
   isActive: w?.isActive ?? true,
   serviceCenterId: w?.serviceCenterId ?? '',
@@ -547,13 +579,17 @@ export const filterReceiptRows = ({
     }
 
     const supplier = filters.supplier.trim().toLowerCase();
-    if (supplier && !receipt.supplierName.toLowerCase().includes(supplier)) {
+    if (
+      supplier &&
+      !receipt.supplierName.toLowerCase().includes(supplier)
+    ) {
       return false;
     }
 
     if (
       filters.buyer.trim() &&
-      receipt.acceptedBy.toLowerCase() !== filters.buyer.trim().toLowerCase()
+      receipt.acceptedBy.toLowerCase() !==
+        filters.buyer.trim().toLowerCase()
     ) {
       return false;
     }
@@ -590,7 +626,7 @@ export const groupReceiptRowsByOrder = (
     }
     groups.set(id, {
       id,
-      number: receipt.number,
+      number: receipt.orderBaseNumber || receipt.number,
       receipts: [receipt],
     });
     order.push(id);
@@ -610,14 +646,21 @@ export const getReceiptGroupStatus = (
   receipts: ReceiptRow[],
 ): ReceiptStatus =>
   receipts.reduce<ReceiptStatus>((worst, receipt) => {
-    return receiptStatusRank[receipt.status] > receiptStatusRank[worst]
+    return receiptStatusRank[receipt.status] >
+      receiptStatusRank[worst]
       ? receipt.status
       : worst;
   }, receipts[0]?.status ?? 'new');
 
 export const getReceiptGroupTotals = (receipts: ReceiptRow[]) => {
-  const quantity = receipts.reduce((sum, receipt) => sum + receipt.quantity, 0);
-  const amount = receipts.reduce((sum, receipt) => sum + receipt.amount, 0);
+  const quantity = receipts.reduce(
+    (sum, receipt) => sum + receipt.quantity,
+    0,
+  );
+  const amount = receipts.reduce(
+    (sum, receipt) => sum + receipt.amount,
+    0,
+  );
   const paid = receipts[0]?.paid ?? 0;
   return {
     quantity,

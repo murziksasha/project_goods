@@ -18,10 +18,13 @@ export const queryKeys = {
   financeCashboxes: ['financeCashboxes'] as const,
   financeAllCashboxes: ['financeCashboxes', 'all'] as const,
   financeCurrencies: ['financeCurrencies'] as const,
+  financeCategories: ['financeCategories'] as const,
   financeTransactions: ['financeTransactions'] as const,
   financeTransactionsList: (params: Record<string, unknown> = {}) =>
     ['financeTransactions', params] as const,
   financeReport: ['financeReport'] as const,
+  financeProfitReport: (params: Record<string, unknown> = {}) =>
+    ['financeProfitReport', params] as const,
   financeSupplierOrdersQueue: ['financeSupplierOrdersQueue'] as const,
   financeSettings: ['financeSettings'] as const,
   marketRates: ['marketRates'] as const,

@@ -7,7 +7,9 @@ This document defines financial behavior in the `Accounting` workspace (cashboxe
 
 ## Sub-Tab URL and Browser History (2026-06-22)
 
-- Active accounting sub-tab is reflected in the URL as `accountingTab` when `page=accounting` (values: `cashboxes`, `transactions`, `orders`, `reports`).
+- Active accounting sub-tab is reflected in the URL as `accountingTab` when `page=accounting` (values: `cashboxes`, `transactions`, `orders`, `information`, `reports`).
+- **Information** (`accountingTab=information`) is the cashbox snapshot (balances, today turnover). Stored `reports` from before this split is migrated once to `information`.
+- **Reports** (`accountingTab=reports`) is the profit / margin report (`GET /finance/profit-report`).
 - Switching tabs pushes a new browser history entry so **Back** / **Forward** restore the previous accounting view.
 - Tab changes go through the shared dashboard navigator (`DashboardPage.navigateTo`); `useAccountingPreferences` persists the tab to `localStorage` but does not own a separate `popstate` listener.
 - On history navigation, `DashboardPage` passes `syncedAccountingTab` into `AccountingPanel` to keep the UI aligned with the URL.
@@ -35,7 +37,9 @@ This document defines financial behavior in the `Accounting` workspace (cashboxe
 - `GET /finance/transactions` returns a paginated payload: `{ items, total, page, pageSize }`.
 - **Default scope (no `dateFrom` / `dateTo`)** — only the **200 most recent** transactions are considered (`FINANCE_TRANSACTIONS_DEFAULT_RECENT_LIMIT`). UI page size defaults to **30** rows and can be changed (10 / 30 / 50 / 100 / 200).
 - **Date / period filter** — when `dateFrom` and/or `dateTo` is set, the backend queries **all matching rows in MongoDB** for that period (no 200 cap). Pagination applies to the full filtered set.
-- **Server-side filters** — `type`, `currency`, `fromCashboxId`, `toCashboxId`, `cashboxId` (toolbar cashbox: from or to), `note` (case-insensitive substring), `sortBy`, `sortDirection`, `page`, `pageSize`.
+- **Server-side filters** — `type`, `currency`, `fromCashboxId`, `toCashboxId`, `cashboxId` (toolbar cashbox: from or to), `note` (case-insensitive substring), `category` (exact slug), `sortBy`, `sortDirection`, `page`, `pageSize`.
+- **Category toolbar** — instant **All categories** select after Filter / Date. Options include auto categories (`client_payment`, `client_refund`, `supplier_payment`) and opex/custom (including inactive, so deactivated historical rows stay findable). After a custom category is deleted, its transactions are **Other** and the deleted slug leaves this list. ANDed with cashbox, Filter panel, and Date. Filter panel **Clear** resets category because it resets the full filter object.
+- **Type column** — withdraw rows show a muted category label under red **Withdraw**, except when the category is `other` (no subtitle). Deposits and transfers have no category subtitle.
 - **Date comparison** — `transactionDate` compared by calendar `YYYY-MM-DD` (UTC date part of stored ISO timestamp), same as the previous client filter.
 - **`balanceAfter`** — each list item includes post-transaction balance for the affected cashbox side; computed on the server from current cashbox balances and full transaction history.
 - **Information tab recent list** — loads `page=1&pageSize=6` separately; not tied to the Transactions tab query.
@@ -175,7 +179,7 @@ This document defines financial behavior in the `Accounting` workspace (cashboxe
   - `Transfer`: `From cashbox` is preselected as the clicked cashbox and `To cashbox` is preselected to another valid cashbox.
 
 ## Operation Form Persistence Rules
-- After a manual transaction submit finishes (success or validation/API error), `type`, `from`, `to`, and `currency` stay unchanged.
+- After a manual transaction submit finishes (success or validation/API error), `type`, `from`, `to`, `currency`, and withdraw `category` stay unchanged.
 - Only `amount` and `note` are cleared after a successful submit.
 - On successful submit, the operation snapshot is stored per anchor cashbox:
   - `deposit` -> anchor = `toCashboxId`
@@ -193,7 +197,45 @@ This document defines financial behavior in the `Accounting` workspace (cashboxe
 ## Accounting Settings Access
 - In `Accounting`, a gear button is shown on the right side of the tabs row.
 - Clicking gear opens `Accounting settings` panel without leaving the page.
-- Top tab label is `Information` (renamed from `Reports`).
+- Top tab labels: `Information` (cashbox snapshot) and `Reports` (P&L / margin).
+
+## Profit report (`GET /finance/profit-report`)
+
+- Filters: source **All / Services / Sales**; period **All time (default) / Day / Week / Month / Year**; optional custom `dateFrom`/`dateTo`. Week is Monday–Sunday in `Europe/Kiev`.
+- **Gross margin** uses stock-committed documents only (sale `paid`/`issued`, repair `issued`/`issuedWithoutRepair`). COGS is `Product.price` of linked units. Services have cost `0`. Order discount is allocated pro-rata across lines. Open repairs are excluded.
+- **Cash result** uses active finance txs (not cancelled, not reversals). Transfers are ignored.
+  - Collected = `client_payment` deposits
+  - Inventory purchases = `supplier_payment` withdraws
+  - Operating expenses = rent / salary / utilities / tax / owner_draw / other withdraws
+  - Refunds = `client_refund`
+  - Net cash = collected − purchases − opex − refunds
+- Manual **Withdraw** in the operation modal requires a category (default Other). The category control is a custom listbox: **5 visible rows** then scroll **inside the list** (the operation modal itself does not scroll when the menu opens); **Other** is always last; a separator plus **Add category** stays below the scrolling list and opens a nested create modal. **Add category** is shown only with `finance.cashboxes.manage`. After create, the new category is selected and the operation modal stays open. Order payments, refunds, and supplier-order pay set auto categories in the backend.
+- Custom withdraw categories are extra opex buckets in cash result / expense bars (no new P&L buckets). Labels: i18n for system slugs, stored `name` for custom. Deleting a custom category moves those withdraws into **Other**; the custom bar disappears on the next profit-report fetch.
+- **Export Excel** downloads the current **API** period/source/date combination (Summary, Margin, Cash sheets). Table search, type, margin band, and row selection do **not** change the workbook.
+
+### Visual analysis (Reports tab)
+
+- KPI tiles use app tokens: revenue/collected primary, COGS/purchases orange, profit/net/margin green or red by sign, opex warning.
+- **Visual** (toolbar, not the cashboxes gear) persists in `localStorage` key `project-goods.accounting-profit-visual`:
+  - show charts (default on)
+  - chart metric: profit (default) / revenue / quantity — drives mix donut and top-item bars only
+  - highlight loss rows (default on)
+  - compact table (default off)
+- Charts (no extra library, same SVG/CSS as Analytics / Warehouse Information): product vs service mix, top 8 distribution, top 3 bars, cash waterfall. Clicking a top-item bar/track sets the table search to that name.
+- Expense panel uses distribution bars by opex category (refunds as a red bar when present).
+
+### Margin table analysis
+
+- Client-side **search** (name substring), **type** (All / Product / Service), **margin** (All / Loss / Unknown cost), and **sort**. Pagination applies to the filtered set.
+- Row checkboxes build an analysis group. With 1+ selected, the strip and charts use only those visible rows; otherwise they use the filtered set.
+- Charts and the analysis strip follow the visible row set. Clearing period/source/date resets table filters and selection.
+- Product/service **name** uses the catalog copyable-name control. Click opens:
+  - **Goods** — warehouse `ProductModelModal` (retail/wholesale prices, purchase-by-serial, stock summary) for every product row
+  - **Services** — `CatalogServiceModal` when `serviceId` matches (or a unique exact service name)
+  - unmatched service names stay text (copy icon only; no fake editor)
+- Opening a catalog modal requires `finance.view`. `GET /products` and `GET /services` also allow `finance.view` so the modal can load stock and service prices. Save / archive require `inventory.manage`; otherwise the modal is read-only.
+- Each margin row includes `catalogProductId` and `serviceId` (`null` when the grouped lines do not share one id). Grouping key remains `product:…` / `service:…`.
+- Catalog edits from Reports invalidate catalog queries. Historical margin numbers do not recompute until the next profit-report fetch.
 
 ## Cashbox Settings Rules
 - `Cashboxes` settings section supports:
@@ -204,6 +246,18 @@ This document defines financial behavior in the `Accounting` workspace (cashboxe
 - Default cashbox cannot be deactivated.
 - Deactivated cashboxes stay visible in settings and are rendered in muted/greyed style.
 - Transactions/cashbox runtime lists continue to use active cashboxes only.
+
+## Category Settings Rules
+- Gear settings have a third tab **Categories** (beside Cashboxes / Currencies). The tab is stored in `project-goods.accounting-finance-settings-tab`.
+- The tab lists all categories: auto (`client_payment`, `client_refund`, `supplier_payment`), built-in opex, and custom opex. Order matches the transactions filter (**Other** last).
+- Permission for create / rename / activity / delete: `finance.cashboxes.manage` (same as currencies). List is readable with `finance.view`.
+- **Create** uses the shared **Add category** modal (`CreateFinanceCategoryModal`) from settings and from the operation withdraw listbox. Name 2–80 characters, unique case-insensitive, cannot match a system slug or seeded EN/UK label. After create from the operation listbox, the new category is selected and the operation modal stays open.
+- Names are editable for expense categories (built-in opex and custom). Save with the row **Save** button, Enter, or blur. A default i18n label is restored when the typed name matches the seeded English/Ukrainian alias. Labels update in the transactions filter, withdraw menu, and reports.
+- **Other** and auto categories (`client_payment`, `client_refund`, `supplier_payment`) are always active: the activity checkbox and the name field are locked. They cannot be renamed, turned off, or deleted.
+- Activity checkbox on other opex rows (built-in and custom) controls visibility in the withdraw dropdown. Deactivated categories stay in settings (muted) and in the transactions filter so historical rows stay findable. Toggling activity does not refetch the transactions list.
+- Built-in opex (Rent, Salary, Utilities, Tax, Owner draw) can be deactivated but **not** deleted. The row **Delete** button stays disabled.
+- Custom categories can **always** be deleted, including when `usageCount > 0`. **Delete** is enabled on custom rows. There is no unused-only gate.
+- On delete, backend reassigns every finance transaction with that slug to `other`, then removes the category document. Those withdraws then show as Other (no type-column subtitle), drop out of the withdraw menu and category filter, and fold into the Other opex bucket on the next profit-report fetch. The category list, transactions list, and profit report all invalidate (including SSE `/finance/categories`).
 
 ## Currency Settings Rules
 - `Currencies` settings section supports creating and archiving finance currency codes.

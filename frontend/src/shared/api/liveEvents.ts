@@ -35,9 +35,14 @@ const invalidateForPath = (path: string) => {
   if (path.includes('/supplier-orders')) {
     void queryClient.invalidateQueries({ queryKey: queryKeys.supplierOrders });
   }
-  if (path.includes('/finance')) {
+  if (path.includes('/finance/categories')) {
+    void queryClient.invalidateQueries({ queryKey: queryKeys.financeCategories });
+    void queryClient.invalidateQueries({ queryKey: queryKeys.financeTransactions });
+    void queryClient.invalidateQueries({ queryKey: ['financeProfitReport'] });
+  } else if (path.includes('/finance')) {
     void queryClient.invalidateQueries({ queryKey: queryKeys.financeCashboxes });
     void queryClient.invalidateQueries({ queryKey: queryKeys.financeCurrencies });
+    void queryClient.invalidateQueries({ queryKey: queryKeys.financeCategories });
     void queryClient.invalidateQueries({ queryKey: queryKeys.financeTransactions });
     void queryClient.invalidateQueries({ queryKey: queryKeys.financeReport });
   }

@@ -1,10 +1,25 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { ClientDevice, ClientDeviceFormValues } from '../../../../entities/client-device/model/types';
-import type { CatalogProduct, CatalogProductFormValues } from '../../../../entities/catalog-product/model/types';
-import type { Supplier, SupplierFormValues } from '../../../../entities/supplier/model/types';
-import type { Product, ProductFormValues } from '../../../../entities/product/model/types';
-import type { ServiceCatalogFormValues, ServiceCatalogItem } from '../../../../entities/service-catalog/model/types';
+import type {
+  ClientDevice,
+  ClientDeviceFormValues,
+} from '../../../../entities/client-device/model/types';
+import type {
+  CatalogProduct,
+  CatalogProductFormValues,
+} from '../../../../entities/catalog-product/model/types';
+import type {
+  Supplier,
+  SupplierFormValues,
+} from '../../../../entities/supplier/model/types';
+import type {
+  Product,
+  ProductFormValues,
+} from '../../../../entities/product/model/types';
+import type {
+  ServiceCatalogFormValues,
+  ServiceCatalogItem,
+} from '../../../../entities/service-catalog/model/types';
 import { formatCurrency } from '../../../../shared/lib/format';
 import { parseDecimal } from '../../../../shared/lib/decimal';
 import {
@@ -21,16 +36,27 @@ import {
   setPriceOption,
   setServicePriceOption,
 } from './product-catalog-shared';
+import { findCatalogDuplicate } from '../../../../features/catalog-duplicate-merge/lib/detectDuplicate';
+import { CatalogMergeConfirmationModal } from '../../../../features/catalog-duplicate-merge/ui/CatalogMergeConfirmationModal';
+
 export const SupplierModal = ({
   supplier,
+  suppliers = [],
   onClose,
   onSave,
   onCreate,
+  onMerge,
 }: {
   supplier: Supplier;
+  suppliers?: Supplier[];
   onClose: () => void;
   onSave: (payload: SupplierFormValues) => Promise<void>;
   onCreate: (payload: SupplierFormValues) => Promise<boolean>;
+  onMerge?: (
+    targetSupplierId: string,
+    sourceSupplierId: string,
+    draftNote?: string,
+  ) => Promise<boolean>;
 }) => {
   const { t } = useTranslation();
   const phoneInputRef = useRef<HTMLInputElement>(null);
@@ -41,6 +67,10 @@ export const SupplierModal = ({
   const [isActive, setIsActive] = useState(supplier.isActive);
   const [isSaving, setIsSaving] = useState(false);
   const [isCreateCopy, setIsCreateCopy] = useState(false);
+  const [duplicateTarget, setDuplicateTarget] =
+    useState<Supplier | null>(null);
+  const [isMerging, setIsMerging] = useState(false);
+  const [mergeError, setMergeError] = useState<string | null>(null);
 
   const phoneDigits = (value: string) => value.replace(/\D/g, '');
   const isSamePhone =
@@ -52,7 +82,9 @@ export const SupplierModal = ({
       : `${trimmed}${copySuffix}`;
   };
   const canSubmitCreate =
-    Boolean(name.trim()) && isValidUkrainianPhone(phone) && !isSamePhone;
+    Boolean(name.trim()) &&
+    isValidUkrainianPhone(phone) &&
+    !isSamePhone;
 
   useEffect(() => {
     if (!isCreateCopy) return;
@@ -61,14 +93,51 @@ export const SupplierModal = ({
   }, [isCreateCopy]);
 
   const save = async () => {
+    if (!isCreateCopy && onMerge && suppliers.length > 0) {
+      const duplicate = findCatalogDuplicate({
+        currentId: supplier.id,
+        name,
+        items: suppliers,
+      });
+      if (duplicate) {
+        setDuplicateTarget(duplicate);
+        setMergeError(null);
+        return;
+      }
+    }
+
     setIsSaving(true);
-    await onSave({
-      name: name.trim(),
-      phone: phone.trim(),
-      note: note.trim(),
-      isActive,
-    });
-    setIsSaving(false);
+    try {
+      await onSave({
+        name: name.trim(),
+        phone: phone.trim(),
+        note: note.trim(),
+        isActive,
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const confirmMerge = async () => {
+    if (!duplicateTarget || !onMerge) return;
+    setIsMerging(true);
+    setMergeError(null);
+    try {
+      const success = await onMerge(
+        duplicateTarget.id,
+        supplier.id,
+        note.trim(),
+      );
+      if (success) {
+        setDuplicateTarget(null);
+        onClose();
+      }
+    } catch (err) {
+      setMergeError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setIsMerging(false);
+    }
   };
 
   const createCopy = async () => {
@@ -98,70 +167,117 @@ export const SupplierModal = ({
   };
 
   return (
-    <Modal
-      isOpen
-      title={
-        isCreateCopy
-          ? t('catalog.modals.createSupplier')
-          : t('catalog.modals.supplier')
-      }
-      subtitle={
-        isCreateCopy
-          ? undefined
-          : t('catalog.modals.supplierId', { id: supplier.id.slice(-6) })
-      }
-      onClose={onClose}
-      closeLabel={t('catalog.modals.close')}
-      closeOnBackdrop={!isSaving}
-      closeOnEscape={!isSaving}
-      footer={
-        <footer className="catalog-edit-footer">
-          {isCreateCopy ? null : (
+    <>
+      <Modal
+        isOpen
+        title={
+          isCreateCopy
+            ? t('catalog.modals.createSupplier')
+            : t('catalog.modals.supplier')
+        }
+        subtitle={
+          isCreateCopy
+            ? undefined
+            : t('catalog.modals.supplierId', {
+                id: supplier.id.slice(-6),
+              })
+        }
+        onClose={onClose}
+        closeLabel={t('catalog.modals.close')}
+        closeOnBackdrop={!isSaving}
+        closeOnEscape={!isSaving}
+        footer={
+          <footer className='catalog-edit-footer'>
+            {isCreateCopy ? null : (
+              <Button
+                variant='secondary'
+                onClick={startCreateCopy}
+                disabled={isSaving || !name.trim()}
+                title={t('catalog.modals.addNewHint')}
+              >
+                {t('catalog.modals.addNew')}
+              </Button>
+            )}
             <Button
-              variant="secondary"
-              onClick={startCreateCopy}
-              disabled={isSaving || !name.trim()}
-              title={t('catalog.modals.addNewHint')}
+              variant='primary'
+              onClick={() =>
+                void (isCreateCopy ? createCopy() : save())
+              }
+              disabled={
+                isSaving ||
+                !name.trim() ||
+                (isCreateCopy ? !canSubmitCreate : !phone.trim())
+              }
             >
-              {t('catalog.modals.addNew')}
+              {isSaving
+                ? t('catalog.modals.saving')
+                : isCreateCopy
+                  ? t('catalog.modals.create')
+                  : t('common.save')}
             </Button>
-          )}
-          <Button
-            variant="primary"
-            onClick={() => void (isCreateCopy ? createCopy() : save())}
-            disabled={
-              isSaving ||
-              !name.trim() ||
-              (isCreateCopy ? !canSubmitCreate : !phone.trim())
-            }
+          </footer>
+        }
+      >
+        <label className='field'>
+          <span>{t('catalog.modals.name')}</span>
+          <input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+          />
+        </label>
+        <label className='field'>
+          <span>{t('catalog.modals.phone')}</span>
+          <input
+            ref={phoneInputRef}
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+          />
+        </label>
+        {isCreateCopy ? (
+          <p className='muted-copy'>
+            {t('catalog.modals.addNewPhoneHint')}
+          </p>
+        ) : null}
+        <label className='field field-wide'>
+          <span>{t('catalog.modals.note')}</span>
+          <textarea
+            rows={3}
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+          />
+        </label>
+        <label className='field'>
+          <span>{t('catalog.modals.status')}</span>
+          <select
+            value={isActive ? 'active' : 'inactive'}
+            onChange={(e) => setIsActive(e.target.value === 'active')}
           >
-            {isSaving
-              ? t('catalog.modals.saving')
-              : isCreateCopy
-                ? t('catalog.modals.create')
-                : t('common.save')}
-          </Button>
-        </footer>
-      }
-    >
-      <label className="field"><span>{t('catalog.modals.name')}</span><input value={name} onChange={(e) => setName(e.target.value)} /></label>
-      <label className="field">
-        <span>{t('catalog.modals.phone')}</span>
-        <input
-          ref={phoneInputRef}
-          value={phone}
-          onChange={(e) => setPhone(e.target.value)}
+            <option value='active'>
+              {t('catalog.modals.active')}
+            </option>
+            <option value='inactive'>
+              {t('catalog.modals.inactive')}
+            </option>
+          </select>
+        </label>
+      </Modal>
+
+      {duplicateTarget ? (
+        <CatalogMergeConfirmationModal
+          isOpen
+          isMerging={isMerging}
+          targetName={duplicateTarget.name}
+          targetNote={duplicateTarget.note}
+          sourceName={name}
+          sourceNote={note}
+          error={mergeError}
+          onConfirm={confirmMerge}
+          onClose={() => setDuplicateTarget(null)}
         />
-      </label>
-      {isCreateCopy ? (
-        <p className="muted-copy">{t('catalog.modals.addNewPhoneHint')}</p>
       ) : null}
-      <label className="field field-wide"><span>{t('catalog.modals.note')}</span><textarea rows={3} value={note} onChange={(e) => setNote(e.target.value)} /></label>
-      <label className="field"><span>{t('catalog.modals.status')}</span><select value={isActive ? 'active' : 'inactive'} onChange={(e) => setIsActive(e.target.value === 'active')}><option value="active">{t('catalog.modals.active')}</option><option value="inactive">{t('catalog.modals.inactive')}</option></select></label>
-    </Modal>
+    </>
   );
 };
-
 
 type CatalogProductModalProps = {
   product: Product;
@@ -202,131 +318,227 @@ export const CatalogProductModal = ({
     <Modal
       isOpen
       title={product.name}
-      subtitle={t('catalog.modals.supplierId', { id: catalogNumber || '-' })}
+      subtitle={t('catalog.modals.supplierId', {
+        id: catalogNumber || '-',
+      })}
       onClose={onClose}
       closeLabel={t('catalog.modals.close')}
       closeOnBackdrop={!isSaving}
       closeOnEscape={!isSaving}
       footer={
-        <footer className="catalog-edit-footer">
-          <button type="button" className="danger-button catalog-danger-wide" onClick={onArchive}>
+        <footer className='catalog-edit-footer'>
+          <button
+            type='button'
+            className='danger-button catalog-danger-wide'
+            onClick={onArchive}
+          >
             {t('catalog.modals.deleteDeactivate')}
           </button>
           <button
-            type="button"
-            className="primary-button catalog-activate-button"
+            type='button'
+            className='primary-button catalog-activate-button'
             onClick={onActivate}
             disabled={isSaving || product.isActive}
           >
             {t('catalog.modals.activate')}
           </button>
-          <Button variant="primary" onClick={() => void saveAndClose()} disabled={isSaving || !isEditing}>
+          <Button
+            variant='primary'
+            onClick={() => void saveAndClose()}
+            disabled={isSaving || !isEditing}
+          >
             {isSaving ? t('catalog.modals.saving') : t('common.save')}
           </Button>
         </footer>
       }
     >
-        <h3>{t('catalog.modals.mainInformation')}</h3>
-        <label className="field">
-          <span>{t('catalog.modals.name')}</span>
-          <input value={form.name} onChange={(event) => onChange('name', event.target.value)} />
-        </label>
-        <label className="field">
-          <span>{t('catalog.modals.article')}</span>
-          <input value={form.article} onChange={(event) => onChange('article', event.target.value)} />
-        </label>
-        <label className="field">
-          <span>{t('catalog.modals.serialNumber')}</span>
-          <input value={form.serialNumber} onChange={(event) => onChange('serialNumber', event.target.value)} />
-        </label>
+      <h3>{t('catalog.modals.mainInformation')}</h3>
+      <label className='field'>
+        <span>{t('catalog.modals.name')}</span>
+        <input
+          value={form.name}
+          onChange={(event) => onChange('name', event.target.value)}
+        />
+      </label>
+      <label className='field'>
+        <span>{t('catalog.modals.article')}</span>
+        <input
+          value={form.article}
+          onChange={(event) =>
+            onChange('article', event.target.value)
+          }
+        />
+      </label>
+      <label className='field'>
+        <span>{t('catalog.modals.serialNumber')}</span>
+        <input
+          value={form.serialNumber}
+          onChange={(event) =>
+            onChange('serialNumber', event.target.value)
+          }
+        />
+      </label>
 
-        <fieldset className="catalog-type-field">
-          <legend>{t('catalog.modals.itemType')}</legend>
-          <label><input type="radio" checked readOnly /> {t('catalog.modals.itemTypeProduct')}</label>
-          <label><input type="radio" disabled /> {t('catalog.modals.itemTypeService')}</label>
-          <label><input type="radio" disabled /> {t('catalog.modals.itemTypeComplexProduct')}</label>
-        </fieldset>
-
-        <label className="field">
-          <span>{t('catalog.modals.unit')}</span>
-          <select value="pcs" disabled>
-            <option value="pcs">{t('catalog.modals.unitDefault')}</option>
-          </select>
+      <fieldset className='catalog-type-field'>
+        <legend>{t('catalog.modals.itemType')}</legend>
+        <label>
+          <input type='radio' checked readOnly />{' '}
+          {t('catalog.modals.itemTypeProduct')}
         </label>
-
-        <label className="field field-wide">
-          <span>{t('catalog.modals.note')}</span>
-          <textarea rows={3} value={form.note} onChange={(event) => onChange('note', event.target.value)} />
+        <label>
+          <input type='radio' disabled />{' '}
+          {t('catalog.modals.itemTypeService')}
         </label>
+        <label>
+          <input type='radio' disabled />{' '}
+          {t('catalog.modals.itemTypeComplexProduct')}
+        </label>
+      </fieldset>
 
-        <div className="catalog-price-grid">
-          <label className="field">
-            <span>{t('catalog.modals.stockBalance')}</span>
-            <input value={t('catalog.modals.stockBalanceValue', { free: product.freeQuantity, total: product.quantity })} disabled />
-          </label>
-          <label className="field">
-            <span>{t('catalog.modals.retailPrice')}</span>
-            <NumberStepper
-              min={0}
-step={PRICE_STEPPER_STEP}
-              precision={PRICE_STEPPER_PRECISION}
-              value={getPriceOption(form, 0) || form.price}
-              onChange={(value) =>
-                onChange('salePriceOptions', setPriceOption(form, 0, value))
-              }
-            />
-          </label>
-          <label className="field">
-            <span>{t('catalog.modals.wholesalePrice1')}</span>
-            <NumberStepper
-              min={0}
-step={PRICE_STEPPER_STEP}
-              precision={PRICE_STEPPER_PRECISION}
-              value={getPriceOption(form, 1)}
-              onChange={(value) =>
-                onChange('salePriceOptions', setPriceOption(form, 1, value))
-              }
-            />
-          </label>
-          <label className="field">
-            <span>{t('catalog.modals.wholesalePrice2')}</span>
-            <NumberStepper
-              min={0}
-step={PRICE_STEPPER_STEP}
-              precision={PRICE_STEPPER_PRECISION}
-              value={getPriceOption(form, 2)}
-              onChange={(value) =>
-                onChange('salePriceOptions', setPriceOption(form, 2, value))
-              }
-            />
-          </label>
-          <label className="field">
-            <span>{t('catalog.modals.purchasePrice')}</span>
-            <NumberStepper min={0} step={PRICE_STEPPER_STEP} precision={PRICE_STEPPER_PRECISION} value={form.price} onChange={(value) => onChange('price', value)} />
-          </label>
-          <label className="field">
-            <span>{t('catalog.modals.warehouse')}</span>
-            <input value={form.purchasePlace} onChange={(event) => onChange('purchasePlace', event.target.value)} />
-          </label>
-        </div>
+      <label className='field'>
+        <span>{t('catalog.modals.unit')}</span>
+        <select value='pcs' disabled>
+          <option value='pcs'>
+            {t('catalog.modals.unitDefault')}
+          </option>
+        </select>
+      </label>
 
-        <div className="catalog-edit-summary">
-          <p>{t('catalog.modals.retailSummary', { value: formatCurrency(parseDecimal(getPriceOption(form, 0) || form.price || product.price)) })}</p>
-          <p>{t('catalog.modals.wholesale1Summary', { value: formatCurrency(parseDecimal(getPriceOption(form, 1) || 0)) })}</p>
-          <p>{t('catalog.modals.wholesale2Summary', { value: formatCurrency(parseDecimal(getPriceOption(form, 2) || 0)) })}</p>
-          <p>{t('catalog.modals.freeStockSummary', { count: product.freeQuantity })}</p>
-          <p>{t('catalog.modals.totalStockSummary', { count: product.quantity })}</p>
-        </div>
+      <label className='field field-wide'>
+        <span>{t('catalog.modals.note')}</span>
+        <textarea
+          rows={3}
+          value={form.note}
+          onChange={(event) => onChange('note', event.target.value)}
+        />
+      </label>
+
+      <div className='catalog-price-grid'>
+        <label className='field'>
+          <span>{t('catalog.modals.stockBalance')}</span>
+          <input
+            value={t('catalog.modals.stockBalanceValue', {
+              free: product.freeQuantity,
+              total: product.quantity,
+            })}
+            disabled
+          />
+        </label>
+        <label className='field'>
+          <span>{t('catalog.modals.retailPrice')}</span>
+          <NumberStepper
+            min={0}
+            step={PRICE_STEPPER_STEP}
+            precision={PRICE_STEPPER_PRECISION}
+            value={getPriceOption(form, 0) || form.price}
+            onChange={(value) =>
+              onChange(
+                'salePriceOptions',
+                setPriceOption(form, 0, value),
+              )
+            }
+          />
+        </label>
+        <label className='field'>
+          <span>{t('catalog.modals.wholesalePrice1')}</span>
+          <NumberStepper
+            min={0}
+            step={PRICE_STEPPER_STEP}
+            precision={PRICE_STEPPER_PRECISION}
+            value={getPriceOption(form, 1)}
+            onChange={(value) =>
+              onChange(
+                'salePriceOptions',
+                setPriceOption(form, 1, value),
+              )
+            }
+          />
+        </label>
+        <label className='field'>
+          <span>{t('catalog.modals.wholesalePrice2')}</span>
+          <NumberStepper
+            min={0}
+            step={PRICE_STEPPER_STEP}
+            precision={PRICE_STEPPER_PRECISION}
+            value={getPriceOption(form, 2)}
+            onChange={(value) =>
+              onChange(
+                'salePriceOptions',
+                setPriceOption(form, 2, value),
+              )
+            }
+          />
+        </label>
+        <label className='field'>
+          <span>{t('catalog.modals.purchasePrice')}</span>
+          <NumberStepper
+            min={0}
+            step={PRICE_STEPPER_STEP}
+            precision={PRICE_STEPPER_PRECISION}
+            value={form.price}
+            onChange={(value) => onChange('price', value)}
+          />
+        </label>
+        <label className='field'>
+          <span>{t('catalog.modals.warehouse')}</span>
+          <input
+            value={form.purchasePlace}
+            onChange={(event) =>
+              onChange('purchasePlace', event.target.value)
+            }
+          />
+        </label>
+      </div>
+
+      <div className='catalog-edit-summary'>
+        <p>
+          {t('catalog.modals.retailSummary', {
+            value: formatCurrency(
+              parseDecimal(
+                getPriceOption(form, 0) ||
+                  form.price ||
+                  product.price,
+              ),
+            ),
+          })}
+        </p>
+        <p>
+          {t('catalog.modals.wholesale1Summary', {
+            value: formatCurrency(
+              parseDecimal(getPriceOption(form, 1) || 0),
+            ),
+          })}
+        </p>
+        <p>
+          {t('catalog.modals.wholesale2Summary', {
+            value: formatCurrency(
+              parseDecimal(getPriceOption(form, 2) || 0),
+            ),
+          })}
+        </p>
+        <p>
+          {t('catalog.modals.freeStockSummary', {
+            count: product.freeQuantity,
+          })}
+        </p>
+        <p>
+          {t('catalog.modals.totalStockSummary', {
+            count: product.quantity,
+          })}
+        </p>
+      </div>
     </Modal>
   );
 };
 
 type CatalogServiceModalProps = {
   service: ServiceCatalogItem;
+  services?: ServiceCatalogItem[];
   catalogNumber: number;
   form: ServiceCatalogFormValues;
   isSaving: boolean;
   isEditing: boolean;
+  readOnly?: boolean;
   onChange: <K extends keyof ServiceCatalogFormValues>(
     field: K,
     value: ServiceCatalogFormValues[K],
@@ -335,224 +547,549 @@ type CatalogServiceModalProps = {
   onClose: () => void;
   onArchive: () => void;
   onActivate: () => void;
+  onMerge?: (
+    targetServiceId: string,
+    sourceServiceId: string,
+    draftNote?: string,
+  ) => Promise<boolean>;
 };
 
 export const CatalogServiceModal = ({
   service,
+  services = [],
   catalogNumber,
   form,
   isSaving,
   isEditing,
+  readOnly = false,
   onChange,
   onSubmit,
   onClose,
   onArchive,
   onActivate,
+  onMerge,
 }: CatalogServiceModalProps) => {
   const { t } = useTranslation();
+  const [duplicateTarget, setDuplicateTarget] =
+    useState<ServiceCatalogItem | null>(null);
+  const [isMerging, setIsMerging] = useState(false);
+  const [mergeError, setMergeError] = useState<string | null>(null);
 
   const saveAndClose = async () => {
+    if (onMerge && services.length > 0) {
+      const duplicate = findCatalogDuplicate({
+        currentId: service.id,
+        name: form.name,
+        items: services,
+      });
+      if (duplicate) {
+        setDuplicateTarget(duplicate);
+        setMergeError(null);
+        return;
+      }
+    }
+
     await onSubmit();
     onClose();
   };
 
-  return (
-    <Modal
-      isOpen
-      title={service.name}
-      subtitle={t('catalog.modals.supplierId', { id: catalogNumber || '-' })}
-      onClose={onClose}
-      closeLabel={t('catalog.modals.close')}
-      closeOnBackdrop={!isSaving}
-      closeOnEscape={!isSaving}
-      footer={
-        <footer className="catalog-edit-footer">
-          <button type="button" className="danger-button catalog-danger-wide" onClick={onArchive}>
-            {t('catalog.modals.deleteDeactivate')}
-          </button>
-          <button
-            type="button"
-            className="primary-button catalog-activate-button"
-            onClick={onActivate}
-            disabled={isSaving || service.isActive}
-          >
-            {t('catalog.modals.activate')}
-          </button>
-          <Button variant="primary" onClick={() => void saveAndClose()} disabled={isSaving || !isEditing}>
-            {isSaving ? t('catalog.modals.saving') : t('common.save')}
-          </Button>
-        </footer>
+  const confirmMerge = async () => {
+    if (!duplicateTarget || !onMerge) return;
+    setIsMerging(true);
+    setMergeError(null);
+    try {
+      const success = await onMerge(
+        duplicateTarget.id,
+        service.id,
+        form.note.trim(),
+      );
+      if (success) {
+        setDuplicateTarget(null);
+        onClose();
       }
-    >
+    } catch (err) {
+      setMergeError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setIsMerging(false);
+    }
+  };
+
+  return (
+    <>
+      <Modal
+        isOpen
+        title={service.name}
+        subtitle={t('catalog.modals.supplierId', {
+          id: catalogNumber || '-',
+        })}
+        onClose={onClose}
+        closeLabel={t('catalog.modals.close')}
+        closeOnBackdrop={!isSaving}
+        closeOnEscape={!isSaving}
+        footer={
+          readOnly ? undefined : (
+            <footer className='catalog-edit-footer'>
+              <button
+                type='button'
+                className='danger-button catalog-danger-wide'
+                onClick={onArchive}
+              >
+                {t('catalog.modals.deleteDeactivate')}
+              </button>
+              <button
+                type='button'
+                className='primary-button catalog-activate-button'
+                onClick={onActivate}
+                disabled={isSaving || service.isActive}
+              >
+                {t('catalog.modals.activate')}
+              </button>
+              <Button
+                variant='primary'
+                onClick={() => void saveAndClose()}
+                disabled={isSaving || !isEditing}
+              >
+                {isSaving
+                  ? t('catalog.modals.saving')
+                  : t('common.save')}
+              </Button>
+            </footer>
+          )
+        }
+      >
         <h3>{t('catalog.modals.mainInformation')}</h3>
-        <label className="field">
+        <label className='field'>
           <span>{t('catalog.modals.name')}</span>
-          <input value={form.name} onChange={(event) => onChange('name', event.target.value)} />
+          <input
+            value={form.name}
+            disabled={readOnly}
+            onChange={(event) => onChange('name', event.target.value)}
+          />
         </label>
-        <label className="field">
+        <label className='field'>
           <span>{t('catalog.modals.retailPrice')}</span>
-          <NumberStepper min={0} step={PRICE_STEPPER_STEP} precision={PRICE_STEPPER_PRECISION} value={form.price} onChange={(value) => onChange('price', value)} />
+          <NumberStepper
+            min={0}
+            step={PRICE_STEPPER_STEP}
+            precision={PRICE_STEPPER_PRECISION}
+            value={form.price}
+            disabled={readOnly}
+            onChange={(value) => onChange('price', value)}
+          />
         </label>
-        <div className="catalog-price-grid">
-          <label className="field">
+        <div className='catalog-price-grid'>
+          <label className='field'>
             <span>{t('catalog.modals.wholesalePrice1')}</span>
             <NumberStepper
               min={0}
-step={PRICE_STEPPER_STEP}
+              step={PRICE_STEPPER_STEP}
               precision={PRICE_STEPPER_PRECISION}
               value={getServicePriceOption(form, 0)}
+              disabled={readOnly}
               onChange={(value) =>
-                onChange('salePriceOptions', setServicePriceOption(form, 0, value))
+                onChange(
+                  'salePriceOptions',
+                  setServicePriceOption(form, 0, value),
+                )
               }
             />
           </label>
-          <label className="field">
+          <label className='field'>
             <span>{t('catalog.modals.wholesalePrice2')}</span>
             <NumberStepper
               min={0}
-step={PRICE_STEPPER_STEP}
+              step={PRICE_STEPPER_STEP}
               precision={PRICE_STEPPER_PRECISION}
               value={getServicePriceOption(form, 1)}
+              disabled={readOnly}
               onChange={(value) =>
-                onChange('salePriceOptions', setServicePriceOption(form, 1, value))
+                onChange(
+                  'salePriceOptions',
+                  setServicePriceOption(form, 1, value),
+                )
               }
             />
           </label>
         </div>
-        <label className="field field-wide">
+        <label className='field field-wide'>
           <span>{t('catalog.modals.note')}</span>
-          <textarea rows={3} value={form.note} onChange={(event) => onChange('note', event.target.value)} />
+          <textarea
+            rows={3}
+            value={form.note}
+            disabled={readOnly}
+            onChange={(event) => onChange('note', event.target.value)}
+          />
         </label>
-        <div className="catalog-edit-summary">
-          <p>{t('catalog.modals.retailSummary', { value: formatCurrency(parseDecimal(form.price || service.price)) })}</p>
-          <p>{t('catalog.modals.wholesale1Summary', { value: formatCurrency(parseDecimal(getServicePriceOption(form, 0) || 0)) })}</p>
-          <p>{t('catalog.modals.wholesale2Summary', { value: formatCurrency(parseDecimal(getServicePriceOption(form, 1) || 0)) })}</p>
-          <p>{t('catalog.modals.statusSummary', { status: service.isActive ? t('catalog.modals.active') : t('catalog.modals.inactive') })}</p>
+        <div className='catalog-edit-summary'>
+          <p>
+            {t('catalog.modals.retailSummary', {
+              value: formatCurrency(
+                parseDecimal(form.price || service.price),
+              ),
+            })}
+          </p>
+          <p>
+            {t('catalog.modals.wholesale1Summary', {
+              value: formatCurrency(
+                parseDecimal(getServicePriceOption(form, 0) || 0),
+              ),
+            })}
+          </p>
+          <p>
+            {t('catalog.modals.wholesale2Summary', {
+              value: formatCurrency(
+                parseDecimal(getServicePriceOption(form, 1) || 0),
+              ),
+            })}
+          </p>
+          <p>
+            {t('catalog.modals.statusSummary', {
+              status: service.isActive
+                ? t('catalog.modals.active')
+                : t('catalog.modals.inactive'),
+            })}
+          </p>
         </div>
-    </Modal>
+      </Modal>
+
+      {duplicateTarget ? (
+        <CatalogMergeConfirmationModal
+          isOpen
+          isMerging={isMerging}
+          targetName={duplicateTarget.name}
+          targetNote={duplicateTarget.note}
+          sourceName={form.name}
+          sourceNote={form.note}
+          error={mergeError}
+          onConfirm={confirmMerge}
+          onClose={() => setDuplicateTarget(null)}
+        />
+      ) : null}
+    </>
   );
 };
 
 export const ClientDeviceModal = ({
   device,
+  clientDevices = [],
   onClose,
   onSave,
   onRemove,
+  onMerge,
 }: {
   device: ClientDevice;
+  clientDevices?: ClientDevice[];
   onClose: () => void;
   onSave: (payload: ClientDeviceFormValues) => Promise<void>;
   onRemove: () => Promise<void>;
+  onMerge?: (
+    targetDeviceId: string,
+    sourceDeviceId: string,
+    draftNote?: string,
+  ) => Promise<boolean>;
 }) => {
   const { t } = useTranslation();
   const [name, setName] = useState(device.name);
   const [note, setNote] = useState(device.note);
   const [isActive, setIsActive] = useState(device.isActive);
   const [isSaving, setIsSaving] = useState(false);
+  const [duplicateTarget, setDuplicateTarget] =
+    useState<ClientDevice | null>(null);
+  const [isMerging, setIsMerging] = useState(false);
+  const [mergeError, setMergeError] = useState<string | null>(null);
 
   const save = async () => {
+    if (onMerge && clientDevices.length > 0) {
+      const duplicate = findCatalogDuplicate({
+        currentId: device.id,
+        name,
+        items: clientDevices,
+        scopeByClient: true,
+        clientId: device.clientId,
+      });
+      if (duplicate) {
+        setDuplicateTarget(duplicate);
+        setMergeError(null);
+        return;
+      }
+    }
+
     setIsSaving(true);
-    await onSave({
-      clientId: device.clientId,
-      clientName: device.clientName,
-      clientPhone: device.clientPhone,
-      name: name.trim(),
-      serialNumber: '',
-      note: note.trim(),
-      source: device.source,
-      isActive,
-      expectedUpdatedAt: device.updatedAt,
-    });
-    setIsSaving(false);
+    try {
+      await onSave({
+        clientId: device.clientId,
+        clientName: device.clientName,
+        clientPhone: device.clientPhone,
+        name: name.trim(),
+        serialNumber: '',
+        note: note.trim(),
+        source: device.source,
+        isActive,
+        expectedUpdatedAt: device.updatedAt,
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const confirmMerge = async () => {
+    if (!duplicateTarget || !onMerge) return;
+    setIsMerging(true);
+    setMergeError(null);
+    try {
+      const success = await onMerge(
+        duplicateTarget.id,
+        device.id,
+        note.trim(),
+      );
+      if (success) {
+        setDuplicateTarget(null);
+        onClose();
+      }
+    } catch (err) {
+      setMergeError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setIsMerging(false);
+    }
   };
 
   return (
-    <Modal
-      isOpen
-      title={t('catalog.modals.clientDevice')}
-      onClose={onClose}
-      closeLabel={t('catalog.modals.close')}
-      closeOnBackdrop={!isSaving}
-      closeOnEscape={!isSaving}
-      footer={
-        <footer className="catalog-edit-footer">
-          <button type="button" className="danger-button catalog-danger-wide" onClick={() => void onRemove()} disabled={!device.canRemove || isSaving}>
-            {t('catalog.modals.remove')}
-          </button>
-          <Button variant="primary" onClick={() => void save()} disabled={isSaving || name.trim().length < 2}>
-            {isSaving ? t('catalog.modals.saving') : t('common.save')}
-          </Button>
-        </footer>
-      }
-    >
-      <label className="field"><span>{t('catalog.modals.name')}</span><input value={name} onChange={(e) => setName(e.target.value)} /></label>
-      <label className="field field-wide"><span>{t('catalog.modals.note')}</span><textarea rows={3} value={note} onChange={(e) => setNote(e.target.value)} /></label>
-      <label className="field">
-        <span>{t('catalog.modals.status')}</span>
-        <select value={isActive ? 'active' : 'inactive'} onChange={(e) => setIsActive(e.target.value === 'active')}>
-          <option value="active">{t('catalog.modals.active')}</option>
-          <option value="inactive">{t('catalog.modals.inactive')}</option>
-        </select>
-      </label>
-    </Modal>
+    <>
+      <Modal
+        isOpen
+        title={t('catalog.modals.clientDevice')}
+        onClose={onClose}
+        closeLabel={t('catalog.modals.close')}
+        closeOnBackdrop={!isSaving}
+        closeOnEscape={!isSaving}
+        footer={
+          <footer className='catalog-edit-footer'>
+            <button
+              type='button'
+              className='danger-button catalog-danger-wide'
+              onClick={() => void onRemove()}
+              disabled={!device.canRemove || isSaving}
+            >
+              {t('catalog.modals.remove')}
+            </button>
+            <Button
+              variant='primary'
+              onClick={() => void save()}
+              disabled={isSaving || name.trim().length < 2}
+            >
+              {isSaving
+                ? t('catalog.modals.saving')
+                : t('common.save')}
+            </Button>
+          </footer>
+        }
+      >
+        <label className='field'>
+          <span>{t('catalog.modals.name')}</span>
+          <input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+          />
+        </label>
+        <label className='field field-wide'>
+          <span>{t('catalog.modals.note')}</span>
+          <textarea
+            rows={3}
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+          />
+        </label>
+        <label className='field'>
+          <span>{t('catalog.modals.status')}</span>
+          <select
+            value={isActive ? 'active' : 'inactive'}
+            onChange={(e) => setIsActive(e.target.value === 'active')}
+          >
+            <option value='active'>
+              {t('catalog.modals.active')}
+            </option>
+            <option value='inactive'>
+              {t('catalog.modals.inactive')}
+            </option>
+          </select>
+        </label>
+      </Modal>
+
+      {duplicateTarget ? (
+        <CatalogMergeConfirmationModal
+          isOpen
+          isMerging={isMerging}
+          targetName={duplicateTarget.name}
+          targetNote={duplicateTarget.note}
+          sourceName={name}
+          sourceNote={note}
+          error={mergeError}
+          onConfirm={confirmMerge}
+          onClose={() => setDuplicateTarget(null)}
+        />
+      ) : null}
+    </>
   );
 };
 
 export const CatalogSuggestionProductModal = ({
   product,
+  catalogProducts = [],
   onClose,
   onSave,
   onRemove,
+  onMerge,
+  readOnly = false,
 }: {
   product: CatalogProduct;
+  catalogProducts?: CatalogProduct[];
   onClose: () => void;
   onSave: (payload: CatalogProductFormValues) => Promise<void>;
   onRemove: () => Promise<void>;
+  onMerge?: (
+    targetCatalogProductId: string,
+    sourceCatalogProductId: string,
+    draftNote?: string,
+  ) => Promise<boolean>;
+  readOnly?: boolean;
 }) => {
   const { t } = useTranslation();
   const [name, setName] = useState(product.name);
   const [note, setNote] = useState(product.note);
   const [isActive, setIsActive] = useState(product.isActive);
   const [isSaving, setIsSaving] = useState(false);
+  const [duplicateTarget, setDuplicateTarget] =
+    useState<CatalogProduct | null>(null);
+  const [isMerging, setIsMerging] = useState(false);
+  const [mergeError, setMergeError] = useState<string | null>(null);
 
   const save = async () => {
+    if (onMerge && catalogProducts.length > 0) {
+      const duplicate = findCatalogDuplicate({
+        currentId: product.id,
+        name,
+        items: catalogProducts,
+      });
+      if (duplicate) {
+        setDuplicateTarget(duplicate);
+        setMergeError(null);
+        return;
+      }
+    }
+
     setIsSaving(true);
-    await onSave({
-      name: name.trim(),
-      note: note.trim(),
-      isActive,
-    });
-    setIsSaving(false);
+    try {
+      await onSave({
+        name: name.trim(),
+        note: note.trim(),
+        isActive,
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const confirmMerge = async () => {
+    if (!duplicateTarget || !onMerge) return;
+    setIsMerging(true);
+    setMergeError(null);
+    try {
+      const success = await onMerge(
+        duplicateTarget.id,
+        product.id,
+        note.trim(),
+      );
+      if (success) {
+        setDuplicateTarget(null);
+        onClose();
+      }
+    } catch (err) {
+      setMergeError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setIsMerging(false);
+    }
   };
 
   return (
-    <Modal
-      isOpen
-      title={t('catalog.modals.product')}
-      onClose={onClose}
-      closeLabel={t('catalog.modals.close')}
-      closeOnBackdrop={!isSaving}
-      closeOnEscape={!isSaving}
-      footer={
-        <footer className="catalog-edit-footer">
-          <button type="button" className="danger-button catalog-danger-wide" onClick={() => void onRemove()} disabled={product.canRemove === false || isSaving}>
-            {t('catalog.modals.remove')}
-          </button>
-          <Button variant="primary" onClick={() => void save()} disabled={isSaving || name.trim().length < 2}>
-            {isSaving ? t('catalog.modals.saving') : t('common.save')}
-          </Button>
-        </footer>
-      }
-    >
-      <label className="field"><span>{t('catalog.modals.name')}</span><input value={name} onChange={(e) => setName(e.target.value)} /></label>
-      <label className="field field-wide"><span>{t('catalog.modals.note')}</span><textarea rows={3} value={note} onChange={(e) => setNote(e.target.value)} /></label>
-      <label className="field">
-        <span>{t('catalog.modals.status')}</span>
-        <select value={isActive ? 'active' : 'inactive'} onChange={(e) => setIsActive(e.target.value === 'active')}>
-          <option value="active">{t('catalog.modals.active')}</option>
-          <option value="inactive">{t('catalog.modals.inactive')}</option>
-        </select>
-      </label>
-    </Modal>
+    <>
+      <Modal
+        isOpen
+        title={t('catalog.modals.product')}
+        onClose={onClose}
+        closeLabel={t('catalog.modals.close')}
+        closeOnBackdrop={!isSaving}
+        closeOnEscape={!isSaving}
+        footer={
+          readOnly ? undefined : (
+            <footer className='catalog-edit-footer'>
+              <button
+                type='button'
+                className='danger-button catalog-danger-wide'
+                onClick={() => void onRemove()}
+                disabled={product.canRemove === false || isSaving}
+              >
+                {t('catalog.modals.remove')}
+              </button>
+              <Button
+                variant='primary'
+                onClick={() => void save()}
+                disabled={isSaving || name.trim().length < 2}
+              >
+                {isSaving
+                  ? t('catalog.modals.saving')
+                  : t('common.save')}
+              </Button>
+            </footer>
+          )
+        }
+      >
+        <label className='field'>
+          <span>{t('catalog.modals.name')}</span>
+          <input
+            value={name}
+            disabled={readOnly}
+            onChange={(e) => setName(e.target.value)}
+          />
+        </label>
+        <label className='field field-wide'>
+          <span>{t('catalog.modals.note')}</span>
+          <textarea
+            rows={3}
+            value={note}
+            disabled={readOnly}
+            onChange={(e) => setNote(e.target.value)}
+          />
+        </label>
+        <label className='field'>
+          <span>{t('catalog.modals.status')}</span>
+          <select
+            value={isActive ? 'active' : 'inactive'}
+            disabled={readOnly}
+            onChange={(e) => setIsActive(e.target.value === 'active')}
+          >
+            <option value='active'>
+              {t('catalog.modals.active')}
+            </option>
+            <option value='inactive'>
+              {t('catalog.modals.inactive')}
+            </option>
+          </select>
+        </label>
+      </Modal>
+
+      {duplicateTarget ? (
+        <CatalogMergeConfirmationModal
+          isOpen
+          isMerging={isMerging}
+          targetName={duplicateTarget.name}
+          targetNote={duplicateTarget.note}
+          sourceName={name}
+          sourceNote={note}
+          error={mergeError}
+          onConfirm={confirmMerge}
+          onClose={() => setDuplicateTarget(null)}
+        />
+      ) : null}
+    </>
   );
 };

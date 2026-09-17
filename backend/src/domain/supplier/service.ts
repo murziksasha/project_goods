@@ -1,15 +1,26 @@
 import { formatSupplier } from '../../shared/lib/formatters';
 import { normalizeSupplierPayload } from '../../shared/lib/parsers';
 import { getSupplierPhonesFromRecord } from '../../shared/lib/supplier-phones';
-import { getSearchQuery, isValidObjectIdOrThrow } from '../../shared/lib/query';
+import {
+  getSearchQuery,
+  isValidObjectIdOrThrow,
+} from '../../shared/lib/query';
 import { Supplier, type SupplierDocument } from './model';
 import { SupplierOrder } from '../supplier-order/model';
 import type { SupplierPayload } from '../shared/types';
-import { HttpError, isDuplicateKeyError } from '../../shared/lib/errors';
+import {
+  HttpError,
+  isDuplicateKeyError,
+} from '../../shared/lib/errors';
+import { withOptionalMongoSession } from '../../shared/lib/mongo-session';
+import { mergeNotes } from '../shared/merge-notes';
 
-const duplicatePhoneMessage = 'Supplier with this phone already exists.';
+const duplicatePhoneMessage =
+  'Supplier with this phone already exists.';
 
-const normalizeExceptSupplierIds = (exceptSupplierIds?: string | string[]) => {
+const normalizeExceptSupplierIds = (
+  exceptSupplierIds?: string | string[],
+) => {
   const list = Array.isArray(exceptSupplierIds)
     ? exceptSupplierIds
     : exceptSupplierIds
@@ -36,7 +47,10 @@ const assertUniqueSupplierPhones = async (
     query._id = { $nin: excludedIds };
   }
 
-  const existing = await Supplier.findOne(query).lean<Pick<SupplierDocument, '_id'> | null>();
+  const existing = await Supplier.findOne(query).lean<Pick<
+    SupplierDocument,
+    '_id'
+  > | null>();
   if (!existing) return;
 
   throw new HttpError(409, duplicatePhoneMessage);
@@ -45,9 +59,13 @@ const assertUniqueSupplierPhones = async (
 const mapSupplierError = (error: unknown) => {
   if (isDuplicateKeyError(error)) {
     const duplicateField = Object.keys(
-      (error as { keyPattern?: Record<string, unknown> }).keyPattern ?? {},
+      (error as { keyPattern?: Record<string, unknown> })
+        .keyPattern ?? {},
     )[0];
-    if (duplicateField === 'phone' || duplicateField === 'phoneIdentities') {
+    if (
+      duplicateField === 'phone' ||
+      duplicateField === 'phoneIdentities'
+    ) {
       return new Error(duplicatePhoneMessage);
     }
     if (duplicateField === 'name') {
@@ -77,7 +95,12 @@ const mergeSupplierPhones = (
 };
 
 export const listSuppliers = async (queryValue: unknown) => {
-  const query = getSearchQuery(queryValue);
+  const searchQuery = getSearchQuery(queryValue);
+  const hasQuery =
+    typeof queryValue === 'string' && queryValue.trim().length > 0;
+  const query = hasQuery
+    ? { $and: [searchQuery, { isActive: { $ne: false } }] }
+    : searchQuery;
   const suppliers = await Supplier.find(query)
     .sort({ createdAt: -1 })
     .lean<SupplierDocument[]>();
@@ -99,7 +122,10 @@ export const createSupplier = async (payload: SupplierPayload) => {
   }
 };
 
-export const updateSupplier = async (supplierId: string, payload: SupplierPayload) => {
+export const updateSupplier = async (
+  supplierId: string,
+  payload: SupplierPayload,
+) => {
   isValidObjectIdOrThrow(supplierId, 'supplierId');
   try {
     const normalizedPayload = normalizeSupplierPayload(payload);
@@ -123,7 +149,9 @@ export const updateSupplier = async (supplierId: string, payload: SupplierPayloa
 
 export const deleteSupplier = async (supplierId: string) => {
   isValidObjectIdOrThrow(supplierId, 'supplierId');
-  const deleted = await Supplier.findByIdAndDelete(supplierId).lean<SupplierDocument | null>();
+  const deleted = await Supplier.findByIdAndDelete(
+    supplierId,
+  ).lean<SupplierDocument | null>();
   if (!deleted) throw new HttpError(404, 'Supplier not found.');
   return { id: supplierId };
 };
@@ -131,6 +159,7 @@ export const deleteSupplier = async (supplierId: string) => {
 export const mergeSuppliers = async (
   targetSupplierIdInput: unknown,
   sourceSupplierIdInput: unknown,
+  draftNoteInput?: unknown,
 ) => {
   const targetSupplierId =
     typeof targetSupplierIdInput === 'string'
@@ -140,9 +169,14 @@ export const mergeSuppliers = async (
     typeof sourceSupplierIdInput === 'string'
       ? sourceSupplierIdInput.trim()
       : '';
+  const draftNote =
+    typeof draftNoteInput === 'string' ? draftNoteInput.trim() : '';
 
   if (!targetSupplierId || !sourceSupplierId) {
-    throw new HttpError(400, 'Both targetSupplierId and sourceSupplierId are required.');
+    throw new HttpError(
+      400,
+      'Both targetSupplierId and sourceSupplierId are required.',
+    );
   }
   if (targetSupplierId === sourceSupplierId) {
     throw new HttpError(400, 'Select two different suppliers.');
@@ -151,57 +185,88 @@ export const mergeSuppliers = async (
   isValidObjectIdOrThrow(targetSupplierId, 'targetSupplierId');
   isValidObjectIdOrThrow(sourceSupplierId, 'sourceSupplierId');
 
-  const [targetSupplier, sourceSupplier] = await Promise.all([
-    Supplier.findById(targetSupplierId).lean<SupplierDocument | null>(),
-    Supplier.findById(sourceSupplierId).lean<SupplierDocument | null>(),
-  ]);
+  return withOptionalMongoSession(async (session) => {
+    const [targetSupplier, sourceSupplier] = await Promise.all([
+      Supplier.findById(targetSupplierId, null, {
+        session: session ?? undefined,
+      }).lean<SupplierDocument | null>(),
+      Supplier.findById(sourceSupplierId, null, {
+        session: session ?? undefined,
+      }).lean<SupplierDocument | null>(),
+    ]);
 
-  if (!targetSupplier) throw new HttpError(404, 'Target supplier not found.');
-  if (!sourceSupplier) throw new HttpError(404, 'Source supplier not found.');
+    if (!targetSupplier)
+      throw new HttpError(404, 'Target supplier not found.');
+    if (!sourceSupplier)
+      throw new HttpError(404, 'Source supplier not found.');
 
-  const mergedNote = [targetSupplier.note?.trim(), sourceSupplier.note?.trim()]
-    .filter(Boolean)
-    .filter((note, index, collection) => collection.indexOf(note) === index)
-    .join('\n');
-  const mergedSupplierOrder = [
-    targetSupplier.supplierOrder?.trim(),
-    sourceSupplier.supplierOrder?.trim(),
-  ]
-    .filter(Boolean)
-    .filter((value, index, collection) => collection.indexOf(value) === index)
-    .join('\n');
-  const mergedPhones = mergeSupplierPhones(targetSupplier, sourceSupplier);
+    const mergedNote = mergeNotes(
+      targetSupplier.note,
+      sourceSupplier.note,
+      draftNote,
+    );
+    const mergedSupplierOrder = [
+      targetSupplier.supplierOrder?.trim(),
+      sourceSupplier.supplierOrder?.trim(),
+    ]
+      .filter(Boolean)
+      .filter(
+        (value, index, collection) =>
+          collection.indexOf(value) === index,
+      )
+      .join('\n');
+    const mergedPhones = mergeSupplierPhones(
+      targetSupplier,
+      sourceSupplier,
+    );
 
-  const updatedTarget = await Supplier.findByIdAndUpdate(
-    targetSupplierId,
-    normalizeSupplierPayload({
-      phone: mergedPhones[0] || targetSupplier.phone?.trim() || sourceSupplier.phone,
-      phones: mergedPhones,
-      name: targetSupplier.name?.trim() || sourceSupplier.name,
-      note: mergedNote,
-      supplierOrder: mergedSupplierOrder,
-      isActive: targetSupplier.isActive || sourceSupplier.isActive,
-    }),
-    { returnDocument: 'after', runValidators: true },
-  ).lean<SupplierDocument | null>();
-
-  if (!updatedTarget) throw new HttpError(500, 'Failed to update target supplier.');
-
-  const movedSupplierOrdersResult = await SupplierOrder.updateMany(
-    { supplier: sourceSupplier._id },
-    {
-      $set: {
-        supplier: updatedTarget._id,
+    const updatedTarget = await Supplier.findByIdAndUpdate(
+      targetSupplierId,
+      normalizeSupplierPayload({
+        phone:
+          mergedPhones[0] ||
+          targetSupplier.phone?.trim() ||
+          sourceSupplier.phone,
+        phones: mergedPhones,
+        name: targetSupplier.name?.trim() || sourceSupplier.name,
+        note: mergedNote,
+        supplierOrder: mergedSupplierOrder,
+        isActive: targetSupplier.isActive || sourceSupplier.isActive,
+      }),
+      {
+        session: session ?? undefined,
+        returnDocument: 'after',
+        runValidators: true,
       },
-    },
-  );
+    ).lean<SupplierDocument | null>();
 
-  const deletedSource = await Supplier.findByIdAndDelete(sourceSupplierId).lean<SupplierDocument | null>();
-  if (!deletedSource) throw new HttpError(500, 'Failed to delete source supplier.');
+    if (!updatedTarget)
+      throw new HttpError(500, 'Failed to update target supplier.');
 
-  return {
-    supplier: formatSupplier(updatedTarget),
-    removedSupplierId: sourceSupplierId,
-    movedSupplierOrdersCount: movedSupplierOrdersResult.modifiedCount ?? 0,
-  };
+    const movedSupplierOrdersResult = await SupplierOrder.updateMany(
+      { supplier: sourceSupplier._id },
+      {
+        $set: {
+          supplier: updatedTarget._id,
+        },
+      },
+      { session: session ?? undefined },
+    );
+
+    const deletedSource = await Supplier.findByIdAndDelete(
+      sourceSupplierId,
+      {
+        session: session ?? undefined,
+      },
+    ).lean<SupplierDocument | null>();
+    if (!deletedSource)
+      throw new HttpError(500, 'Failed to delete source supplier.');
+
+    return {
+      supplier: formatSupplier(updatedTarget),
+      removedSupplierId: sourceSupplierId,
+      movedSupplierOrdersCount:
+        movedSupplierOrdersResult.modifiedCount ?? 0,
+    };
+  });
 };

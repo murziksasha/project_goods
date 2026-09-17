@@ -74,6 +74,15 @@ vi.mock('../../../../entities/finance/api/financeApi', async (importOriginal) =>
     useCreateFinanceCurrencyMutation: () => ({
       mutateAsync: createFinanceCurrencyMock,
     }),
+    useCreateFinanceCategoryMutation: () => ({
+      mutateAsync: vi.fn(),
+    }),
+    useUpdateFinanceCategoryMutation: () => ({
+      mutateAsync: vi.fn(),
+    }),
+    useDeleteFinanceCategoryMutation: () => ({
+      mutateAsync: vi.fn(),
+    }),
     useCreateFinanceTransactionMutation: () => ({
       mutateAsync: createFinanceTransactionMock,
     }),
@@ -234,10 +243,15 @@ const supplierOrder = (): SupplierOrder =>
   });
 
 const mutableState = {
-  activeTab: 'cashboxes' as 'cashboxes' | 'transactions' | 'orders' | 'reports',
+  activeTab: 'cashboxes' as
+    | 'cashboxes'
+    | 'transactions'
+    | 'orders'
+    | 'information'
+    | 'reports',
   isFinanceSettingsOpen: false,
   expandedFinanceSettingsCard: null as string | null,
-  financeSettingsTab: 'cashboxes' as 'cashboxes' | 'currencies',
+  financeSettingsTab: 'cashboxes' as 'cashboxes' | 'currencies' | 'categories',
 };
 
 let panelRerender: (() => void) | null = null;
@@ -254,6 +268,7 @@ const buildFinanceDataState = (
   return {
     allCashboxes: cashboxes,
     cashboxes,
+    categories: [],
     currencies: [{ ...currency(), code: 'UAH', isSystem: true }, currency()],
     isCashboxesOrderHydrated: true,
     isLoading: false,
@@ -279,6 +294,7 @@ const buildTransactionFiltersState = (
     note: '',
     dateFrom: '',
     dateTo: '',
+    category: '',
     sortBy: 'date' as const,
     sortDirection: 'desc' as const,
   },
@@ -291,6 +307,7 @@ const buildTransactionFiltersState = (
     note: '',
     dateFrom: '',
     dateTo: '',
+    category: '',
     sortBy: 'date' as const,
     sortDirection: 'desc' as const,
   },
@@ -1337,8 +1354,8 @@ describe('AccountingPanel', () => {
     expect(screen.getByRole('dialog')).toBeInTheDocument();
   });
 
-  it('renders reports tab', () => {
-    mutableState.activeTab = 'reports';
+  it('renders information tab', () => {
+    mutableState.activeTab = 'information';
     renderPanel();
 
     expect(screen.getByText('Accounting information')).toBeInTheDocument();
@@ -1413,6 +1430,7 @@ describe('AccountingTransactionsView note navigation (real component)', () => {
   const minimalProps = (txNote: string, salesList: Sale[] = [], suppliersList: any[] = []) => ({
     activeFiltersCount: 0,
     allCurrencyCodes: ['UAH'],
+    categories: [],
     appliedFilters: { note: '', type: null, sortBy: 'date', sortDirection: 'desc' } as any,
     balanceAfterByTransactionId: {},
     cashboxes: [],

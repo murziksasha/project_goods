@@ -22,7 +22,9 @@ afterEach(() => {
   window.localStorage.clear();
 });
 
-const makeReceipt = (patch: Partial<ReceiptRow> = {}): ReceiptRow => ({
+const makeReceipt = (
+  patch: Partial<ReceiptRow> = {},
+): ReceiptRow => ({
   id: 'receipt-1',
   number: 'SO-1',
   supplierOrderId: 'so-1',
@@ -83,7 +85,10 @@ describe('warehouse-panel receipts filtering', () => {
       filterReceiptRows({
         receipts,
         query: '',
-        filters: { ...initialWarehouseFilters, statuses: ['received'] },
+        filters: {
+          ...initialWarehouseFilters,
+          statuses: ['received'],
+        },
       }).map((receipt) => receipt.id),
     ).toEqual(['receipt-received']);
 
@@ -93,7 +98,11 @@ describe('warehouse-panel receipts filtering', () => {
         query: '',
         filters: initialWarehouseFilters,
       }).map((receipt) => receipt.id),
-    ).toEqual(['receipt-new', 'receipt-received', 'receipt-cancelled']);
+    ).toEqual([
+      'receipt-new',
+      'receipt-received',
+      'receipt-cancelled',
+    ]);
   });
 
   it('filters receipts by multiple selected statuses', () => {
@@ -164,22 +173,31 @@ describe('normalizeReceiptStatuses', () => {
   });
 
   it('migrates legacy single status values', () => {
-    expect(normalizeReceiptStatuses({ status: 'cancelled' })).toEqual([
-      'cancelled',
-    ]);
-    expect(normalizeReceiptStatuses({ status: '' })).toEqual([]);
-    expect(normalizeReceiptStatuses({ status: 'invalid' as never })).toEqual(
-      [],
+    expect(normalizeReceiptStatuses({ status: 'cancelled' })).toEqual(
+      ['cancelled'],
     );
+    expect(normalizeReceiptStatuses({ status: '' })).toEqual([]);
+    expect(
+      normalizeReceiptStatuses({ status: 'invalid' as never }),
+    ).toEqual([]);
   });
 });
 
 describe('receipt grouping', () => {
   it('groups receipts that share a supplier order id', () => {
     const receipts = [
-      makeReceipt({ id: 'a', productName: 'USB hub', amount: 200, quantity: 2 }),
+      makeReceipt({
+        id: 'a',
+        number: 'SO-1-1',
+        orderBaseNumber: 'SO-1',
+        productName: 'USB hub',
+        amount: 200,
+        quantity: 2,
+      }),
       makeReceipt({
         id: 'b',
+        number: 'SO-1-2',
+        orderBaseNumber: 'SO-1',
         productName: 'HDMI cable',
         amount: 300,
         quantity: 3,
@@ -195,7 +213,13 @@ describe('receipt grouping', () => {
 
     const groups = groupReceiptRowsByOrder(receipts);
     expect(groups).toHaveLength(2);
-    expect(groups[0]?.receipts.map((row) => row.id)).toEqual(['a', 'b']);
+    expect(groups[0]?.number).toBe('SO-1');
+    expect(groups[0]?.receipts.map((row) => row.id)).toEqual([
+      'a',
+      'b',
+    ]);
+    expect(groups[0]?.receipts[0]?.number).toBe('SO-1-1');
+    expect(groups[0]?.receipts[1]?.number).toBe('SO-1-2');
     expect(getReceiptGroupStatus(groups[0]!.receipts)).toBe('new');
     expect(getReceiptGroupTotals(groups[0]!.receipts)).toEqual({
       quantity: 5,
@@ -208,16 +232,24 @@ describe('receipt grouping', () => {
 
 describe('stock name column width', () => {
   it('clamps width between min and max', () => {
-    expect(clampWarehouseStockNameWidth(10)).toBe(warehouseStockNameWidthMin);
-    expect(clampWarehouseStockNameWidth(9999)).toBe(warehouseStockNameWidthMax);
-    expect(clampWarehouseStockNameWidth(warehouseStockNameWidthDefault)).toBe(
-      warehouseStockNameWidthDefault,
+    expect(clampWarehouseStockNameWidth(10)).toBe(
+      warehouseStockNameWidthMin,
     );
+    expect(clampWarehouseStockNameWidth(9999)).toBe(
+      warehouseStockNameWidthMax,
+    );
+    expect(
+      clampWarehouseStockNameWidth(warehouseStockNameWidthDefault),
+    ).toBe(warehouseStockNameWidthDefault);
   });
 
   it('keeps supplier order and supplier columns from collapsing', () => {
-    expect(warehouseStockColumnWidths.supplierOrder).toBeGreaterThanOrEqual(180);
-    expect(warehouseStockColumnWidths.supplier).toBeGreaterThanOrEqual(140);
+    expect(
+      warehouseStockColumnWidths.supplierOrder,
+    ).toBeGreaterThanOrEqual(180);
+    expect(
+      warehouseStockColumnWidths.supplier,
+    ).toBeGreaterThanOrEqual(140);
     expect(
       getWarehouseStockTableMinWidth(
         ['select', 'name', 'supplierOrder', 'supplier', 'action'],
@@ -233,7 +265,9 @@ describe('stock name column width', () => {
   });
 
   it('reads and writes the name column width on this device only', () => {
-    expect(readWarehouseStockNameWidth()).toBe(warehouseStockNameWidthDefault);
+    expect(readWarehouseStockNameWidth()).toBe(
+      warehouseStockNameWidthDefault,
+    );
 
     writeWarehouseStockNameWidth(480);
     expect(
@@ -242,12 +276,21 @@ describe('stock name column width', () => {
     expect(readWarehouseStockNameWidth()).toBe(480);
 
     writeWarehouseStockNameWidth(12);
-    expect(readWarehouseStockNameWidth()).toBe(warehouseStockNameWidthMin);
+    expect(readWarehouseStockNameWidth()).toBe(
+      warehouseStockNameWidthMin,
+    );
 
     writeWarehouseStockNameWidth(9000);
-    expect(readWarehouseStockNameWidth()).toBe(warehouseStockNameWidthMax);
+    expect(readWarehouseStockNameWidth()).toBe(
+      warehouseStockNameWidthMax,
+    );
 
-    window.localStorage.setItem(warehouseStockNameWidthStorageKey, 'nope');
-    expect(readWarehouseStockNameWidth()).toBe(warehouseStockNameWidthDefault);
+    window.localStorage.setItem(
+      warehouseStockNameWidthStorageKey,
+      'nope',
+    );
+    expect(readWarehouseStockNameWidth()).toBe(
+      warehouseStockNameWidthDefault,
+    );
   });
 });

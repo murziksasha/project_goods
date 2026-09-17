@@ -62,6 +62,16 @@ describe('dashboard-navigation', () => {
     });
 
     expect(
+      parseDashboardLocation('?page=accounting&accountingTab=information'),
+    ).toEqual({
+      page: 'accounting',
+      ordersTab: 'orders',
+      createOrder: null,
+      saleId: null,
+      accountingTab: 'information',
+    });
+
+    expect(
       buildDashboardHref({
         page: 'clients',
         ordersTab: 'orders',

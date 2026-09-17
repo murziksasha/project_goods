@@ -120,6 +120,8 @@ export const useTransactionForm = ({
       return {
         ...current,
         ...resolved,
+        category:
+          nextType === 'withdraw' ? current.category || 'other' : undefined,
       };
     });
   };
@@ -179,6 +181,9 @@ export const useTransactionForm = ({
       ...transactionForm,
       amount: String(normalizedAmount),
       idempotencyKey: createRuntimeId(),
+      ...(type === 'withdraw'
+        ? { category: transactionForm.category || 'other' }
+        : { category: undefined }),
     };
 
     const result = await runFinanceAction(

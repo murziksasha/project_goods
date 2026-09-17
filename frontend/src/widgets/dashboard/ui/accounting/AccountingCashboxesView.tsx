@@ -3,7 +3,9 @@ import { useTranslation } from 'react-i18next';
 import type { Dispatch, SetStateAction } from 'react';
 import type {
   Cashbox,
+  CreateFinanceCategoryPayload,
   CreateFinanceTransactionPayload,
+  FinanceCategory,
   FinanceTransactionType,
 } from '../../../../entities/finance/model/types';
 import { Modal } from '../../../../shared/ui/Modal';
@@ -15,6 +17,7 @@ import {
   type CashboxCurrencyRow,
 } from '../../model/accounting';
 import { AccountingOperationForm } from './AccountingOperationForm';
+import { CreateFinanceCategoryModal } from './CreateFinanceCategoryModal';
 
 type AccountingCashboxesViewProps = {
   allowedTransactionCurrencies: string[];
@@ -30,6 +33,11 @@ type AccountingCashboxesViewProps = {
   permittedTransactionTypes: FinanceTransactionType[];
   totals: Record<string, number>;
   transactionForm: CreateFinanceTransactionPayload;
+  categories: FinanceCategory[];
+  canManageCategories: boolean;
+  onCreateCategory: (
+    payload: CreateFinanceCategoryPayload,
+  ) => Promise<FinanceCategory | undefined>;
   onCreateCashbox: (
     name: string,
     enabledCurrencies?: Record<string, boolean>,
@@ -68,6 +76,9 @@ export const AccountingCashboxesView = ({
   permittedTransactionTypes,
   totals,
   transactionForm,
+  categories,
+  canManageCategories,
+  onCreateCategory,
   onCreateCashbox,
   onCreateTransaction,
   onOpenCashboxTransactions,
@@ -82,6 +93,7 @@ export const AccountingCashboxesView = ({
   const [hideEmpty, setHideEmpty] = useState(getStoredHideEmptyCashboxes);
   const [isOperationOpen, setIsOperationOpen] = useState(false);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [isCreateCategoryOpen, setIsCreateCategoryOpen] = useState(false);
   const [createName, setCreateName] = useState('');
   const [createEnabledCurrencies, setCreateEnabledCurrencies] = useState<
     Record<string, boolean>
@@ -143,6 +155,7 @@ export const AccountingCashboxesView = ({
   const closeOperation = useCallback(() => {
     if (isSaving) return;
     setIsOperationOpen(false);
+    setIsCreateCategoryOpen(false);
   }, [isSaving]);
 
   const handleSave = useCallback(
@@ -450,6 +463,9 @@ export const AccountingCashboxesView = ({
             canCreateTransfer={canCreateTransfer}
             canCreateWithdraw={canCreateWithdraw}
             cashboxes={cashboxes}
+            categories={categories}
+            canManageCategories={canManageCategories}
+            onRequestAddCategory={() => setIsCreateCategoryOpen(true)}
             isSaving={isSaving}
             saveDisabled={
               isSaving ||
@@ -465,6 +481,20 @@ export const AccountingCashboxesView = ({
           />
         </Modal>
       ) : null}
+      <CreateFinanceCategoryModal
+        isOpen={isCreateCategoryOpen}
+        isSaving={isSaving}
+        onClose={() => setIsCreateCategoryOpen(false)}
+        onSubmit={async (name) => {
+          const created = await onCreateCategory({ name });
+          if (!created) return;
+          onTransactionFormChange((current) => ({
+            ...current,
+            category: created.slug,
+          }));
+          setIsCreateCategoryOpen(false);
+        }}
+      />
     </>
   );
 };

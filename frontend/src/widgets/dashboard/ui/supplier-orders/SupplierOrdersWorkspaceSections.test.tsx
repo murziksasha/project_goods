@@ -1,4 +1,11 @@
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { CatalogProduct } from '../../../../entities/catalog-product/model/types';
 import type { Supplier } from '../../../../entities/supplier/model/types';
@@ -35,7 +42,9 @@ const copyButtonFor = (text: string) =>
     screen.getByText(text).closest('.copyable-value') as HTMLElement,
   ).getByRole('button', { name: 'Copy' });
 
-const makeOrder = (patch: Partial<SupplierOrder> = {}): SupplierOrder => ({
+const makeOrder = (
+  patch: Partial<SupplierOrder> = {},
+): SupplierOrder => ({
   id: 'so-1',
   orderBaseId: 'SO-1',
   supplierId: 'sup-1',
@@ -141,9 +150,9 @@ describe('SupplierOrdersTable', () => {
   it('renders active and inactive star state', () => {
     renderTable({ order: makeOrder({ isFavorite: true }) });
 
-    expect(screen.getByLabelText('Remove star from SO-1')).toHaveTextContent(
-      '★',
-    );
+    expect(
+      screen.getByLabelText('Remove star from SO-1'),
+    ).toHaveTextContent('★');
   });
 
   it('calls favorite toggle handler from row star', () => {
@@ -331,8 +340,12 @@ describe('SupplierOrdersTable', () => {
     renderTable({ order });
 
     expect(screen.getByText(longNumber)).toBeInTheDocument();
-    expect(screen.queryByText(`${longNumber}-1`)).not.toBeInTheDocument();
-    expect(screen.queryByText(`${longNumber}-2`)).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(`${longNumber}-1`),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(`${longNumber}-2`),
+    ).not.toBeInTheDocument();
     expect(screen.getByText('2 items')).toBeInTheDocument();
   });
 
@@ -477,9 +490,9 @@ describe('SupplierOrdersTable', () => {
 
     renderTable({ order });
 
-    expect(screen.getByText('Cancelled cable').closest('button')).toHaveClass(
-      'supplier-order-item-cancelled',
-    );
+    expect(
+      screen.getByText('Cancelled cable').closest('button'),
+    ).toHaveClass('supplier-order-item-cancelled');
   });
 
   it('applies unpaid money styling and shows filtered totals', () => {
@@ -521,7 +534,9 @@ describe('SupplierOrdersTable', () => {
       />,
     );
 
-    expect(document.querySelector('.orders-money-unpaid')).toBeTruthy();
+    expect(
+      document.querySelector('.orders-money-unpaid'),
+    ).toBeTruthy();
     expect(screen.getByText('1 orders')).toBeTruthy();
     expect(screen.getByText(/Outstanding/)).toBeTruthy();
   });
@@ -565,29 +580,42 @@ describe('SupplierOrdersTable', () => {
       screen.getByText('SO-1').closest('.truncated-text-tooltip'),
     ).toBeTruthy();
     expect(
-      screen.getByText('Type C cable').closest('.truncated-text-tooltip'),
+      screen
+        .getByText('Type C cable')
+        .closest('.truncated-text-tooltip'),
     ).toBeTruthy();
     expect(
-      screen.getByText('Parts Hub').closest('.truncated-text-tooltip'),
+      screen
+        .getByText('Parts Hub')
+        .closest('.truncated-text-tooltip'),
     ).toBeTruthy();
   });
 
-  it('keeps product and supplier click flows', () => {
-    const onOpenCatalogProduct = vi.fn();
+  it('opens order modal on product click and keeps supplier click flow', () => {
+    const onEditOrder = vi.fn();
     const onOpenSupplier = vi.fn();
 
     renderTable({
       catalogProducts: [catalogProduct],
       suppliers: [supplier],
       visibleColumns: ['number', 'product', 'supplier'],
-      onOpenCatalogProduct,
+      onEditOrder,
       onOpenSupplier,
     });
 
     fireEvent.click(screen.getByText('Type C cable'));
     fireEvent.click(screen.getByText('Parts Hub'));
 
-    expect(onOpenCatalogProduct).toHaveBeenCalledWith(catalogProduct);
+    expect(onEditOrder).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: 'so-1',
+        items: [
+          expect.objectContaining({ productName: 'Type C cable' }),
+        ],
+      }),
+      expect.objectContaining({ id: 'so-1' }),
+      0,
+    );
     expect(onOpenSupplier).toHaveBeenCalledWith(supplier);
   });
 
@@ -611,12 +639,16 @@ describe('SupplierOrdersTable', () => {
 
     expect(
       within(
-        document.querySelector('.supplier-order-product-cell') as HTMLElement,
+        document.querySelector(
+          '.supplier-order-product-cell',
+        ) as HTMLElement,
       ).queryByRole('button', { name: 'Copy' }),
     ).toBeNull();
     expect(
       within(
-        document.querySelector('.supplier-order-supplier-cell') as HTMLElement,
+        document.querySelector(
+          '.supplier-order-supplier-cell',
+        ) as HTMLElement,
       ).queryByRole('button', { name: 'Copy' }),
     ).toBeNull();
   });
@@ -650,7 +682,9 @@ describe('SupplierOrdersTable', () => {
 
     expect(screen.getByText('2 items')).toBeInTheDocument();
     expect(
-      document.querySelector('.supplier-order-product-cell .copyable-value'),
+      document.querySelector(
+        '.supplier-order-product-cell .copyable-value',
+      ),
     ).toBeNull();
     expect(copyButtonFor('SO-MULTI')).toBeInTheDocument();
     expect(copyButtonFor('Parts Hub')).toBeInTheDocument();
@@ -703,7 +737,9 @@ describe('SupplierOrdersTable', () => {
     childSupplierCells.forEach((cell) => {
       expect(cell).toHaveTextContent('—');
       expect(
-        within(cell as HTMLElement).queryByRole('button', { name: 'Copy' }),
+        within(cell as HTMLElement).queryByRole('button', {
+          name: 'Copy',
+        }),
       ).toBeNull();
     });
   });

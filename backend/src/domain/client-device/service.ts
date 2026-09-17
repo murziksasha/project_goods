@@ -1,34 +1,44 @@
 import type { ClientDevicePayload } from '../shared/types';
 import { formatClientDevice } from '../../shared/lib/formatters';
 import { toNonEmptyString } from '../../shared/lib/parsers';
-import { getSearchQuery, isValidObjectIdOrThrow } from '../../shared/lib/query';
+import {
+  getSearchQuery,
+  isValidObjectIdOrThrow,
+} from '../../shared/lib/query';
 import { ClientDevice, type ClientDeviceDocument } from './model';
 import { Sale } from '../sale/model';
 import { assertNotStale } from '../../shared/lib/errors';
 import { HttpError } from '../../shared/lib/errors';
+import { withOptionalMongoSession } from '../../shared/lib/mongo-session';
+import { mergeNotes } from '../shared/merge-notes';
 
-const normalizeClientDevicePayload = (payload: ClientDevicePayload) => ({
+const normalizeClientDevicePayload = (
+  payload: ClientDevicePayload,
+) => ({
   clientId: toNonEmptyString(payload.clientId),
   clientName: toNonEmptyString(payload.clientName),
   clientPhone: toNonEmptyString(payload.clientPhone),
   name: toNonEmptyString(payload.name).replace(/\s+/g, ' '),
   serialNumber: '',
   note: toNonEmptyString(payload.note),
-  source: toNonEmptyString(payload.source) === 'clientCard' ? 'clientCard' : 'repairOrder',
+  source:
+    toNonEmptyString(payload.source) === 'clientCard'
+      ? 'clientCard'
+      : 'repairOrder',
   isActive:
     payload.isActive === undefined
       ? true
-      : payload.isActive === true || String(payload.isActive).toLowerCase() === 'true',
+      : payload.isActive === true ||
+        String(payload.isActive).toLowerCase() === 'true',
 });
 const toNameKey = (value: string) =>
-  value
-    .trim()
-    .replace(/\s+/g, ' ')
-    .toLowerCase();
+  value.trim().replace(/\s+/g, ' ').toLowerCase();
 
-const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const escapeRegExp = (value: string) =>
+  value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-const normalizeDeviceName = (value: string) => value.trim().replace(/\s+/g, ' ');
+const normalizeDeviceName = (value: string) =>
+  value.trim().replace(/\s+/g, ' ');
 
 const buildSnapshotNamePattern = (name: string) =>
   `^${escapeRegExp(normalizeDeviceName(name)).replace(/\s+/g, '\\s+')}$`;
@@ -36,13 +46,21 @@ const buildSnapshotNamePattern = (name: string) =>
 const buildLineItemNamePattern = (name: string) =>
   `^${escapeRegExp(normalizeDeviceName(name)).replace(/\s+/g, '\\s+')}(?:\\s*\\(.*\\))?$`;
 
-const matchesSnapshotDeviceName = (snapshotName: string, previousName: string) =>
+const matchesSnapshotDeviceName = (
+  snapshotName: string,
+  previousName: string,
+) =>
   new RegExp(buildSnapshotNamePattern(previousName), 'i').test(
     normalizeDeviceName(snapshotName),
   );
 
-const matchesLineItemDeviceName = (lineItemName: string, previousName: string) =>
-  new RegExp(buildLineItemNamePattern(previousName), 'i').test(lineItemName);
+const matchesLineItemDeviceName = (
+  lineItemName: string,
+  previousName: string,
+) =>
+  new RegExp(buildLineItemNamePattern(previousName), 'i').test(
+    lineItemName,
+  );
 
 const buildLinkedRepairSalesQuery = (
   clientId: ClientDeviceDocument['client'],
@@ -67,7 +85,9 @@ const buildLinkedRepairSalesQuery = (
     });
   }
   if (options.includeSerial && previousSerial) {
-    orConditions.push({ 'productSnapshot.serialNumber': previousSerial });
+    orConditions.push({
+      'productSnapshot.serialNumber': previousSerial,
+    });
   }
 
   if (orConditions.length === 0) {
@@ -101,10 +121,15 @@ const propagateDeviceChangesToRepairSales = async (
     return;
   }
 
-  const salesQuery = buildLinkedRepairSalesQuery(clientId, previousName, previousSerial, {
-    includeName: nameChanged,
-    includeSerial: serialChanged,
-  });
+  const salesQuery = buildLinkedRepairSalesQuery(
+    clientId,
+    previousName,
+    previousSerial,
+    {
+      includeName: nameChanged,
+      includeSerial: serialChanged,
+    },
+  );
   if (!salesQuery) {
     return;
   }
@@ -122,7 +147,9 @@ const propagateDeviceChangesToRepairSales = async (
           ? nextName
           : snapshotName;
       const nextSnapshotSerial =
-        serialChanged && previousSerial && snapshotSerial === previousSerial
+        serialChanged &&
+        previousSerial &&
+        snapshotSerial === previousSerial
           ? nextSerial
           : snapshotSerial;
       const nextLineItems = (sale.lineItems ?? []).map((item) => {
@@ -156,15 +183,19 @@ const propagateDeviceChangesToRepairSales = async (
 
 type SaleDeviceUsageFields = {
   client?: { toString: () => string } | string | null;
-  productSnapshot?: { name?: string | null; serialNumber?: string | null } | null;
+  productSnapshot?: {
+    name?: string | null;
+    serialNumber?: string | null;
+  } | null;
   lineItems?: Array<{ name?: string | null }> | null;
   note?: string | null;
 };
 
 const loadSalesForDeviceUsage = () =>
-  Sale.find({}, { client: 1, productSnapshot: 1, lineItems: 1, note: 1 }).lean<
-    SaleDeviceUsageFields[]
-  >();
+  Sale.find(
+    {},
+    { client: 1, productSnapshot: 1, lineItems: 1, note: 1 },
+  ).lean<SaleDeviceUsageFields[]>();
 
 const countDeviceUsageInSales = (
   device: ClientDeviceDocument,
@@ -177,11 +208,15 @@ const countDeviceUsageInSales = (
   const namePattern = normalizedName
     ? escapeRegExp(normalizedName).replace(/\s+/g, '\\s+')
     : '';
-  const snapshotRe = namePattern ? new RegExp(`^${namePattern}$`, 'i') : null;
+  const snapshotRe = namePattern
+    ? new RegExp(`^${namePattern}$`, 'i')
+    : null;
   const lineItemRe = namePattern
     ? new RegExp(`^${namePattern}(?:\\s*\\(.*\\))?$`, 'i')
     : null;
-  const nameNoteRe = namePattern ? new RegExp(escapeRegExp(normalizedName), 'i') : null;
+  const nameNoteRe = namePattern
+    ? new RegExp(escapeRegExp(normalizedName), 'i')
+    : null;
   const serialNoteRe = normalizedSerial
     ? new RegExp(escapeRegExp(normalizedSerial), 'i')
     : null;
@@ -192,15 +227,22 @@ const countDeviceUsageInSales = (
     }
 
     const snapshotName = String(sale.productSnapshot?.name ?? '');
-    const snapshotSerial = String(sale.productSnapshot?.serialNumber ?? '');
+    const snapshotSerial = String(
+      sale.productSnapshot?.serialNumber ?? '',
+    );
     const note = String(sale.note ?? '');
 
     if (snapshotRe?.test(snapshotName)) return count + 1;
-    if ((sale.lineItems ?? []).some((line) => lineItemRe?.test(String(line.name ?? '')))) {
+    if (
+      (sale.lineItems ?? []).some((line) =>
+        lineItemRe?.test(String(line.name ?? '')),
+      )
+    ) {
       return count + 1;
     }
     if (nameNoteRe?.test(note)) return count + 1;
-    if (normalizedSerial && snapshotSerial === normalizedSerial) return count + 1;
+    if (normalizedSerial && snapshotSerial === normalizedSerial)
+      return count + 1;
     if (serialNoteRe?.test(note)) return count + 1;
     return count;
   }, 0);
@@ -212,14 +254,23 @@ const getDeviceUsageCount = async (device: ClientDeviceDocument) => {
 };
 
 export const listClientDevices = async (queryValue: unknown) => {
-  const query = getSearchQuery(queryValue);
+  const searchQuery = getSearchQuery(queryValue);
+  const hasQuery =
+    typeof queryValue === 'string' && queryValue.trim().length > 0;
+  const dbQuery = hasQuery
+    ? { $and: [searchQuery, { isActive: { $ne: false } }] }
+    : searchQuery;
   const [devices, sales] = await Promise.all([
-    ClientDevice.find(query).sort({ createdAt: -1 }).lean<ClientDeviceDocument[]>(),
+    ClientDevice.find(dbQuery)
+      .sort({ createdAt: -1 })
+      .lean<ClientDeviceDocument[]>(),
     loadSalesForDeviceUsage(),
   ]);
   const deduped = new Map<string, ClientDeviceDocument>();
   devices.forEach((device) => {
-    const clientKey = device.client ? device.client.toString() : 'no-client';
+    const clientKey = device.client
+      ? device.client.toString()
+      : 'no-client';
     const key = `${clientKey}::${toNameKey(device.name)}`;
     if (!deduped.has(key)) {
       deduped.set(key, device);
@@ -228,11 +279,16 @@ export const listClientDevices = async (queryValue: unknown) => {
   const uniqueDevices = Array.from(deduped.values());
 
   return uniqueDevices.map((device) =>
-    formatClientDevice(device, countDeviceUsageInSales(device, sales)),
+    formatClientDevice(
+      device,
+      countDeviceUsageInSales(device, sales),
+    ),
   );
 };
 
-export const createClientDevice = async (payload: ClientDevicePayload) => {
+export const createClientDevice = async (
+  payload: ClientDevicePayload,
+) => {
   const normalized = normalizeClientDevicePayload(payload);
   const normalizedClientId = normalized.clientId || null;
   if (normalizedClientId) {
@@ -252,7 +308,10 @@ export const createClientDevice = async (payload: ClientDevicePayload) => {
       const usageCount = await getDeviceUsageCount(existingDevice);
       return formatClientDevice(existingDevice, usageCount);
     }
-    throw new HttpError(409, 'Device name already exists for this client.');
+    throw new HttpError(
+      409,
+      'Device name already exists for this client.',
+    );
   }
 
   const device = new ClientDevice({
@@ -269,10 +328,16 @@ export const createClientDevice = async (payload: ClientDevicePayload) => {
   await device.validate();
   await device.save();
 
-  return formatClientDevice(device.toObject<ClientDeviceDocument>(), 0);
+  return formatClientDevice(
+    device.toObject<ClientDeviceDocument>(),
+    0,
+  );
 };
 
-export const updateClientDevice = async (deviceId: string, payload: ClientDevicePayload) => {
+export const updateClientDevice = async (
+  deviceId: string,
+  payload: ClientDevicePayload,
+) => {
   isValidObjectIdOrThrow(deviceId, 'deviceId');
   const normalized = normalizeClientDevicePayload(payload);
   const normalizedClientId = normalized.clientId || null;
@@ -280,16 +345,26 @@ export const updateClientDevice = async (deviceId: string, payload: ClientDevice
     isValidObjectIdOrThrow(normalizedClientId, 'clientId');
   }
   const normalizedNameKey = toNameKey(normalized.name);
-  const existingDevice = await ClientDevice.findById(deviceId).lean<ClientDeviceDocument | null>();
-  if (!existingDevice) throw new HttpError(404, 'Client device not found.');
-  assertNotStale(payload.expectedUpdatedAt, existingDevice.updatedAt, 'Client device');
+  const existingDevice = await ClientDevice.findById(
+    deviceId,
+  ).lean<ClientDeviceDocument | null>();
+  if (!existingDevice)
+    throw new HttpError(404, 'Client device not found.');
+  assertNotStale(
+    payload.expectedUpdatedAt,
+    existingDevice.updatedAt,
+    'Client device',
+  );
   const duplicateByName = await ClientDevice.exists({
     _id: { $ne: deviceId },
     client: normalizedClientId,
     nameKey: normalizedNameKey,
   });
   if (duplicateByName) {
-    throw new HttpError(409, 'Device name already exists for this client.');
+    throw new HttpError(
+      409,
+      'Device name already exists for this client.',
+    );
   }
 
   const device = await ClientDevice.findByIdAndUpdate(
@@ -315,15 +390,189 @@ export const updateClientDevice = async (deviceId: string, payload: ClientDevice
 
 export const deleteClientDevice = async (deviceId: string) => {
   isValidObjectIdOrThrow(deviceId, 'deviceId');
-  const existing = await ClientDevice.findById(deviceId).lean<ClientDeviceDocument | null>();
+  const existing = await ClientDevice.findById(
+    deviceId,
+  ).lean<ClientDeviceDocument | null>();
   if (!existing) throw new HttpError(404, 'Client device not found.');
 
   const usageCount = await getDeviceUsageCount(existing);
   if (usageCount > 0) {
-    throw new HttpError(400, 'This device is used in orders or sales and cannot be removed.');
+    throw new HttpError(
+      400,
+      'This device is used in orders or sales and cannot be removed.',
+    );
   }
 
-  const deleted = await ClientDevice.findByIdAndDelete(deviceId).lean<ClientDeviceDocument | null>();
+  const deleted = await ClientDevice.findByIdAndDelete(
+    deviceId,
+  ).lean<ClientDeviceDocument | null>();
   if (!deleted) throw new HttpError(404, 'Client device not found.');
   return { id: deviceId };
+};
+
+export const mergeClientDevices = async (
+  targetDeviceIdInput: unknown,
+  sourceDeviceIdInput: unknown,
+  draftNoteInput?: unknown,
+) => {
+  const targetDeviceId =
+    typeof targetDeviceIdInput === 'string'
+      ? targetDeviceIdInput.trim()
+      : '';
+  const sourceDeviceId =
+    typeof sourceDeviceIdInput === 'string'
+      ? sourceDeviceIdInput.trim()
+      : '';
+  const draftNote =
+    typeof draftNoteInput === 'string' ? draftNoteInput.trim() : '';
+
+  if (!targetDeviceId || !sourceDeviceId) {
+    throw new HttpError(
+      400,
+      'Both targetDeviceId and sourceDeviceId are required.',
+    );
+  }
+  if (targetDeviceId === sourceDeviceId) {
+    throw new HttpError(400, 'Select two different client devices.');
+  }
+
+  isValidObjectIdOrThrow(targetDeviceId, 'targetDeviceId');
+  isValidObjectIdOrThrow(sourceDeviceId, 'sourceDeviceId');
+
+  return withOptionalMongoSession(async (session) => {
+    const [targetDevice, sourceDevice] = await Promise.all([
+      ClientDevice.findById(targetDeviceId, null, {
+        session: session ?? undefined,
+      }).lean<ClientDeviceDocument | null>(),
+      ClientDevice.findById(sourceDeviceId, null, {
+        session: session ?? undefined,
+      }).lean<ClientDeviceDocument | null>(),
+    ]);
+
+    if (!targetDevice)
+      throw new HttpError(404, 'Target client device not found.');
+    if (!sourceDevice)
+      throw new HttpError(404, 'Source client device not found.');
+
+    const targetClientId = targetDevice.client
+      ? targetDevice.client.toString()
+      : '';
+    const sourceClientId = sourceDevice.client
+      ? sourceDevice.client.toString()
+      : '';
+
+    if (targetClientId !== sourceClientId) {
+      throw new HttpError(
+        400,
+        'Cannot merge devices belonging to different clients.',
+      );
+    }
+
+    const mergedNote = mergeNotes(
+      targetDevice.note,
+      sourceDevice.note,
+      draftNote,
+    );
+
+    let relinkedSalesCount = 0;
+    if (targetDevice.client) {
+      const salesQuery = {
+        client: targetDevice.client,
+        kind: 'repair',
+        $or: [
+          {
+            'productSnapshot.name': {
+              $regex: buildSnapshotNamePattern(sourceDevice.name),
+              $options: 'i',
+            },
+          },
+          {
+            'lineItems.name': {
+              $regex: buildLineItemNamePattern(sourceDevice.name),
+              $options: 'i',
+            },
+          },
+        ],
+      };
+
+      const matchingSales = await Sale.find(salesQuery, null, {
+        session: session ?? undefined,
+      }).lean();
+
+      for (const sale of matchingSales) {
+        const snapshotName = sale.productSnapshot?.name ?? '';
+        const nextSnapshotName = matchesSnapshotDeviceName(
+          snapshotName,
+          sourceDevice.name,
+        )
+          ? targetDevice.name
+          : snapshotName;
+
+        const nextLineItems = (sale.lineItems ?? []).map((item) => {
+          if (item.kind !== 'product') return item;
+          if (
+            !matchesLineItemDeviceName(item.name, sourceDevice.name)
+          )
+            return item;
+          return {
+            ...item,
+            name: targetDevice.name,
+          };
+        });
+
+        await Sale.findByIdAndUpdate(
+          sale._id,
+          {
+            productSnapshot: {
+              article: sale.productSnapshot?.article ?? '',
+              name: nextSnapshotName,
+              serialNumber: sale.productSnapshot?.serialNumber ?? '',
+            },
+            lineItems: nextLineItems,
+          },
+          { session: session ?? undefined },
+        );
+      }
+      relinkedSalesCount = matchingSales.length;
+    }
+
+    const updatedTarget = await ClientDevice.findByIdAndUpdate(
+      targetDeviceId,
+      { note: mergedNote },
+      {
+        session: session ?? undefined,
+        returnDocument: 'after',
+        runValidators: true,
+      },
+    ).lean<ClientDeviceDocument | null>();
+
+    if (!updatedTarget) {
+      throw new HttpError(
+        500,
+        'Failed to update target client device.',
+      );
+    }
+
+    const deletedSource = await ClientDevice.findByIdAndDelete(
+      sourceDeviceId,
+      {
+        session: session ?? undefined,
+      },
+    ).lean<ClientDeviceDocument | null>();
+
+    if (!deletedSource) {
+      throw new HttpError(
+        500,
+        'Failed to delete source client device.',
+      );
+    }
+
+    const usageCount = await getDeviceUsageCount(updatedTarget);
+
+    return {
+      device: formatClientDevice(updatedTarget, usageCount),
+      removedDeviceId: sourceDeviceId,
+      relinkedSalesCount,
+    };
+  });
 };
