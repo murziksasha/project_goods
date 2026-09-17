@@ -1,4 +1,10 @@
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import * as clipboard from '../../../../shared/lib/clipboard';
 import type { Product } from '../../../../entities/product/model/types';
@@ -100,7 +106,9 @@ describe('ReceiptsTable favorites', () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole('button', { name: 'Star SO-1' }));
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Star SO-1' }),
+    );
 
     expect(onToggleFavorite).toHaveBeenCalledWith(receipt);
   });
@@ -127,7 +135,9 @@ describe('ReceiptsTable favorites', () => {
       />,
     );
 
-    expect(screen.queryByRole('button', { name: 'Star R-1' })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Star R-1' }),
+    ).not.toBeInTheDocument();
   });
 
   it('copies the receipt number without opening the order', async () => {
@@ -164,8 +174,14 @@ describe('StockTable selectable links', () => {
     expect(screen.getByText('iPhone 15')).toBeInTheDocument();
     expect(screen.getByText('SN-12345')).toBeInTheDocument();
     expect(screen.getByText('ART-001')).toBeInTheDocument();
-    expect(container.querySelectorAll('button.settings-link-button')).toHaveLength(0);
-    expect(container.querySelectorAll('span.settings-link-button[role="button"]')).toHaveLength(3);
+    expect(
+      container.querySelectorAll('button.settings-link-button'),
+    ).toHaveLength(0);
+    expect(
+      container.querySelectorAll(
+        'span.settings-link-button[role="button"]',
+      ),
+    ).toHaveLength(3);
   });
 
   it('opens model and serial cards on click without text selection', () => {
@@ -227,7 +243,9 @@ describe('StockTable selectable links', () => {
       />,
     );
 
-    const copyButtons = screen.getAllByRole('button', { name: 'Copy' });
+    const copyButtons = screen.getAllByRole('button', {
+      name: 'Copy',
+    });
     expect(copyButtons).toHaveLength(2);
 
     fireEvent.click(copyButtons[0]);
@@ -286,7 +304,10 @@ const linkedSupplierOrder: SupplierOrderLink = {
 };
 
 describe('StockTable client and supplier order copy', () => {
-  const orderColumns = ['clientOrder', 'supplierOrder'] as StockColumnKey[];
+  const orderColumns = [
+    'clientOrder',
+    'supplierOrder',
+  ] as StockColumnKey[];
 
   it('copies client and supplier order numbers without opening cards', async () => {
     const onOpenSaleCard = vi.fn();
@@ -300,13 +321,17 @@ describe('StockTable client and supplier order copy', () => {
         {...stockTableProps}
         visibleColumns={orderColumns}
         salesByProductId={{ [product.id]: [linkedSale] }}
-        supplierOrdersByProductId={{ [product.id]: [linkedSupplierOrder] }}
+        supplierOrdersByProductId={{
+          [product.id]: [linkedSupplierOrder],
+        }}
         onOpenSaleCard={onOpenSaleCard}
         onOpenSupplierOrder={onOpenSupplierOrder}
       />,
     );
 
-    const copyButtons = screen.getAllByRole('button', { name: 'Copy' });
+    const copyButtons = screen.getAllByRole('button', {
+      name: 'Copy',
+    });
     expect(copyButtons).toHaveLength(2);
 
     fireEvent.click(copyButtons[0]);
@@ -334,7 +359,9 @@ describe('StockTable client and supplier order copy', () => {
         {...stockTableProps}
         visibleColumns={orderColumns}
         salesByProductId={{ [product.id]: [linkedSale] }}
-        supplierOrdersByProductId={{ [product.id]: [linkedSupplierOrder] }}
+        supplierOrdersByProductId={{
+          [product.id]: [linkedSupplierOrder],
+        }}
         onOpenSaleCard={onOpenSaleCard}
         onOpenSupplierOrder={onOpenSupplierOrder}
       />,
@@ -358,7 +385,9 @@ describe('StockTable client and supplier order copy', () => {
       />,
     );
 
-    expect(screen.queryByRole('button', { name: 'Copy' })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Copy' }),
+    ).not.toBeInTheDocument();
     expect(screen.getAllByText('\u2014')).toHaveLength(2);
   });
 });
@@ -393,14 +422,18 @@ describe('StockTable models view', () => {
     expect(screen.queryByText('SN-12345')).not.toBeInTheDocument();
 
     fireEvent.click(
-      screen.getByRole('button', { name: 'Show serials for iPhone 15' }),
+      screen.getByRole('button', {
+        name: 'Show serials for iPhone 15',
+      }),
     );
 
     expect(screen.getByText('SN-12345')).toBeInTheDocument();
     expect(screen.getByText('SN-99999')).toBeInTheDocument();
 
     fireEvent.click(
-      screen.getByRole('checkbox', { name: 'Select all units of iPhone 15' }),
+      screen.getByRole('checkbox', {
+        name: 'Select all units of iPhone 15',
+      }),
     );
     expect(onToggleGroupSelection).toHaveBeenCalledWith([
       'product-1',
@@ -426,16 +459,19 @@ describe('StockTable models view', () => {
     fireEvent.pointerMove(handle, { clientX: 420, pointerId: 1 });
     fireEvent.pointerUp(handle, { pointerId: 1 });
 
-    expect(table.style.getPropertyValue('--warehouse-name-col-width')).toBe(
-      '440px',
-    );
+    expect(
+      table.style.getPropertyValue('--warehouse-name-col-width'),
+    ).toBe('440px');
     expect(
       window.localStorage.getItem(warehouseStockNameWidthStorageKey),
     ).toBe('440');
   });
 
   it('restores the name column width from this device on remount', () => {
-    window.localStorage.setItem(warehouseStockNameWidthStorageKey, '512');
+    window.localStorage.setItem(
+      warehouseStockNameWidthStorageKey,
+      '512',
+    );
 
     const firstRender = render(
       <StockTable {...stockTableProps} visibleColumns={['name']} />,
@@ -443,9 +479,9 @@ describe('StockTable models view', () => {
     const firstTable = firstRender.container.querySelector(
       '.warehouse-stock-table',
     ) as HTMLElement;
-    expect(firstTable.style.getPropertyValue('--warehouse-name-col-width')).toBe(
-      '512px',
-    );
+    expect(
+      firstTable.style.getPropertyValue('--warehouse-name-col-width'),
+    ).toBe('512px');
     firstRender.unmount();
 
     const secondRender = render(
@@ -455,7 +491,9 @@ describe('StockTable models view', () => {
       '.warehouse-stock-table',
     ) as HTMLElement;
     expect(
-      secondTable.style.getPropertyValue('--warehouse-name-col-width'),
+      secondTable.style.getPropertyValue(
+        '--warehouse-name-col-width',
+      ),
     ).toBe('512px');
   });
 
@@ -475,7 +513,10 @@ describe('StockTable models view', () => {
       'action',
     ];
     const { container } = render(
-      <StockTable {...stockTableProps} visibleColumns={visibleColumns} />,
+      <StockTable
+        {...stockTableProps}
+        visibleColumns={visibleColumns}
+      />,
     );
     const table = container.querySelector(
       '.warehouse-stock-table',
@@ -488,7 +529,9 @@ describe('StockTable models view', () => {
       )}px)`,
     );
     expect(
-      container.querySelector('th.warehouse-stock-cell-supplierOrder'),
+      container.querySelector(
+        'th.warehouse-stock-cell-supplierOrder',
+      ),
     ).toHaveTextContent('Supplier order');
     expect(
       container.querySelector('th.warehouse-stock-cell-supplier'),
@@ -497,29 +540,43 @@ describe('StockTable models view', () => {
 });
 
 describe('ReceiptsTable orders view', () => {
-  it('groups line items from the same supplier order', () => {
+  it('groups line items from the same supplier order and renders item numbers in child rows', () => {
+    const first: ReceiptRow = {
+      ...receipt,
+      id: 'receipt-1',
+      number: 'SO-1-1',
+      orderBaseNumber: 'SO-1',
+      productName: 'USB hub',
+      supplierOrderItemIndex: 0,
+    };
     const second: ReceiptRow = {
       ...receipt,
       id: 'receipt-2',
+      number: 'SO-1-2',
+      orderBaseNumber: 'SO-1',
       productName: 'HDMI cable',
+      supplierOrderItemIndex: 1,
       quantity: 3,
       amount: 300,
     };
+    const onOpenOrder = vi.fn();
+    const onOpenGroupOrder = vi.fn();
     render(
       <ReceiptsTable
-        receipts={[receipt, second]}
+        receipts={[first, second]}
         groups={[
           {
             id: 'so-1',
             number: 'SO-1',
-            receipts: [receipt, second],
+            receipts: [first, second],
           },
         ]}
         view='orders'
         visibleColumns={['number', 'product', 'price', 'amount']}
         canManageSupplierOrders={true}
         onToggleFavorite={vi.fn()}
-        onOpenOrder={vi.fn()}
+        onOpenOrder={onOpenOrder}
+        onOpenGroupOrder={onOpenGroupOrder}
         onOpenProduct={vi.fn()}
         onOpenSupplier={vi.fn()}
       />,
@@ -530,13 +587,25 @@ describe('ReceiptsTable orders view', () => {
     expect(screen.getByText('+1')).toBeInTheDocument();
     expect(screen.getByText('Price')).toBeInTheDocument();
     expect(screen.getByText('Total')).toBeInTheDocument();
-    expect(screen.queryByText('Paid / Amount')).not.toBeInTheDocument();
+    expect(
+      screen.queryByText('Paid / Amount'),
+    ).not.toBeInTheDocument();
     expect(screen.queryByText('Quantity')).not.toBeInTheDocument();
+
+    // Click parent order number opens full group order
+    fireEvent.click(screen.getByText('SO-1'));
+    expect(onOpenGroupOrder).toHaveBeenCalledWith('so-1');
 
     fireEvent.click(
       screen.getByRole('button', { name: 'Show lines for SO-1' }),
     );
 
     expect(screen.getByText('HDMI cable')).toBeInTheDocument();
+    expect(screen.getByText('SO-1-1')).toBeInTheDocument();
+    expect(screen.getByText('SO-1-2')).toBeInTheDocument();
+
+    // Click child row item number opens item-scoped supplier order
+    fireEvent.click(screen.getByText('SO-1-2'));
+    expect(onOpenOrder).toHaveBeenCalledWith(second);
   });
 });
