@@ -131,7 +131,7 @@ describe('repair kanban drop helpers', () => {
     expect(parseRailDropId(railDropId('paid'))).toBe('paid');
     expect(parseRailDropId('column:paid')).toBeNull();
     expect(
-      parseCollapsedKanbanColumns('[\"new\",\"ready\",\"issued\"]'),
+      parseCollapsedKanbanColumns('["new","ready","issued"]'),
     ).toEqual(['new', 'ready']);
   });
 
