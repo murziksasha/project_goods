@@ -1,4 +1,4 @@
-{
+﻿{
   "nav": {
     "home": "Головна",
     "orders": "Замовлення",
@@ -691,6 +691,8 @@
       "closeMove": "Закрити",
       "collapseColumn": "Згорнути порожню колонку",
       "expandColumn": "Розгорнути колонку",
+      "moveUp": "Вгору",
+      "moveDown": "Вниз",
       "navigator": "Колонки канбану"
     },
     "toolbar": {

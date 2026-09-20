@@ -12,6 +12,7 @@ export type SaleWorkspaceQueuePayload = {
   paymentHistory?: Sale['paymentHistory'];
   lineItems?: Sale['lineItems'];
   userNote?: string;
+  kanbanRank?: number;
 };
 
 export type SaleWorkspaceUpdater = (

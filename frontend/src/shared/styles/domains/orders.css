@@ -3072,6 +3072,37 @@
   cursor: pointer;
 }
 
+.repair-kanban-card-actions {
+  display: flex;
+  gap: 4px;
+  margin-top: 4px;
+  flex-wrap: wrap;
+}
+
+.repair-kanban-card-actions .repair-kanban-card-move {
+  margin-top: 0;
+  flex: 1 1 auto;
+}
+
+.repair-kanban-card-rank-btn {
+  border: 1px solid var(--color-line-panel);
+  border-radius: 8px;
+  background: var(--bg-panel);
+  color: var(--color-text-secondary);
+  font: inherit;
+  font-size: 0.72rem;
+  min-width: 28px;
+  min-height: 36px;
+  cursor: pointer;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.repair-kanban-card-rank-btn:hover {
+  color: var(--color-text-heading);
+  border-color: var(--color-primary);
+}
+
 .repair-kanban-navigator {
   display: none;
   gap: 8px;
@@ -3229,6 +3260,11 @@
 
   .repair-kanban-card-move {
     min-height: 44px;
+  }
+
+  .repair-kanban-card-rank-btn {
+    min-height: 44px;
+    min-width: 36px;
   }
 }
 

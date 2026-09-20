@@ -691,6 +691,8 @@
       "closeMove": "Close",
       "collapseColumn": "Collapse empty column",
       "expandColumn": "Expand column",
+      "moveUp": "Move up",
+      "moveDown": "Move down",
       "navigator": "Kanban columns"
     },
     "toolbar": {
