@@ -12,6 +12,12 @@ All `/api/*` routes require `Authorization: Bearer <token>` except:
 | `POST` | `/auth/login` | Returns session token |
 | `GET` | `/auth/invitations/:token` | Invitation lookup |
 | `POST` | `/auth/invitations/:token/register` | Invitation registration |
+| Method | Path                                | Notes                                               |
+| ------ | ----------------------------------- | --------------------------------------------------- |
+| `GET`  | `/health`                           | Public health + Mongo ping + `version` / `buildSha` |
+| `POST` | `/auth/login`                       | Returns session token                               |
+| `GET`  | `/auth/invitations/:token`          | Invitation lookup                                   |
+| `POST` | `/auth/invitations/:token/register` | Invitation registration                             |
 
 Authenticated session:
 
@@ -39,6 +45,20 @@ Responses:
 | Supplier orders | `supplierOrders.view` | `supplierOrders.manage` |
 | Demo `/demo/*` | — | `owner` (+ dev only: `NODE_ENV !== production`) |
 | Backups / db-stats | — | `system.backups.manage` |
+| Area                | Read                                                                       | Write                                                       |
+| ------------------- | -------------------------------------------------------------------------- | ----------------------------------------------------------- |
+| Products            | `orders.view` \| `inventory.manage` \| `supplierOrders.*`                  | `inventory.manage`                                          |
+| Clients             | `orders.view` \| `sales.manage` \| `clients.manage`                        | `clients.manage`                                            |
+| Sales/orders        | `orders.view` \| `sales.manage` \| `repairs.execute` \| `supplierOrders.*` | `orders.manage` / `sales.manage` (by `kind`)                |
+| Settings `GET`      | any authenticated employee                                                 | —                                                           |
+| Settings `PUT`      | —                                                                          | `owner` only                                                |
+| Print forms         | —                                                                          | `printForms.manage` or `owner`                              |
+| Employees `GET`     | authenticated                                                              | —                                                           |
+| Employees mutations | —                                                                          | `employees.manage` or `owner`                               |
+| Finance             | `finance.view` / cashbox permissions                                       | per action — see [Permission_Flow.md](./Permission_Flow.md) |
+| Supplier orders     | `supplierOrders.view`                                                      | `supplierOrders.manage`                                     |
+| Demo `/demo/*`      | —                                                                          | `owner` (+ dev only: `NODE_ENV !== production`)             |
+| Backups / db-stats  | —                                                                          | `system.backups.manage`                                     |
 
 Details: [SECURITY.md](./SECURITY.md), integration tests in `backend/src/routes/api.integration.test.ts`.
 
@@ -162,6 +182,10 @@ Named filter presets for workspaces (orders, warehouse, clients/suppliers, produ
 |--------|------|----------|
 | `GET` | `/saved-filters?scope=` | List current employee’s filters for scope |
 | `POST` | `/saved-filters` | Create filter for current employee |
+| Method   | Path                       | Behavior                                        |
+| -------- | -------------------------- | ----------------------------------------------- |
+| `GET`    | `/saved-filters?scope=`    | List current employee’s filters for scope       |
+| `POST`   | `/saved-filters`           | Create filter for current employee              |
 | `DELETE` | `/saved-filters/:filterId` | Delete own filter only (`403` if other creator) |
 
 - **Auth:** any authenticated employee (`req.employee`).
@@ -253,6 +277,7 @@ Named filter presets for workspaces (orders, warehouse, clients/suppliers, produ
     - `reconcileSupplierOrderStatuses()` — fix stale header status when line items are already `received`
     - `autoMarkOverdueSupplierOrders()` — promote only open `request` orders with past `deliveryDate` (`Europe/Kiev`) to `overdue`; must not overwrite `ordered`, `approved`, `partially_stocked`, or orders with received items
   - See `ORDER_FLOW.md` § *Supplier Order Backdated Delivery and Status Persistence (2026-07-06)*.
+  - See `ORDER_FLOW.md` § _Supplier Order Backdated Delivery and Status Persistence (2026-07-06)_.
 - `POST /supplier-orders` - create supplier order; requires `supplierOrders.manage`.
 - `PUT /supplier-orders/:supplierOrderId` - update supplier order; requires `supplierOrders.manage`.
 - `POST /supplier-orders/:supplierOrderId/cancel` - cancel supplier order; requires `supplierOrders.manage`.
@@ -346,9 +371,11 @@ Client status localization rule: keep client status values in original English (
   - `userNote` — operator-editable note from the order/sale card (max 500 characters)
 - `PATCH /sales/:saleId/workspace`
   - Supports `userNote` (string, trimmed, max 500). Updates only `userNote`; does not change system `note`.
+  - Supports `kanbanRank` (number) for card ordering within Kanban columns. Rank-only patches require `kanban.use` or `orders.manage`.
   - Manual `Live feed` comment-only saves require `orders.chat`.
   - Status-only change to `away` (repair or sale; timeline / `issuedById` clear allowed) requires any sale-read permission: `orders.view`, `sales.manage`, `repairs.execute`, `kanban.use`, `supplierOrders.view`, or `supplierOrders.manage`. Leaving `away` for another status uses the usual manage / `kanban.use` rules. Spec: [Permission_Flow.md](./Permission_Flow.md) · [ORDER_FLOW.md](./ORDER_FLOW.md#shared-status-away-2026-09-15).
   - Repair status/master-only Kanban patches require `kanban.use` or `orders.manage`.
+  - Repair status/master-only and rank-only Kanban patches require `kanban.use` or `orders.manage`.
   - System-generated timeline entries attached to other workspace actions are still authorized by those actions, not by `orders.chat`.
   - Serial numbers already bound to another sale/order are rejected (`assertSerialNumbersNotBoundToOtherSales` / `findOccupiedSerialNumbers`). Bind-modal listing uses `GET /sales/occupied-serials` so occupied units never appear as pickable. Spec: [WAREHOUSE_FLOW.md](./WAREHOUSE_FLOW.md#430-bind-modal-occupancy-opened-repair-and-sale-cards)
   - Serialized stock product line items are validated as atomic units.

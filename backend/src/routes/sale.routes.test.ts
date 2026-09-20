@@ -119,6 +119,9 @@ describe('isKanbanBoardWorkspacePatch', () => {
 
   it('returns true when only repair status changes', () => {
     expect(isKanbanBoardWorkspacePatch(existingSale, boardPayload)).toBe(true);
+    expect(
+      isKanbanBoardWorkspacePatch(existingSale, boardPayload),
+    ).toBe(true);
   });
 
   it('returns true when only the master is assigned', () => {
@@ -178,6 +181,9 @@ describe('isKanbanBoardWorkspacePatch', () => {
               productId: null,
               catalogProductId: null,
               serviceId: { toString: () => '507f1f77bcf86cd799439011' },
+              serviceId: {
+                toString: () => '507f1f77bcf86cd799439011',
+              },
               name: 'Diagnostics',
               price: 250,
               quantity: 1,
@@ -228,6 +234,30 @@ describe('isKanbanBoardWorkspacePatch', () => {
       ),
     ).toBe(true);
   });
+
+  it('returns true when only kanbanRank changes on a repair sale', () => {
+    expect(
+      isKanbanBoardWorkspacePatch(existingSale, {
+        ...boardPayload,
+        status: 'new',
+        kanbanRank: 1500,
+      }),
+    ).toBe(true);
+  });
+
+  it('returns false when kanbanRank changes on a product sale', () => {
+    expect(
+      isKanbanBoardWorkspacePatch(
+        { ...existingSale, kind: 'sale' },
+        {
+          ...boardPayload,
+          kind: 'sale',
+          status: 'new',
+          kanbanRank: 1500,
+        },
+      ),
+    ).toBe(false);
+  });
 });
 
 describe('isAwayStatusWorkspacePatch', () => {
@@ -246,6 +276,9 @@ describe('isAwayStatusWorkspacePatch', () => {
 
   it('returns true when only repair status changes to away', () => {
     expect(isAwayStatusWorkspacePatch(existingSale, awayPayload)).toBe(true);
+    expect(
+      isAwayStatusWorkspacePatch(existingSale, awayPayload),
+    ).toBe(true);
   });
 
   it('returns true for product sales', () => {

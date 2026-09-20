@@ -27,7 +27,10 @@ type WorkspaceComparableSale = {
 const asComparableId = (value: unknown) => {
   if (value == null || value === '') return '';
   if (typeof value === 'string') return value;
-  if (typeof value === 'object' && typeof value.toString === 'function') {
+  if (
+    typeof value === 'object' &&
+    typeof value.toString === 'function'
+  ) {
     const text = value.toString();
     return text && text !== '[object Object]' ? text : '';
   }
@@ -84,28 +87,44 @@ const toComparableWorkspaceState = (
   return {
     current,
     next: {
-      kind: payloadInput.kind === undefined ? current.kind : payload.kind,
-      status: payloadInput.status === undefined ? current.status : payload.status,
+      kind:
+        payloadInput.kind === undefined ? current.kind : payload.kind,
+      status:
+        payloadInput.status === undefined
+          ? current.status
+          : payload.status,
       paidAmount:
-        payloadInput.paidAmount === undefined ? current.paidAmount : payload.paidAmount,
+        payloadInput.paidAmount === undefined
+          ? current.paidAmount
+          : payload.paidAmount,
       masterId:
-        payloadInput.masterId === undefined ? current.masterId : payload.masterId,
+        payloadInput.masterId === undefined
+          ? current.masterId
+          : payload.masterId,
       issuedById:
-        payloadInput.issuedById === undefined ? current.issuedById : payload.issuedById,
+        payloadInput.issuedById === undefined
+          ? current.issuedById
+          : payload.issuedById,
       deviceName:
-        payloadInput.deviceName === undefined ? current.deviceName : payload.deviceName,
+        payloadInput.deviceName === undefined
+          ? current.deviceName
+          : payload.deviceName,
       serialNumber:
         payloadInput.serialNumber === undefined
           ? current.serialNumber
           : payload.serialNumber,
       discount:
-        payloadInput.discount === undefined ? current.discount : payload.discount,
+        payloadInput.discount === undefined
+          ? current.discount
+          : payload.discount,
       paymentHistory:
         payloadInput.paymentHistory === undefined
           ? current.paymentHistory
           : payload.paymentHistory,
       lineItems:
-        payloadInput.lineItems === undefined ? current.lineItems : payload.lineItems,
+        payloadInput.lineItems === undefined
+          ? current.lineItems
+          : payload.lineItems,
       timeline: payload.timeline,
     },
   };
@@ -116,8 +135,13 @@ export const isManualCommentWorkspacePatch = (
   sale: WorkspaceComparableSale,
   payloadInput: SalePayload,
 ) => {
-  const { current, next } = toComparableWorkspaceState(sale, payloadInput);
-  if (JSON.stringify(current.timeline) === JSON.stringify(next.timeline)) {
+  const { current, next } = toComparableWorkspaceState(
+    sale,
+    payloadInput,
+  );
+  if (
+    JSON.stringify(current.timeline) === JSON.stringify(next.timeline)
+  ) {
     return false;
   }
 
@@ -129,10 +153,12 @@ export const isManualCommentWorkspacePatch = (
     current.issuedById === next.issuedById &&
     current.deviceName === next.deviceName &&
     current.serialNumber === next.serialNumber &&
-    JSON.stringify(current.discount) === JSON.stringify(next.discount) &&
+    JSON.stringify(current.discount) ===
+      JSON.stringify(next.discount) &&
     JSON.stringify(current.paymentHistory) ===
       JSON.stringify(next.paymentHistory) &&
-    JSON.stringify(current.lineItems) === JSON.stringify(next.lineItems)
+    JSON.stringify(current.lineItems) ===
+      JSON.stringify(next.lineItems)
   );
 };
 
@@ -141,7 +167,10 @@ export const isAwayStatusWorkspacePatch = (
   sale: WorkspaceComparableSale,
   payloadInput: SalePayload,
 ) => {
-  const { current, next } = toComparableWorkspaceState(sale, payloadInput);
+  const { current, next } = toComparableWorkspaceState(
+    sale,
+    payloadInput,
+  );
   if (next.status !== 'away' || current.status === next.status) {
     return false;
   }
@@ -165,10 +194,12 @@ export const isAwayStatusWorkspacePatch = (
     current.paidAmount === next.paidAmount &&
     current.deviceName === next.deviceName &&
     current.serialNumber === next.serialNumber &&
-    JSON.stringify(current.discount) === JSON.stringify(next.discount) &&
+    JSON.stringify(current.discount) ===
+      JSON.stringify(next.discount) &&
     JSON.stringify(current.paymentHistory) ===
       JSON.stringify(next.paymentHistory) &&
-    JSON.stringify(current.lineItems) === JSON.stringify(next.lineItems)
+    JSON.stringify(current.lineItems) ===
+      JSON.stringify(next.lineItems)
   );
 };
 
@@ -177,14 +208,25 @@ export const isKanbanBoardWorkspacePatch = (
   sale: WorkspaceComparableSale,
   payloadInput: SalePayload,
 ) => {
-  const { current, next } = toComparableWorkspaceState(sale, payloadInput);
+  const { current, next } = toComparableWorkspaceState(
+    sale,
+    payloadInput,
+  );
   if (current.kind === 'sale' || next.kind === 'sale') {
     return false;
   }
 
   const statusChanged = current.status !== next.status;
   const masterChanged = current.masterId !== next.masterId;
-  if (!statusChanged && !masterChanged) {
+
+  // Allow rank-only patch (no status/master/anything else changed)
+  const rankOnlyChange =
+    !statusChanged &&
+    !masterChanged &&
+    (payloadInput as { kanbanRank?: unknown }).kanbanRank !==
+      undefined;
+
+  if (!statusChanged && !masterChanged && !rankOnlyChange) {
     return false;
   }
 
@@ -202,9 +244,11 @@ export const isKanbanBoardWorkspacePatch = (
     current.paidAmount === next.paidAmount &&
     current.deviceName === next.deviceName &&
     current.serialNumber === next.serialNumber &&
-    JSON.stringify(current.discount) === JSON.stringify(next.discount) &&
+    JSON.stringify(current.discount) ===
+      JSON.stringify(next.discount) &&
     JSON.stringify(current.paymentHistory) ===
       JSON.stringify(next.paymentHistory) &&
-    JSON.stringify(current.lineItems) === JSON.stringify(next.lineItems)
+    JSON.stringify(current.lineItems) ===
+      JSON.stringify(next.lineItems)
   );
 };

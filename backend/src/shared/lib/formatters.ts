@@ -13,7 +13,10 @@ import {
 import { getSaleDocumentTotal } from './saleTotals';
 
 export const formatProduct = (product: ProductDocument) => {
-  const freeQuantity = Math.max(product.quantity - product.reservedQuantity, 0);
+  const freeQuantity = Math.max(
+    product.quantity - product.reservedQuantity,
+    0,
+  );
 
   return {
     id: product._id.toString(),
@@ -35,7 +38,9 @@ export const formatProduct = (product: ProductDocument) => {
       typeof product.supplierOrderItemIndex === 'number'
         ? product.supplierOrderItemIndex
         : undefined,
-    purchaseDate: product.purchaseDate ? product.purchaseDate.toISOString() : null,
+    purchaseDate: product.purchaseDate
+      ? product.purchaseDate.toISOString()
+      : null,
     warrantyPeriod: product.warrantyPeriod,
     isActive: product.isActive ?? true,
     createdAt: product.createdAt.toISOString(),
@@ -46,7 +51,12 @@ export const formatProduct = (product: ProductDocument) => {
 export const formatClient = (client: ClientDocument) => ({
   id: client._id.toString(),
   phone: client.phone,
-  phones: Array.isArray(client.phones) && client.phones.length > 0 ? client.phones : (client.phone ? [client.phone] : []),
+  phones:
+    Array.isArray(client.phones) && client.phones.length > 0
+      ? client.phones
+      : client.phone
+        ? [client.phone]
+        : [],
   name: client.name,
   email: client.email ?? '',
   address: client.address ?? '',
@@ -61,9 +71,12 @@ export const formatClient = (client: ClientDocument) => ({
 export const formatSupplier = (supplier: SupplierDocument) => ({
   id: supplier._id.toString(),
   phone: supplier.phone,
-  phones: Array.isArray(supplier.phones) && supplier.phones.length > 0
-    ? supplier.phones
-    : supplier.phone ? [supplier.phone] : [],
+  phones:
+    Array.isArray(supplier.phones) && supplier.phones.length > 0
+      ? supplier.phones
+      : supplier.phone
+        ? [supplier.phone]
+        : [],
   name: supplier.name,
   note: supplier.note,
   supplierOrder: supplier.supplierOrder ?? '',
@@ -72,7 +85,10 @@ export const formatSupplier = (supplier: SupplierDocument) => ({
   updatedAt: supplier.updatedAt.toISOString(),
 });
 
-export const formatCatalogProduct = (item: CatalogProductDocument, usageCount = 0) => ({
+export const formatCatalogProduct = (
+  item: CatalogProductDocument,
+  usageCount = 0,
+) => ({
   id: item._id.toString(),
   name: item.name,
   note: item.note ?? '',
@@ -80,12 +96,17 @@ export const formatCatalogProduct = (item: CatalogProductDocument, usageCount = 
   usageCount,
   canRemove: usageCount === 0,
   sourceTags: item.sourceTags ?? [],
-  lastSeenAt: item.lastSeenAt ? item.lastSeenAt.toISOString() : item.updatedAt.toISOString(),
+  lastSeenAt: item.lastSeenAt
+    ? item.lastSeenAt.toISOString()
+    : item.updatedAt.toISOString(),
   createdAt: item.createdAt.toISOString(),
   updatedAt: item.updatedAt.toISOString(),
 });
 
-export const formatClientDevice = (device: ClientDeviceDocument, usageCount = 0) => ({
+export const formatClientDevice = (
+  device: ClientDeviceDocument,
+  usageCount = 0,
+) => ({
   id: device._id.toString(),
   clientId: device.client ? device.client.toString() : '',
   clientName: device.clientName,
@@ -153,7 +174,8 @@ export const formatSale = (sale: SaleDocument) => ({
   paymentHistory: (sale.paymentHistory ?? []).map((entry) => ({
     id: entry.id,
     type: entry.type,
-    paymentMethod: entry.paymentMethod === 'non-cash' ? 'non-cash' : 'cash',
+    paymentMethod:
+      entry.paymentMethod === 'non-cash' ? 'non-cash' : 'cash',
     amount: entry.amount,
     cashboxId: entry.cashboxId,
     cashboxName: entry.cashboxName,
@@ -172,7 +194,9 @@ export const formatSale = (sale: SaleDocument) => ({
     price: item.price,
     quantity: item.quantity,
     warrantyPeriod: item.warrantyPeriod ?? 0,
-    serialNumbers: (item.serialNumbers ?? []).map((serial) => String(serial)),
+    serialNumbers: (item.serialNumbers ?? []).map((serial) =>
+      String(serial),
+    ),
   })),
   discount: {
     mode: sale.discount?.mode === 'amount' ? 'amount' : 'percent',
@@ -207,6 +231,7 @@ export const formatSale = (sale: SaleDocument) => ({
     : null,
   createdAt: sale.createdAt.toISOString(),
   updatedAt: sale.updatedAt.toISOString(),
+  kanbanRank: sale.kanbanRank ?? undefined,
 });
 
 export const formatClientHistory = (
@@ -217,8 +242,13 @@ export const formatClientHistory = (
   sales: sales.map(formatSale),
   stats: {
     totalSales: sales.length,
-    totalRevenue: sales.reduce((sum, sale) => sum + getSaleDocumentTotal(sale), 0),
-    totalItemsSold: sales.reduce((sum, sale) => sum + sale.quantity, 0),
+    totalRevenue: sales.reduce(
+      (sum, sale) => sum + getSaleDocumentTotal(sale),
+      0,
+    ),
+    totalItemsSold: sales.reduce(
+      (sum, sale) => sum + sale.quantity,
+      0,
+    ),
   },
 });
-

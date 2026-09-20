@@ -83,6 +83,7 @@ export type Sale = {
   } | null;
   createdAt: string;
   updatedAt: string;
+  kanbanRank?: number;
 };
 
 export type SaleFormValues = {
@@ -123,6 +124,7 @@ export type SaleWorkspacePayload = {
   lineItems?: Sale['lineItems'];
   userNote?: string;
   expectedUpdatedAt?: string;
+  kanbanRank?: number;
 };
 
 export type SaleLineItemReturnPayload = {
