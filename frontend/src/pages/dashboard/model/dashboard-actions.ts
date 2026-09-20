@@ -2219,3 +2219,47 @@ export const createDashboardActions = ({
     },
   };
 };
+
+export const persistKanbanRanks = async (
+  updates: Array<{ saleId: string; kanbanRank: number }>,
+  workspaceSave: (
+    saleId: string,
+    payload: { kanbanRank: number },
+  ) => Promise<Sale>,
+) => {
+  return Promise.all(
+    updates.map(({ saleId, kanbanRank }) =>
+      workspaceSave(saleId, { kanbanRank }).then((updated) => {
+        if (!updated) return;
+        queryClient.setQueriesData(
+          { queryKey: queryKeys.sales },
+          (current: unknown) => {
+            if (Array.isArray(current)) {
+              return current.map((item: Sale) =>
+                item.id === updated.id ? updated : item,
+              );
+            }
+            if (
+              current &&
+              typeof current === 'object' &&
+              Array.isArray((current as { items?: Sale[] }).items)
+            ) {
+              const page = current as { items: Sale[] };
+              return {
+                ...page,
+                items: page.items.map((item) =>
+                  item.id === updated.id ? updated : item,
+                ),
+              };
+            }
+            return current;
+          },
+        );
+        queryClient.setQueryData(
+          queryKeys.saleDetail(updated.id),
+          updated,
+        );
+      }),
+    ),
+  );
+};

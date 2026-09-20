@@ -92,20 +92,30 @@ export const saleSchema = new mongoose.Schema(
     note: {
       type: String,
       trim: true,
-      maxlength: [500, 'Sale note must contain no more than 500 characters'],
+      maxlength: [
+        500,
+        'Sale note must contain no more than 500 characters',
+      ],
       default: '',
     },
     userNote: {
       type: String,
       trim: true,
-      maxlength: [500, 'Sale user note must contain no more than 500 characters'],
+      maxlength: [
+        500,
+        'Sale user note must contain no more than 500 characters',
+      ],
       default: '',
     },
     timeline: [
       {
         _id: false,
         id: { type: String, required: true },
-        kind: { type: String, enum: ['manual', 'system'], required: false },
+        kind: {
+          type: String,
+          enum: ['manual', 'system'],
+          required: false,
+        },
         author: { type: String, required: true },
         message: { type: String, required: true },
         createdAt: { type: Date, required: true },
@@ -164,7 +174,9 @@ export const saleSchema = new mongoose.Schema(
         price: { type: Number, required: true, min: 0 },
         quantity: { type: Number, required: true, min: 1 },
         warrantyPeriod: { type: Number, min: 0, default: 0 },
-        serialNumbers: [{ type: String, trim: true, uppercase: true }],
+        serialNumbers: [
+          { type: String, trim: true, uppercase: true },
+        ],
       },
     ],
     discount: {
@@ -206,6 +218,11 @@ export const saleSchema = new mongoose.Schema(
       name: { type: String, required: false },
       role: { type: String, required: false },
     },
+    kanbanRank: {
+      type: Number,
+      required: false,
+      default: undefined,
+    },
   },
   {
     timestamps: true,
@@ -218,7 +235,9 @@ saleSchema.index({ kind: 1, saleDate: -1 });
 saleSchema.index({ kind: 1, status: 1, saleDate: -1 });
 saleSchema.index({ client: 1, saleDate: -1 });
 
-export type SaleDocument = mongoose.InferSchemaType<typeof saleSchema> & {
+export type SaleDocument = mongoose.InferSchemaType<
+  typeof saleSchema
+> & {
   _id: mongoose.Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;

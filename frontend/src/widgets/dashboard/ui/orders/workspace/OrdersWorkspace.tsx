@@ -51,6 +51,7 @@ import {
 import type { Cashbox } from '../../../../../entities/finance/model/types';
 import {
   isKanbanVisibleSale,
+  kanbanSortKey,
   saleMatchesKanbanMasterFilter,
 } from '../../kanban/repair-kanban';
 import { RepairKanbanBoard } from '../../kanban/RepairKanbanBoard';
@@ -93,7 +94,6 @@ import {
   emptyOrdersFilters,
   filterIconOptions,
   formatReadyDate,
-
   getCreatedTime,
   getOrdersTableMinWidth,
   getDefaultLineItems,
@@ -102,9 +102,7 @@ import {
   getLatestDepositPaymentMethod,
   getLineItemRefundableAmount,
   getLineItemsTotal,
-
   getOrderTotal,
-
   getPrimaryDeviceName,
   getPrimaryDeviceSerial,
   getPrimaryItemCellContent,
@@ -126,7 +124,6 @@ import {
   isOrderEditableStatus,
   getReopenedSaleStatusForLineItems,
   isClosingStatus,
-
   isIsoDateWithinRange,
   isPlainLeftClick,
   isRepairDevicePlaceholderLineItem,
@@ -139,7 +136,6 @@ import {
   computeOrderExtraLinesMenuPosition,
   computeOrderStatusMenuPosition,
   normalizeOrderStatus,
-
   type OrderStatusMenuPosition,
   ordersColumnsStorageKey,
   readActiveOrderFilters,
@@ -224,7 +220,8 @@ export const OrdersWorkspace = ({
 }: OrdersWorkspaceProps) => {
   const { t } = useTranslation();
   const currentEmployeeName =
-    currentEmployee?.name ?? t('orders.messages.errors.unknownEmployee');
+    currentEmployee?.name ??
+    t('orders.messages.errors.unknownEmployee');
   const canAcceptFinanceDeposit = hasEmployeePermission(
     currentEmployee,
     'finance.transactions.deposit',
@@ -301,8 +298,9 @@ export const OrdersWorkspace = ({
     useState('');
   const [refundAmount, setRefundAmount] = useState('');
   const [returnRefundAmount, setReturnRefundAmount] = useState('');
-  const [returnWarehouse, setReturnWarehouse] =
-    useState(() => i18n.t('orders.columns.serviceCenter'));
+  const [returnWarehouse, setReturnWarehouse] = useState(() =>
+    i18n.t('orders.columns.serviceCenter'),
+  );
   const [isPaymentModalLoading, setIsPaymentModalLoading] =
     useState(false);
   const [isPaymentSaving, setIsPaymentSaving] = useState(false);
@@ -319,9 +317,9 @@ export const OrdersWorkspace = ({
   const [isStatusFilterOpen, setIsStatusFilterOpen] = useState(false);
   const [isSaveFilterDrawerOpen, setIsSaveFilterDrawerOpen] =
     useState(false);
-  const [savedFilters, setSavedFilters] = useState<SavedOrdersFilter[]>(
-    [],
-  );
+  const [savedFilters, setSavedFilters] = useState<
+    SavedOrdersFilter[]
+  >([]);
   const [newFilterName, setNewFilterName] = useState('');
   const [newFilterIcon, setNewFilterIcon] = useState(
     filterIconOptions[0],
@@ -388,7 +386,9 @@ export const OrdersWorkspace = ({
   const currentPage = pageByTab[activeTab];
   const currentPageSize = pageSizeByTab[activeTab];
   const usesServerList =
-    activeTab === 'orders' || activeTab === 'sales' || activeTab === 'kanban';
+    activeTab === 'orders' ||
+    activeTab === 'sales' ||
+    activeTab === 'kanban';
   const salesListParams = useMemo(
     () =>
       buildOrdersSalesListParams({
@@ -406,9 +406,13 @@ export const OrdersWorkspace = ({
       debouncedSearchValue,
     ],
   );
-  const salesPageQuery = useSalesPageQuery(usesServerList, salesListParams, {
-    poll: true,
-  });
+  const salesPageQuery = useSalesPageQuery(
+    usesServerList,
+    salesListParams,
+    {
+      poll: true,
+    },
+  );
   const listSource =
     usesServerList && salesPageQuery.isSuccess && salesPageQuery.data
       ? salesPageQuery.data.items
@@ -422,9 +426,13 @@ export const OrdersWorkspace = ({
       ),
     [activeTab, listSource],
   );
-  const clientStatsMap = useMemo(() => getClientStatsMap(sales), [sales]);
+  const clientStatsMap = useMemo(
+    () => getClientStatsMap(sales),
+    [sales],
+  );
   const statusOptionsForActiveTab = useMemo(
-    () => (isRepairOrdersTab(activeTab) ? repairStatuses : saleStatuses),
+    () =>
+      isRepairOrdersTab(activeTab) ? repairStatuses : saleStatuses,
     [activeTab],
   );
   const statusKeysForActiveTab = useMemo(
@@ -433,7 +441,9 @@ export const OrdersWorkspace = ({
     [statusOptionsForActiveTab],
   );
   const assigneeOptions = useMemo(() => {
-    const activeEmployees = employees.filter((employee) => employee.isActive);
+    const activeEmployees = employees.filter(
+      (employee) => employee.isActive,
+    );
     if (activeTab === 'kanban') {
       return activeEmployees
         .filter(
@@ -441,8 +451,13 @@ export const OrdersWorkspace = ({
             employee.role === 'master' ||
             hasEmployeePermission(employee, 'repairs.execute'),
         )
-        .map((employee) => ({ id: employee.id, label: employee.name }))
-        .sort((first, second) => first.label.localeCompare(second.label));
+        .map((employee) => ({
+          id: employee.id,
+          label: employee.name,
+        }))
+        .sort((first, second) =>
+          first.label.localeCompare(second.label),
+        );
     }
     if (activeTab === 'sales') {
       return activeEmployees
@@ -455,8 +470,13 @@ export const OrdersWorkspace = ({
               'orders.manage',
             ]),
         )
-        .map((employee) => ({ id: employee.id, label: employee.name }))
-        .sort((first, second) => first.label.localeCompare(second.label));
+        .map((employee) => ({
+          id: employee.id,
+          label: employee.name,
+        }))
+        .sort((first, second) =>
+          first.label.localeCompare(second.label),
+        );
     }
     return activeEmployees
       .map((employee) => ({
@@ -464,10 +484,16 @@ export const OrdersWorkspace = ({
         label:
           employee.role === 'master' ||
           hasEmployeePermission(employee, 'repairs.execute')
-            ? t('orders.toolbar.assignee.master', { name: employee.name })
-            : t('orders.toolbar.assignee.manager', { name: employee.name }),
+            ? t('orders.toolbar.assignee.master', {
+                name: employee.name,
+              })
+            : t('orders.toolbar.assignee.manager', {
+                name: employee.name,
+              }),
       }))
-      .sort((first, second) => first.label.localeCompare(second.label));
+      .sort((first, second) =>
+        first.label.localeCompare(second.label),
+      );
   }, [activeTab, employees, t]);
   const activeFiltersCount = useMemo(() => {
     if (activeTab === 'kanban') {
@@ -506,11 +532,18 @@ export const OrdersWorkspace = ({
       activeTab === 'kanban'
         ? toKanbanFilters(appliedFilters)
         : appliedFilters;
-    const sortedTabSales = [...tabSales].sort(
-      (firstSale, secondSale) =>
-        getCreatedTime(secondSale) - getCreatedTime(firstSale),
-    );
-    const orderNumberValue = listFilters.orderNumber.trim().toLowerCase();
+    const sortedTabSales =
+      activeTab === 'kanban'
+        ? [...tabSales].sort(
+            (a, b) => kanbanSortKey(a) - kanbanSortKey(b),
+          )
+        : [...tabSales].sort(
+            (firstSale, secondSale) =>
+              getCreatedTime(secondSale) - getCreatedTime(firstSale),
+          );
+    const orderNumberValue = listFilters.orderNumber
+      .trim()
+      .toLowerCase();
     const clientValue = listFilters.client.trim().toLowerCase();
     const clientPhoneValue = normalizePhone(listFilters.client);
     const productValue = listFilters.product.trim().toLowerCase();
@@ -530,19 +563,24 @@ export const OrdersWorkspace = ({
       );
       const salePhones = getSaleClientPhones(sale);
       const clientSearchValues = getSaleClientSearchValues(sale, t);
-      const searchValues =
-        isRepairOrdersTab(activeTab)
-          ? [getPrimaryDeviceName(sale), ...clientSearchValues, ...salePhones]
-          : [
-              ...getSaleListSearchValues(sale),
-              ...clientSearchValues,
-              ...salePhones,
-              sale.manager?.name ?? '',
-              sale.issuedBy?.name ?? '',
-            ];
+      const searchValues = isRepairOrdersTab(activeTab)
+        ? [
+            getPrimaryDeviceName(sale),
+            ...clientSearchValues,
+            ...salePhones,
+          ]
+        : [
+            ...getSaleListSearchValues(sale),
+            ...clientSearchValues,
+            ...salePhones,
+            sale.manager?.name ?? '',
+            sale.issuedBy?.name ?? '',
+          ];
       const matchesPhoneQuery =
         Boolean(queryPhone) &&
-        salePhones.some((phone) => normalizePhone(phone).includes(queryPhone));
+        salePhones.some((phone) =>
+          normalizePhone(phone).includes(queryPhone),
+        );
       const matchesClientPhoneFilter =
         Boolean(clientPhoneValue) &&
         salePhones.some((phone) =>
@@ -577,7 +615,10 @@ export const OrdersWorkspace = ({
       if (
         clientValue &&
         !(
-          [...getSaleClientSearchValues(sale, t), String(orderNumber)].some((value) =>
+          [
+            ...getSaleClientSearchValues(sale, t),
+            String(orderNumber),
+          ].some((value) =>
             value.toLowerCase().includes(clientValue),
           ) ||
           matchesClientPhoneFilter ||
@@ -595,7 +636,10 @@ export const OrdersWorkspace = ({
       if (listFilters.assigneeId) {
         const matchesAssignee =
           activeTab === 'kanban'
-            ? saleMatchesKanbanMasterFilter(sale, listFilters.assigneeId)
+            ? saleMatchesKanbanMasterFilter(
+                sale,
+                listFilters.assigneeId,
+              )
             : activeTab === 'sales'
               ? sale.manager?.id === listFilters.assigneeId
               : sale.master?.id === listFilters.assigneeId ||
@@ -606,18 +650,27 @@ export const OrdersWorkspace = ({
       }
       if (activeTab === 'sales' && listFilters.saleType !== 'all') {
         const isRapidSale = sale.isRapidSale === true;
-        if (listFilters.saleType === 'rapid' && !isRapidSale) return false;
-        if (listFilters.saleType === 'regular' && isRapidSale) return false;
+        if (listFilters.saleType === 'rapid' && !isRapidSale)
+          return false;
+        if (listFilters.saleType === 'regular' && isRapidSale)
+          return false;
       }
-      if (activeTab !== 'sales' && listFilters.repairType === 'warranty') {
+      if (
+        activeTab !== 'sales' &&
+        listFilters.repairType === 'warranty'
+      ) {
         if (!hasWarrantyService) return false;
       }
-      if (activeTab !== 'sales' && listFilters.repairType === 'paid') {
+      if (
+        activeTab !== 'sales' &&
+        listFilters.repairType === 'paid'
+      ) {
         if (hasWarrantyService) return false;
       }
       if (
         listFilters.paymentMethod &&
-        getLatestDepositPaymentMethod(sale) !== listFilters.paymentMethod
+        getLatestDepositPaymentMethod(sale) !==
+          listFilters.paymentMethod
       ) {
         return false;
       }
@@ -703,7 +756,11 @@ export const OrdersWorkspace = ({
   };
 
   const paginatedOrders = useMemo(() => {
-    if (usesServerList && salesPageQuery.isSuccess && activeTab !== 'kanban') {
+    if (
+      usesServerList &&
+      salesPageQuery.isSuccess &&
+      activeTab !== 'kanban'
+    ) {
       return filteredOrders;
     }
     const start = (currentPage - 1) * currentPageSize;
@@ -743,7 +800,9 @@ export const OrdersWorkspace = ({
   }, [selectedSale]);
   const shouldLoadSupplierOrders =
     canViewSupplierOrders && Boolean(selectedSale);
-  const supplierOrdersQuery = useSupplierOrdersQuery(shouldLoadSupplierOrders);
+  const supplierOrdersQuery = useSupplierOrdersQuery(
+    shouldLoadSupplierOrders,
+  );
   const supplierOrders = supplierOrdersQuery.data ?? [];
 
   useEffect(() => {
@@ -774,8 +833,10 @@ export const OrdersWorkspace = ({
   }, [statusKeysForActiveTab]);
 
   useEffect(() => {
-    const stored = storedActiveFilters[activeTab] ?? emptyOrdersFilters;
-    const next = activeTab === 'kanban' ? toKanbanFilters(stored) : stored;
+    const stored =
+      storedActiveFilters[activeTab] ?? emptyOrdersFilters;
+    const next =
+      activeTab === 'kanban' ? toKanbanFilters(stored) : stored;
     setDraftFilters(next);
     setAppliedFilters(next);
   }, [activeTab, storedActiveFilters]);
@@ -802,12 +863,7 @@ export const OrdersWorkspace = ({
         [activeTab]: pageCount,
       }));
     }
-  }, [
-    activeTab,
-    currentPage,
-    currentPageSize,
-    visibleOrdersCount,
-  ]);
+  }, [activeTab, currentPage, currentPageSize, visibleOrdersCount]);
 
   const toggleStatusFilter = (status: OrderStatus) => {
     setDraftFilters((current) => {
@@ -845,7 +901,8 @@ export const OrdersWorkspace = ({
             warehouse: '',
             repairType:
               activeTab === 'sales' ? 'all' : draftFilters.repairType,
-            saleType: activeTab === 'sales' ? draftFilters.saleType : 'all',
+            saleType:
+              activeTab === 'sales' ? draftFilters.saleType : 'all',
             orderNumber: draftFilters.orderNumber.trim(),
             client: draftFilters.client.trim(),
             product: draftFilters.product.trim(),
@@ -890,7 +947,8 @@ export const OrdersWorkspace = ({
   };
 
   const assigneeLabelById = useMemo(
-    () => new Map(assigneeOptions.map((item) => [item.id, item.label])),
+    () =>
+      new Map(assigneeOptions.map((item) => [item.id, item.label])),
     [assigneeOptions],
   );
   useEffect(() => {
@@ -902,7 +960,8 @@ export const OrdersWorkspace = ({
     const employeeId = currentEmployee.id;
     void (async () => {
       try {
-        const remote = await listSavedFilters<OrdersFilters>('orders');
+        const remote =
+          await listSavedFilters<OrdersFilters>('orders');
         if (remote.length === 0) {
           const legacy = readSavedOrderFilters().filter(
             (item) => item.employeeId === employeeId,
@@ -933,7 +992,9 @@ export const OrdersWorkspace = ({
             }
             if (migrated.length > 0) {
               try {
-                window.localStorage.removeItem(savedOrdersFiltersStorageKey);
+                window.localStorage.removeItem(
+                  savedOrdersFiltersStorageKey,
+                );
               } catch {
                 // ignore
               }
@@ -990,7 +1051,8 @@ export const OrdersWorkspace = ({
             warehouse: '',
             repairType:
               activeTab === 'sales' ? 'all' : draftFilters.repairType,
-            saleType: activeTab === 'sales' ? draftFilters.saleType : 'all',
+            saleType:
+              activeTab === 'sales' ? draftFilters.saleType : 'all',
             orderNumber: draftFilters.orderNumber.trim(),
             client: draftFilters.client.trim(),
             product: draftFilters.product.trim(),
@@ -1175,7 +1237,8 @@ export const OrdersWorkspace = ({
     if (!openStatusSaleId) return;
 
     const previousBodyOverflow = document.body.style.overflow;
-    const previousDocumentOverflow = document.documentElement.style.overflow;
+    const previousDocumentOverflow =
+      document.documentElement.style.overflow;
     const tableWrap = ordersTableWrapRef.current;
     const previousTableWrapOverflow = tableWrap?.style.overflow ?? '';
 
@@ -1185,7 +1248,9 @@ export const OrdersWorkspace = ({
       tableWrap.style.overflow = 'hidden';
     }
 
-    const preventBackgroundScroll = (event: WheelEvent | TouchEvent) => {
+    const preventBackgroundScroll = (
+      event: WheelEvent | TouchEvent,
+    ) => {
       const target = event.target as HTMLElement | null;
       if (target?.closest('.order-status-options-portal')) return;
       event.preventDefault();
@@ -1200,12 +1265,16 @@ export const OrdersWorkspace = ({
 
     return () => {
       document.body.style.overflow = previousBodyOverflow;
-      document.documentElement.style.overflow = previousDocumentOverflow;
+      document.documentElement.style.overflow =
+        previousDocumentOverflow;
       if (tableWrap) {
         tableWrap.style.overflow = previousTableWrapOverflow;
       }
       document.removeEventListener('wheel', preventBackgroundScroll);
-      document.removeEventListener('touchmove', preventBackgroundScroll);
+      document.removeEventListener(
+        'touchmove',
+        preventBackgroundScroll,
+      );
     };
   }, [openStatusSaleId]);
 
@@ -1225,7 +1294,9 @@ export const OrdersWorkspace = ({
       }
 
       setStatusMenuPosition(
-        computeOrderStatusMenuPosition(trigger.getBoundingClientRect()),
+        computeOrderStatusMenuPosition(
+          trigger.getBoundingClientRect(),
+        ),
       );
     };
 
@@ -1261,7 +1332,10 @@ export const OrdersWorkspace = ({
       setOpenExtraLinesSaleId(null);
     };
 
-    document.addEventListener('mousedown', closeExtraLinesOnOutsideClick);
+    document.addEventListener(
+      'mousedown',
+      closeExtraLinesOnOutsideClick,
+    );
     document.addEventListener('keydown', closeExtraLinesOnEscape);
 
     return () => {
@@ -1269,7 +1343,10 @@ export const OrdersWorkspace = ({
         'mousedown',
         closeExtraLinesOnOutsideClick,
       );
-      document.removeEventListener('keydown', closeExtraLinesOnEscape);
+      document.removeEventListener(
+        'keydown',
+        closeExtraLinesOnEscape,
+      );
     };
   }, [openExtraLinesSaleId]);
 
@@ -1290,7 +1367,9 @@ export const OrdersWorkspace = ({
       }
 
       setExtraLinesMenuPosition(
-        computeOrderExtraLinesMenuPosition(trigger.getBoundingClientRect()),
+        computeOrderExtraLinesMenuPosition(
+          trigger.getBoundingClientRect(),
+        ),
       );
     };
 
@@ -1343,8 +1422,12 @@ export const OrdersWorkspace = ({
   const openExtraLinesSale = useMemo(() => {
     if (!openExtraLinesSaleId) return null;
     return (
-      paginatedOrders.find((sale) => sale.id === openExtraLinesSaleId) ??
-      filteredOrders.find((sale) => sale.id === openExtraLinesSaleId) ??
+      paginatedOrders.find(
+        (sale) => sale.id === openExtraLinesSaleId,
+      ) ??
+      filteredOrders.find(
+        (sale) => sale.id === openExtraLinesSaleId,
+      ) ??
       sales.find((sale) => sale.id === openExtraLinesSaleId) ??
       null
     );
@@ -1370,7 +1453,9 @@ export const OrdersWorkspace = ({
       }
     };
 
-    options.addEventListener('wheel', handleWheel, { passive: false });
+    options.addEventListener('wheel', handleWheel, {
+      passive: false,
+    });
     return () => options.removeEventListener('wheel', handleWheel);
   }, [openStatusSale, statusMenuPosition]);
 
@@ -1418,8 +1503,6 @@ export const OrdersWorkspace = ({
   const getStatus = (sale: Sale): OrderStatus =>
     normalizeOrderStatus(sale.status);
 
-
-
   const getOrderRemainingPayment = (sale: Sale) =>
     getRemainingPayment(
       sale,
@@ -1458,9 +1541,12 @@ export const OrdersWorkspace = ({
         lineItems: payload.lineItems,
         userNote: payload.userNote,
         expectedUpdatedAt: sale.updatedAt,
+        kanbanRank: payload.kanbanRank,
       });
       if (!isSaleResponse(updatedSale)) {
-        throw new Error('Unexpected sale workspace update response from API.');
+        throw new Error(
+          'Unexpected sale workspace update response from API.',
+        );
       }
       rememberPersistedSale(updatedSale);
       onSaleUpdate(updatedSale);
@@ -1477,17 +1563,22 @@ export const OrdersWorkspace = ({
       fallback = t('orders.messages.errors.failedUpdateStatus'),
     ) => {
       onError(
-        error instanceof Error && error.message ? error.message : fallback,
+        error instanceof Error && error.message
+          ? error.message
+          : fallback,
       );
     },
     [onError, t],
   );
 
-  const handleWorkspaceUpdateErrorRef = useRef(handleWorkspaceUpdateError);
+  const handleWorkspaceUpdateErrorRef = useRef(
+    handleWorkspaceUpdateError,
+  );
 
   useEffect(() => {
     persistSaleWorkspaceRawRef.current = persistSaleWorkspaceRaw;
-    handleWorkspaceUpdateErrorRef.current = handleWorkspaceUpdateError;
+    handleWorkspaceUpdateErrorRef.current =
+      handleWorkspaceUpdateError;
   }, [persistSaleWorkspaceRaw, handleWorkspaceUpdateError]);
 
   // Queue callbacks only read refs when async work runs, never during render.
@@ -1522,6 +1613,26 @@ export const OrdersWorkspace = ({
   ) => {
     rememberObservedSale(sale);
     workspaceQueue.enqueue(sale.id, updater, fallback);
+  };
+
+  const handleKanbanRankChange = async (
+    updates: Array<{ saleId: string; kanbanRank: number }>,
+  ) => {
+    try {
+      await Promise.all(
+        updates.map(async ({ saleId, kanbanRank }) => {
+          const sale = latestSalesRef.current.get(saleId);
+          if (!sale) return;
+          await persistSaleWorkspace(sale, { kanbanRank });
+        }),
+      );
+    } catch (error) {
+      handleWorkspaceUpdateError(
+        error,
+        t('orders.messages.errors.failedUpdateStatus'),
+      );
+      throw error;
+    }
   };
 
   const updateStatus = async (sale: Sale, status: OrderStatus) => {
@@ -1560,7 +1671,11 @@ export const OrdersWorkspace = ({
             : '',
           timeline: [
             appendTimelineEntry(
-              buildChangedStatusTimelineMessage(currentEmployeeName, sale, status),
+              buildChangedStatusTimelineMessage(
+                currentEmployeeName,
+                sale,
+                status,
+              ),
             ),
             ...sale.timeline,
           ],
@@ -1571,7 +1686,10 @@ export const OrdersWorkspace = ({
       if (status === 'issued' || isSalePaymentStatus(status)) {
         setOpenStatusSaleId(null);
         if (
-          shouldOpenPaymentModalForStatusChange(status, remainingPayment)
+          shouldOpenPaymentModalForStatusChange(
+            status,
+            remainingPayment,
+          )
         ) {
           await openPaymentModal(
             sale,
@@ -1587,7 +1705,11 @@ export const OrdersWorkspace = ({
             : '',
           timeline: [
             appendTimelineEntry(
-              buildChangedStatusTimelineMessage(currentEmployeeName, sale, status),
+              buildChangedStatusTimelineMessage(
+                currentEmployeeName,
+                sale,
+                status,
+              ),
             ),
             ...sale.timeline,
           ],
@@ -1600,9 +1722,7 @@ export const OrdersWorkspace = ({
         hasAttachedProducts(sale) &&
         remainingPayment > 0
       ) {
-        setWarningMessage(
-          t('orders.messages.errors.shippedUnpaid'),
-        );
+        setWarningMessage(t('orders.messages.errors.shippedUnpaid'));
         setOpenStatusSaleId(null);
         return;
       }
@@ -1614,7 +1734,11 @@ export const OrdersWorkspace = ({
           : '',
         timeline: [
           appendTimelineEntry(
-            buildChangedStatusTimelineMessage(currentEmployeeName, sale, status),
+            buildChangedStatusTimelineMessage(
+              currentEmployeeName,
+              sale,
+              status,
+            ),
           ),
           ...sale.timeline,
         ],
@@ -1773,14 +1897,14 @@ export const OrdersWorkspace = ({
         return (
           <TruncatedTextTooltip
             text={sale.manager?.name || '-'}
-            className="orders-table-cell-truncate"
+            className='orders-table-cell-truncate'
           />
         );
       case 'received':
         return (
           <TruncatedTextTooltip
             text={sale.issuedBy?.name || '-'}
-            className="orders-table-cell-truncate"
+            className='orders-table-cell-truncate'
           />
         );
       case 'status':
@@ -1821,7 +1945,7 @@ export const OrdersWorkspace = ({
             >
               <TruncatedTextTooltip
                 text={primaryItemText}
-                className="orders-table-cell-truncate"
+                className='orders-table-cell-truncate'
               />
               {primaryDeviceSerial ? (
                 <small title={primaryDeviceSerial}>
@@ -1847,7 +1971,9 @@ export const OrdersWorkspace = ({
                   );
                 }}
               >
-                {t('orders.toolbar.extraLines', { count: extraLineCount })}
+                {t('orders.toolbar.extraLines', {
+                  count: extraLineCount,
+                })}
               </button>
             ) : null}
           </div>
@@ -1921,7 +2047,8 @@ export const OrdersWorkspace = ({
                     effectiveStatus,
                   )}`}
                   style={{
-                    backgroundColor: getClientStatusColor(effectiveStatus),
+                    backgroundColor:
+                      getClientStatusColor(effectiveStatus),
                     color: 'white',
                   }}
                 >
@@ -1945,28 +2072,28 @@ export const OrdersWorkspace = ({
         return (
           <TruncatedTextTooltip
             text={getWarehouseLabel(sale)}
-            className="orders-table-cell-truncate"
+            className='orders-table-cell-truncate'
           />
         );
       case 'master':
         return (
           <TruncatedTextTooltip
             text={sale.master?.name || '-'}
-            className="orders-table-cell-truncate"
+            className='orders-table-cell-truncate'
           />
         );
       case 'createdAt':
         return (
           <TruncatedTextTooltip
             text={formatReadyDate(sale.createdAt)}
-            className="orders-table-cell-truncate"
+            className='orders-table-cell-truncate'
           />
         );
       case 'readyDate':
         return (
           <TruncatedTextTooltip
             text={formatReadyDate(getRepairCompletionDate(sale))}
-            className="orders-table-cell-truncate"
+            className='orders-table-cell-truncate'
           />
         );
       default:
@@ -1979,7 +2106,11 @@ export const OrdersWorkspace = ({
     if (!normalizedComment) return;
     queueSaleWorkspaceUpdate(sale, (latest) => ({
       timeline: [
-        appendTimelineEntry(normalizedComment, currentEmployeeName, 'manual'),
+        appendTimelineEntry(
+          normalizedComment,
+          currentEmployeeName,
+          'manual',
+        ),
         ...latest.timeline,
       ],
     }));
@@ -1989,7 +2120,9 @@ export const OrdersWorkspace = ({
     sale: Sale,
     discount: { mode: 'percent' | 'amount'; value: number },
   ) => {
-    if (!isOrderEditableStatus(sale, normalizeOrderStatus(sale.status))) {
+    if (
+      !isOrderEditableStatus(sale, normalizeOrderStatus(sale.status))
+    ) {
       onError(t('orders.messages.errors.statusBlocksEdit'));
       return;
     }
@@ -2064,9 +2197,7 @@ export const OrdersWorkspace = ({
     targetStatus: PaymentTargetStatus = 'issued',
   ) => {
     if (!canAcceptFinanceDeposit) {
-      onError(
-        t('orders.messages.errors.noAcceptPaymentPermission'),
-      );
+      onError(t('orders.messages.errors.noAcceptPaymentPermission'));
       return;
     }
     const remainingPayment = getOrderRemainingPayment(sale);
@@ -2108,16 +2239,12 @@ export const OrdersWorkspace = ({
 
   const openRefundModal = async (sale: Sale) => {
     if (!canCreateFinanceWithdraw) {
-      onError(
-        t('orders.messages.errors.noRefundPermission'),
-      );
+      onError(t('orders.messages.errors.noRefundPermission'));
       return;
     }
     const currentStatus = normalizeOrderStatus(sale.status);
     if (!canRefundFromStatus(sale, currentStatus)) {
-      onError(
-        t('orders.messages.errors.refundUnavailableStatuses'),
-      );
+      onError(t('orders.messages.errors.refundUnavailableStatuses'));
       return;
     }
 
@@ -2161,9 +2288,7 @@ export const OrdersWorkspace = ({
     item: OrderLineItem,
   ) => {
     if (item.kind !== 'product') {
-      onError(
-        t('orders.messages.errors.onlyProductsToWarehouse'),
-      );
+      onError(t('orders.messages.errors.onlyProductsToWarehouse'));
       return;
     }
     const saleStatus = normalizeOrderStatus(sale.status);
@@ -2182,9 +2307,7 @@ export const OrdersWorkspace = ({
       !hasBoundSerials;
 
     if (!canReturnShippedProduct && !canEditAndRemove) {
-      onError(
-        t('orders.messages.errors.cannotReturnFromStatus'),
-      );
+      onError(t('orders.messages.errors.cannotReturnFromStatus'));
       return;
     }
 
@@ -2224,9 +2347,7 @@ export const OrdersWorkspace = ({
 
   const openReturnSaleModal = async (sale: Sale) => {
     if (!canCreateFinanceWithdraw) {
-      onError(
-        t('orders.messages.errors.noRefundPermission'),
-      );
+      onError(t('orders.messages.errors.noRefundPermission'));
       return;
     }
     const lastDepositCashboxId =
@@ -2252,9 +2373,7 @@ export const OrdersWorkspace = ({
     }
 
     if (suggestedRefund <= 0) {
-      onError(
-        t('orders.messages.errors.cannotReturnUnpaid'),
-      );
+      onError(t('orders.messages.errors.cannotReturnUnpaid'));
       return;
     }
 
@@ -2290,7 +2409,9 @@ export const OrdersWorkspace = ({
     sale: Sale,
     item: Omit<OrderLineItem, 'id'>,
   ) => {
-    if (!isOrderEditableStatus(sale, normalizeOrderStatus(sale.status))) {
+    if (
+      !isOrderEditableStatus(sale, normalizeOrderStatus(sale.status))
+    ) {
       onError(t('orders.messages.errors.statusBlocksEdit'));
       return;
     }
@@ -2346,9 +2467,7 @@ export const OrdersWorkspace = ({
         getDiscount(sale),
       )
     ) {
-      onError(
-        t('orders.messages.errors.refundBeforeRemoveLine'),
-      );
+      onError(t('orders.messages.errors.refundBeforeRemoveLine'));
       return;
     }
     if (
@@ -2361,7 +2480,9 @@ export const OrdersWorkspace = ({
       const latestItems = getLineItems(latest);
       const latestRemovedItem =
         latestItems.find((item) => item.id === itemId) ??
-        (itemIndex !== undefined ? latestItems[itemIndex] : undefined);
+        (itemIndex !== undefined
+          ? latestItems[itemIndex]
+          : undefined);
       if (!latestRemovedItem) return null;
       const latestPaidAmount = getPaidAmount(latest);
       const nextItems = removeLineItemsById(
@@ -2412,7 +2533,9 @@ export const OrdersWorkspace = ({
       const latestItems = getLineItems(latest);
       const latestReplacedItem =
         latestItems.find((item) => item.id === itemId) ??
-        (itemIndex !== undefined ? latestItems[itemIndex] : undefined);
+        (itemIndex !== undefined
+          ? latestItems[itemIndex]
+          : undefined);
       if (!latestReplacedItem || items.length === 0) return null;
       const latestHasMatchingId = latestItems.some(
         (item) => item.id === itemId,
@@ -2477,9 +2600,7 @@ export const OrdersWorkspace = ({
       patch.quantity !== undefined &&
       patch.quantity !== 1
     ) {
-      onError(
-        t('orders.messages.errors.oneSerialPerLine'),
-      );
+      onError(t('orders.messages.errors.oneSerialPerLine'));
       return;
     }
     const isSerialOnlyPatch =
@@ -2496,7 +2617,9 @@ export const OrdersWorkspace = ({
       const currentItems = getLineItems(latest);
       const latestItem =
         currentItems.find((item) => item.id === itemId) ??
-        (itemIndex !== undefined ? currentItems[itemIndex] : undefined);
+        (itemIndex !== undefined
+          ? currentItems[itemIndex]
+          : undefined);
       if (
         latestItem?.kind === 'product' &&
         (latestItem.serialNumbers ?? []).length > 0 &&
@@ -2536,9 +2659,7 @@ export const OrdersWorkspace = ({
       action !== 'issueWithoutPayment' &&
       !canAcceptFinanceDeposit
     ) {
-      onError(
-        t('orders.messages.errors.noAcceptPaymentPermission'),
-      );
+      onError(t('orders.messages.errors.noAcceptPaymentPermission'));
       return;
     }
 
@@ -2572,9 +2693,7 @@ export const OrdersWorkspace = ({
       paymentTargetStatus === 'issued' &&
       currentPaymentRemaining > 0
     ) {
-      onError(
-        t('orders.messages.errors.issuedRequiresPayment'),
-      );
+      onError(t('orders.messages.errors.issuedRequiresPayment'));
       return;
     }
 
@@ -2609,18 +2728,26 @@ export const OrdersWorkspace = ({
 
     try {
       const targetStatus = setIssuedStatus(paymentTargetStatus);
-      const updatedSale = await acceptSalePaymentRequest(paymentSale.id, {
-        cashboxId:
-          action === 'issueWithoutPayment' ? undefined : selectedCashboxId,
-        amount: String(normalizedAmount),
-        paymentMethod,
-        action,
-        targetStatus,
-        author: currentEmployeeName,
-        issuedById: shouldCaptureReceivedBy(paymentSale, targetStatus)
-          ? currentEmployee?.id
-          : '',
-      });
+      const updatedSale = await acceptSalePaymentRequest(
+        paymentSale.id,
+        {
+          cashboxId:
+            action === 'issueWithoutPayment'
+              ? undefined
+              : selectedCashboxId,
+          amount: String(normalizedAmount),
+          paymentMethod,
+          action,
+          targetStatus,
+          author: currentEmployeeName,
+          issuedById: shouldCaptureReceivedBy(
+            paymentSale,
+            targetStatus,
+          )
+            ? currentEmployee?.id
+            : '',
+        },
+      );
       setPaymentSale(null);
       onSaleUpdate(updatedSale);
       if (action !== 'issueWithoutPayment') {
@@ -2639,7 +2766,10 @@ export const OrdersWorkspace = ({
               ? t('orders.messages.success.issuedWithoutRepair')
               : t('orders.messages.success.issued'),
       );
-      if (action === 'depositAndIssue' || action === 'issueWithoutPayment') {
+      if (
+        action === 'depositAndIssue' ||
+        action === 'issueWithoutPayment'
+      ) {
         closeSelectedSaleCard();
       }
     } catch (error) {
@@ -2656,16 +2786,12 @@ export const OrdersWorkspace = ({
   const refundPayment = async () => {
     if (!refundSale || !selectedRefundCashboxId) return;
     if (!canCreateFinanceWithdraw) {
-      onError(
-        t('orders.messages.errors.noRefundPermission'),
-      );
+      onError(t('orders.messages.errors.noRefundPermission'));
       return;
     }
     const currentStatus = normalizeOrderStatus(refundSale.status);
     if (!canRefundFromStatus(refundSale, currentStatus)) {
-      onError(
-        t('orders.messages.errors.refundUnavailableStatuses'),
-      );
+      onError(t('orders.messages.errors.refundUnavailableStatuses'));
       return;
     }
 
@@ -2684,14 +2810,20 @@ export const OrdersWorkspace = ({
     setIsRefundSaving(true);
 
     try {
-      const updatedSale = await refundSalePaymentRequest(refundSale.id, {
-        cashboxId: selectedRefundCashboxId,
-        amount: String(normalizedAmount),
-        author: currentEmployeeName,
-        issuedById: shouldCaptureReceivedBy(refundSale, currentStatus)
-          ? (currentEmployee?.id ?? '')
-          : '',
-      });
+      const updatedSale = await refundSalePaymentRequest(
+        refundSale.id,
+        {
+          cashboxId: selectedRefundCashboxId,
+          amount: String(normalizedAmount),
+          author: currentEmployeeName,
+          issuedById: shouldCaptureReceivedBy(
+            refundSale,
+            currentStatus,
+          )
+            ? (currentEmployee?.id ?? '')
+            : '',
+        },
+      );
       onSaleUpdate(updatedSale);
       setCashboxes(await getCashboxes());
       window.dispatchEvent(
@@ -2779,9 +2911,7 @@ export const OrdersWorkspace = ({
   const returnFullSaleToStock = async () => {
     if (!fullReturnSale || !selectedRefundCashboxId) return;
     if (!canCreateFinanceWithdraw) {
-      onError(
-        t('orders.messages.errors.noRefundPermission'),
-      );
+      onError(t('orders.messages.errors.noRefundPermission'));
       return;
     }
 
@@ -2825,9 +2955,7 @@ export const OrdersWorkspace = ({
       window.dispatchEvent(
         new CustomEvent('project-goods:finance-updated'),
       );
-      onSuccess(
-        t('orders.messages.success.saleReturned'),
-      );
+      onSuccess(t('orders.messages.success.saleReturned'));
       setFullReturnSale(null);
     } catch (error) {
       onError(
@@ -2883,7 +3011,9 @@ export const OrdersWorkspace = ({
             serialNumber: payload.serialNumber,
             timeline: [
               appendTimelineEntry(
-                buildUpdatedMainInfoTimelineMessage(currentEmployeeName),
+                buildUpdatedMainInfoTimelineMessage(
+                  currentEmployeeName,
+                ),
               ),
               ...sale.timeline,
             ],
@@ -2904,7 +3034,9 @@ export const OrdersWorkspace = ({
         if (lineItems.some((item) => item.kind === 'product')) {
           await openReturnSaleModal(sale);
         } else {
-          const message = t('orders.messages.errors.refundBeforeReturned');
+          const message = t(
+            'orders.messages.errors.refundBeforeReturned',
+          );
           onError(message);
           throw new Error(message);
         }
@@ -2977,7 +3109,7 @@ export const OrdersWorkspace = ({
       {selectedSaleId && !selectedSale ? (
         <div>
           {saleDetailQuery.isError ? (
-            <p className="inline-error" role="alert">
+            <p className='inline-error' role='alert'>
               {t('errors.failedLoadSales')}
             </p>
           ) : (
@@ -3057,10 +3189,7 @@ export const OrdersWorkspace = ({
             }
             onOpenRelatedSale={openSaleCard}
             onAcceptPayment={() =>
-              openPaymentModal(
-                selectedSale,
-                'issued',
-              )
+              openPaymentModal(selectedSale, 'issued')
             }
             onOpenPrint={() =>
               openPrintDialog(
@@ -3200,7 +3329,9 @@ export const OrdersWorkspace = ({
                 masterId,
                 timeline: [
                   appendTimelineEntry(
-                    buildUpdatedMainInfoTimelineMessage(currentEmployeeName),
+                    buildUpdatedMainInfoTimelineMessage(
+                      currentEmployeeName,
+                    ),
                   ),
                   ...sale.timeline,
                 ],
@@ -3210,13 +3341,16 @@ export const OrdersWorkspace = ({
             }
           }}
           onOpenSale={openSaleCard}
+          onRankChange={handleKanbanRankChange}
         />
       ) : (
         <OrdersWorkspaceTableSection
           activeTab={activeTab}
           isLoading={
             isLoading ||
-            (usesServerList && salesPageQuery.isLoading && !salesPageQuery.data)
+            (usesServerList &&
+              salesPageQuery.isLoading &&
+              !salesPageQuery.data)
           }
           filteredOrders={filteredOrders}
           paginatedOrders={paginatedOrders}
@@ -3246,7 +3380,10 @@ export const OrdersWorkspace = ({
               ...current,
               [activeTab]: pageSize,
             }));
-            setPageByTab((current) => ({ ...current, [activeTab]: 1 }));
+            setPageByTab((current) => ({
+              ...current,
+              [activeTab]: 1,
+            }));
           }}
           onUpdateStatus={updateStatus}
           onOpenSale={openSaleCard}
