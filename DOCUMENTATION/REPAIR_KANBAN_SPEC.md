@@ -50,10 +50,12 @@ Hidden (no column): `issued`, `issuedWithoutRepair`, `clientRejected`, `notPicke
 
 - **Drag & drop** between visible columns (no transition matrix; no confirm dialog). Cards are column drop targets, not a sortable list: overlay follows the pointer, the source stays as a hidden spacer, the hover column shows a placeholder, and the card lands in the target column immediately (reverts if status did not persist, e.g. Paid opening the payment modal).
 - **Drag & drop** between visible columns (no transition matrix; no confirm dialog) and within the same column. Cards are orderable within a column: drag to any position or use ↑/↓ buttons. Order persists via `kanbanRank` on the sale. Overlay follows the pointer, the source stays as a hidden spacer, the hover column shows a placeholder (when dragging between columns), and the card lands in the target column/position immediately (reverts if status did not persist, e.g. Paid opening the payment modal).
+- **Drag & drop** between visible columns (no transition matrix; no confirm dialog) and within the same column. Cards are orderable within a column: drag to any position or use ↑/↓ buttons. Order persists via `kanbanRank` on the sale. When dragging between columns, the hover column shows a placeholder at the bottom, and the card lands at the end of the target column immediately (reverts if status did not persist, e.g. Paid opening the payment modal).
 - **Desktop (fine pointer):** whole-card drag, `distance: 6`. Empty columns can collapse to a 72px rail (header toggle); a column auto-expands if a card lands in it. Collapse set persists in `localStorage` (`project-goods.kanban-collapsed-columns`).
 - **Touch / coarse pointer:** drag **only** from the 44px handle (`touch-action: none` on the handle, not the card). The card body pans the board/column and tap still opens the order. Activation: delay 120ms / tolerance 12px.
 - **≤1024 navigator:** sticky status chips with counts. Tap jumps the board to that column. While dragging, chips are droppables (`rail:{status}`) and win collision over a peeking column body. `scroll-snap` is disabled for the duration of the drag (`data-dragging`). Horizontal auto-scroll is limited to `.repair-kanban-board`.
 - **Move sheet:** every card with `canUpdateStatus` has **Move**. Opens a bottom sheet of the 9 visible statuses and calls the same `onStatusChange` path as a drop.
+- **Move sheet:** every card with `canUpdateStatus` has **Move**. Opens a bottom sheet of the 9 visible statuses and calls the same `onStatusChange` path as a drop, placing the card at the end of the destination column.
 - **Layout:** phone ≤720 one full-width column (no 86vw peek); tablet 721–1024 two 50% columns; desktop ~260px columns. Column height uses `--kanban-chrome-offset` so the last card clears the mobile bottom nav.
 - **Click** card (outside master, handle, and Move) opens the existing Order Detail panel/modal while staying on the Kanban tab.
 - **Device name** on the card uses primary-blue (`--color-primary-strong`) so the appliance is scannable.
@@ -64,9 +66,12 @@ Hidden (no column): `issued`, `issuedWithoutRepair`, `clientRejected`, `notPicke
 ## Card order
 
 - Cards within each column are sorted by `kanbanSortKey`: explicit `kanbanRank` first (ascending), falling back to `-new Date(sale.saleDate).getTime()` (newest-first).
+- Cards within each column are sorted by `kanbanSortKey`: explicit `kanbanRank` first (ascending), falling back to `+new Date(sale.saleDate).getTime()` (oldest-first, newest at the end).
 - Reordering is available to any user with `canUpdateStatus` (`kanban.use` or `orders.manage`).
 - Moving up/down via buttons swaps ranks with the neighbor or spaces ranks with gaps of 1000.
 - Drag-and-drop within the same column re-ranks cards and saves ranks via `PATCH /sales/:id/workspace` with `{ kanbanRank }`.
+- Moving or dropping a card into another column automatically places it at the end of that column (`kanbanRank = max(destColumnRanks) + 1000`).
+- Cross-column drop placeholder renders at the bottom of the destination column.
 - Rank changes do not create timeline entries.
 
 ## Status `away`

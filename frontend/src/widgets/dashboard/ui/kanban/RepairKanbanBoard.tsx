@@ -438,9 +438,6 @@ const KanbanColumn = ({
       </header>
       {collapsed ? null : (
         <div className='repair-kanban-column-body'>
-          {showPlaceholder ? (
-            <div className='repair-kanban-drop-placeholder' />
-          ) : null}
           {sales.map((sale, idx) => {
             const isTarget =
               Boolean(isSameColumnOver) &&
@@ -474,9 +471,10 @@ const KanbanColumn = ({
               </Fragment>
             );
           })}
-          {isSameColumnOver &&
-          overSaleId === null &&
-          sales.length > 0 ? (
+          {showPlaceholder ||
+          (isSameColumnOver &&
+            overSaleId === null &&
+            sales.length > 0) ? (
             <div className='repair-kanban-drop-placeholder' />
           ) : null}
           {sales.length === 0 && !showPlaceholder ? (
@@ -756,35 +754,25 @@ export const RepairKanbanBoard = ({
     moveGeneration.current += 1;
     const generation = moveGeneration.current;
 
-    // Cross-column move: position at top of destination column
+    // Cross-column move: position at end of destination column
     if (onRankChange) {
       const destSales = columns.get(nextStatus) ?? [];
       const remainingDestSales = destSales.filter(
         (s) => s.id !== sale.id,
       );
-      const updates = new Map<string, number>();
-      updates.set(sale.id, 1000);
-      remainingDestSales.forEach((s, i) => {
-        const nextRank = (i + 2) * 1000;
-        if (s.kanbanRank !== nextRank) {
-          updates.set(s.id, nextRank);
-        }
+      const maxRank =
+        remainingDestSales.length > 0
+          ? kanbanSortKey(
+              remainingDestSales[remainingDestSales.length - 1],
+            )
+          : Date.now();
+      const newRank = maxRank + 1000;
+      setOptimisticRanks((current) => {
+        const next = new Map(current);
+        next.set(sale.id, newRank);
+        return next;
       });
-      if (updates.size > 0) {
-        setOptimisticRanks((current) => {
-          const next = new Map(current);
-          for (const [sId, r] of updates) {
-            next.set(sId, r);
-          }
-          return next;
-        });
-        void onRankChange(
-          [...updates.entries()].map(([saleId, kanbanRank]) => ({
-            saleId,
-            kanbanRank,
-          })),
-        );
-      }
+      void onRankChange([{ saleId: sale.id, kanbanRank: newRank }]);
     }
 
     void (async () => {

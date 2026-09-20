@@ -193,10 +193,10 @@ describe('kanban rank helpers', () => {
     kanbanRank?: number,
   ) => ({ id, status: 'new', saleDate, kanbanRank }) as Sale;
 
-  it('kanbanSortKey falls back to -saleDate.getTime() when rank is absent', () => {
+  it('kanbanSortKey falls back to saleDate.getTime() (oldest-first) when rank is absent', () => {
     const s = rankSale('a', '2026-09-01T00:00:00.000Z');
     expect(kanbanSortKey(s)).toBe(
-      -new Date('2026-09-01T00:00:00.000Z').getTime(),
+      new Date('2026-09-01T00:00:00.000Z').getTime(),
     );
   });
 

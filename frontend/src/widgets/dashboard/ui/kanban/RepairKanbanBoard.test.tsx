@@ -363,4 +363,56 @@ describe('RepairKanbanBoard', () => {
       expect(numbers[1].textContent).toBe('#r0002');
     });
   });
+
+  it('places moved card at the end of destination column when moving status', async () => {
+    const onStatusChange = vi.fn().mockResolvedValue(undefined);
+    const onRankChange = vi.fn().mockResolvedValue(undefined);
+    const destSale = {
+      ...sale,
+      id: 'dest-1',
+      recordNumber: 'r0002',
+      status: 'inRepair',
+      kanbanRank: 5000,
+      saleDate: '2026-01-01T00:00:00.000Z',
+    } as unknown as Sale;
+    const movedSale = {
+      ...sale,
+      id: 'move-1',
+      recordNumber: 'r0001',
+      status: 'new',
+      kanbanRank: 1000,
+      saleDate: '2026-01-02T00:00:00.000Z',
+    } as unknown as Sale;
+
+    render(
+      <RepairKanbanBoard
+        sales={[destSale, movedSale]}
+        employees={[]}
+        canUpdateStatus
+        canUpdateMaster={false}
+        onStatusChange={onStatusChange}
+        onMasterChange={vi.fn()}
+        onOpenSale={vi.fn()}
+        onRankChange={onRankChange}
+      />,
+    );
+
+    const card =
+      screen.getByText('#r0001').closest<HTMLElement>('.repair-kanban-card')!;
+    fireEvent.click(within(card).getByRole('button', { name: /^Move$/i }));
+    const dialog = screen.getByRole('dialog', {
+      name: /Move order r0001/i,
+    });
+    fireEvent.click(
+      within(dialog).getByRole('button', { name: /In repair/i }),
+    );
+
+    expect(onStatusChange).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'move-1' }),
+      'inRepair',
+    );
+    expect(onRankChange).toHaveBeenCalledWith([
+      { saleId: 'move-1', kanbanRank: 6000 },
+    ]);
+  });
 });

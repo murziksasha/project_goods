@@ -163,9 +163,9 @@ export const parseCollapsedKanbanColumns = (
 const RANK_GAP = 1000;
 
 /** Effective sort key for a kanban card.
- *  Explicit rank wins; falls back to newest-first by saleDate. */
+ *  Explicit rank wins; falls back to oldest-first by saleDate (newest at the end). */
 export const kanbanSortKey = (sale: Sale): number =>
-  sale.kanbanRank ?? -new Date(sale.saleDate).getTime();
+  sale.kanbanRank ?? new Date(sale.saleDate).getTime();
 
 /**
  * Compute the minimal rank changes needed after an Up/Down button press.
