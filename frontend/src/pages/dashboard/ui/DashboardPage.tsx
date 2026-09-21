@@ -436,10 +436,8 @@ export const DashboardPage: React.FC = () => {
       canManageEmployees,
       canManageInventory,
       canManageSettings,
-      canViewRepairSalesOrders,
       canViewAccounting,
       canViewOrders,
-      t,
     ],
   );
   const accountingPopstateSyncRef = useRef<
@@ -595,7 +593,6 @@ export const DashboardPage: React.FC = () => {
     },
     [
       actions,
-      activePage,
       availableOrdersTabs,
       changeOrdersTab,
       currentEmployee,
@@ -877,7 +874,7 @@ export const DashboardPage: React.FC = () => {
     return () => {
       isActive = false;
     };
-  }, [currentEmployee, inviteToken]);
+  }, [currentEmployee, inviteToken, t]);
 
   useEffect(() => {
     if (isAuthLoading || currentEmployee) {
@@ -1095,8 +1092,12 @@ export const DashboardPage: React.FC = () => {
         accountingTab: null,
       });
     },
-    [activePage, effectiveOrdersTab, navigateTo],
+    [effectiveOrdersTab, navigateTo],
   );
+
+  const handlePendingPaymentSaleHandled = useCallback(() => {
+    setPendingPaymentSale(null);
+  }, []);
 
   const handleNavigateAccountingTab = useCallback(
     (tab: AccountingTab) => {
@@ -1643,8 +1644,8 @@ export const DashboardPage: React.FC = () => {
                     actions.updateProductModelCard
                   }
                   pendingPaymentSale={pendingPaymentSale}
-                  onPendingPaymentSaleHandled={() =>
-                    setPendingPaymentSale(null)
+                  onPendingPaymentSaleHandled={
+                    handlePendingPaymentSaleHandled
                   }
                 />
               )

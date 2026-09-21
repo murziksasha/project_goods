@@ -15,17 +15,18 @@ type UseTransactionFiltersOptions = {
 export const useTransactionFilters = ({
   enabled = true,
 }: UseTransactionFiltersOptions = {}) => {
-  const [draftTransactionFilters, setDraftTransactionFilters] = useState<TransactionFilters>(
-    initialTransactionFilters,
-  );
-  const [appliedTransactionFilters, setAppliedTransactionFilters] = useState<TransactionFilters>(
-    initialTransactionFilters,
-  );
+  const [draftTransactionFilters, setDraftTransactionFilters] =
+    useState<TransactionFilters>(initialTransactionFilters);
+  const [appliedTransactionFilters, setAppliedTransactionFilters] =
+    useState<TransactionFilters>(initialTransactionFilters);
   const [transactionsPage, setTransactionsPage] = useState(1);
   const [transactionsPageSize, setTransactionsPageSize] = useState(
     FINANCE_TRANSACTIONS_DEFAULT_PAGE_SIZE,
   );
-  const [selectedTransactionCashboxId, setSelectedTransactionCashboxId] = useState('');
+  const [
+    selectedTransactionCashboxId,
+    setSelectedTransactionCashboxId,
+  ] = useState('');
 
   const listParams = useMemo(
     () =>
@@ -43,17 +44,25 @@ export const useTransactionFilters = ({
     ],
   );
 
-  const transactionsQuery = useFinanceTransactionsQuery(listParams, { enabled });
+  const transactionsQuery = useFinanceTransactionsQuery(listParams, {
+    enabled,
+  });
 
-  const transactions = transactionsQuery.data?.items ?? [];
+  const transactions = useMemo(
+    () => transactionsQuery.data?.items ?? [],
+    [transactionsQuery.data?.items],
+  );
   const transactionsTotal = transactionsQuery.data?.total ?? 0;
 
   const balanceAfterByTransactionId = useMemo(
     () =>
-      transactions.reduce<Record<string, number | null>>((acc, transaction) => {
-        acc[transaction.id] = transaction.balanceAfter ?? null;
-        return acc;
-      }, {}),
+      transactions.reduce<Record<string, number | null>>(
+        (acc, transaction) => {
+          acc[transaction.id] = transaction.balanceAfter ?? null;
+          return acc;
+        },
+        {},
+      ),
     [transactions],
   );
 

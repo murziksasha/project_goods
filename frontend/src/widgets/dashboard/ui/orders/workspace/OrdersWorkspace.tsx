@@ -1504,12 +1504,15 @@ export const OrdersWorkspace: React.FC<OrdersWorkspaceProps> = ({
   const getStatus = (sale: Sale): OrderStatus =>
     normalizeOrderStatus(sale.status);
 
-  const getOrderRemainingPayment = (sale: Sale) =>
-    getRemainingPayment(
-      sale,
-      getPaidAmount(sale),
-      getLineItems(sale),
-    );
+  const getOrderRemainingPayment = useCallback(
+    (sale: Sale) =>
+      getRemainingPayment(
+        sale,
+        getSalePaidAmount(sale),
+        getLineItems(sale),
+      ),
+    [],
+  );
 
   const hasAttachedProducts = (sale: Sale) =>
     getLineItems(sale).some((item) => item.kind === 'product');
@@ -2193,41 +2196,46 @@ export const OrdersWorkspace: React.FC<OrdersWorkspaceProps> = ({
     });
   };
 
-  const openPaymentModal = async (
-    sale: Sale,
-    targetStatus: PaymentTargetStatus = 'issued',
-  ) => {
-    if (!canAcceptFinanceDeposit) {
-      onError(t('orders.messages.errors.noAcceptPaymentPermission'));
-      return;
-    }
-    const remainingPayment = getOrderRemainingPayment(sale);
+  const openPaymentModal = useCallback(
+    async (
+      sale: Sale,
+      targetStatus: PaymentTargetStatus = 'issued',
+    ) => {
+      if (!canAcceptFinanceDeposit) {
+        onError(
+          t('orders.messages.errors.noAcceptPaymentPermission'),
+        );
+        return;
+      }
+      const remainingPayment = getOrderRemainingPayment(sale);
 
-    setPaymentSale(sale);
-    setPaymentTargetStatus(targetStatus);
-    setPaymentAmount(String(remainingPayment));
-    setPaymentMethod(getLatestDepositPaymentMethod(sale) ?? 'cash');
-    setIsPaymentModalLoading(true);
+      setPaymentSale(sale);
+      setPaymentTargetStatus(targetStatus);
+      setPaymentAmount(String(remainingPayment));
+      setPaymentMethod(getLatestDepositPaymentMethod(sale) ?? 'cash');
+      setIsPaymentModalLoading(true);
 
-    try {
-      const cashboxData = await getCashboxes();
-      setCashboxes(cashboxData);
-      setSelectedCashboxId(
-        cashboxData.find((cashbox) => cashbox.isDefault)?.id ??
-          cashboxData[0]?.id ??
-          '',
-      );
-    } catch (error) {
-      onError(
-        error instanceof Error
-          ? error.message
-          : t('orders.messages.errors.failedLoadCashboxes'),
-      );
-      setPaymentSale(null);
-    } finally {
-      setIsPaymentModalLoading(false);
-    }
-  };
+      try {
+        const cashboxData = await getCashboxes();
+        setCashboxes(cashboxData);
+        setSelectedCashboxId(
+          cashboxData.find((cashbox) => cashbox.isDefault)?.id ??
+            cashboxData[0]?.id ??
+            '',
+        );
+      } catch (error) {
+        onError(
+          error instanceof Error
+            ? error.message
+            : t('orders.messages.errors.failedLoadCashboxes'),
+        );
+        setPaymentSale(null);
+      } finally {
+        setIsPaymentModalLoading(false);
+      }
+    },
+    [canAcceptFinanceDeposit, getOrderRemainingPayment, onError, t],
+  );
 
   useEffect(() => {
     if (!pendingPaymentSale) return;
@@ -2236,7 +2244,11 @@ export const OrdersWorkspace: React.FC<OrdersWorkspaceProps> = ({
       await openPaymentModal(pendingPaymentSale, 'issued');
       onPendingPaymentSaleHandled?.();
     })();
-  }, [pendingPaymentSale]);
+  }, [
+    onPendingPaymentSaleHandled,
+    openPaymentModal,
+    pendingPaymentSale,
+  ]);
 
   const openRefundModal = async (sale: Sale) => {
     if (!canCreateFinanceWithdraw) {

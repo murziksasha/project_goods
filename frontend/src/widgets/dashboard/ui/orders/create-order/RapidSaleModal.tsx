@@ -1,5 +1,11 @@
 import type React from 'react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Product } from '../../../../../entities/product';
 import type { Sale } from '../../../../../entities/sale';
@@ -434,7 +440,7 @@ export const RapidSaleModal: React.FC<RapidSaleModalProps> = ({
     );
   };
 
-  const handleIssued = async () => {
+  const handleIssued = useCallback(async () => {
     const errorKey = validateRapidSaleDraft(draftItems);
     if (errorKey) {
       onError(t(errorKey));
@@ -442,7 +448,7 @@ export const RapidSaleModal: React.FC<RapidSaleModalProps> = ({
     }
 
     await onSubmit(draftItems);
-  };
+  }, [draftItems, onError, onSubmit, t]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -487,6 +493,7 @@ export const RapidSaleModal: React.FC<RapidSaleModalProps> = ({
       document.removeEventListener('keydown', handleKeyDown, true);
   }, [
     draftItems.length,
+    handleIssued,
     isSaving,
     onClose,
     productQuery,

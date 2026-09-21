@@ -1,10 +1,19 @@
 import type React from 'react';
-import { useEffect, useMemo, useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { useTranslation } from 'react-i18next';
 import { hasEmployeePermission } from '../../../../../entities/employee';
 import { isRepairOrder } from '../../../../../entities/sale';
 import { getSaleProductName } from '../../../../../entities/sale';
-import { formatCurrency, formatDateTime } from '../../../../../shared/lib/format';
+import {
+  formatCurrency,
+  formatDateTime,
+} from '../../../../../shared/lib/format';
 import { getClientDevices } from '../../../../../entities/client-device';
 import {
   cancelSupplierOrder,
@@ -17,7 +26,10 @@ import type {
   SupplierOrderStatus,
 } from '../../../../../entities/supplier-order';
 import { getWarehouseSettings } from '../../../../../entities/warehouse-settings';
-import { createSupplier, getSuppliers } from '../../../../../entities/supplier';
+import {
+  createSupplier,
+  getSuppliers,
+} from '../../../../../entities/supplier';
 import type { Supplier } from '../../../../../entities/supplier';
 import type { ClientDevice } from '../../../../../entities/client-device';
 import {
@@ -31,7 +43,10 @@ import {
   paySupplierOrder,
 } from '../../../../../entities/finance';
 import type { Cashbox } from '../../../../../entities/finance';
-import { AccountingIcon, CheckIcon } from '../../../../../shared/ui/NavIcons';
+import {
+  AccountingIcon,
+  CheckIcon,
+} from '../../../../../shared/ui/NavIcons';
 import { SupplierOrderModal } from '../modals/SupplierOrderModal';
 import { SupplierOrderPayModal } from '../modals/SupplierOrderPayModal';
 import {
@@ -170,8 +185,12 @@ export const OrderDetailCard: React.FC<OrderDetailCardProps> = ({
   const [isMainInfoOpen, setIsMainInfoOpen] = useState(true);
   const [isNoteOpen, setIsNoteOpen] = useState(false);
   const [isSavingUserNote, setIsSavingUserNote] = useState(false);
-  const [isLiveFeedOpen, setIsLiveFeedOpen] = useState(() => !getIsCompactLayout());
-  const [isCompactLayout, setIsCompactLayout] = useState(getIsCompactLayout);
+  const [isLiveFeedOpen, setIsLiveFeedOpen] = useState(
+    () => !getIsCompactLayout(),
+  );
+  const [isCompactLayout, setIsCompactLayout] = useState(
+    getIsCompactLayout,
+  );
   const [statusDraft, setStatusDraft] = useState<OrderStatus>(status);
   const [relatedTab, setRelatedTab] = useState<OrdersTab>(
     getStoredOrderDetailRelatedTab,
@@ -182,60 +201,75 @@ export const OrderDetailCard: React.FC<OrderDetailCardProps> = ({
   const [isSavingMainInfo, setIsSavingMainInfo] = useState(false);
   const [isUnboundSerialIssueOpen, setIsUnboundSerialIssueOpen] =
     useState(false);
-  const [mainInfoSaveError, setMainInfoSaveError] = useState<string | null>(
-    null,
-  );
+  const [mainInfoSaveError, setMainInfoSaveError] = useState<
+    string | null
+  >(null);
   const [isDeviceModalOpen, setIsDeviceModalOpen] = useState(false);
   const [deviceSearch, setDeviceSearch] = useState('');
   const [newDeviceName, setNewDeviceName] = useState('');
   const [clearSerialOnDeviceApply, setClearSerialOnDeviceApply] =
     useState(false);
   const [isCreatingDevice, setIsCreatingDevice] = useState(false);
-  const [unbindingDeviceId, setUnbindingDeviceId] = useState<string | null>(
-    null,
-  );
-  const [deviceLookupSuggestions, setDeviceLookupSuggestions] = useState<
-    ClientDevice[]
-  >([]);
+  const [unbindingDeviceId, setUnbindingDeviceId] = useState<
+    string | null
+  >(null);
+  const [deviceLookupSuggestions, setDeviceLookupSuggestions] =
+    useState<ClientDevice[]>([]);
   const [isDeviceLookupLoading, setIsDeviceLookupLoading] =
     useState(false);
   const [relatedSupplierOrderSource, setRelatedSupplierOrderSource] =
     useState<SupplierOrder | null>(null);
-  const [relatedSupplierOrderItemIndex, setRelatedSupplierOrderItemIndex] =
-    useState<number | null>(null);
-  const [isRelatedSupplierOrderModalOpen, setIsRelatedSupplierOrderModalOpen] =
-    useState(false);
-  const [relatedSuppliers, setRelatedSuppliers] = useState<Supplier[]>(
-    [],
-  );
-  const [isRelatedSupplierOrderOpening, setIsRelatedSupplierOrderOpening] =
-    useState(false);
-  const [relatedDefaultTakeOnChargeWarehouse, setRelatedDefaultTakeOnChargeWarehouse] =
-    useState<{ warehouseId: string; locationId: string } | null>(null);
-  const [openRelatedStatusOrder, setOpenRelatedStatusOrder] = useState<{
-    key: string;
-    order: SupplierOrder;
-    itemIndex: number;
-  } | null>(null);
-  const [relatedStatusMenuPosition, setRelatedStatusMenuPosition] = useState<{
-    top: number;
-    left: number;
-    maxHeight: number;
-    placement: 'below' | 'above';
-  } | null>(null);
-  const [relatedWarehouseOptions, setRelatedWarehouseOptions] = useState<
-    Array<{
-      id: string;
-      name: string;
-      locations: Array<{ id: string; name: string }>;
-    }>
+  const [
+    relatedSupplierOrderItemIndex,
+    setRelatedSupplierOrderItemIndex,
+  ] = useState<number | null>(null);
+  const [
+    isRelatedSupplierOrderModalOpen,
+    setIsRelatedSupplierOrderModalOpen,
+  ] = useState(false);
+  const [relatedSuppliers, setRelatedSuppliers] = useState<
+    Supplier[]
   >([]);
+  const [
+    isRelatedSupplierOrderOpening,
+    setIsRelatedSupplierOrderOpening,
+  ] = useState(false);
+  const [
+    relatedDefaultTakeOnChargeWarehouse,
+    setRelatedDefaultTakeOnChargeWarehouse,
+  ] = useState<{ warehouseId: string; locationId: string } | null>(
+    null,
+  );
+  const [openRelatedStatusOrder, setOpenRelatedStatusOrder] =
+    useState<{
+      key: string;
+      order: SupplierOrder;
+      itemIndex: number;
+    } | null>(null);
+  const [relatedStatusMenuPosition, setRelatedStatusMenuPosition] =
+    useState<{
+      top: number;
+      left: number;
+      maxHeight: number;
+      placement: 'below' | 'above';
+    } | null>(null);
+  const [relatedWarehouseOptions, setRelatedWarehouseOptions] =
+    useState<
+      Array<{
+        id: string;
+        name: string;
+        locations: Array<{ id: string; name: string }>;
+      }>
+    >([]);
   const [payingRelatedSupplierOrder, setPayingRelatedSupplierOrder] =
     useState<SupplierOrder | null>(null);
   const [payCashboxes, setPayCashboxes] = useState<Cashbox[]>([]);
-  const [isPayCashboxesLoading, setIsPayCashboxesLoading] = useState(false);
-  const [isPayingRelatedSupplierOrder, setIsPayingRelatedSupplierOrder] =
+  const [isPayCashboxesLoading, setIsPayCashboxesLoading] =
     useState(false);
+  const [
+    isPayingRelatedSupplierOrder,
+    setIsPayingRelatedSupplierOrder,
+  ] = useState(false);
   const total = getOrderBaseTotal(sale, lineItems);
   const discount = getDiscount(sale);
   const remainingPayment = getRemainingPayment(
@@ -244,7 +278,9 @@ export const OrderDetailCard: React.FC<OrderDetailCardProps> = ({
     lineItems,
   );
   const canRefundPayment =
-    canRefundPaymentPermission && paidAmount > 0 && canRefundFromStatus(sale, status);
+    canRefundPaymentPermission &&
+    paidAmount > 0 &&
+    canRefundFromStatus(sale, status);
   const productItems = lineItems.filter(
     (item) => item.kind === 'product',
   );
@@ -258,11 +294,21 @@ export const OrderDetailCard: React.FC<OrderDetailCardProps> = ({
   const isContentLocked =
     isReadOnly ||
     !isOrderEditableStatus(sale, normalizeOrderStatus(sale.status));
+  const lastInitializedSaleIdRef = useRef<string | null>(null);
+
   useEffect(() => {
+    if (lastInitializedSaleIdRef.current === sale.id) return;
+    lastInitializedSaleIdRef.current = sale.id;
+
     const storedState = readOrderDetailSectionsState()[sale.id];
-    const hasProductLines = lineItems.some((item) => item.kind === 'product');
-    const hasServiceLines = lineItems.some((item) => item.kind === 'service');
-    const noteHasUserContent = (sale.userNote ?? '').trim().length > 0;
+    const hasProductLines = lineItems.some(
+      (item) => item.kind === 'product',
+    );
+    const hasServiceLines = lineItems.some(
+      (item) => item.kind === 'service',
+    );
+    const noteHasUserContent =
+      (sale.userNote ?? '').trim().length > 0;
     // Repair: products open when any product line exists (all users).
     // Sale: products default open.
     setIsProductsOpen(
@@ -285,8 +331,7 @@ export const OrderDetailCard: React.FC<OrderDetailCardProps> = ({
     setIsLiveFeedOpen(
       storedState?.liveFeedOpen ?? !getIsCompactLayout(),
     );
-    // lineItems/userNote: read on sale.id change only; live open handled below.
-  }, [sale.id, isSaleCard]);
+  }, [isSaleCard, lineItems, sale.id, sale.userNote]);
   useEffect(() => {
     if ((sale.userNote ?? '').trim().length === 0) return;
     setIsNoteOpen(true);
@@ -309,7 +354,8 @@ export const OrderDetailCard: React.FC<OrderDetailCardProps> = ({
 
     handleLayoutChange();
     media.addEventListener('change', handleLayoutChange);
-    return () => media.removeEventListener('change', handleLayoutChange);
+    return () =>
+      media.removeEventListener('change', handleLayoutChange);
   }, []);
   const toggleMainInfoSection = () => {
     setIsMainInfoOpen((current) => {
@@ -352,7 +398,13 @@ export const OrderDetailCard: React.FC<OrderDetailCardProps> = ({
   }, [status]);
   useEffect(() => {
     setMainInfoSaveError(null);
-  }, [sale.id, deviceNameInput, serialNumberInput, masterIdInput, statusDraft]);
+  }, [
+    sale.id,
+    deviceNameInput,
+    serialNumberInput,
+    masterIdInput,
+    statusDraft,
+  ]);
   useEffect(() => {
     try {
       window.localStorage.setItem(
@@ -406,7 +458,8 @@ export const OrderDetailCard: React.FC<OrderDetailCardProps> = ({
           );
         }
 
-        if (isActive) setDeviceLookupSuggestions(suggestions.slice(0, 8));
+        if (isActive)
+          setDeviceLookupSuggestions(suggestions.slice(0, 8));
       } catch {
         if (isActive) setDeviceLookupSuggestions([]);
       } finally {
@@ -426,7 +479,9 @@ export const OrderDetailCard: React.FC<OrderDetailCardProps> = ({
     // Empty search: current-client devices. With query: global lookup results.
     const sourceDevices = isSearching
       ? deviceLookupSuggestions
-      : clientDevices.filter((device) => device.clientId === saleClientId);
+      : clientDevices.filter(
+          (device) => device.clientId === saleClientId,
+        );
 
     sourceDevices.forEach((device) => {
       if (!device.isActive) return;
@@ -436,7 +491,9 @@ export const OrderDetailCard: React.FC<OrderDetailCardProps> = ({
     });
     const query = deviceSearch.trim();
     return Array.from(uniqueByName.values()).filter((device) =>
-      query ? filterActiveDevicesByQuery([device], query).length > 0 : true,
+      query
+        ? filterActiveDevicesByQuery([device], query).length > 0
+        : true,
     );
   }, [
     clientDevices,
@@ -491,7 +548,9 @@ export const OrderDetailCard: React.FC<OrderDetailCardProps> = ({
     const action = getUnbindClientDeviceAction(device);
     const confirmMessage =
       action === 'delete'
-        ? t('orders.detail.deviceModal.confirmDelete', { name: device.name })
+        ? t('orders.detail.deviceModal.confirmDelete', {
+            name: device.name,
+          })
         : t('orders.detail.deviceModal.confirmDeactivate', {
             name: device.name,
           });
@@ -522,14 +581,12 @@ export const OrderDetailCard: React.FC<OrderDetailCardProps> = ({
   );
   const isMainInfoDirty =
     deviceNameInput.trim() !== getPrimaryDeviceName(sale).trim() ||
-    serialNumberInput.trim().toUpperCase() !== getPrimaryDeviceSerial(sale).trim().toUpperCase() ||
+    serialNumberInput.trim().toUpperCase() !==
+      getPrimaryDeviceSerial(sale).trim().toUpperCase() ||
     masterIdInput !== (sale.master?.id ?? '') ||
     statusDraft !== status;
-  const isStatusDraftLockedByStock = isRepairStatusChangeLockedByStock(
-    sale,
-    statusDraft,
-    lineItems,
-  );
+  const isStatusDraftLockedByStock =
+    isRepairStatusChangeLockedByStock(sale, statusDraft, lineItems);
   const isSaleReturnStatusDraftBlocked =
     !isRepairOrder(sale) &&
     statusDraft === 'returned' &&
@@ -565,7 +622,9 @@ export const OrderDetailCard: React.FC<OrderDetailCardProps> = ({
       setIsSavingMainInfo(false);
     }
   };
-  const getStatusOptionBlockedReason = (statusOption: OrderStatus) => {
+  const getStatusOptionBlockedReason = (
+    statusOption: OrderStatus,
+  ) => {
     if (
       isRepairStatusChangeLockedByStock(sale, statusOption, lineItems)
     ) {
@@ -700,17 +759,22 @@ export const OrderDetailCard: React.FC<OrderDetailCardProps> = ({
     return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
   };
 
-  const formatDateSeparator = (value: string) => {
-    const d = new Date(value);
-    if (Number.isNaN(d.getTime())) return '';
-    const language = i18n.resolvedLanguage || i18n.language || 'uk';
-    const locale = language.toLowerCase().startsWith('en') ? 'en-GB' : 'uk-UA';
-    return new Intl.DateTimeFormat(locale, {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-    }).format(d);
-  };
+  const formatDateSeparator = useCallback(
+    (value: string) => {
+      const d = new Date(value);
+      if (Number.isNaN(d.getTime())) return '';
+      const language = i18n.resolvedLanguage || i18n.language || 'uk';
+      const locale = language.toLowerCase().startsWith('en')
+        ? 'en-GB'
+        : 'uk-UA';
+      return new Intl.DateTimeFormat(locale, {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+      }).format(d);
+    },
+    [i18n.language, i18n.resolvedLanguage],
+  );
 
   const timelineDisplay = useMemo(() => {
     const out: Array<
@@ -728,26 +792,30 @@ export const OrderDetailCard: React.FC<OrderDetailCardProps> = ({
       out.push({ kind: 'msg', item, idx });
     });
     return out;
-  }, [timelineItems]);
+  }, [formatDateSeparator, timelineItems]);
 
   const submitComment = () => {
     onAddComment(comment);
     setComment('');
   };
   const getTimelineMessageClassName = (item: TimelineEntry) => {
-    if (item.kind === 'manual') return 'order-timeline-message-manual';
-    if (item.kind === 'system') return 'order-timeline-message-system';
+    if (item.kind === 'manual')
+      return 'order-timeline-message-manual';
+    if (item.kind === 'system')
+      return 'order-timeline-message-system';
     return isSystemTimelineMessage(item.message)
       ? 'order-timeline-message-system'
       : 'order-timeline-message-manual';
   };
   const selectedRelatedSupplierOrder =
-    relatedSupplierOrderSource && relatedSupplierOrderItemIndex !== null
+    relatedSupplierOrderSource &&
+    relatedSupplierOrderItemIndex !== null
       ? {
           ...relatedSupplierOrderSource,
           items:
             relatedSupplierOrderSource.items.filter(
-              (item) => item.itemIndex === relatedSupplierOrderItemIndex,
+              (item) =>
+                item.itemIndex === relatedSupplierOrderItemIndex,
             ) ?? [],
         }
       : null;
@@ -811,10 +879,17 @@ export const OrderDetailCard: React.FC<OrderDetailCardProps> = ({
     rect: DOMRect,
   ) => {
     if (!canManageSupplierOrders) {
-      onError(t('orders.supplier.messages.errors.noManagePermission'));
+      onError(
+        t('orders.supplier.messages.errors.noManagePermission'),
+      );
       return;
     }
-    if (isSupplierOrderStatusControlDisabled(order, canManageSupplierOrders)) {
+    if (
+      isSupplierOrderStatusControlDisabled(
+        order,
+        canManageSupplierOrders,
+      )
+    ) {
       return;
     }
     if (openRelatedStatusOrder?.key === key) {
@@ -829,7 +904,9 @@ export const OrderDetailCard: React.FC<OrderDetailCardProps> = ({
     } catch {
       // status update will report missing warehouse if still unavailable
     }
-    setRelatedStatusMenuPosition(computeSupplierOrderStatusMenuPosition(rect));
+    setRelatedStatusMenuPosition(
+      computeSupplierOrderStatusMenuPosition(rect),
+    );
     setOpenRelatedStatusOrder({ key, order, itemIndex });
   };
 
@@ -852,17 +929,24 @@ export const OrderDetailCard: React.FC<OrderDetailCardProps> = ({
         locationId,
         itemIndex,
       }) => {
-        const result = await takeOnChargeSupplierOrder(supplierOrderId, {
-          autoGenerateSerialNumbers,
-          serialNumbers,
-          autoGenerateArticles,
-          articleBase,
-          warehouseId,
-          locationId,
-          ...(itemIndex === undefined ? {} : { itemIndex }),
-        });
-        window.dispatchEvent(new Event('project-goods:finance-updated'));
-        window.dispatchEvent(new Event('project-goods:products-updated'));
+        const result = await takeOnChargeSupplierOrder(
+          supplierOrderId,
+          {
+            autoGenerateSerialNumbers,
+            serialNumbers,
+            autoGenerateArticles,
+            articleBase,
+            warehouseId,
+            locationId,
+            ...(itemIndex === undefined ? {} : { itemIndex }),
+          },
+        );
+        window.dispatchEvent(
+          new Event('project-goods:finance-updated'),
+        );
+        window.dispatchEvent(
+          new Event('project-goods:products-updated'),
+        );
         await onSupplierOrderCreated();
         return result;
       },
@@ -888,15 +972,20 @@ export const OrderDetailCard: React.FC<OrderDetailCardProps> = ({
       onSuccess,
       onError,
       notifyFinanceUpdated: () => {
-        window.dispatchEvent(new Event('project-goods:finance-updated'));
+        window.dispatchEvent(
+          new Event('project-goods:finance-updated'),
+        );
       },
     });
     setOpenRelatedStatusOrder(null);
     setRelatedStatusMenuPosition(null);
   };
 
-  const openRelatedSupplierOrderPay = async (order: SupplierOrder) => {
-    if (!canPaySupplierOrders || !isSupplierOrderPayable(order)) return;
+  const openRelatedSupplierOrderPay = async (
+    order: SupplierOrder,
+  ) => {
+    if (!canPaySupplierOrders || !isSupplierOrderPayable(order))
+      return;
     setPayingRelatedSupplierOrder(order);
     setPayCashboxes([]);
     setIsPayCashboxesLoading(true);
@@ -938,7 +1027,9 @@ export const OrderDetailCard: React.FC<OrderDetailCardProps> = ({
         cashboxId,
         note: t('accounting.orders.paymentNote', { orderNumber }),
       });
-      window.dispatchEvent(new Event('project-goods:finance-updated'));
+      window.dispatchEvent(
+        new Event('project-goods:finance-updated'),
+      );
       await onSupplierOrderCreated();
       onSuccess(t('accounting.messages.success.orderPaid'));
       setPayingRelatedSupplierOrder(null);
@@ -957,13 +1048,20 @@ export const OrderDetailCard: React.FC<OrderDetailCardProps> = ({
   };
 
   const issueRelatedSupplierOrderWithoutPayment = async () => {
-    if (!payingRelatedSupplierOrder || isPayingRelatedSupplierOrder) return;
+    if (!payingRelatedSupplierOrder || isPayingRelatedSupplierOrder)
+      return;
     setIsPayingRelatedSupplierOrder(true);
     try {
-      await issueSupplierOrderWithoutPayment(payingRelatedSupplierOrder.id);
-      window.dispatchEvent(new Event('project-goods:finance-updated'));
+      await issueSupplierOrderWithoutPayment(
+        payingRelatedSupplierOrder.id,
+      );
+      window.dispatchEvent(
+        new Event('project-goods:finance-updated'),
+      );
       await onSupplierOrderCreated();
-      onSuccess(t('accounting.messages.success.orderIssuedWithoutPayment'));
+      onSuccess(
+        t('accounting.messages.success.orderIssuedWithoutPayment'),
+      );
       setPayingRelatedSupplierOrder(null);
       setPayCashboxes([]);
     } catch (error) {
@@ -985,8 +1083,12 @@ export const OrderDetailCard: React.FC<OrderDetailCardProps> = ({
     const closeOnOutside = (event: MouseEvent) => {
       const target = event.target as HTMLElement | null;
       if (!target) return;
-      if (target.closest('.supplier-order-status-menu-portal')) return;
-      if (target.closest('[data-related-supplier-order-status-trigger]')) return;
+      if (target.closest('.supplier-order-status-menu-portal'))
+        return;
+      if (
+        target.closest('[data-related-supplier-order-status-trigger]')
+      )
+        return;
       setOpenRelatedStatusOrder(null);
       setRelatedStatusMenuPosition(null);
     };
@@ -1078,20 +1180,20 @@ export const OrderDetailCard: React.FC<OrderDetailCardProps> = ({
                   : undefined
               }
             >
-            {statusOptions.map((statusOption) => {
-              const blockedReason = getStatusOptionBlockedReason(
-                statusOption.key,
-              );
-              return (
-                <option
-                  key={statusOption.key}
-                  value={statusOption.key}
-                  disabled={Boolean(blockedReason)}
-                >
-                  {t(statusOption.labelKey)}
-                </option>
-              );
-            })}
+              {statusOptions.map((statusOption) => {
+                const blockedReason = getStatusOptionBlockedReason(
+                  statusOption.key,
+                );
+                return (
+                  <option
+                    key={statusOption.key}
+                    value={statusOption.key}
+                    disabled={Boolean(blockedReason)}
+                  >
+                    {t(statusOption.labelKey)}
+                  </option>
+                );
+              })}
             </select>
             {isStatusDraftBlocked ? (
               <p
@@ -1112,7 +1214,11 @@ export const OrderDetailCard: React.FC<OrderDetailCardProps> = ({
                 event.stopPropagation();
                 onAcceptPayment();
               }}
-              disabled={remainingPayment <= 0 || isReadOnly || !canAcceptPayment}
+              disabled={
+                remainingPayment <= 0 ||
+                isReadOnly ||
+                !canAcceptPayment
+              }
             >
               {remainingPayment <= 0
                 ? t('orders.payment.paid')
@@ -1162,137 +1268,149 @@ export const OrderDetailCard: React.FC<OrderDetailCardProps> = ({
             aria-expanded={isMainInfoOpen || !isCompactLayout}
           >
             <span>{t('orders.detail.mainInformation')}</span>
-            <span className='order-detail-collapse-icon' aria-hidden='true'>
-              {isMainInfoOpen ? COLLAPSE_ICON_EXPANDED : COLLAPSE_ICON_COLLAPSED}
+            <span
+              className='order-detail-collapse-icon'
+              aria-hidden='true'
+            >
+              {isMainInfoOpen
+                ? COLLAPSE_ICON_EXPANDED
+                : COLLAPSE_ICON_COLLAPSED}
             </span>
           </button>
           {isMainInfoOpen || !isCompactLayout ? (
-          <dl className='order-detail-list'>
-            <div>
-              <dt>{t('orders.detail.client')}</dt>
-              <dd>
-                <button
-                  type='button'
-                  className='orders-client-link'
-                  onClick={onOpenClientCard}
-                >
-                  {sale.client.name}
-                </button>
-              </dd>
-            </div>
-            <div>
-              <dt>{t('orders.detail.phone')}</dt>
-              <dd>{formatPhoneNumber(sale.client.phone)}</dd>
-            </div>
-            {isSaleCard ? null : (
-              <>
-                <div>
-                  <dt>{t('orders.detail.device')}</dt>
-                  <dd>
-                    <button
-                      type='button'
-                      className='order-detail-device-button'
-                      onClick={() => setIsDeviceModalOpen(true)}
-                      disabled={isContentLocked}
-                      aria-label={t('orders.detail.changeDevice')}
-                    >
-                      <span>{deviceNameInput || '-'}</span>
-                      <small>{t('orders.detail.change')}</small>
-                    </button>
-                  </dd>
-                </div>
-                <div>
-                  <dt>{t('orders.detail.serialNumberShort')}</dt>
-                  <dd className='order-detail-serial-value'>
-                    <span>{serialNumberInput || '-'}</span>
-                  </dd>
-                </div>
-              </>
-            )}
-            <div>
-              <dt>{t('orders.detail.created')}</dt>
-              <dd>{formatDateTime(sale.createdAt)}</dd>
-            </div>
-            <div>
-              <dt>
-                {isSaleCard
-                  ? t('orders.detail.createdOrder')
-                  : t('orders.detail.manager')}
-              </dt>
-              <dd>{sale.manager?.name || '-'}</dd>
-            </div>
-            {isSaleCard ? null : (
+            <dl className='order-detail-list'>
               <div>
-                <dt>{t('orders.detail.master')}</dt>
+                <dt>{t('orders.detail.client')}</dt>
                 <dd>
-                  <select
-                    className='order-detail-master-select'
-                    value={masterIdInput}
-                    onChange={(event) => setMasterIdInput(event.target.value)}
-                    disabled={isContentLocked}
-                    aria-label={t('orders.detail.master')}
+                  <button
+                    type='button'
+                    className='orders-client-link'
+                    onClick={onOpenClientCard}
                   >
-                    <option value=''>{t('orders.detail.selectMaster')}</option>
-                    {masterOptions.map((employee) => (
-                      <option key={employee.id} value={employee.id}>
-                        {employee.name}
-                      </option>
-                    ))}
-                  </select>
+                    {sale.client.name}
+                  </button>
                 </dd>
               </div>
-            )}
-            {isSaleCard ? (
               <div>
-                <dt>{t('orders.detail.issuedOrder')}</dt>
-                <dd>{sale.issuedBy?.name || '-'}</dd>
+                <dt>{t('orders.detail.phone')}</dt>
+                <dd>{formatPhoneNumber(sale.client.phone)}</dd>
               </div>
-            ) : (
-              <div>
-                <dt>{t('orders.detail.issued')}</dt>
-                <dd>{sale.issuedBy?.name || '-'}</dd>
-              </div>
-            )}
-            {isMainInfoDirty ? (
-              <div className='order-detail-notes-row'>
-                <dt>&nbsp;</dt>
-                <dd>
-                  <div className='order-detail-save-actions'>
-                    <button
-                      type='button'
-                      className='primary-button'
-                      disabled={
-                        isSavingMainInfo ||
-                        isReadOnly ||
-                        isStatusDraftBlocked
-                      }
-                      title={
-                        isStatusDraftBlocked
-                          ? getStatusDraftBlockedReason()
-                          : undefined
-                      }
-                      onClick={() => {
-                        if (shouldConfirmUnboundSerialIssue) {
-                          setIsUnboundSerialIssueOpen(true);
-                          return;
-                        }
-                        void persistMainInfo();
-                      }}
-                    >
-                      {isSavingMainInfo
-                        ? t('orders.payment.saving')
-                        : t('orders.detail.saveChanges')}
-                    </button>
-                    {mainInfoSaveError ? (
-                      <p className='inline-field-error' role='alert'>
-                        {mainInfoSaveError}
-                      </p>
-                    ) : null}
+              {isSaleCard ? null : (
+                <>
+                  <div>
+                    <dt>{t('orders.detail.device')}</dt>
+                    <dd>
+                      <button
+                        type='button'
+                        className='order-detail-device-button'
+                        onClick={() => setIsDeviceModalOpen(true)}
+                        disabled={isContentLocked}
+                        aria-label={t('orders.detail.changeDevice')}
+                      >
+                        <span>{deviceNameInput || '-'}</span>
+                        <small>{t('orders.detail.change')}</small>
+                      </button>
+                    </dd>
                   </div>
-                </dd>
+                  <div>
+                    <dt>{t('orders.detail.serialNumberShort')}</dt>
+                    <dd className='order-detail-serial-value'>
+                      <span>{serialNumberInput || '-'}</span>
+                    </dd>
+                  </div>
+                </>
+              )}
+              <div>
+                <dt>{t('orders.detail.created')}</dt>
+                <dd>{formatDateTime(sale.createdAt)}</dd>
               </div>
-            ) : null}
-          </dl>
+              <div>
+                <dt>
+                  {isSaleCard
+                    ? t('orders.detail.createdOrder')
+                    : t('orders.detail.manager')}
+                </dt>
+                <dd>{sale.manager?.name || '-'}</dd>
+              </div>
+              {isSaleCard ? null : (
+                <div>
+                  <dt>{t('orders.detail.master')}</dt>
+                  <dd>
+                    <select
+                      className='order-detail-master-select'
+                      value={masterIdInput}
+                      onChange={(event) =>
+                        setMasterIdInput(event.target.value)
+                      }
+                      disabled={isContentLocked}
+                      aria-label={t('orders.detail.master')}
+                    >
+                      <option value=''>
+                        {t('orders.detail.selectMaster')}
+                      </option>
+                      {masterOptions.map((employee) => (
+                        <option key={employee.id} value={employee.id}>
+                          {employee.name}
+                        </option>
+                      ))}
+                    </select>
+                  </dd>
+                </div>
+              )}
+              {isSaleCard ? (
+                <div>
+                  <dt>{t('orders.detail.issuedOrder')}</dt>
+                  <dd>{sale.issuedBy?.name || '-'}</dd>
+                </div>
+              ) : (
+                <div>
+                  <dt>{t('orders.detail.issued')}</dt>
+                  <dd>{sale.issuedBy?.name || '-'}</dd>
+                </div>
+              )}
+              {isMainInfoDirty ? (
+                <div className='order-detail-notes-row'>
+                  <dt>&nbsp;</dt>
+                  <dd>
+                    <div className='order-detail-save-actions'>
+                      <button
+                        type='button'
+                        className='primary-button'
+                        disabled={
+                          isSavingMainInfo ||
+                          isReadOnly ||
+                          isStatusDraftBlocked
+                        }
+                        title={
+                          isStatusDraftBlocked
+                            ? getStatusDraftBlockedReason()
+                            : undefined
+                        }
+                        onClick={() => {
+                          if (shouldConfirmUnboundSerialIssue) {
+                            setIsUnboundSerialIssueOpen(true);
+                            return;
+                          }
+                          void persistMainInfo();
+                        }}
+                      >
+                        {isSavingMainInfo
+                          ? t('orders.payment.saving')
+                          : t('orders.detail.saveChanges')}
+                      </button>
+                      {mainInfoSaveError ? (
+                        <p
+                          className='inline-field-error'
+                          role='alert'
+                        >
+                          {mainInfoSaveError}
+                        </p>
+                      ) : null}
+                    </div>
+                  </dd>
+                </div>
+              ) : null}
+            </dl>
           ) : null}
         </section>
 
@@ -1314,61 +1432,81 @@ export const OrderDetailCard: React.FC<OrderDetailCardProps> = ({
             aria-expanded={isLiveFeedOpen || !isCompactLayout}
           >
             <span>{t('orders.detail.liveFeed')}</span>
-            <span className='order-detail-collapse-icon' aria-hidden='true'>
-              {isLiveFeedOpen ? COLLAPSE_ICON_EXPANDED : COLLAPSE_ICON_COLLAPSED}
+            <span
+              className='order-detail-collapse-icon'
+              aria-hidden='true'
+            >
+              {isLiveFeedOpen
+                ? COLLAPSE_ICON_EXPANDED
+                : COLLAPSE_ICON_COLLAPSED}
             </span>
           </button>
           {isLiveFeedOpen || !isCompactLayout ? (
-          <div className='order-timeline'>
-            <div className='order-timeline-list'>
-            {timelineDisplay.map((entry) =>
-              entry.kind === 'sep' ? (
-                <div key={entry.key} className="order-timeline-date-separator">
-                  ---   {entry.label}  ---
-                </div>
-              ) : (
-                <div
-                  key={`${entry.item.id}-${entry.idx}`}
-                  className="order-timeline-item"
+            <div className='order-timeline'>
+              <div className='order-timeline-list'>
+                {timelineDisplay.map((entry) =>
+                  entry.kind === 'sep' ? (
+                    <div
+                      key={entry.key}
+                      className='order-timeline-date-separator'
+                    >
+                      --- {entry.label} ---
+                    </div>
+                  ) : (
+                    <div
+                      key={`${entry.item.id}-${entry.idx}`}
+                      className='order-timeline-item'
+                    >
+                      <span>
+                        {new Date(
+                          entry.item.createdAt,
+                        ).toLocaleTimeString(
+                          (
+                            i18n.resolvedLanguage ||
+                            i18n.language ||
+                            'uk'
+                          )
+                            .toLowerCase()
+                            .startsWith('en')
+                            ? 'en-GB'
+                            : 'uk-UA',
+                          { hour: '2-digit', minute: '2-digit' },
+                        )}
+                      </span>
+                      <p>
+                        <strong>{entry.item.author}</strong>
+                        <small
+                          className={getTimelineMessageClassName(
+                            entry.item,
+                          )}
+                        >
+                          {entry.item.message}
+                        </small>
+                      </p>
+                    </div>
+                  ),
+                )}
+              </div>
+              <div className='order-timeline-composer'>
+                <textarea
+                  placeholder={t('orders.detail.comment')}
+                  rows={2}
+                  value={comment}
+                  onChange={(event) => setComment(event.target.value)}
+                  disabled={isCommentComposerDisabled}
+                />
+                <button
+                  type='button'
+                  className='primary-button'
+                  onClick={submitComment}
+                  disabled={
+                    !comment.trim() || isCommentComposerDisabled
+                  }
                 >
-                  <span>
-                    {new Date(entry.item.createdAt).toLocaleTimeString(
-                      (i18n.resolvedLanguage || i18n.language || 'uk')
-                        .toLowerCase()
-                        .startsWith('en')
-                        ? 'en-GB'
-                        : 'uk-UA',
-                      { hour: '2-digit', minute: '2-digit' },
-                    )}
-                  </span>
-                  <p>
-                    <strong>{entry.item.author}</strong>
-                    <small className={getTimelineMessageClassName(entry.item)}>
-                      {entry.item.message}
-                    </small>
-                  </p>
-                </div>
-              )
-            )}
+                  {t('orders.detail.add')}
+                </button>
+              </div>
             </div>
-            <div className='order-timeline-composer'>
-            <textarea
-              placeholder={t('orders.detail.comment')}
-              rows={2}
-              value={comment}
-              onChange={(event) => setComment(event.target.value)}
-              disabled={isCommentComposerDisabled}
-            />
-            <button
-              type='button'
-              className='primary-button'
-              onClick={submitComment}
-              disabled={!comment.trim() || isCommentComposerDisabled}
-            >
-              {t('orders.detail.add')}
-            </button>
-            </div>
-          </div>
           ) : null}
         </section>
 
@@ -1391,8 +1529,13 @@ export const OrderDetailCard: React.FC<OrderDetailCardProps> = ({
                   <span>{formatCurrency(productTotal)}</span>
                 </span>
               ) : null}
-              <span className='order-detail-collapse-icon' aria-hidden='true'>
-                {isProductsOpen ? COLLAPSE_ICON_EXPANDED : COLLAPSE_ICON_COLLAPSED}
+              <span
+                className='order-detail-collapse-icon'
+                aria-hidden='true'
+              >
+                {isProductsOpen
+                  ? COLLAPSE_ICON_EXPANDED
+                  : COLLAPSE_ICON_COLLAPSED}
               </span>
             </span>
           </button>
@@ -1415,7 +1558,10 @@ export const OrderDetailCard: React.FC<OrderDetailCardProps> = ({
                   (candidate) => candidate.id === supplierOrderId,
                 );
                 if (!order) return;
-                void openRelatedSupplierOrderTakeOnCharge(order, itemIndex);
+                void openRelatedSupplierOrderTakeOnCharge(
+                  order,
+                  itemIndex,
+                );
               }}
               onUpdateProductModel={onUpdateProductModel}
               onAddItem={onAddLineItem}
@@ -1452,8 +1598,13 @@ export const OrderDetailCard: React.FC<OrderDetailCardProps> = ({
                   <span>{formatCurrency(serviceTotal)}</span>
                 </span>
               ) : null}
-              <span className='order-detail-collapse-icon' aria-hidden='true'>
-                {isServicesOpen ? COLLAPSE_ICON_EXPANDED : COLLAPSE_ICON_COLLAPSED}
+              <span
+                className='order-detail-collapse-icon'
+                aria-hidden='true'
+              >
+                {isServicesOpen
+                  ? COLLAPSE_ICON_EXPANDED
+                  : COLLAPSE_ICON_COLLAPSED}
               </span>
             </span>
           </button>
@@ -1476,7 +1627,10 @@ export const OrderDetailCard: React.FC<OrderDetailCardProps> = ({
                   (candidate) => candidate.id === supplierOrderId,
                 );
                 if (!order) return;
-                void openRelatedSupplierOrderTakeOnCharge(order, itemIndex);
+                void openRelatedSupplierOrderTakeOnCharge(
+                  order,
+                  itemIndex,
+                );
               }}
               onUpdateProductModel={onUpdateProductModel}
               onAddItem={onAddLineItem}
@@ -1524,7 +1678,9 @@ export const OrderDetailCard: React.FC<OrderDetailCardProps> = ({
               event.stopPropagation();
               onAcceptPayment();
             }}
-            disabled={remainingPayment <= 0 || isReadOnly || !canAcceptPayment}
+            disabled={
+              remainingPayment <= 0 || isReadOnly || !canAcceptPayment
+            }
           >
             {remainingPayment <= 0
               ? t('orders.payment.paid')
@@ -1535,7 +1691,10 @@ export const OrderDetailCard: React.FC<OrderDetailCardProps> = ({
               type='button'
               className='secondary-button'
               onClick={onRefundPayment}
-              disabled={!canRefundPayment || (isReadOnly && status !== 'issued')}
+              disabled={
+                !canRefundPayment ||
+                (isReadOnly && status !== 'issued')
+              }
             >
               {t('orders.payment.refundToClient')}
             </button>
@@ -1591,10 +1750,11 @@ export const OrderDetailCard: React.FC<OrderDetailCardProps> = ({
               ) : (
                 relatedSupplierOrderItems.map(({ order, item }) => {
                   const rowKey = `${order.id}-${item.itemIndex}`;
-                  const statusDisabled = isSupplierOrderStatusControlDisabled(
-                    order,
-                    canManageSupplierOrders,
-                  );
+                  const statusDisabled =
+                    isSupplierOrderStatusControlDisabled(
+                      order,
+                      canManageSupplierOrders,
+                    );
                   return (
                     <div
                       key={rowKey}
@@ -1623,14 +1783,20 @@ export const OrderDetailCard: React.FC<OrderDetailCardProps> = ({
                         <span>
                           {formatCurrency(item.quantity * item.price)}
                         </span>
-                        <span>{formatReadyDate(order.createdAt)}</span>
+                        <span>
+                          {formatReadyDate(order.createdAt)}
+                        </span>
                       </button>
                       <div className='order-related-supplier-actions'>
                         <div className='supplier-order-status-picker order-related-supplier-status'>
                           <button
                             type='button'
-                            className={getSupplierOrderStatusClass(order.status)}
-                            data-related-supplier-order-status-trigger={rowKey}
+                            className={getSupplierOrderStatusClass(
+                              order.status,
+                            )}
+                            data-related-supplier-order-status-trigger={
+                              rowKey
+                            }
                             disabled={statusDisabled}
                             aria-expanded={
                               openRelatedStatusOrder?.key === rowKey
@@ -1646,7 +1812,9 @@ export const OrderDetailCard: React.FC<OrderDetailCardProps> = ({
                               );
                             }}
                           >
-                            {getSupplierOrderStatusLabel(order.status)}
+                            {getSupplierOrderStatusLabel(
+                              order.status,
+                            )}
                           </button>
                         </div>
                         {isSupplierOrderPaid(order) ? (
@@ -1658,12 +1826,20 @@ export const OrderDetailCard: React.FC<OrderDetailCardProps> = ({
                               'orders.supplier.pay.paidAriaLabel',
                               {
                                 number:
-                                  getSupplierOrderDisplayNumber(order),
+                                  getSupplierOrderDisplayNumber(
+                                    order,
+                                  ),
                               },
                             )}
-                            title={t('orders.supplier.pay.paidAriaLabel', {
-                              number: getSupplierOrderDisplayNumber(order),
-                            })}
+                            title={t(
+                              'orders.supplier.pay.paidAriaLabel',
+                              {
+                                number:
+                                  getSupplierOrderDisplayNumber(
+                                    order,
+                                  ),
+                              },
+                            )}
                           >
                             <CheckIcon />
                           </span>
@@ -1677,12 +1853,20 @@ export const OrderDetailCard: React.FC<OrderDetailCardProps> = ({
                               'orders.supplier.pay.openAriaLabel',
                               {
                                 number:
-                                  getSupplierOrderDisplayNumber(order),
+                                  getSupplierOrderDisplayNumber(
+                                    order,
+                                  ),
                               },
                             )}
-                            title={t('orders.supplier.pay.openAriaLabel', {
-                              number: getSupplierOrderDisplayNumber(order),
-                            })}
+                            title={t(
+                              'orders.supplier.pay.openAriaLabel',
+                              {
+                                number:
+                                  getSupplierOrderDisplayNumber(
+                                    order,
+                                  ),
+                              },
+                            )}
                             disabled={
                               isPayingRelatedSupplierOrder ||
                               isPayCashboxesLoading
@@ -1705,19 +1889,22 @@ export const OrderDetailCard: React.FC<OrderDetailCardProps> = ({
                 <div>
                   <dt>{t('orders.detail.stats.ordersSales')}</dt>
                   <dd>
-                    {clientStats.salesCount} | {formatCurrency(clientStats.salesAmount)}
+                    {clientStats.salesCount} |{' '}
+                    {formatCurrency(clientStats.salesAmount)}
                   </dd>
                 </div>
                 <div>
                   <dt>{t('orders.detail.stats.repairOrders')}</dt>
                   <dd>
-                    {clientStats.repairsCount} | {formatCurrency(clientStats.repairsAmount)}
+                    {clientStats.repairsCount} |{' '}
+                    {formatCurrency(clientStats.repairsAmount)}
                   </dd>
                 </div>
                 <div>
                   <dt>{t('orders.detail.stats.total')}</dt>
                   <dd>
-                    {clientStats.totalCount} | {formatCurrency(clientStats.totalAmount)}
+                    {clientStats.totalCount} |{' '}
+                    {formatCurrency(clientStats.totalAmount)}
                   </dd>
                 </div>
                 <div>
@@ -1764,7 +1951,12 @@ export const OrderDetailCard: React.FC<OrderDetailCardProps> = ({
                   }}
                 >
                   <span>{buildOrderNumber(record)}</span>
-                  <strong>{getSaleProductName(record, t('orders.fallbacks.product'))}</strong>
+                  <strong>
+                    {getSaleProductName(
+                      record,
+                      t('orders.fallbacks.product'),
+                    )}
+                  </strong>
                   <span>{formatCurrency(getOrderTotal(record))}</span>
                   <span>{formatReadyDate(record.createdAt)}</span>
                 </a>
@@ -1785,7 +1977,9 @@ export const OrderDetailCard: React.FC<OrderDetailCardProps> = ({
           clientDeviceOptions={clientDeviceOptions}
           onDeviceSearchChange={setDeviceSearch}
           onNewDeviceNameChange={setNewDeviceName}
-          onClearSerialOnDeviceApplyChange={setClearSerialOnDeviceApply}
+          onClearSerialOnDeviceApplyChange={
+            setClearSerialOnDeviceApply
+          }
           onClose={() => setIsDeviceModalOpen(false)}
           onApplyDeviceName={applyDeviceName}
           onUnbindDevice={handleUnbindDevice}
@@ -1798,7 +1992,9 @@ export const OrderDetailCard: React.FC<OrderDetailCardProps> = ({
           cashboxes={payCashboxes}
           isLoading={isPayCashboxesLoading}
           isSaving={isPayingRelatedSupplierOrder}
-          canIssueWithoutPayment={canIssueSupplierOrdersWithoutPayment}
+          canIssueWithoutPayment={
+            canIssueSupplierOrdersWithoutPayment
+          }
           onClose={closeRelatedSupplierOrderPay}
           onPay={(cashboxId) => {
             void payRelatedSupplierOrder(cashboxId);
@@ -1865,18 +2061,25 @@ export const OrderDetailCard: React.FC<OrderDetailCardProps> = ({
           ) {
             return;
           }
-          const result = await takeOnChargeSupplierOrder(relatedSupplierOrderSource.id, {
-            autoGenerateSerialNumbers,
-            serialNumbers,
-            autoGenerateArticles,
-            articleBase: articleBase.trim().toUpperCase(),
-            itemIndex: relatedSupplierOrderItemIndex,
-            warehouseId,
-            locationId,
-          });
+          const result = await takeOnChargeSupplierOrder(
+            relatedSupplierOrderSource.id,
+            {
+              autoGenerateSerialNumbers,
+              serialNumbers,
+              autoGenerateArticles,
+              articleBase: articleBase.trim().toUpperCase(),
+              itemIndex: relatedSupplierOrderItemIndex,
+              warehouseId,
+              locationId,
+            },
+          );
           onSuccess(t('orders.messages.success.takenOnCharge'));
-          window.dispatchEvent(new Event('project-goods:finance-updated'));
-          window.dispatchEvent(new Event('project-goods:products-updated'));
+          window.dispatchEvent(
+            new Event('project-goods:finance-updated'),
+          );
+          window.dispatchEvent(
+            new Event('project-goods:products-updated'),
+          );
           await onSupplierOrderCreated();
           setIsRelatedSupplierOrderModalOpen(false);
           setRelatedSupplierOrderSource(null);
@@ -1901,7 +2104,9 @@ export const OrderDetailCard: React.FC<OrderDetailCardProps> = ({
             onError(
               error instanceof Error
                 ? error.message
-                : t('orders.messages.errors.failedRemoveSupplierOrder'),
+                : t(
+                    'orders.messages.errors.failedRemoveSupplierOrder',
+                  ),
             );
           }
         }}
@@ -1914,11 +2119,16 @@ export const OrderDetailCard: React.FC<OrderDetailCardProps> = ({
               : null);
           if (itemIndex === null) return;
           try {
-            await cancelSupplierOrderItem(relatedSupplierOrderSource.id, {
-              itemIndex,
-              reason,
-            });
-            onSuccess(t('orders.supplier.messages.success.itemCancelled'));
+            await cancelSupplierOrderItem(
+              relatedSupplierOrderSource.id,
+              {
+                itemIndex,
+                reason,
+              },
+            );
+            onSuccess(
+              t('orders.supplier.messages.success.itemCancelled'),
+            );
             await onSupplierOrderCreated();
             setIsRelatedSupplierOrderModalOpen(false);
             setRelatedSupplierOrderSource(null);
@@ -1927,7 +2137,9 @@ export const OrderDetailCard: React.FC<OrderDetailCardProps> = ({
             onError(
               error instanceof Error
                 ? error.message
-                : t('orders.messages.errors.failedRemoveSupplierOrder'),
+                : t(
+                    'orders.messages.errors.failedRemoveSupplierOrder',
+                  ),
             );
           }
         }}
@@ -1963,13 +2175,17 @@ export const OrderDetailCard: React.FC<OrderDetailCardProps> = ({
             paymentStatus: relatedSupplierOrderSource.paymentStatus,
             items: mergedItems,
           });
-          onSuccess(t('orders.messages.success.supplierOrderUpdated'));
+          onSuccess(
+            t('orders.messages.success.supplierOrderUpdated'),
+          );
           await onSupplierOrderCreated();
         }}
       />
       {isUnboundSerialIssueOpen ? (
         <UnboundSerialIssueModal
-          productNames={missingWarehouseSerialLines.map((item) => item.name)}
+          productNames={missingWarehouseSerialLines.map(
+            (item) => item.name,
+          )}
           onCancel={() => setIsUnboundSerialIssueOpen(false)}
           onContinue={() => {
             setIsUnboundSerialIssueOpen(false);
