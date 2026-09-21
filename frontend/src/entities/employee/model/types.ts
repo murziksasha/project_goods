@@ -34,9 +34,13 @@ export const employeePermissionOptions = [
   'system.backups.manage',
 ] as const;
 
-export type EmployeePermission = (typeof employeePermissionOptions)[number];
+export type EmployeePermission =
+  (typeof employeePermissionOptions)[number];
 
-export const defaultEmployeePermissionsByRole: Record<EmployeeRole, EmployeePermission[]> = {
+export const defaultEmployeePermissionsByRole: Record<
+  EmployeeRole,
+  EmployeePermission[]
+> = {
   owner: [...employeePermissionOptions],
   manager: [
     'orders.view',
@@ -50,7 +54,12 @@ export const defaultEmployeePermissionsByRole: Record<EmployeeRole, EmployeePerm
     'finance.cashboxes.view',
     'finance.transactions.deposit',
   ],
-  master: ['orders.view', 'orders.chat', 'repairs.execute', 'kanban.use'],
+  master: [
+    'orders.view',
+    'orders.chat',
+    'repairs.execute',
+    'kanban.use',
+  ],
   accountant: [
     'orders.view',
     'supplierOrders.view',
@@ -89,27 +98,13 @@ export const ordersTabPreferenceOptions = [
   'supplierInformation',
 ] as const;
 
-export type OrdersTabPreference = (typeof ordersTabPreferenceOptions)[number];
+import type {
+  Employee,
+  EmployeeUiPreferences,
+  OrdersTabPreference,
+} from '../../../shared/types/domain';
 
-export type EmployeeUiPreferences = {
-  hiddenOrdersTabs: OrdersTabPreference[];
-};
-
-export type Employee = {
-  id: string;
-  name: string;
-  phone: string;
-  email: string;
-  username: string;
-  role: EmployeeRole;
-  permissions: EmployeePermission[];
-  isActive: boolean;
-  isRegistered: boolean;
-  note: string;
-  uiPreferences?: EmployeeUiPreferences;
-  createdAt: string;
-  updatedAt: string;
-};
+export type { Employee, EmployeeUiPreferences, OrdersTabPreference };
 
 export type EmployeeFormValues = {
   name: string;

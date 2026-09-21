@@ -4,20 +4,23 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type {
   Client,
   ClientHistory,
-} from '../../../../entities/client/model/types';
-import type { Employee } from '../../../../entities/employee/model/types';
-import type { Sale } from '../../../../entities/sale/model/types';
-import type { ClientDevice } from '../../../../entities/client-device/model/types';
+} from '../../../../entities/client';
+import type { Employee } from '../../../../entities/employee';
+import type { Sale } from '../../../../entities/sale';
+import type { ClientDevice } from '../../../../entities/client-device';
 import { ClientsWorkspace } from './ClientsWorkspace';
 import {
   mapClientDraftToPayload,
   type ClientDraft,
 } from '../../model/clients-workspace';
-import { getClientPhones, getPrimaryClientPhone } from '../../../../entities/client/model/forms';
+import { getClientPhones, getPrimaryClientPhone } from '../../../../entities/client';
 
 const savedFiltersStore: Array<Record<string, unknown>> = [];
 
-vi.mock('../../../../entities/saved-filter/api/savedFilterApi', () => ({
+vi.mock('../../../../entities/saved-filter', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../../entities/saved-filter')>();
+  return {
+    ...actual,
   listSavedFilters: vi.fn(async () =>
     savedFiltersStore.filter((item) => item.scope === 'clients'),
   ),
@@ -40,7 +43,8 @@ vi.mock('../../../../entities/saved-filter/api/savedFilterApi', () => ({
     if (index >= 0) savedFiltersStore.splice(index, 1);
     return { id: filterId, deleted: true as const };
   }),
-}));
+  };
+});
 
 afterEach(() => {
   cleanup();

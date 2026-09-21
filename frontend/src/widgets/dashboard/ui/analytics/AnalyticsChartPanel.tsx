@@ -1,3 +1,4 @@
+import type React from 'react';
 import { useMemo, useState, type PointerEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -18,7 +19,7 @@ const REPAIR_COLOR = '#14b8a6';
 
 type ChartTab = 'billed' | 'mix' | 'volume';
 
-type AnalyticsChartPanelProps = {
+export interface AnalyticsChartPanelProps {
   analytics: DashboardAnalyticsView;
   isLoading: boolean;
 };
@@ -26,7 +27,7 @@ type AnalyticsChartPanelProps = {
 const visibleSnapshots = (snapshots: DashboardAnalyticsView['revenueSnapshots']) =>
   snapshots.filter((snapshot, index) => index === 0 || snapshot.total > 0);
 
-export const AnalyticsChartPanel = ({ analytics, isLoading }: AnalyticsChartPanelProps) => {
+export const AnalyticsChartPanel: React.FC<AnalyticsChartPanelProps> = ({ analytics, isLoading }) => {
   const { t } = useTranslation();
   const [tab, setTab] = useState<ChartTab>('billed');
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);

@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import type { Sale } from '../../../../../entities/sale/model/types';
-import { defaultPrintForms } from '../../../../../entities/settings/model/printForms';
+import type { Sale } from '../../../../../entities/sale';
+import { defaultPrintForms } from '../../../../../entities/settings';
 import { PaymentModal } from './OrderPaymentModals';
 
 const cashbox = {

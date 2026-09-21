@@ -1,8 +1,9 @@
+import type React from 'react';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import * as XLSX from 'xlsx';
-import type { Employee } from '../../../../entities/employee/model/types';
-import type { Sale } from '../../../../entities/sale/model/types';
+import type { Employee } from '../../../../entities/employee';
+import type { Sale } from '../../../../entities/sale';
 import { formatCurrency, formatDate } from '../../../../shared/lib/format';
 import { EmptyState } from '../../../../shared/ui/EmptyState';
 import { LoadingState } from '../../../../shared/ui/LoadingState';
@@ -125,17 +126,17 @@ const downloadExcelFile = ({
   window.URL.revokeObjectURL(url);
 };
 
-type EmployeeInformationPanelProps = {
+export interface EmployeeInformationPanelProps {
   employees: Employee[];
   sales: Sale[];
   isLoading?: boolean;
 };
 
-export const EmployeeInformationPanel = ({
+export const EmployeeInformationPanel: React.FC<EmployeeInformationPanelProps> = ({
   employees,
   sales,
   isLoading = false,
-}: EmployeeInformationPanelProps) => {
+}) => {
   const { t, i18n } = useTranslation();
   const [view, setView] = useState<EmployeeInformationView>('achievements');
   const [statsPeriod, setStatsPeriod] = useState<StatsPeriod>('whole');

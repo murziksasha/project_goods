@@ -1,3 +1,4 @@
+import type React from 'react';
 import {
   useCallback,
   useEffect,
@@ -6,39 +7,39 @@ import {
   useState,
 } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { Sale } from '../../../../../entities/sale/model/types';
+import type { Sale } from '../../../../../entities/sale';
 import {
   createServiceCatalogItem,
   getServiceCatalogItems,
   updateServiceCatalogItem,
-} from '../../../../../entities/service-catalog/api/serviceCatalogApi';
-import type { ServiceCatalogItem } from '../../../../../entities/service-catalog/model/types';
+} from '../../../../../entities/service-catalog';
+import type { ServiceCatalogItem } from '../../../../../entities/service-catalog';
 import {
   initialServiceCatalogForm,
   toServiceCatalogForm,
-} from '../../../../../entities/service-catalog/model/forms';
-import { getProducts } from '../../../../../entities/product/api/productApi';
-import { getOccupiedSerialNumbers } from '../../../../../entities/sale/api/saleApi';
+} from '../../../../../entities/service-catalog';
+import { getProducts } from '../../../../../entities/product';
+import { getOccupiedSerialNumbers } from '../../../../../entities/sale';
 import {
   createSupplier,
   getSuppliers,
-} from '../../../../../entities/supplier/api/supplierApi';
+} from '../../../../../entities/supplier';
 import type {
   Supplier,
   SupplierFormValues,
-} from '../../../../../entities/supplier/model/types';
+} from '../../../../../entities/supplier';
 import type {
   SupplierOrder,
   SupplierOrderFormValues,
-} from '../../../../../entities/supplier-order/model/types';
-import { createSupplierOrder } from '../../../../../entities/supplier-order/api/supplierOrderApi';
+} from '../../../../../entities/supplier-order';
+import { createSupplierOrder } from '../../../../../entities/supplier-order';
 import type {
   Product,
   ProductModelUpdatePayload,
-} from '../../../../../entities/product/model/types';
-import type { CatalogProduct } from '../../../../../entities/catalog-product/model/types';
-import { getWarehouseSettings } from '../../../../../entities/warehouse-settings/api/warehouseSettingsApi';
-import type { WarehouseItem } from '../../../../../entities/warehouse-settings/model/types';
+} from '../../../../../entities/product';
+import type { CatalogProduct } from '../../../../../entities/catalog-product';
+import { getWarehouseSettings } from '../../../../../entities/warehouse-settings';
+import type { WarehouseItem } from '../../../../../entities/warehouse-settings';
 import {
   formatProductSalePrice,
   getProductSalePriceByTier,
@@ -46,27 +47,27 @@ import {
   hasWholesaleSalePrice,
   matchesProductSalePriceTier,
   type ProductSalePriceTier,
-} from '../../../../../entities/product/lib/sale-prices';
+} from '../../../../../entities/product';
 import {
   formatServiceSalePrice,
   getServiceSalePriceByTier,
   hasServiceWholesaleSalePrice,
   matchesServiceSalePriceTier,
   type ServiceSalePriceTier,
-} from '../../../../../entities/service-catalog/lib/sale-prices';
+} from '../../../../../entities/service-catalog';
 import {
   MONEY_FIELD_COMMIT_MS,
   PRICE_STEPPER_PRECISION,
   PRICE_STEPPER_STEP,
 } from '../../../../../shared/lib/price-stepper';
 import { NumberStepper } from '../../../../../shared/ui/NumberStepper';
-import { ProductSalePriceField } from '../../../../../shared/ui/ProductSalePriceField';
-import { ProductSalePriceTierToggle } from '../../../../../shared/ui/ProductSalePriceTierToggle';
-import { ServiceSalePriceTierToggle } from '../../../../../shared/ui/ServiceSalePriceTierToggle';
+import { ProductSalePriceField } from '../../../../../entities/product';
+import { ProductSalePriceTierToggle } from '../../../../../entities/product';
+import { ServiceSalePriceTierToggle } from '../../../../../entities/service-catalog';
 import { parseDecimal } from '../../../../../shared/lib/decimal';
 import { formatCurrency } from '../../../../../shared/lib/format';
 import { useDismissibleSuggestions } from '../../../../../shared/lib/useDismissibleSuggestions';
-import type { PrintForm } from '../../../../../entities/settings/model/types';
+import type { PrintForm } from '../../../../../entities/settings';
 import {
   SupplierOrderModal,
   type SupplierOrderModalSubmitPayload,
@@ -115,7 +116,7 @@ import {
 } from '../workspace/orders-workspace-shared';
 import { OrderDetailCatalogServiceEditorModal } from './OrderDetailCatalogServiceEditorModal';
 
-export type OrderDetailLineItemsPanelProps = {
+export interface OrderDetailLineItemsPanelProps {
   kind: OrderLineItemKind;
   sales: Sale[];
   currentSaleId: string;
@@ -179,7 +180,7 @@ type ProductEntrySuggestion =
 const COLLAPSE_ICON_EXPANDED = '\u2303';
 const COLLAPSE_ICON_COLLAPSED = '\u2304';
 
-export const OrderDetailLineItemsPanel = ({
+export const OrderDetailLineItemsPanel: React.FC<OrderDetailLineItemsPanelProps> = ({
   kind,
   sales,
   currentSaleId,
@@ -205,7 +206,7 @@ export const OrderDetailLineItemsPanel = ({
   onUpdateProductModel,
   onError,
   onSuccess,
-}: OrderDetailLineItemsPanelProps) => {
+}) => {
   const { t } = useTranslation();
   const warrantyOptions = getWarrantyOptions();
   const isProductKind = kind === 'product';

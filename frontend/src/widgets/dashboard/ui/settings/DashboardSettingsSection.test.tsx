@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import { createDefaultSettingsForm } from '../../../../entities/settings/model/printForms';
+import { createDefaultSettingsForm } from '../../../../entities/settings';
 import { DashboardSettingsSection } from './DashboardSettingsSection';
 
 describe('DashboardSettingsSection', () => {

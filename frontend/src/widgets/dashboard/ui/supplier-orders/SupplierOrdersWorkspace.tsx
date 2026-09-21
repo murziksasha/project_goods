@@ -1,13 +1,14 @@
+import type React from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type {
   CatalogProduct,
   CatalogProductFormValues,
-} from '../../../../entities/catalog-product/model/types';
+} from '../../../../entities/catalog-product';
 import type {
   Supplier,
   SupplierFormValues,
-} from '../../../../entities/supplier/model/types';
+} from '../../../../entities/supplier';
 import {
   useCancelSupplierOrderItemMutation,
   useCancelSupplierOrderMutation,
@@ -16,13 +17,13 @@ import {
   useTakeOnChargeSupplierOrderMutation,
   useUpdateSupplierOrderFavoriteMutation,
   useUpdateSupplierOrderMutation,
-} from '../../../../entities/supplier-order/api/supplierOrderApi';
+} from '../../../../entities/supplier-order';
 import type {
   SupplierOrder,
   SupplierOrderFormValues,
   SupplierOrderStatus,
-} from '../../../../entities/supplier-order/model/types';
-import { getWarehouseSettings } from '../../../../entities/warehouse-settings/api/warehouseSettingsApi';
+} from '../../../../entities/supplier-order';
+import { getWarehouseSettings } from '../../../../entities/warehouse-settings';
 import { applySupplierOrderStatusChange } from '../../model/apply-supplier-order-status-change';
 import {
   buildSupplierOrderAnalytics,
@@ -51,8 +52,8 @@ import {
   createSavedFilter as createSavedFilterRequest,
   deleteSavedFilter as deleteSavedFilterRequest,
   listSavedFilters,
-} from '../../../../entities/saved-filter/api/savedFilterApi';
-import type { SavedFilterRecord } from '../../../../entities/saved-filter/model/types';
+} from '../../../../entities/saved-filter';
+import type { SavedFilterRecord } from '../../../../entities/saved-filter';
 import { filterIconOptions } from '../orders/workspace/orders-workspace-shared';
 import { SupplierOrderModal, type SupplierOrderModalSubmitPayload } from '../orders/modals/SupplierOrderModal';
 import { SupplierOrdersActiveFilterChips } from './SupplierOrdersActiveFilterChips';
@@ -71,6 +72,7 @@ const notifyFinanceUpdated = () => {
 };
 
 type Props = {
+export interface SupplierOrdersWorkspaceProps {
   activeTab: OrdersTab;
   onActiveTabChange: (tab: OrdersTab) => void;
   onToggleTabVisibility?: (tab: OrdersTab) => void;
@@ -96,6 +98,7 @@ type Props = {
 };
 
 export const SupplierOrdersWorkspace = ({
+export const SupplierOrdersWorkspace: React.FC<SupplierOrdersWorkspaceProps> = ({
   activeTab,
   onActiveTabChange,
   onToggleTabVisibility,
@@ -113,6 +116,7 @@ export const SupplierOrdersWorkspace = ({
   onSuccess,
   onError,
 }: Props) => {
+}) => {
   const { t } = useTranslation();
   const supplierOrdersQuery = useSupplierOrdersQuery(canViewSupplierOrders);
   const createSupplierOrderMutation = useCreateSupplierOrderMutation();

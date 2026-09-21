@@ -1,7 +1,8 @@
+import type React from 'react';
 import { useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
-import type { Sale } from '../../../../entities/sale/model/types';
+import type { Sale } from '../../../../entities/sale';
 import {
   buildOrderNumber,
   kanbanVisibleRepairStatuses,
@@ -10,17 +11,17 @@ import {
   type RepairStatus,
 } from '../orders/workspace/orders-workspace-shared';
 
-type RepairKanbanMoveSheetProps = {
+export interface RepairKanbanMoveSheetProps {
   sale: Sale;
   onClose: () => void;
   onMove: (sale: Sale, status: OrderStatus) => void;
 };
 
-export const RepairKanbanMoveSheet = ({
+export const RepairKanbanMoveSheet: React.FC<RepairKanbanMoveSheetProps> = ({
   sale,
   onClose,
   onMove,
-}: RepairKanbanMoveSheetProps) => {
+}) => {
   const { t } = useTranslation();
   const current = normalizeOrderStatus(sale.status) as RepairStatus;
   const number = buildOrderNumber(sale);

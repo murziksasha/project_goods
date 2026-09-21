@@ -1,16 +1,20 @@
+import type React from 'react';
 import type { MouseEvent as ReactMouseEvent } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { PageKey } from '../../../pages/dashboard/model/types';
-import { getDashboardHref } from '../../../pages/dashboard/model/types';
+import type { PageKey } from '../../../shared/config/routing';
+import { getDashboardHref } from '../../../shared/config/routing';
 import { sidebarNavIcons } from '../../../shared/ui/sidebarNavIcons';
 import {
   defaultSidebarGroups,
   type DashboardSidebarItem,
 } from './dashboard-sidebar-nav';
 
-export type { DashboardSidebarItem, SidebarNavGroup } from './dashboard-sidebar-nav';
+export type {
+  DashboardSidebarItem,
+  SidebarNavGroup,
+} from './dashboard-sidebar-nav';
 
-type DashboardSidebarProps = {
+export interface DashboardSidebarProps {
   sidebarItems: DashboardSidebarItem[];
   activePage: PageKey;
   isCollapsed: boolean;
@@ -22,9 +26,9 @@ type DashboardSidebarProps = {
     event: ReactMouseEvent<HTMLAnchorElement>,
     item: DashboardSidebarItem,
   ) => void;
-};
+}
 
-export const DashboardSidebar = ({
+export const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
   sidebarItems,
   activePage,
   isCollapsed,
@@ -33,20 +37,24 @@ export const DashboardSidebar = ({
   currentEmployee,
   canAccessPage,
   onNavClick,
-}: DashboardSidebarProps) => {
+}) => {
   const { t } = useTranslation();
-  const itemByKey = new Map(sidebarItems.map((item) => [item.key, item]));
+  const itemByKey = new Map(
+    sidebarItems.map((item) => [item.key, item]),
+  );
 
   return (
     <aside
-      id="dashboard-mobile-sidebar"
+      id='dashboard-mobile-sidebar'
       className={
-        isCollapsed ? 'app-sidebar app-sidebar-collapsed' : 'app-sidebar'
+        isCollapsed
+          ? 'app-sidebar app-sidebar-collapsed'
+          : 'app-sidebar'
       }
     >
-      <div className="sidebar-profile">
+      <div className='sidebar-profile'>
         <div
-          className="sidebar-avatar"
+          className='sidebar-avatar'
           title={currentEmployee?.name || t('common.guest')}
         >
           {currentEmployee?.name
@@ -65,41 +73,49 @@ export const DashboardSidebar = ({
               : 'sidebar-profile-meta'
           }
         >
-          <p className="sidebar-user-name">
+          <p className='sidebar-user-name'>
             {currentEmployee?.name || t('common.guest')}
           </p>
-          <p className="sidebar-user-role">
+          <p className='sidebar-user-role'>
             {currentEmployee?.role || t('common.noRole')}
           </p>
         </div>
       </div>
 
-      <nav className="sidebar-nav" aria-label={t('common.mainMenu')}>
+      <nav className='sidebar-nav' aria-label={t('common.mainMenu')}>
         {defaultSidebarGroups.map((group) => {
           const groupItems = group.keys
             .map((key) => itemByKey.get(key))
-            .filter((item): item is DashboardSidebarItem => Boolean(item))
+            .filter((item): item is DashboardSidebarItem =>
+              Boolean(item),
+            )
             .filter((item) => canAccessPage(item.key));
 
           if (groupItems.length === 0) return null;
 
           return (
-            <div key={group.id} className="sidebar-nav-group">
+            <div key={group.id} className='sidebar-nav-group'>
               {!isCollapsed ? (
-                <p className="sidebar-nav-group-label">{t(group.labelKey)}</p>
+                <p className='sidebar-nav-group-label'>
+                  {t(group.labelKey)}
+                </p>
               ) : null}
               {groupItems.map((item) => {
                 const isActive =
                   item.key !== 'other' && item.key === activePage;
                 const label = t(item.labelKey);
                 const Icon =
-                  item.key !== 'other' ? sidebarNavIcons[item.key] : null;
+                  item.key !== 'other'
+                    ? sidebarNavIcons[item.key]
+                    : null;
 
                 return (
                   <a
                     key={item.key}
                     href={
-                      item.key === 'other' ? '#' : getDashboardHref(item.key)
+                      item.key === 'other'
+                        ? '#'
+                        : getDashboardHref(item.key)
                     }
                     className={
                       isActive
@@ -110,7 +126,10 @@ export const DashboardSidebar = ({
                     aria-current={isActive ? 'page' : undefined}
                     onClick={(event) => onNavClick(event, item)}
                   >
-                    <span className="sidebar-nav-item-icon" aria-hidden="true">
+                    <span
+                      className='sidebar-nav-item-icon'
+                      aria-hidden='true'
+                    >
                       {Icon ? <Icon /> : <span>{'\u2022'}</span>}
                     </span>
                     <span

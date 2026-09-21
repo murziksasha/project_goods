@@ -1,6 +1,7 @@
+import type React from 'react';
 import { useTranslation } from 'react-i18next';
 
-export const OrderDetailCardSkeleton = () => {
+export const OrderDetailCardSkeleton: React.FC = () => {
   const { t } = useTranslation();
 
   return (

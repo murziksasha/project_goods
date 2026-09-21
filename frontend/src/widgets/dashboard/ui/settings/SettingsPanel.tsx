@@ -1,10 +1,11 @@
+import type React from 'react';
 import { useEffect, useMemo, useState, type KeyboardEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import type {
   AppSettingsFormValues,
   PrintForm,
-} from '../../../../entities/settings/model/types';
-import { normalizePrintFormsForView } from '../../../../entities/settings/model/printForms';
+} from '../../../../entities/settings';
+import { normalizePrintFormsForView } from '../../../../entities/settings';
 import { createNewPrintForm } from '../../model/print-form-builder';
 import {
   getCompanyValidation,
@@ -23,7 +24,7 @@ import { DashboardSettingsSection } from './DashboardSettingsSection';
 import { DatabaseReportSection } from './DatabaseReportSection';
 import { PrintFormsSection } from './PrintFormsSection';
 
-type SettingsPanelProps = {
+export interface SettingsPanelProps {
   form: AppSettingsFormValues;
   isSaving: boolean;
   /** False until /settings has loaded — avoids flashing default company fields. */
@@ -38,7 +39,7 @@ type SettingsPanelProps = {
   onSubmit: () => void;
 };
 
-export const SettingsPanel = ({
+export const SettingsPanel: React.FC<SettingsPanelProps> = ({
   form,
   isSaving,
   isSettingsReady = true,
@@ -47,7 +48,7 @@ export const SettingsPanel = ({
   canManageBackups,
   onChange,
   onSubmit,
-}: SettingsPanelProps) => {
+}) => {
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<SettingsTab>(getStoredSettingsTab);
   const hasCachedCompanyFields =

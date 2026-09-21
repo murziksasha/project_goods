@@ -6,7 +6,7 @@ import {
   waitFor,
 } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { Supplier } from '../../../../entities/supplier/model/types';
+import type { Supplier } from '../../../../entities/supplier';
 import {
   CatalogServiceModal,
   CatalogSuggestionProductModal,

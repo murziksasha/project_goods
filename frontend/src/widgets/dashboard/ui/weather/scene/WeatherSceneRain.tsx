@@ -1,8 +1,9 @@
-type WeatherSceneRainProps = {
+import type React from 'react';
+export interface WeatherSceneRainProps {
   dropCount: number;
 };
 
-export const WeatherSceneRain = ({ dropCount }: WeatherSceneRainProps) => (
+export const WeatherSceneRain: React.FC<WeatherSceneRainProps> = ({ dropCount }) => (
   <div className="weather-scene-rain">
     {Array.from({ length: dropCount }, (_, index) => (
       <span

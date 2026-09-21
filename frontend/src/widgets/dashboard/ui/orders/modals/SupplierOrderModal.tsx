@@ -1,4 +1,5 @@
-﻿import {
+import type React from 'react';
+import {
   useCallback,
   useEffect,
   useMemo,
@@ -8,18 +9,18 @@
   type KeyboardEvent,
 } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { Supplier, SupplierFormValues } from '../../../../../entities/supplier/model/types';
-import { createCatalogProduct, getCatalogProducts } from '../../../../../entities/catalog-product/api/catalogProductApi';
-import type { CatalogProduct } from '../../../../../entities/catalog-product/model/types';
+import type { Supplier, SupplierFormValues } from '../../../../../entities/supplier';
+import { createCatalogProduct, getCatalogProducts } from '../../../../../entities/catalog-product';
+import type { CatalogProduct } from '../../../../../entities/catalog-product';
 import type {
   SupplierOrder,
   SupplierOrderItem,
   TakeOnChargeResult,
-} from '../../../../../entities/supplier-order/model/types';
-import { getWarehouseSettings } from '../../../../../entities/warehouse-settings/api/warehouseSettingsApi';
-import type { PrintForm } from '../../../../../entities/settings/model/types';
-import { defaultPrintForms } from '../../../../../entities/settings/model/printForms';
-import { printSerialNumbers } from '../../../../../shared/lib/serialPrint';
+} from '../../../../../entities/supplier-order';
+import { getWarehouseSettings } from '../../../../../entities/warehouse-settings';
+import type { PrintForm } from '../../../../../entities/settings';
+import { defaultPrintForms } from '../../../../../entities/settings';
+import { printSerialNumbers } from '../workspace/orders-workspace-shared';
 import { normalizeDecimalInput, parseDecimal, roundMoney } from '../../../../../shared/lib/decimal';
 import {
   PRICE_STEPPER_PRECISION,
@@ -51,7 +52,7 @@ export type SupplierOrderModalSubmitPayload = {
   items: SupplierOrderItem[];
 };
 
-type SupplierOrderModalProps = {
+export interface SupplierOrderModalProps {
   isOpen: boolean;
   printForms?: PrintForm[];
   suppliers: Supplier[];
@@ -119,7 +120,7 @@ const areSupplierOrderDraftItemsEqual = (
   });
 };
 
-export const SupplierOrderModal = ({
+export const SupplierOrderModal: React.FC<SupplierOrderModalProps> = ({
   isOpen,
   printForms = defaultPrintForms,
   suppliers,
@@ -137,7 +138,7 @@ export const SupplierOrderModal = ({
   onSuccess,
   onError,
   warehouseOptions,
-}: SupplierOrderModalProps) => {
+}) => {
   const { t } = useTranslation();
   const [fallbackWarehouseOptions, setFallbackWarehouseOptions] =
     useState(EMPTY_WAREHOUSE_OPTIONS);

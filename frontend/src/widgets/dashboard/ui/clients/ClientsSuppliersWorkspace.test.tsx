@@ -7,13 +7,16 @@ import {
   within,
 } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { Employee } from '../../../../entities/employee/model/types';
-import type { Supplier } from '../../../../entities/supplier/model/types';
+import type { Employee } from '../../../../entities/employee';
+import type { Supplier } from '../../../../entities/supplier';
 import { ClientsSuppliersWorkspace } from './ClientsSuppliersWorkspace';
 
 const savedFiltersStore: Array<Record<string, unknown>> = [];
 
-vi.mock('../../../../entities/saved-filter/api/savedFilterApi', () => ({
+vi.mock('../../../../entities/saved-filter', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../../entities/saved-filter')>();
+  return {
+    ...actual,
   listSavedFilters: vi.fn(async () =>
     savedFiltersStore.filter((item) => item.scope === 'clients'),
   ),
@@ -36,7 +39,8 @@ vi.mock('../../../../entities/saved-filter/api/savedFilterApi', () => ({
     if (index >= 0) savedFiltersStore.splice(index, 1);
     return { id: filterId, deleted: true as const };
   }),
-}));
+  };
+});
 
 const employee: Employee = {
   id: 'employee-1',

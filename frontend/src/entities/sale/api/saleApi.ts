@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { queryKeys } from '../../../shared/api/queryClient';
 import { useVisibleRefetchInterval } from '../../../shared/lib/visible-refetch';
 import { ApiRequestError, apiClient, getApiErrorMessage } from '../../../shared/api/http';
-import type { Product } from '../../product/model/types';
+import type { Product } from '../../../shared/types/domain';
 import type {
   Sale,
   SaleFormValues,

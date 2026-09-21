@@ -3,51 +3,51 @@ import {
   getClientHistory,
   importClients,
   mergeClients as mergeClientsApi,
-} from '../../../entities/client/api/clientApi';
+} from '../../../entities/client';
 import { parseDecimal } from '../../../shared/lib/decimal';
 import i18n from '../../../shared/i18n/config';
 import {
   initialClientForm,
   toClientForm,
-} from '../../../entities/client/model/forms';
+} from '../../../entities/client';
 import type {
   Client,
   ClientFormValues,
   ClientHistory,
   ClientStatus,
-} from '../../../entities/client/model/types';
+} from '../../../entities/client';
 import {
   createEmployee,
   deleteEmployee,
   updateEmployee,
-} from '../../../entities/employee/api/employeeApi';
+} from '../../../entities/employee';
 import {
   initialEmployeeForm,
   toEmployeeForm,
-} from '../../../entities/employee/model/forms';
+} from '../../../entities/employee';
 import type {
   Employee,
   EmployeeFormValues,
-} from '../../../entities/employee/model/types';
+} from '../../../entities/employee';
 
 import {
   initialProductForm,
   toProductForm,
-} from '../../../entities/product/model/forms';
+} from '../../../entities/product';
 import type {
   Product,
   ProductFormValues,
   ProductModelUpdatePayload,
-} from '../../../entities/product/model/types';
+} from '../../../entities/product';
 import {
   initialSaleForm,
   toSaleForm,
-} from '../../../entities/sale/model/forms';
+} from '../../../entities/sale';
 import type {
   Sale,
   SaleFormValues,
-} from '../../../entities/sale/model/types';
-import { getSaleProductName } from '../../../entities/sale/lib/sale-product';
+} from '../../../entities/sale';
+import { getSaleProductName } from '../../../entities/sale';
 import {
   getCreateOrderSaleTitle,
   validateCreateOrderSaleLineItems,
@@ -56,41 +56,41 @@ import { hasDuplicateServiceName } from '../../../widgets/dashboard/model/missin
 import {
   initialServiceCatalogForm,
   toServiceCatalogForm,
-} from '../../../entities/service-catalog/model/forms';
+} from '../../../entities/service-catalog';
 import type {
   ServiceCatalogFormValues,
   ServiceCatalogItem,
-} from '../../../entities/service-catalog/model/types';
+} from '../../../entities/service-catalog';
 import {
   updatePrintForms,
   updateSettings,
-} from '../../../entities/settings/api/settingsApi';
-import { hasEmployeePermission } from '../../../entities/employee/model/permissions';
+} from '../../../entities/settings';
+import { hasEmployeePermission } from '../../../entities/employee';
 import {
   applyPrintFormLocalOverrides,
   persistPrintFormLayoutOverrides,
 } from '../../../widgets/dashboard/model/print-form-local-overrides';
-import { normalizeDashboardPreferences } from '../../../entities/settings/model/dashboardPreferences';
-import { writeCachedCompanySettings } from '../../../entities/settings/model/companySettingsCache';
+import { normalizeDashboardPreferences } from '../../../entities/settings';
+import { writeCachedCompanySettings } from '../../../entities/settings';
 import {
   createSupplier,
   mergeSuppliers as mergeSuppliersApi,
   updateSupplier,
-} from '../../../entities/supplier/api/supplierApi';
-import { mergeClientDevices as mergeClientDevicesApi } from '../../../entities/client-device/api/clientDeviceApi';
-import { mergeServices as mergeServicesApi } from '../../../entities/service-catalog/api/serviceCatalogApi';
-import type { SupplierFormValues } from '../../../entities/supplier/model/types';
-import type { ClientDevice } from '../../../entities/client-device/model/types';
-import type { ClientDeviceFormValues } from '../../../entities/client-device/model/types';
+} from '../../../entities/supplier';
+import { mergeClientDevices as mergeClientDevicesApi } from '../../../entities/client-device';
+import { mergeServices as mergeServicesApi } from '../../../entities/service-catalog';
+import type { SupplierFormValues } from '../../../entities/supplier';
+import type { ClientDevice } from '../../../entities/client-device';
+import type { ClientDeviceFormValues } from '../../../entities/client-device';
 import type {
   AppSettings,
   AppSettingsFormValues,
-} from '../../../entities/settings/model/types';
+} from '../../../entities/settings';
 import {
   eraseAllData,
   seedDemoData,
   type DemoSeedKind,
-} from '../../../features/demo-data/api/demoApi';
+} from '../../../features/demo-data';
 import {
   queryClient,
   queryKeys,

@@ -3,7 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ComponentProps, ReactElement } from 'react';
 import { I18nextProvider } from 'react-i18next';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import * as financeApi from '../../../../entities/finance/api/financeApi';
+import * as financeApi from '../../../../entities/finance';
 import i18n from '../../../../shared/i18n/config';
 import { AccountingPanel } from './AccountingPanel';
 import type {
@@ -14,10 +14,10 @@ import type {
   FinanceTransaction,
   FinanceTransactionType,
   SupplierOrderPaymentQueueItem,
-} from '../../../../entities/finance/model/types';
-import type { Employee } from '../../../../entities/employee/model/types';
-import type { SupplierOrder } from '../../../../entities/supplier-order/model/types';
-import type { Sale } from '../../../../entities/sale/model/types';
+} from '../../../../entities/finance';
+import type { Employee } from '../../../../entities/employee';
+import type { SupplierOrder } from '../../../../entities/supplier-order';
+import type { Sale } from '../../../../entities/sale';
 import type { AccountingTransactionsView as RealAccountingTransactionsViewComponent } from './AccountingTransactionsView';
 
 let RealAccountingTransactionsView: typeof RealAccountingTransactionsViewComponent;
@@ -52,9 +52,9 @@ const {
   useTransactionFiltersMock: vi.fn(),
 }));
 
-vi.mock('../../../../entities/finance/api/financeApi', async (importOriginal) => {
+vi.mock('../../../../entities/finance', async (importOriginal) => {
   const actual = await importOriginal<
-    typeof import('../../../../entities/finance/api/financeApi')
+    typeof import('../../../../entities/finance')
   >();
   return {
     ...actual,
@@ -1425,7 +1425,7 @@ describe('AccountingTransactionsView note navigation (real component)', () => {
     receiptStatus: 'pending',
     createdAt: '2026',
     updatedAt: '2026',
-  } as any as import('../../../../entities/supplier-order/model/types').SupplierOrder;
+  } as any as import('../../../../entities/supplier-order').SupplierOrder;
 
   const minimalProps = (txNote: string, salesList: Sale[] = [], suppliersList: any[] = []) => ({
     activeFiltersCount: 0,

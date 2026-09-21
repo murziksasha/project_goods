@@ -1,4 +1,5 @@
-export const WeatherSceneWindStreaks = () => (
+import type React from 'react';
+export const WeatherSceneWindStreaks: React.FC = () => (
   <div className="weather-scene-wind-streaks" aria-hidden="true">
     {Array.from({ length: 4 }, (_, index) => (
       <span

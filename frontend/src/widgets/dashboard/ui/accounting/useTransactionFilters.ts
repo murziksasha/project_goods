@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useFinanceTransactionsQuery } from '../../../../entities/finance/api/financeApi';
+import { useFinanceTransactionsQuery } from '../../../../entities/finance';
 import {
   FINANCE_TRANSACTIONS_DEFAULT_PAGE_SIZE,
   getActiveTransactionFiltersCount,

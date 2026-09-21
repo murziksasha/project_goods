@@ -1,3 +1,4 @@
+import type React from 'react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { filterIconOptions } from './orders-workspace-shared';
@@ -8,7 +9,7 @@ export type SavedFilterViewItem = {
   icon: string;
 };
 
-type SavedFiltersPanelProps = {
+export interface SavedFiltersPanelProps {
   canSave: boolean;
   items: SavedFilterViewItem[];
   newFilterIcon: string;
@@ -22,7 +23,7 @@ type SavedFiltersPanelProps = {
   onSave: () => void;
 };
 
-export const SavedFiltersPanel = ({
+export const SavedFiltersPanel: React.FC<SavedFiltersPanelProps> = ({
   canSave,
   items,
   newFilterIcon,
@@ -34,7 +35,7 @@ export const SavedFiltersPanel = ({
   onIconChange,
   onNameChange,
   onSave,
-}: SavedFiltersPanelProps) => {
+}) => {
   const { t } = useTranslation();
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const filterNamePlaceholder = t('orders.filters.drawer.filterNamePlaceholder');

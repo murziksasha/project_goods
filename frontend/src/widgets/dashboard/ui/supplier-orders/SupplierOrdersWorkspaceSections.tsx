@@ -1,3 +1,4 @@
+import type React from 'react';
 import {
   useEffect,
   useRef,
@@ -7,12 +8,12 @@ import {
 } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
-import type { CatalogProduct } from '../../../../entities/catalog-product/model/types';
-import type { Supplier } from '../../../../entities/supplier/model/types';
+import type { CatalogProduct } from '../../../../entities/catalog-product';
+import type { Supplier } from '../../../../entities/supplier';
 import type {
   SupplierOrder,
   SupplierOrderStatus,
-} from '../../../../entities/supplier-order/model/types';
+} from '../../../../entities/supplier-order';
 import { formatCurrency } from '../../../../shared/lib/format';
 import {
   CompactPaginationPanel,
@@ -41,7 +42,7 @@ import {
 
 export { SupplierInformationDashboard } from './SupplierInformationDashboard';
 
-type SupplierOrdersToolbarProps = {
+export interface SupplierOrdersToolbarProps {
   activeTab: OrdersTab;
   activeFiltersCount: number;
   filteredOrdersCount: number;
@@ -71,8 +72,9 @@ type SupplierOrdersToolbarProps = {
   onResetColumns: () => void;
   onOpenSingleMatch?: () => void;
 };
+}
 
-export const SupplierOrdersToolbar = ({
+export const SupplierOrdersToolbar: React.FC<SupplierOrdersToolbarProps> = ({
   activeTab,
   activeFiltersCount,
   filteredOrdersCount,
@@ -99,7 +101,7 @@ export const SupplierOrdersToolbar = ({
   onToggleColumnVisibility,
   onResetColumns,
   onOpenSingleMatch,
-}: SupplierOrdersToolbarProps) => {
+}) => {
   const { t } = useTranslation();
   const canOpenSingleMatch =
     Boolean(onOpenSingleMatch) &&
@@ -298,7 +300,7 @@ export const SupplierOrdersToolbar = ({
   );
 };
 
-type SupplierOrdersTableProps = {
+export interface SupplierOrdersTableProps {
   catalogProducts?: CatalogProduct[];
   expandedOrderIds: ReadonlySet<string>;
   filteredOrdersCount: number;
@@ -339,7 +341,7 @@ type SupplierOrdersTableProps = {
   onPageSizeChange: (pageSize: number) => void;
 };
 
-export const SupplierOrdersTable = ({
+export const SupplierOrdersTable: React.FC<SupplierOrdersTableProps> = ({
   expandedOrderIds,
   filteredOrdersCount,
   totals,
@@ -361,7 +363,7 @@ export const SupplierOrdersTable = ({
   onOpenStatusOrder,
   onPageChange,
   onPageSizeChange,
-}: SupplierOrdersTableProps) => {
+}) => {
   const { t } = useTranslation();
   const notApplicableLabel = t(
     'orders.supplier.table.statusNotApplicable',
@@ -911,6 +913,13 @@ export const SupplierOrdersTable = ({
 };
 
 export const SupplierOrderStatusMenuPortal = ({
+export interface SupplierOrderStatusMenuPortalProps {
+  menu: { id: string; currentStatus: SupplierOrderStatus; buttonRect: DOMRect } | null;
+  onClose: () => void;
+  onSelectStatus: (orderId: string, status: SupplierOrderStatus) => void;
+}
+
+export const SupplierOrderStatusMenuPortal: React.FC<SupplierOrderStatusMenuPortalProps> = ({
   openStatusOrder,
   statusMenuPosition,
   onUpdateStatus,
@@ -1013,6 +1022,16 @@ export const SupplierOrderStatusMenuPortal = ({
 };
 
 export const SupplierEditModal = ({
+export interface SupplierEditModalProps {
+  isOpen: boolean;
+  form: SupplierFormValues;
+  isSaving: boolean;
+  onChange: <K extends keyof SupplierFormValues>(field: K, value: SupplierFormValues[K]) => void;
+  onClose: () => void;
+  onSubmit: () => void;
+}
+
+export const SupplierEditModal: React.FC<SupplierEditModalProps> = ({
   form,
   isSaving,
   onClose,
@@ -1126,6 +1145,17 @@ export const SupplierEditModal = ({
 };
 
 export const CatalogProductEditModal = ({
+export interface CatalogProductEditModalProps {
+  isOpen: boolean;
+  form: CatalogProductFormValues;
+  suppliers: Supplier[];
+  isSaving: boolean;
+  onChange: <K extends keyof CatalogProductFormValues>(field: K, value: CatalogProductFormValues[K]) => void;
+  onClose: () => void;
+  onSubmit: () => void;
+}
+
+export const CatalogProductEditModal: React.FC<CatalogProductEditModalProps> = ({
   form,
   isSaving,
   onClose,

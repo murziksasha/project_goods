@@ -1,43 +1,44 @@
+import type React from 'react';
 import { useEffect, useMemo, useState } from 'react';
 import { useDismissibleSuggestions } from '../../../../../shared/lib/useDismissibleSuggestions';
 import { useTranslation } from 'react-i18next';
 import {
   getClients,
   getClientHistory,
-} from '../../../../../entities/client/api/clientApi';
+} from '../../../../../entities/client';
 import type {
   Client,
   ClientHistory,
-} from '../../../../../entities/client/model/types';
+} from '../../../../../entities/client';
 import {
   getClientPhones,
   getPrimaryClientPhone,
-} from '../../../../../entities/client/model/forms';
+} from '../../../../../entities/client';
 import {
   clientMatchesPhoneQuery,
   formatClientPhonesLabel,
-} from '../../../../../entities/client/lib/phone-match';
-import type { Employee } from '../../../../../entities/employee/model/types';
-import { hasEmployeePermission } from '../../../../../entities/employee/model/permissions';
+} from '../../../../../entities/client';
+import type { Employee } from '../../../../../entities/employee';
+import { hasEmployeePermission } from '../../../../../entities/employee';
 import {
   createClientDevice,
   deleteClientDevice,
   getClientDevices,
   updateClientDevice,
-} from '../../../../../entities/client-device/api/clientDeviceApi';
+} from '../../../../../entities/client-device';
 import {
   filterActiveClientDevicesForClient,
   getUnbindClientDeviceAction,
   unbindClientDevice,
-} from '../../../../../entities/client-device/lib/unbind-client-device';
-import type { ClientDevice } from '../../../../../entities/client-device/model/types';
-import type { CatalogProduct } from '../../../../../entities/catalog-product/model/types';
-import type { Product } from '../../../../../entities/product/model/types';
+} from '../../../../../entities/client-device';
+import type { ClientDevice } from '../../../../../entities/client-device';
+import type { CatalogProduct } from '../../../../../entities/catalog-product';
+import type { Product } from '../../../../../entities/product';
 import {
   formatRetailSalePrice,
   getRetailSalePrice,
-} from '../../../../../entities/product/lib/sale-prices';
-import type { Sale } from '../../../../../entities/sale/model/types';
+} from '../../../../../entities/product';
+import type { Sale } from '../../../../../entities/sale';
 import type { CreateOrderRequestPayload } from '../../../model/order-request';
 import {
   buildOrderDetailProductSuggestions,
@@ -47,15 +48,15 @@ import {
 import {
   createServiceCatalogItem,
   getServiceCatalogItems,
-} from '../../../../../entities/service-catalog/api/serviceCatalogApi';
-import type { ServiceCatalogItem } from '../../../../../entities/service-catalog/model/types';
+} from '../../../../../entities/service-catalog';
+import type { ServiceCatalogItem } from '../../../../../entities/service-catalog';
 import {
   formatServiceRetailSalePrice,
   type ServiceSalePriceTier,
-} from '../../../../../entities/service-catalog/lib/sale-prices';
-import { initialServiceCatalogForm } from '../../../../../entities/service-catalog/model/forms';
-import { getWarehouseSettings } from '../../../../../entities/warehouse-settings/api/warehouseSettingsApi';
-import type { WarehouseItem } from '../../../../../entities/warehouse-settings/model/types';
+} from '../../../../../entities/service-catalog';
+import { initialServiceCatalogForm } from '../../../../../entities/service-catalog';
+import { getWarehouseSettings } from '../../../../../entities/warehouse-settings';
+import type { WarehouseItem } from '../../../../../entities/warehouse-settings';
 import {
   buildMissingServicePayload,
   findExactServiceSuggestion,
@@ -126,7 +127,7 @@ const findClientByPhoneIdentity = (
   return null;
 };
 
-type CreateOrderCardProps = {
+export interface CreateOrderCardProps {
   isSaving: boolean;
   employees: Employee[];
   currentEmployee: Employee | null;
@@ -146,7 +147,7 @@ type CreateOrderCardProps = {
   onOpenClientCard?: (clientId: string) => void;
 };
 
-export const CreateOrderCard = ({
+export const CreateOrderCard: React.FC<CreateOrderCardProps> = ({
   isSaving,
   employees,
   currentEmployee,
@@ -162,7 +163,7 @@ export const CreateOrderCard = ({
   onRapidSaleCreated,
   onError,
   onOpenClientCard,
-}: CreateOrderCardProps) => {
+}) => {
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<
     CreateOrderRequestPayload['sourceTab']

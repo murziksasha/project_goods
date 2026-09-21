@@ -1,3 +1,4 @@
+import type React from 'react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -6,7 +7,7 @@ import {
   type DashboardAnalyticsView,
 } from '../../model/sales-analytics';
 
-type AnalyticsTopItemsPanelProps = {
+export interface AnalyticsTopItemsPanelProps {
   items: DashboardAnalyticsView['topLineItems'];
 };
 
@@ -39,7 +40,7 @@ const ItemList = ({
   );
 };
 
-export const AnalyticsTopItemsPanel = ({ items }: AnalyticsTopItemsPanelProps) => {
+export const AnalyticsTopItemsPanel: React.FC<AnalyticsTopItemsPanelProps> = ({ items }) => {
   const { t } = useTranslation();
   const [open, setOpen] = useState(() => {
     if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {

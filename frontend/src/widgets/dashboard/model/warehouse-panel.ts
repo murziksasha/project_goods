@@ -1,23 +1,23 @@
 import type { TFunction } from 'i18next';
 import type { CSSProperties } from 'react';
 import i18n from '../../../shared/i18n/config';
-import type { Employee } from '../../../entities/employee/model/types';
+import type { Employee } from '../../../entities/employee';
 import type {
   Product,
   ProductFormValues,
   ProductModelUpdatePayload,
-} from '../../../entities/product/model/types';
+} from '../../../entities/product';
 import type {
   CatalogProduct,
   CatalogProductFormValues,
-} from '../../../entities/catalog-product/model/types';
+} from '../../../entities/catalog-product';
 import type {
   Supplier,
   SupplierFormValues,
-} from '../../../entities/supplier/model/types';
-import type { SupplierOrder } from '../../../entities/supplier-order/model/types';
-import type { Sale } from '../../../entities/sale/model/types';
-import type { PrintForm } from '../../../entities/settings/model/types';
+} from '../../../entities/supplier';
+import type { SupplierOrder } from '../../../entities/supplier-order';
+import type { Sale } from '../../../entities/sale';
+import type { PrintForm } from '../../../entities/settings';
 import type {
   StockSupplierOrderLink,
   StockWarehouseMeta,

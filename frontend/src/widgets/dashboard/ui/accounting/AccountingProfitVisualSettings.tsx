@@ -1,18 +1,19 @@
+import type React from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   profitReportChartMetricOptions,
   type ProfitReportVisualSettings,
 } from '../../model/profit-report';
 
-type AccountingProfitVisualSettingsProps = {
+export interface AccountingProfitVisualSettingsProps {
   settings: ProfitReportVisualSettings;
   onChange: (settings: ProfitReportVisualSettings) => void;
 };
 
-export const AccountingProfitVisualSettings = ({
+export const AccountingProfitVisualSettings: React.FC<AccountingProfitVisualSettingsProps> = ({
   settings,
   onChange,
-}: AccountingProfitVisualSettingsProps) => {
+}) => {
   const { t } = useTranslation();
 
   return (

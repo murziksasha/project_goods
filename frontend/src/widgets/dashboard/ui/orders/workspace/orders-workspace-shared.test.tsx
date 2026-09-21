@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { Sale } from '../../../../../entities/sale/model/types';
-import type { SupplierOrder } from '../../../../../entities/supplier-order/model/types';
-import { defaultPrintForms } from '../../../../../entities/settings/model/printForms';
+import type { Sale } from '../../../../../entities/sale';
+import type { SupplierOrder } from '../../../../../entities/supplier-order';
+import { defaultPrintForms } from '../../../../../entities/settings';
 import i18n from '../../../../../shared/i18n/config';
 import {
   allOrdersColumnKeys,

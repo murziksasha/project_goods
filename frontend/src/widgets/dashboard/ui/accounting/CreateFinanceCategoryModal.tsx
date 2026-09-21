@@ -1,20 +1,21 @@
+import type React from 'react';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Modal } from '../../../../shared/ui/Modal';
 
-type CreateFinanceCategoryModalProps = {
+export interface CreateFinanceCategoryModalProps {
   isOpen: boolean;
   isSaving?: boolean;
   onClose: () => void;
   onSubmit: (name: string) => Promise<unknown> | unknown;
 };
 
-export const CreateFinanceCategoryModal = ({
+export const CreateFinanceCategoryModal: React.FC<CreateFinanceCategoryModalProps> = ({
   isOpen,
   isSaving = false,
   onClose,
   onSubmit,
-}: CreateFinanceCategoryModalProps) => {
+}) => {
   const { t } = useTranslation();
   const [name, setName] = useState('');
 

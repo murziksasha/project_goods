@@ -1,5 +1,5 @@
-import type { Product } from '../../../entities/product/model/types';
-import type { Sale } from '../../../entities/sale/model/types';
+import type { Product } from '../../../entities/product';
+import type { Sale } from '../../../entities/sale';
 import { parseDecimal } from '../../../shared/lib/decimal';
 import {
   buildCreateOrderProductSuggestions,

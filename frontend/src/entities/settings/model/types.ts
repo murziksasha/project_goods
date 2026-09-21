@@ -1,133 +1,29 @@
-export type PrintFormType =
-  | 'receipt'
-  | 'check'
-  | 'warranty'
-  | 'completion-act'
-  | 'invoice'
-  | 'barcode'
-  | 'custom';
+import type {
+  PrintContentMargins,
+  PrintForm,
+  PrintFormType,
+  PrintLayoutBlock,
+  PrintLayoutField,
+  PrintLayoutTableColumn,
+  PrintLayoutTableRow,
+  PrintLayoutTextAlign,
+  PrintLayoutTextWeight,
+  RateProvider,
+  WeatherProvider,
+} from '../../../shared/types/domain';
 
-export type PrintLayoutTextAlign = 'left' | 'center' | 'right';
-
-export type PrintLayoutTextWeight = 'light' | 'normal' | 'bold';
-
-export type PrintLayoutField = {
-  label: string;
-  value: string;
-};
-
-export type PrintLayoutTableColumn = {
-  id: string;
-  label: string;
-};
-
-export type PrintLayoutTableRow = {
-  id: string;
-  cells: Record<string, string>;
-};
-
-export type PrintLayoutBlock =
-  | {
-      id: string;
-      type: 'heading';
-      text: string;
-      level: 1 | 2 | 3;
-      align?: PrintLayoutTextAlign;
-      weight?: PrintLayoutTextWeight;
-    }
-  | {
-      id: string;
-      type: 'paragraph';
-      text: string;
-      level: 1 | 2 | 3;
-      align?: PrintLayoutTextAlign;
-      weight?: PrintLayoutTextWeight;
-    }
-  | {
-      id: string;
-      type: 'fieldRow';
-      fields: PrintLayoutField[];
-    }
-  | {
-      id: string;
-      type: 'fieldGrid';
-      fields: PrintLayoutField[];
-      columns?: 2 | 3 | 4;
-    }
-  | {
-      id: string;
-      type: 'customTable';
-      columns: PrintLayoutTableColumn[];
-      rows: PrintLayoutTableRow[];
-    }
-  | {
-      id: string;
-      type: 'lineItemsTable';
-      kind: 'products' | 'services';
-      title?: string;
-    }
-  | {
-      id: string;
-      type: 'invoiceItemsTable';
-      title?: string;
-    }
-  | {
-      id: string;
-      type: 'barcode';
-      label?: string;
-      value?: string;
-      showValue?: boolean;
-      size?: 'compact' | 'standard' | 'large';
-    }
-  | {
-      id: string;
-      type: 'signatures';
-      left: string;
-      right: string;
-    }
-  | {
-      id: string;
-      type: 'divider';
-    }
-  | {
-      id: string;
-      type: 'spacer';
-      size: 'small' | 'medium' | 'large';
-    }
-  | {
-      id: string;
-      type: 'columns';
-      columns: Array<{
-        id: string;
-        blocks: PrintLayoutBlock[];
-      }>;
-    };
-
-export type PrintContentMargins = {
-  topMm: number;
-  rightMm: number;
-  bottomMm: number;
-  leftMm: number;
-};
-
-export type PrintForm = {
-  id: string;
-  title: string;
-  type: PrintFormType | string;
-  content: string;
-  contentFormat: 'html' | 'text';
-  layoutVersion?: 1;
-  layoutBlocks?: PrintLayoutBlock[];
-  pageSize: 'A4' | 'label';
-  labelSize?: {
-    presetId: string;
-    widthMm: number;
-    heightMm: number;
-  };
-  contentMargins?: PrintContentMargins;
-  orientation: 'portrait' | 'landscape';
-  isActive: boolean;
-  sortOrder: number;
+export type {
+  PrintContentMargins,
+  PrintForm,
+  PrintFormType,
+  PrintLayoutBlock,
+  PrintLayoutField,
+  PrintLayoutTableColumn,
+  PrintLayoutTableRow,
+  PrintLayoutTextAlign,
+  PrintLayoutTextWeight,
+  RateProvider,
+  WeatherProvider,
 };
 
 export type OrderDefaults = {
@@ -157,9 +53,6 @@ export type NotificationSettings = {
   emailEnabled: boolean;
 };
 
-export type RateProvider = 'nbu' | 'privat' | 'mono';
-
-export type WeatherProvider = 'open-meteo' | 'openweather';
 
 export type ForecastView = 'today' | 'tomorrow' | 'fiveDay';
 

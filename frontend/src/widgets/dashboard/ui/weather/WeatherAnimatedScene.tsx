@@ -1,3 +1,4 @@
+import type React from 'react';
 import type { CSSProperties } from 'react';
 import {
   resolveSceneParams,
@@ -12,7 +13,7 @@ import { WeatherSceneSky } from './scene/WeatherSceneSky';
 import { WeatherSceneSnow } from './scene/WeatherSceneSnow';
 import { WeatherSceneWindStreaks } from './scene/WeatherSceneWindStreaks';
 
-type WeatherAnimatedSceneProps = {
+export interface WeatherAnimatedSceneProps {
   condition: string;
   compact?: boolean;
   animated?: boolean;
@@ -21,14 +22,14 @@ type WeatherAnimatedSceneProps = {
   windDirection?: number;
 };
 
-export const WeatherAnimatedScene = ({
+export const WeatherAnimatedScene: React.FC<WeatherAnimatedSceneProps> = ({
   condition,
   compact = false,
   animated = true,
   intensity,
   windSpeed,
   windDirection,
-}: WeatherAnimatedSceneProps) => {
+}) => {
   const params = resolveSceneParams({
     condition,
     intensity,

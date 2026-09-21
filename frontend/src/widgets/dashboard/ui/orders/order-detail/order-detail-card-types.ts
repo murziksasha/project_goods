@@ -1,10 +1,10 @@
-import type { Employee } from '../../../../../entities/employee/model/types';
-import type { Sale } from '../../../../../entities/sale/model/types';
-import type { SupplierOrder } from '../../../../../entities/supplier-order/model/types';
-import type { Product, ProductModelUpdatePayload } from '../../../../../entities/product/model/types';
-import type { CatalogProduct } from '../../../../../entities/catalog-product/model/types';
-import type { ClientDevice, ClientDeviceFormValues } from '../../../../../entities/client-device/model/types';
-import type { PrintForm } from '../../../../../entities/settings/model/types';
+import type { Employee } from '../../../../../entities/employee';
+import type { Sale } from '../../../../../entities/sale';
+import type { SupplierOrder } from '../../../../../entities/supplier-order';
+import type { Product, ProductModelUpdatePayload } from '../../../../../entities/product';
+import type { CatalogProduct } from '../../../../../entities/catalog-product';
+import type { ClientDevice, ClientDeviceFormValues } from '../../../../../entities/client-device';
+import type { PrintForm } from '../../../../../entities/settings';
 import type {
   OrderLineItem,
   OrderStatus,

@@ -1,6 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import { createDefaultSettingsForm } from '../../../../entities/settings/model/printForms';
+import { createDefaultSettingsForm } from '../../../../entities/settings';
 import { getCompanyValidation } from '../../model/settings-panel';
 import { CompanySettingsSection } from './CompanySettingsSection';
 

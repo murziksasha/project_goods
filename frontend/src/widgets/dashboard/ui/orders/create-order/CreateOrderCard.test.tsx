@@ -6,16 +6,26 @@ import * as clientApi from '../../../../../entities/client/api/clientApi';
 import * as clientDeviceApi from '../../../../../entities/client-device/api/clientDeviceApi';
 import * as serviceCatalogApi from '../../../../../entities/service-catalog/api/serviceCatalogApi';
 import * as warehouseSettingsApi from '../../../../../entities/warehouse-settings/api/warehouseSettingsApi';
+import * as clientApi from '../../../../../entities/client';
+import * as clientDeviceApi from '../../../../../entities/client-device';
+import * as serviceCatalogApi from '../../../../../entities/service-catalog';
+import * as warehouseSettingsApi from '../../../../../entities/warehouse-settings';
 import { queryKeys } from '../../../../../shared/api/queryClient';
 import type { Employee } from '../../../../../entities/employee/model/types';
 import type { Product } from '../../../../../entities/product/model/types';
 import type { Sale } from '../../../../../entities/sale/model/types';
 import type { Client, ClientHistory } from '../../../../../entities/client/model/types';
+import type { Employee } from '../../../../../entities/employee';
+import type { Product } from '../../../../../entities/product';
+import type { Sale } from '../../../../../entities/sale';
+import type { Client, ClientHistory } from '../../../../../entities/client';
 import type {
   ClientDevice,
   ClientDeviceFormValues,
 } from '../../../../../entities/client-device/model/types';
 import type { ServiceCatalogItem } from '../../../../../entities/service-catalog/model/types';
+} from '../../../../../entities/client-device';
+import type { ServiceCatalogItem } from '../../../../../entities/service-catalog';
 import { CreateOrderCard } from './CreateOrderCard';
 import { CreateOrderSidePanel } from './CreateOrderSidePanel';
 
@@ -92,8 +102,10 @@ const {
 }));
 
 vi.mock('../../../../../entities/client/api/clientApi', async (importOriginal) => {
+vi.mock('../../../../../entities/client', async (importOriginal) => {
   const actual = await importOriginal<
     typeof import('../../../../../entities/client/api/clientApi')
+    typeof import('../../../../../entities/client')
   >();
   return {
     ...actual,
@@ -104,8 +116,10 @@ vi.mock('../../../../../entities/client/api/clientApi', async (importOriginal) =
 });
 
 vi.mock('../../../../../entities/client-device/api/clientDeviceApi', async (importOriginal) => {
+vi.mock('../../../../../entities/client-device', async (importOriginal) => {
   const actual = await importOriginal<
     typeof import('../../../../../entities/client-device/api/clientDeviceApi')
+    typeof import('../../../../../entities/client-device')
   >();
   return {
     ...actual,
@@ -116,8 +130,10 @@ vi.mock('../../../../../entities/client-device/api/clientDeviceApi', async (impo
 });
 
 vi.mock('../../../../../entities/service-catalog/api/serviceCatalogApi', async (importOriginal) => {
+vi.mock('../../../../../entities/service-catalog', async (importOriginal) => {
   const actual = await importOriginal<
     typeof import('../../../../../entities/service-catalog/api/serviceCatalogApi')
+    typeof import('../../../../../entities/service-catalog')
   >();
   return {
     ...actual,
@@ -126,8 +142,10 @@ vi.mock('../../../../../entities/service-catalog/api/serviceCatalogApi', async (
 });
 
 vi.mock('../../../../../entities/warehouse-settings/api/warehouseSettingsApi', async (importOriginal) => {
+vi.mock('../../../../../entities/warehouse-settings', async (importOriginal) => {
   const actual = await importOriginal<
     typeof import('../../../../../entities/warehouse-settings/api/warehouseSettingsApi')
+    typeof import('../../../../../entities/warehouse-settings')
   >();
   return {
     ...actual,

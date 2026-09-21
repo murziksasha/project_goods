@@ -1,6 +1,7 @@
+import type React from 'react';
 import { useTranslation } from 'react-i18next';
-import type { ClientStatus } from '../../../../entities/client/model/types';
-import { getClientStatusColor } from '../../../../entities/client/model/constants';
+import type { ClientStatus } from '../../../../entities/client';
+import { getClientStatusColor } from '../../../../entities/client';
 import type { ClientFilters } from '../../model/clients-workspace';
 import { SavedFiltersPanel } from '../orders/workspace/SavedFiltersPanel';
 
@@ -9,7 +10,7 @@ type ClientStatusOption = {
   value: ClientStatus | 'all';
 };
 
-type ClientsFilterPanelProps = {
+export interface ClientsFilterPanelProps {
   draftFilters: ClientFilters;
   isOpen: boolean;
   statusOptions: ClientStatusOption[];
@@ -27,7 +28,7 @@ type ClientsFilterPanelProps = {
   onSaveFilter: () => void;
 };
 
-export const ClientsFilterPanel = ({
+export const ClientsFilterPanel: React.FC<ClientsFilterPanelProps> = ({
   draftFilters,
   isOpen,
   statusOptions,
@@ -43,7 +44,7 @@ export const ClientsFilterPanel = ({
   onFilterIconChange,
   onFilterNameChange,
   onSaveFilter,
-}: ClientsFilterPanelProps) => {
+}) => {
   const { t } = useTranslation();
 
   const updateFilter = <K extends keyof ClientFilters>(

@@ -1,39 +1,39 @@
 import { useDeferredValue, useEffect, useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
-import { initialClientForm } from '../../../entities/client/model/forms';
+import { initialClientForm } from '../../../entities/client';
 import type {
   ClientFormValues,
   ClientHistory,
   ClientStatus,
-} from '../../../entities/client/model/types';
+} from '../../../entities/client';
 import {
   createClient,
   deleteClient,
   updateClient,
   useClientsQuery,
-} from '../../../entities/client/api/clientApi';
-import { getEmployees } from '../../../entities/employee/api/employeeApi';
-import { initialEmployeeForm } from '../../../entities/employee/model/forms';
+} from '../../../entities/client';
+import { getEmployees } from '../../../entities/employee';
+import { initialEmployeeForm } from '../../../entities/employee';
 import type {
   Employee,
   EmployeeFormValues,
-} from '../../../entities/employee/model/types';
-import { getSuppliers } from '../../../entities/supplier/api/supplierApi';
-import { getSettings } from '../../../entities/settings/api/settingsApi';
+} from '../../../entities/employee';
+import { getSuppliers } from '../../../entities/supplier';
+import { getSettings } from '../../../entities/settings';
 import {
   filterClientsByQuery,
   filterClientsByStatus,
-} from '../../../entities/client/lib/filter-clients';
+} from '../../../entities/client';
 import {
   initialProductForm,
   toProductForm,
-} from '../../../entities/product/model/forms';
+} from '../../../entities/product';
 import type {
   Product,
   ProductFormValues,
   ProductModelUpdatePayload,
-} from '../../../entities/product/model/types';
-import { filterProducts } from '../../../entities/product/lib/filter-products';
+} from '../../../entities/product';
+import { filterProducts } from '../../../entities/product';
 import {
   archiveProduct,
   createProduct,
@@ -41,56 +41,56 @@ import {
   updateProduct,
   updateProductModelByName,
   useProductsQuery,
-} from '../../../entities/product/api/productApi';
-import type { Supplier } from '../../../entities/supplier/model/types';
+} from '../../../entities/product';
+import type { Supplier } from '../../../entities/supplier';
 import type {
   ClientDevice,
   ClientDeviceFormValues,
-} from '../../../entities/client-device/model/types';
+} from '../../../entities/client-device';
 import {
   createClientDevice,
   deleteClientDevice,
   getClientDevices,
   updateClientDevice,
-} from '../../../entities/client-device/api/clientDeviceApi';
-import { initialSaleForm } from '../../../entities/sale/model/forms';
-import type { SaleFormValues } from '../../../entities/sale/model/types';
+} from '../../../entities/client-device';
+import { initialSaleForm } from '../../../entities/sale';
+import type { SaleFormValues } from '../../../entities/sale';
 import {
   createCatalogProduct,
   deleteCatalogProduct,
   mergeCatalogProducts,
   updateCatalogProduct,
   useCatalogProductsQuery,
-} from '../../../entities/catalog-product/api/catalogProductApi';
-import type { CatalogProductFormValues } from '../../../entities/catalog-product/model/types';
+} from '../../../entities/catalog-product';
+import type { CatalogProductFormValues } from '../../../entities/catalog-product';
 import {
   createSale,
   deleteSale,
   updateSale,
   useSalesQuery,
-} from '../../../entities/sale/api/saleApi';
-import type { DemoSeedKind } from '../../../features/demo-data/api/demoApi';
+} from '../../../entities/sale';
+import type { DemoSeedKind } from '../../../features/demo-data';
 import {
   queryClient,
   queryKeys,
 } from '../../../shared/api/queryClient';
 import { getRequestErrorMessage } from '../../../shared/lib/request';
 import i18n from '../../../shared/i18n/config';
-import { initialServiceCatalogForm } from '../../../entities/service-catalog/model/forms';
-import type { ServiceCatalogFormValues } from '../../../entities/service-catalog/model/types';
+import { initialServiceCatalogForm } from '../../../entities/service-catalog';
+import type { ServiceCatalogFormValues } from '../../../entities/service-catalog';
 import {
   archiveServiceCatalogItem,
   createServiceCatalogItem,
   deleteServiceCatalogItem,
   updateServiceCatalogItem,
   useServicesQuery,
-} from '../../../entities/service-catalog/api/serviceCatalogApi';
+} from '../../../entities/service-catalog';
 import type {
   AppSettings,
   AppSettingsFormValues,
-} from '../../../entities/settings/model/types';
-import { createDefaultSettingsForm } from '../../../entities/settings/model/printForms';
-import { readCachedCompanySettings } from '../../../entities/settings/model/companySettingsCache';
+} from '../../../entities/settings';
+import { createDefaultSettingsForm } from '../../../entities/settings';
+import { readCachedCompanySettings } from '../../../entities/settings';
 import { createDashboardActions } from './dashboard-actions';
 import { useDashboardEffects } from './use-dashboard-effects';
 import type { PageKey } from './types';

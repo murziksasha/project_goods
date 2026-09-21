@@ -1,9 +1,10 @@
+import type React from 'react';
 import { useTranslation } from 'react-i18next';
-import type { Client } from '../../../../entities/client/model/types';
+import type { Client } from '../../../../entities/client';
 import {
   getClientStatusLabelKey,
   getEffectiveClientStatusLogic,
-} from '../../../../entities/client/model/constants';
+} from '../../../../entities/client';
 import { formatDateTime } from '../../../../shared/lib/format';
 import { Button } from '../../../../shared/ui/Button';
 import { StatusBadge } from '../../../../shared/ui/StatusBadge';
@@ -17,7 +18,7 @@ import {
   type ClientStats,
 } from '../../model/clients-workspace';
 
-type ClientsTableProps = {
+export interface ClientsTableProps {
   filteredClientsCount: number;
   isLoading: boolean;
   clients: Client[];
@@ -27,7 +28,7 @@ type ClientsTableProps = {
   onOpenClientCard: (clientId: string) => void;
 };
 
-export const ClientsTable = ({
+export const ClientsTable: React.FC<ClientsTableProps> = ({
   filteredClientsCount,
   isLoading,
   clients,
@@ -35,7 +36,7 @@ export const ClientsTable = ({
   statsByClient,
   onDeleteClient,
   onOpenClientCard,
-}: ClientsTableProps) => {
+}) => {
   const { t } = useTranslation();
 
   return (

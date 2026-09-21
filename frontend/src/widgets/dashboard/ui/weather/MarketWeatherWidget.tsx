@@ -1,15 +1,16 @@
+import type React from 'react';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQueryClient } from '@tanstack/react-query';
-import type { DashboardPreferences } from '../../../../entities/settings/model/types';
+import type { DashboardPreferences } from '../../../../entities/settings';
 import {
   getMarketRates,
   useMarketRatesQuery,
-} from '../../../../entities/market/api/marketApi';
+} from '../../../../entities/market';
 import {
   getWeatherForecast,
   useWeatherForecastQuery,
-} from '../../../../entities/weather/api/weatherApi';
+} from '../../../../entities/weather';
 import { queryKeys } from '../../../../shared/api/queryClient';
 import {
   getEffectiveDashboardWidgetSettings,
@@ -23,7 +24,7 @@ import { MarketWeatherLoader } from './MarketWeatherLoader';
 import { MarketWeatherSettingsDrawer } from './MarketWeatherSettingsDrawer';
 import { WeatherVisual } from './WeatherVisual';
 
-type MarketWeatherWidgetProps = {
+export interface MarketWeatherWidgetProps {
   dashboardPreferences: DashboardPreferences;
 };
 
@@ -40,9 +41,9 @@ const getCurrencyAccent = (currency: string, kind: 'official' | 'buy' | 'sell') 
   return '#64748b';
 };
 
-export const MarketWeatherWidget = ({
+export const MarketWeatherWidget: React.FC<MarketWeatherWidgetProps> = ({
   dashboardPreferences,
-}: MarketWeatherWidgetProps) => {
+}) => {
   const { t, i18n } = useTranslation();
   const queryClient = useQueryClient();
   const [overrides, setOverrides] = useState<DashboardWidgetOverrides>(

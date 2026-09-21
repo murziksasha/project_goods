@@ -1,8 +1,9 @@
+import type React from 'react';
 import { useTranslation } from 'react-i18next';
-import type { ClientDevice } from '../../../../entities/client-device/model/types';
-import type { CatalogProduct } from '../../../../entities/catalog-product/model/types';
-import type { Supplier } from '../../../../entities/supplier/model/types';
-import type { ServiceCatalogItem } from '../../../../entities/service-catalog/model/types';
+import type { ClientDevice } from '../../../../entities/client-device';
+import type { CatalogProduct } from '../../../../entities/catalog-product';
+import type { Supplier } from '../../../../entities/supplier';
+import type { ServiceCatalogItem } from '../../../../entities/service-catalog';
 import { formatCurrency, formatDate } from '../../../../shared/lib/format';
 import { EmptyState } from '../../../../shared/ui/EmptyState';
 import { StatusBadge } from '../../../../shared/ui/StatusBadge';
@@ -29,7 +30,16 @@ const CatalogStatus = ({ isActive }: { isActive: boolean }) => {
   );
 };
 
-export const SuppliersTable = ({
+export const SuppliersTable: React.FC<ProductsTableProps> = ({
+export interface SuppliersTableProps {
+  suppliers: Supplier[];
+  isLoading: boolean;
+  searchQuery: string;
+  onEdit: (supplier: Supplier) => void;
+  onDelete: (supplier: Supplier) => void;
+}
+
+export const SuppliersTable: React.FC<SuppliersTableProps> = ({
   suppliers,
   searchQuery,
   rowStartIndex,
@@ -109,7 +119,7 @@ export const SuppliersTable = ({
   );
 };
 
-type ProductsTableProps = {
+export interface ProductsTableProps {
   products: ClientDevice[];
   isLoading: boolean;
   searchQuery: string;
@@ -118,12 +128,13 @@ type ProductsTableProps = {
 };
 
 export const ProductsTable = ({
+export const ProductsTable: React.FC<ProductsTableProps> = ({
   products,
   isLoading,
   searchQuery,
   rowStartIndex,
   onSelectDevice,
-}: ProductsTableProps) => {
+}) => {
   const { t } = useTranslation();
 
   if (isLoading) {
@@ -193,7 +204,17 @@ export const ProductsTable = ({
   );
 };
 
-export const CatalogProductsTable = ({
+export const CatalogProductsTable: React.FC<ServicesTableProps> = ({
+export interface CatalogProductsTableProps {
+  catalogProducts: CatalogProduct[];
+  isLoading: boolean;
+  searchQuery: string;
+  supplierNameById: Record<string, string>;
+  onEdit: (catalogProduct: CatalogProduct) => void;
+  onDelete: (catalogProduct: CatalogProduct) => void;
+}
+
+export const CatalogProductsTable: React.FC<CatalogProductsTableProps> = ({
   products,
   isLoading,
   searchQuery,
@@ -276,7 +297,7 @@ export const CatalogProductsTable = ({
   );
 };
 
-type ServicesTableProps = {
+export interface ServicesTableProps {
   services: ServiceCatalogItem[];
   isLoading: boolean;
   searchQuery: string;
@@ -285,12 +306,13 @@ type ServicesTableProps = {
 };
 
 export const ServicesTable = ({
+export const ServicesTable: React.FC<ServicesTableProps> = ({
   services,
   isLoading,
   searchQuery,
   onEdit,
   rowStartIndex,
-}: ServicesTableProps) => {
+}) => {
   const { t } = useTranslation();
 
   if (isLoading) {

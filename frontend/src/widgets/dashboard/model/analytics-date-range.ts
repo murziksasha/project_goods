@@ -1,7 +1,6 @@
-export type AnalyticsDateRange = {
-  dateFrom: string;
-  dateTo: string;
-};
+import type { AnalyticsDateRange } from '../../../entities/analytics';
+
+export type { AnalyticsDateRange };
 
 export const analyticsDateRangeStorageKey = 'project-goods.analytics-date-range';
 

@@ -18,7 +18,7 @@ import {
   it,
   vi,
 } from 'vitest';
-import type { FinanceProfitReport } from '../../../../entities/finance/model/types';
+import type { FinanceProfitReport } from '../../../../entities/finance';
 import i18n from '../../../../shared/i18n/config';
 import { AccountingProfitReportsView } from './AccountingProfitReportsView';
 
@@ -157,7 +157,10 @@ vi.mock('../../model/profit-report', async (importOriginal) => {
   };
 });
 
-vi.mock('../../../../entities/finance/api/financeApi', () => ({
+vi.mock('../../../../entities/finance', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../../entities/finance')>();
+  return {
+    ...actual,
   useFinanceProfitReportQuery: () => ({
     data: report,
     isLoading: false,
@@ -168,9 +171,13 @@ vi.mock('../../../../entities/finance/api/financeApi', () => ({
     isLoading: false,
     isError: false,
   }),
-}));
+  };
+});
 
-vi.mock('../../../../entities/product/api/productApi', () => ({
+vi.mock('../../../../entities/product', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../../entities/product')>();
+  return {
+    ...actual,
   useProductsQuery: () => ({
     data: [
       {
@@ -200,26 +207,33 @@ vi.mock('../../../../entities/product/api/productApi', () => ({
     matchedCount: 1,
     products: [],
   })),
-}));
+  };
+});
 
-vi.mock(
-  '../../../../entities/warehouse-settings/api/warehouseSettingsApi',
-  () => ({
+vi.mock('../../../../entities/warehouse-settings', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../../entities/warehouse-settings')>();
+  return {
+    ...actual,
     useWarehouseSettingsQuery: () => ({
       data: { warehouses: [] },
       isLoading: false,
       isError: false,
     }),
-  }),
-);
+    };
+});
 
-vi.mock('../../../../entities/sale/api/saleApi', () => ({
+vi.mock('../../../../entities/sale', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../../entities/sale')>();
+  return {
+    ...actual,
   getOccupiedSerialNumbers: vi.fn(async () => ({ occupied: [] })),
-}));
+  };
+});
 
-vi.mock(
-  '../../../../entities/service-catalog/api/serviceCatalogApi',
-  () => ({
+vi.mock('../../../../entities/service-catalog', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../../entities/service-catalog')>();
+  return {
+    ...actual,
     useServicesQuery: () => ({
       data: [
         {
@@ -238,8 +252,8 @@ vi.mock(
     }),
     updateServiceCatalogItem: vi.fn(),
     archiveServiceCatalogItem: vi.fn(),
-  }),
-);
+    };
+});
 
 const renderView = (ui: ReactElement) =>
   render(

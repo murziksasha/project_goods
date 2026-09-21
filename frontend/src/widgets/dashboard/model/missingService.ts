@@ -1,8 +1,8 @@
-import { initialServiceCatalogForm } from '../../../entities/service-catalog/model/forms';
+import { initialServiceCatalogForm } from '../../../entities/service-catalog';
 import type {
   ServiceCatalogFormValues,
   ServiceCatalogItem,
-} from '../../../entities/service-catalog/model/types';
+} from '../../../entities/service-catalog';
 
 type MissingServiceDecisionInput = {
   kind: 'product' | 'service';

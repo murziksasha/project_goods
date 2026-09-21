@@ -1,3 +1,4 @@
+import type React from 'react';
 import {
   lazy,
   Suspense,
@@ -17,20 +18,20 @@ import {
   updateCurrentEmployeePreferences,
   authTokenStorageKey,
   employeeSnapshotStorageKey,
-} from '../../../entities/auth/api/authApi';
+} from '../../../entities/auth';
 import {
   clearLocalAuthSession,
   persistAuthToken,
   subscribeAuthSession,
-} from '../../../entities/auth/lib/sessionLifecycle';
+} from '../../../entities/auth';
 import type {
   Employee,
   OrdersTabPreference,
-} from '../../../entities/employee/model/types';
+} from '../../../entities/employee';
 import {
   hasAnyEmployeePermission,
   hasEmployeePermission,
-} from '../../../entities/employee/model/permissions';
+} from '../../../entities/employee';
 import {
   getApiErrorMessage,
   setApiAuthToken,
@@ -47,11 +48,8 @@ import { useDashboardPage } from '../model/useDashboardPage';
 import { AnalyticsHeroSection } from '../../../widgets/dashboard/ui/analytics/AnalyticsHeroSection';
 import { Notifications } from '../../../widgets/dashboard/ui/shared/Notifications';
 import { applyPrintFormLocalOverrides } from '../../../widgets/dashboard/model/print-form-local-overrides';
-import {
-  isProductSale,
-  isRepairOrder,
-} from '../../../entities/sale/lib/sale-kind';
-import type { Sale } from '../../../entities/sale/model/types';
+import { isProductSale, isRepairOrder } from '../../../entities/sale';
+import type { Sale } from '../../../entities/sale';
 import { GlobalHorizontalScrollbar } from '../../../shared/ui/GlobalHorizontalScrollbar';
 import { ScrollToTopButton } from '../../../shared/ui/ScrollToTopButton';
 import { AccessDeniedPanel } from '../../../shared/ui/AccessDeniedPanel';
@@ -64,13 +62,13 @@ import { startLiveEvents } from '../../../shared/api/liveEvents';
 import {
   DashboardSidebar,
   type DashboardSidebarItem,
-} from '../../../widgets/dashboard-sidebar/ui/DashboardSidebar';
-import { DashboardTopbar } from '../../../widgets/dashboard-topbar/ui/DashboardTopbar';
+} from '../../../widgets/dashboard-sidebar';
+import { DashboardTopbar } from '../../../widgets/dashboard-topbar';
 import {
   CommandPalette,
   type CommandPaletteAction,
 } from '../../../widgets/dashboard/ui/command-palette/CommandPalette';
-import { DashboardMobileNav } from '../../../widgets/dashboard-mobile-nav/ui/DashboardMobileNav';
+import { DashboardMobileNav } from '../../../widgets/dashboard-mobile-nav';
 import type { AccountingTab } from '../../../widgets/dashboard/model/accounting';
 import {
   getDashboardHref,
@@ -92,7 +90,7 @@ import {
   type OrdersTab,
   type PageKey,
 } from '../model/types';
-import { readCachedServiceName } from '../../../entities/settings/model/serviceNameCache';
+import { readCachedServiceName } from '../../../entities/settings';
 
 const OrdersWorkspace = lazy(() =>
   import('../../../widgets/dashboard/ui/orders/workspace/OrdersWorkspace').then(
@@ -250,7 +248,7 @@ const isPlainLeftClick = (
 const isTemporaryAdmin = (employee: Employee | null) =>
   employee?.role === 'owner' && employee.username === 'admin';
 
-export const DashboardPage = () => {
+export const DashboardPage: React.FC = () => {
   const { t, i18n } = useTranslation();
   const buildLocale = i18n.language?.startsWith('uk')
     ? 'uk-UA'

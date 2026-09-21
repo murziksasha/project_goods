@@ -3,11 +3,15 @@ import { cleanup } from '@testing-library/react';
 import { afterEach, vi } from 'vitest';
 import i18n from '../shared/i18n/config';
 
-afterEach(() => {
+afterEach(async () => {
   cleanup();
   document.body.replaceChildren();
   vi.useRealTimers();
   vi.unstubAllGlobals();
+  window.localStorage.clear();
+  if (i18n.language !== 'en') {
+    await i18n.changeLanguage('en');
+  }
 });
 
 const createStorageMock = (): Storage => {
@@ -81,7 +85,8 @@ if (typeof window !== 'undefined') {
 
   // jsdom does not implement scrollIntoView; components and tests rely on it.
   if (typeof HTMLElement.prototype.scrollIntoView !== 'function') {
-    HTMLElement.prototype.scrollIntoView = function scrollIntoView() {};
+    HTMLElement.prototype.scrollIntoView =
+      function scrollIntoView() {};
   }
 }
 

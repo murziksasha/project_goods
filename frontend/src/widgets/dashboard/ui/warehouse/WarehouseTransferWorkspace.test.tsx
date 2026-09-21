@@ -1,6 +1,6 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { Product } from '../../../../entities/product/model/types';
+import type { Product } from '../../../../entities/product';
 import type {
   ProductWarehouseMeta,
   TransferFormState,

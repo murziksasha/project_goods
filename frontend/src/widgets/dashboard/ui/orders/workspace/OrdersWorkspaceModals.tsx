@@ -1,7 +1,8 @@
+import type React from 'react';
 import { useTranslation } from 'react-i18next';
-import type { Cashbox } from '../../../../../entities/finance/model/types';
-import type { Sale } from '../../../../../entities/sale/model/types';
-import type { PrintForm } from '../../../../../entities/settings/model/types';
+import type { Cashbox } from '../../../../../entities/finance';
+import type { Sale } from '../../../../../entities/sale';
+import type { PrintForm } from '../../../../../entities/settings';
 import {
   MessageModal,
   PaymentModal,
@@ -25,7 +26,7 @@ import {
   type PrintCompanySettings,
 } from './orders-workspace-shared';
 
-type OrdersWorkspaceModalsProps = {
+export interface OrdersWorkspaceModalsProps {
   printForms: PrintForm[];
   printCompanySettings: PrintCompanySettings;
   paymentSale: Sale | null;
@@ -78,7 +79,7 @@ type OrdersWorkspaceModalsProps = {
   onReturnFullSaleToStock: () => void | Promise<void>;
 };
 
-export const OrdersWorkspaceModals = ({
+export const OrdersWorkspaceModals: React.FC<OrdersWorkspaceModalsProps> = ({
   printForms,
   printCompanySettings,
   paymentSale,
@@ -126,7 +127,7 @@ export const OrdersWorkspaceModals = ({
   onRefundPayment,
   onReturnLineItemToStock,
   onReturnFullSaleToStock,
-}: OrdersWorkspaceModalsProps) => {
+}) => {
   const { t } = useTranslation();
 
   return (

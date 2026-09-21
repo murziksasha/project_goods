@@ -2,7 +2,7 @@ import { cleanup, fireEvent, render, screen, within } from '@testing-library/rea
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { I18nextProvider } from 'react-i18next';
 import i18n from '../../../../shared/i18n/config';
-import type { FinanceCategory } from '../../../../entities/finance/model/types';
+import type { FinanceCategory } from '../../../../entities/finance';
 import { AccountingCategorySettings } from './AccountingCategorySettings';
 
 const category = (patch: Partial<FinanceCategory>): FinanceCategory => {

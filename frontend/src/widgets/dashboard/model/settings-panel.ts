@@ -1,4 +1,4 @@
-import type { AppSettingsFormValues } from '../../../entities/settings/model/types';
+import type { AppSettingsFormValues } from '../../../entities/settings';
 import {
   isOptionalAddressValid,
   isOptionalIbanValid,

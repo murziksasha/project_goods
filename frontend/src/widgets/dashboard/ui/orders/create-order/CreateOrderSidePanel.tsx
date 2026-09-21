@@ -1,9 +1,10 @@
+import type React from 'react';
 import { useTranslation } from 'react-i18next';
-import type { ClientDevice } from '../../../../../entities/client-device/model/types';
-import type { Sale } from '../../../../../entities/sale/model/types';
+import type { ClientDevice } from '../../../../../entities/client-device';
+import type { Sale } from '../../../../../entities/sale';
 import {
   getSaleProductName,
-} from '../../../../../entities/sale/lib/sale-product';
+} from '../../../../../entities/sale';
 import {
   getOrderLink,
   type ClientRequestTab,
@@ -11,7 +12,7 @@ import {
 
 const CLIENT_REQUESTS_SCROLL_THRESHOLD = 4;
 
-type CreateOrderSidePanelProps = {
+export interface CreateOrderSidePanelProps {
   hasSelectedClient: boolean;
   registeredClientDevices: ClientDevice[];
   unbindingDeviceId: string | null;
@@ -23,7 +24,7 @@ type CreateOrderSidePanelProps = {
   onClientRequestTabChange: (tab: ClientRequestTab) => void;
 };
 
-export const CreateOrderSidePanel = ({
+export const CreateOrderSidePanel: React.FC<CreateOrderSidePanelProps> = ({
   hasSelectedClient,
   registeredClientDevices,
   unbindingDeviceId,
@@ -33,7 +34,7 @@ export const CreateOrderSidePanel = ({
   onApplyDevice,
   onUnbindDevice,
   onClientRequestTabChange,
-}: CreateOrderSidePanelProps) => {
+}) => {
   const { t } = useTranslation();
   const shouldScrollClientRequests =
     activeClientRequests.length >= CLIENT_REQUESTS_SCROLL_THRESHOLD;

@@ -1,8 +1,9 @@
+import type React from 'react';
 import { useTranslation } from 'react-i18next';
-import type { Client } from '../../../entities/client/model/types';
+import type { Client } from '../../../entities/client';
 import { useDismissibleSuggestions } from '../../../shared/lib/useDismissibleSuggestions';
 
-type ClientLookupFieldsProps = {
+export interface ClientLookupFieldsProps {
   clientNameInput: string;
   clientPhoneInput: string;
   clientSuggestions: Client[];
@@ -10,9 +11,11 @@ type ClientLookupFieldsProps = {
   onNameChange: (value: string) => void;
   onPhoneChange: (value: string) => void;
   onPickClient: (client: Client) => void;
-};
+}
 
-export const ClientLookupFields = ({
+export const ClientLookupFields: React.FC<
+  ClientLookupFieldsProps
+> = ({
   clientNameInput,
   clientPhoneInput,
   clientSuggestions,
@@ -20,29 +23,35 @@ export const ClientLookupFields = ({
   onNameChange,
   onPhoneChange,
   onPickClient,
-}: ClientLookupFieldsProps) => {
+}) => {
   const { t } = useTranslation();
   const { rootRef, isVisible } = useDismissibleSuggestions({
     query: `${clientNameInput}\n${clientPhoneInput}`,
     isActive:
       !isBound &&
-      (clientNameInput.trim().length > 0 || clientPhoneInput.trim().length > 0),
+      (clientNameInput.trim().length > 0 ||
+        clientPhoneInput.trim().length > 0),
   });
 
   return (
-    <div ref={rootRef} className="field field-wide modal-suggestions-anchor">
+    <div
+      ref={rootRef}
+      className='field field-wide modal-suggestions-anchor'
+    >
       <span>{t('legacy.saleForm.lookup.client')}</span>
-      <div className="form-grid compact-form-grid">
-        <label className="field">
+      <div className='form-grid compact-form-grid'>
+        <label className='field'>
           <span>{t('legacy.saleForm.lookup.name')}</span>
           <input
             value={clientNameInput}
-            placeholder={t('legacy.saleForm.lookup.clientPlaceholder')}
+            placeholder={t(
+              'legacy.saleForm.lookup.clientPlaceholder',
+            )}
             onChange={(event) => onNameChange(event.target.value)}
           />
         </label>
 
-        <label className="field">
+        <label className='field'>
           <span>{t('legacy.saleForm.lookup.phone')}</span>
           <input
             value={clientPhoneInput}
@@ -53,13 +62,13 @@ export const ClientLookupFields = ({
       </div>
 
       {isVisible ? (
-        <div className="suggestions-panel">
+        <div className='suggestions-panel'>
           {clientSuggestions.length > 0 ? (
             clientSuggestions.map((client) => (
               <button
                 key={client.id}
-                className="suggestion-item"
-                type="button"
+                className='suggestion-item'
+                type='button'
                 onMouseDown={(event) => event.preventDefault()}
                 onClick={() => onPickClient(client)}
               >
@@ -70,7 +79,9 @@ export const ClientLookupFields = ({
               </button>
             ))
           ) : (
-            <p className="suggestion-empty">{t('legacy.saleForm.lookup.noClientsFound')}</p>
+            <p className='suggestion-empty'>
+              {t('legacy.saleForm.lookup.noClientsFound')}
+            </p>
           )}
         </div>
       ) : null}

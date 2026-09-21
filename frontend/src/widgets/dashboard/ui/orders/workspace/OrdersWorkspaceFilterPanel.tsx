@@ -1,3 +1,4 @@
+import type React from 'react';
 import type { Dispatch, RefObject, SetStateAction } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -20,7 +21,7 @@ type AssigneeOption = {
   label: string;
 };
 
-type OrdersWorkspaceFilterPanelProps = {
+export interface OrdersWorkspaceFilterPanelProps {
   isFilterPanelOpen: boolean;
   isStatusFilterOpen: boolean;
   isSaveFilterDrawerOpen: boolean;
@@ -49,7 +50,7 @@ type OrdersWorkspaceFilterPanelProps = {
   onRemoveSavedFilter: (filterId: string) => void;
 };
 
-export const OrdersWorkspaceFilterPanel = ({
+export const OrdersWorkspaceFilterPanel: React.FC<OrdersWorkspaceFilterPanelProps> = ({
   isFilterPanelOpen,
   isStatusFilterOpen,
   isSaveFilterDrawerOpen,
@@ -75,7 +76,7 @@ export const OrdersWorkspaceFilterPanel = ({
   onSaveCurrentFilter,
   onApplySavedFilter,
   onRemoveSavedFilter,
-}: OrdersWorkspaceFilterPanelProps) => {
+}) => {
   const { t } = useTranslation();
   const isKanban = variant === 'kanban';
   const isSales = variant === 'sales';

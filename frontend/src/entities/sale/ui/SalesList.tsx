@@ -1,3 +1,4 @@
+import type React from 'react';
 import { useTranslation } from 'react-i18next';
 import { formatCurrency, formatDateTime } from '../../../shared/lib/format';
 import {
@@ -5,23 +6,28 @@ import {
   getSaleProductName,
 } from '../lib/sale-product';
 import type { Sale } from '../model/types';
+import { getSaleClientDisplayName } from '../lib/sale-client-display';
 import { getSaleClientDisplayName } from '../../../widgets/dashboard/model/sale-client-display';
 
 type SalesListProps = {
+export interface SalesListProps {
   sales: Sale[];
   isLoading: boolean;
   emptyText?: string;
   onEdit?: (sale: Sale) => void;
   onDelete?: (sale: Sale) => void;
 };
+}
 
 export const SalesList = ({
+export const SalesList: React.FC<SalesListProps> = ({
   sales,
   isLoading,
   emptyText,
   onEdit,
   onDelete,
 }: SalesListProps) => {
+}) => {
   const { t } = useTranslation();
   const resolvedEmptyText = emptyText ?? t('legacy.salesList.empty');
 

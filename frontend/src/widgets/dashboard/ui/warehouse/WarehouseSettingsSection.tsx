@@ -1,6 +1,7 @@
+import type React from 'react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { Employee } from '../../../../entities/employee/model/types';
+import type { Employee } from '../../../../entities/employee';
 import { PageHeader } from '../../../../shared/ui/PageHeader';
 import {
   settingsTabs,
@@ -34,6 +35,7 @@ export const WarehouseSettings = ({
   onSaveAdministrators,
   isSaving,
 }: {
+export interface WarehouseSettingsProps {
   tab: SettingsTab;
   onTabChange: (tab: SettingsTab) => void;
   employees: Employee[];
@@ -54,6 +56,25 @@ export const WarehouseSettings = ({
   ) => void;
   onSaveAdministrators: () => void;
   isSaving: boolean;
+}
+
+export const WarehouseSettings: React.FC<WarehouseSettingsProps> = ({
+  tab,
+  onTabChange,
+  employees,
+  serviceCenters,
+  warehouses,
+  administrators,
+  warehousesByServiceCenter,
+  activeWarehousesByServiceCenter,
+  warehouseProductCounts,
+  onCreateServiceCenter,
+  onEditServiceCenter,
+  onCreateWarehouse,
+  onEditWarehouse,
+  onAdministratorChange,
+  onSaveAdministrators,
+  isSaving,
 }) => {
   const { t } = useTranslation();
   const serviceCenterMap = useMemo(

@@ -1,5 +1,5 @@
-import type { Product } from '../../../entities/product/model/types';
-import { getRetailSalePrice } from '../../../entities/product/lib/sale-prices';
+import type { Product } from '../../../entities/product';
+import { getRetailSalePrice } from '../../../entities/product';
 
 export const DEBOUNCE_MS = 300;
 export const MAX_SUGGESTIONS = 6;

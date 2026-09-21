@@ -1,3 +1,4 @@
+import type React from 'react';
 import {
   useCallback,
   useEffect,
@@ -11,26 +12,26 @@ import i18n from '../../../../../shared/i18n/config';
 import {
   hasAnyEmployeePermission,
   hasEmployeePermission,
-} from '../../../../../entities/employee/model/permissions';
-import type { Sale } from '../../../../../entities/sale/model/types';
-import { isRepairOrder } from '../../../../../entities/sale/lib/sale-kind';
-import { getSaleListSearchValues } from '../../../../../entities/sale/lib/sale-product';
+} from '../../../../../entities/employee';
+import type { Sale } from '../../../../../entities/sale';
+import { isRepairOrder } from '../../../../../entities/sale';
+import { getSaleListSearchValues } from '../../../../../entities/sale';
 import { formatCurrency } from '../../../../../shared/lib/format';
 import { scrollDashboardMainToTop } from '../../../../../shared/lib/scrollDashboardMain';
 import { parseMoney } from '../../../../../shared/lib/decimal';
 import {
   getSaleClientPhones,
   saleMatchesPhoneQuery,
-} from '../../../../../entities/client/lib/phone-match';
-import type { ClientStatus } from '../../../../../entities/client/model/types';
+} from '../../../../../entities/client';
+import type { ClientStatus } from '../../../../../entities/client';
 import {
   getClientStatusClass,
   getClientStatusColor,
   getClientStatusLabelKey,
   getEffectiveClientStatusLogic,
-} from '../../../../../entities/client/model/constants';
+} from '../../../../../entities/client';
 import { normalizePhone } from '../../../../../shared/lib/phoneFormatter';
-import { getCashboxes } from '../../../../../entities/finance/api/financeApi';
+import { getCashboxes } from '../../../../../entities/finance';
 import {
   acceptSalePayment as acceptSalePaymentRequest,
   refundSalePayment as refundSalePaymentRequest,
@@ -38,17 +39,17 @@ import {
   returnSaleLineItemToStock,
   updateSaleFavorite,
   updateSaleWorkspace,
-} from '../../../../../entities/sale/api/saleApi';
+} from '../../../../../entities/sale';
 import {
   createSavedFilter as createSavedFilterRequest,
   deleteSavedFilter as deleteSavedFilterRequest,
   listSavedFilters,
-} from '../../../../../entities/saved-filter/api/savedFilterApi';
+} from '../../../../../entities/saved-filter';
 import {
   invalidateSupplierOrderQueries,
   useSupplierOrdersQuery,
-} from '../../../../../entities/supplier-order/api/supplierOrderApi';
-import type { Cashbox } from '../../../../../entities/finance/model/types';
+} from '../../../../../entities/supplier-order';
+import type { Cashbox } from '../../../../../entities/finance';
 import {
   isKanbanVisibleSale,
   kanbanSortKey,
@@ -61,8 +62,8 @@ import { OrdersWorkspaceListHeader } from './OrdersWorkspaceListHeader';
 import { OrdersWorkspaceModals } from './OrdersWorkspaceModals';
 import { OrdersWorkspaceTableSection } from './OrdersWorkspaceTableSection';
 import { TruncatedTextTooltip } from '../../../../../shared/ui/TruncatedTextTooltip';
-import { useSaleDetail } from '../../../../../entities/sale/api/useSaleDetail';
-import { useSalesPageQuery } from '../../../../../entities/sale/api/saleApi';
+import { useSaleDetail } from '../../../../../entities/sale';
+import { useSalesPageQuery } from '../../../../../entities/sale';
 import { buildOrdersSalesListParams } from './orders-sales-query';
 
 import { OrderDetailCard } from '../order-detail/OrderDetailCard';
@@ -183,7 +184,7 @@ const isSaleResponse = (value: unknown): value is Sale => {
   );
 };
 
-export const OrdersWorkspace = ({
+export const OrdersWorkspace: React.FC<OrdersWorkspaceProps> = ({
   sales,
   employees,
   isLoading,
@@ -217,7 +218,7 @@ export const OrdersWorkspace = ({
   onUpdateProductModel,
   pendingPaymentSale = null,
   onPendingPaymentSaleHandled,
-}: OrdersWorkspaceProps) => {
+}) => {
   const { t } = useTranslation();
   const currentEmployeeName =
     currentEmployee?.name ??

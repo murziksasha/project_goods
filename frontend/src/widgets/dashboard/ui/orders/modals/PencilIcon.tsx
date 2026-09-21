@@ -1,4 +1,5 @@
-export const PencilIcon = () => (
+import type React from 'react';
+export const PencilIcon: React.FC = () => (
   <svg
     className='toolbar-square-button-icon'
     viewBox='0 0 24 24'

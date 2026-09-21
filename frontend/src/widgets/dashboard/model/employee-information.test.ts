@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import type { Employee } from '../../../entities/employee/model/types';
-import type { Sale } from '../../../entities/sale/model/types';
+import type { Employee } from '../../../entities/employee';
+import type { Sale } from '../../../entities/sale';
 import { buildEmployeeInformationReport } from './employee-information';
 
 const baseEmployee = (patch: Partial<Employee> = {}): Employee => ({

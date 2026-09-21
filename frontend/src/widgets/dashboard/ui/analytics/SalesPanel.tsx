@@ -1,20 +1,21 @@
+import type React from 'react';
 import { useTranslation } from 'react-i18next';
-import type { Sale } from '../../../../entities/sale/model/types';
-import { SalesList } from '../../../../entities/sale/ui/SalesList';
+import type { Sale } from '../../../../entities/sale';
+import { SalesList } from '../../../../entities/sale';
 
-export type SalesPanelProps = {
+export interface SalesPanelProps {
   sales: Sale[];
   isLoading: boolean;
   onEdit: (sale: Sale) => void;
   onDelete: (sale: Sale) => void;
 };
 
-export const SalesPanel = ({
+export const SalesPanel: React.FC<SalesPanelProps> = ({
   sales,
   isLoading,
   onEdit,
   onDelete,
-}: SalesPanelProps) => {
+}) => {
   const { t } = useTranslation();
 
   return (

@@ -1,22 +1,27 @@
+import type React from 'react';
 import { useTranslation } from 'react-i18next';
 import { formatCurrency, formatDate } from '../../../shared/lib/format';
 import type { Product } from '../model/types';
 
 type ProductListProps = {
+export interface ProductListProps {
   products: Product[];
   isLoading: boolean;
   searchQuery: string;
   onEdit: (product: Product) => void;
   onDelete: (product: Product) => void;
 };
+}
 
 export const ProductList = ({
+export const ProductList: React.FC<ProductListProps> = ({
   products,
   isLoading,
   searchQuery,
   onEdit,
   onDelete,
 }: ProductListProps) => {
+}) => {
   const { t } = useTranslation();
 
   if (isLoading) {

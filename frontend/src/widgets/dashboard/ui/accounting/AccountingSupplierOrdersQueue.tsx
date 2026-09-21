@@ -1,10 +1,11 @@
+import type React from 'react';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type {
   Cashbox,
   SupplierOrderPaymentQueueItem,
-} from '../../../../entities/finance/model/types';
-import type { SupplierOrder } from '../../../../entities/supplier-order/model/types';
+} from '../../../../entities/finance';
+import type { SupplierOrder } from '../../../../entities/supplier-order';
 import {
   findSupplierOrderForQueueItem,
   formatDateDdMmYyyy,
@@ -16,7 +17,7 @@ import { formatMetric } from '../../model/sales-analytics';
 import { getSupplierOrderDisplayNumber } from '../../model/supplier-order-utils';
 import { PaySupplierOrderModal } from './AccountingConfirmModals';
 
-type AccountingSupplierOrdersQueueProps = {
+export interface AccountingSupplierOrdersQueueProps {
   canIssueSupplierOrdersWithoutPayment: boolean;
   canPaySupplierOrders: boolean;
   cashboxes: Cashbox[];
@@ -35,7 +36,7 @@ type AccountingSupplierOrdersQueueProps = {
   onSelectedSupplierOrderChange: (order: SupplierOrder) => void;
 };
 
-export const AccountingSupplierOrdersQueue = ({
+export const AccountingSupplierOrdersQueue: React.FC<AccountingSupplierOrdersQueueProps> = ({
   canIssueSupplierOrdersWithoutPayment,
   canPaySupplierOrders,
   cashboxes,
@@ -48,7 +49,7 @@ export const AccountingSupplierOrdersQueue = ({
   onIssueWithoutPayment,
   onPaySupplierOrder,
   onSelectedSupplierOrderChange,
-}: AccountingSupplierOrdersQueueProps) => {
+}) => {
   const { t } = useTranslation();
   const [searchQuery, setSearchQuery] = useState('');
   const [cashboxByOrderId, setCashboxByOrderId] = useState<Record<string, string>>(

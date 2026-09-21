@@ -1,6 +1,6 @@
-import type { Product } from '../../../entities/product/model/types';
-import type { Sale } from '../../../entities/sale/model/types';
-import type { DashboardAnalyticsResponse } from '../../../entities/analytics/api/analyticsApi';
+import type { Product } from '../../../entities/product';
+import type { Sale } from '../../../entities/sale';
+import type { DashboardAnalyticsResponse } from '../../../entities/analytics';
 import i18n from '../../../shared/i18n/config';
 import {
   formatAnalyticsDateRangeLabel,

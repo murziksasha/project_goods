@@ -1,8 +1,19 @@
+import type React from 'react';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Modal } from '../../../../shared/ui/Modal';
 
 export const ModalShell = ({
+export interface ModalShellProps {
+  title: string;
+  children: ReactNode;
+  onClose: () => void;
+  onSubmit: () => void;
+  submitLabel: string;
+  canSubmit: boolean;
+}
+
+export const ModalShell: React.FC<ModalShellProps> = ({
   title,
   children,
   onClose,

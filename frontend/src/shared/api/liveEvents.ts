@@ -1,9 +1,9 @@
 import { queryClient, queryKeys } from './queryClient';
-import { authTokenStorageKey } from '../../entities/auth/api/authApi';
+import { authTokenStorageKey } from '../../entities/auth';
 import {
   clearLocalAuthSession,
   subscribeAuthSession,
-} from '../../entities/auth/lib/sessionLifecycle';
+} from '../../entities/auth';
 
 export const liveEventsLockName = 'project-goods.live-events-leader';
 export const liveEventsChannelName = 'project-goods.live-events';

@@ -1,21 +1,19 @@
+import type React from 'react';
 import type { KeyboardEvent, MouseEvent, ReactNode } from 'react';
 
-type SelectableActionLinkProps = {
+export interface SelectableActionLinkProps {
   children: ReactNode;
   onAction: () => void;
   className?: string;
   title?: string;
-};
+}
 
 const hasTextSelection = () =>
   (window.getSelection()?.toString().trim().length ?? 0) > 0;
 
-export const SelectableActionLink = ({
-  children,
-  onAction,
-  className,
-  title,
-}: SelectableActionLinkProps) => {
+export const SelectableActionLink: React.FC<
+  SelectableActionLinkProps
+> = ({ children, onAction, className, title }) => {
   const handleClick = (event: MouseEvent<HTMLSpanElement>) => {
     if (hasTextSelection()) return;
     event.preventDefault();
