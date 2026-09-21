@@ -1,5 +1,12 @@
 import { fireEvent, render, screen } from '@testing-library/react';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from 'vitest';
 import { createDefaultSettingsForm } from '../../../../entities/settings';
 import type { AppSettingsFormValues } from '../../../../entities/settings';
 import * as backupApi from '../../../../entities/backup';
@@ -62,8 +69,12 @@ const defaultDbStats = {
 };
 
 beforeEach(() => {
-  vi.spyOn(backupApi, 'listBackups').mockResolvedValue(defaultBackups);
-  vi.spyOn(backupApi, 'createBackup').mockResolvedValue(defaultBackups[0]);
+  vi.spyOn(backupApi, 'listBackups').mockResolvedValue(
+    defaultBackups,
+  );
+  vi.spyOn(backupApi, 'createBackup').mockResolvedValue(
+    defaultBackups[0],
+  );
   vi.spyOn(backupApi, 'deleteBackup').mockResolvedValue({
     id: 'project-goods-20260607-100000',
     deleted: true,
@@ -82,10 +93,13 @@ beforeEach(() => {
     safetyBackupId: 'project-goods-20260607-100100-safety',
     success: true,
   });
-  vi.spyOn(systemDbApi, 'getDbHealth').mockResolvedValue(defaultDbHealth);
-  vi.spyOn(systemDbApi, 'getDbStats').mockResolvedValue(defaultDbStats);
+  vi.spyOn(systemDbApi, 'getDbHealth').mockResolvedValue(
+    defaultDbHealth,
+  );
+  vi.spyOn(systemDbApi, 'getDbStats').mockResolvedValue(
+    defaultDbStats,
+  );
 });
-
 
 afterEach(() => {
   cleanup();
@@ -166,17 +180,34 @@ describe('SettingsPanel', () => {
   it('shows company, print form, backup and database settings tabs', async () => {
     render(<SettingsPanelHarness />);
 
-    expect(screen.getByRole('tab', { name: 'Company' })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: 'Print forms' })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: 'Dashboard' })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: 'Backups' })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: 'Database' })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Orders' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Numbering' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Finance' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Notifications' })).not.toBeInTheDocument();
+    expect(
+      screen.getByRole('tab', { name: 'Company' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('tab', { name: 'Print forms' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('tab', { name: 'Dashboard' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('tab', { name: 'Backups' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('tab', { name: 'Database' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Orders' }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Numbering' }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Finance' }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Notifications' }),
+    ).not.toBeInTheDocument();
   });
-
 
   it('allows saving default optional company print fields', async () => {
     render(<SettingsPanelHarness />);
@@ -186,7 +217,9 @@ describe('SettingsPanel', () => {
     expect(screen.getByLabelText('Company IBAN')).toHaveValue('');
     expect(screen.getByLabelText('Company e-mail')).toHaveValue('');
     expect(screen.getByLabelText('Company site')).toHaveValue('');
-    expect(screen.getByRole('button', { name: 'Save settings' })).toBeEnabled();
+    expect(
+      screen.getByRole('button', { name: 'Save settings' }),
+    ).toBeEnabled();
   });
 
   it('disables save when an optional company field is filled with an invalid value', async () => {
@@ -196,7 +229,9 @@ describe('SettingsPanel', () => {
       target: { value: 'bad-iban' },
     });
 
-    expect(screen.getByRole('button', { name: 'Save settings' })).toBeDisabled();
+    expect(
+      screen.getByRole('button', { name: 'Save settings' }),
+    ).toBeDisabled();
   });
 
   it('keeps valid company print fields in form state', async () => {
@@ -218,39 +253,71 @@ describe('SettingsPanel', () => {
       target: { value: 'https://example.com' },
     });
 
-    expect(screen.getByLabelText('Company address')).toHaveValue('Kyiv, Main street 1');
-    expect(screen.getByLabelText('Company ID')).toHaveValue('12345678');
-    expect(screen.getByLabelText('Company IBAN')).toHaveValue('UA123456789123456789123456789');
-    expect(screen.getByLabelText('Company e-mail')).toHaveValue('billing@example.com');
-    expect(screen.getByLabelText('Company site')).toHaveValue('https://example.com');
-    expect(screen.getByRole('button', { name: 'Save settings' })).toBeEnabled();
+    expect(screen.getByLabelText('Company address')).toHaveValue(
+      'Kyiv, Main street 1',
+    );
+    expect(screen.getByLabelText('Company ID')).toHaveValue(
+      '12345678',
+    );
+    expect(screen.getByLabelText('Company IBAN')).toHaveValue(
+      'UA123456789123456789123456789',
+    );
+    expect(screen.getByLabelText('Company e-mail')).toHaveValue(
+      'billing@example.com',
+    );
+    expect(screen.getByLabelText('Company site')).toHaveValue(
+      'https://example.com',
+    );
+    expect(
+      screen.getByRole('button', { name: 'Save settings' }),
+    ).toBeEnabled();
   });
 
   it('supports print form add, duplicate, delete and live preview', async () => {
     render(<SettingsPanelHarness />);
 
     fireEvent.click(screen.getByRole('tab', { name: 'Print forms' }));
-    expect(screen.getByLabelText('Document template')).toHaveValue('receipt');
+    expect(screen.getByLabelText('Document template')).toHaveValue(
+      'receipt',
+    );
     expect(document.body.textContent).toContain('Receipt');
     expect(document.body.textContent).toContain('Services');
     expect(document.body.textContent).toContain('Products');
     expect(document.body.textContent).not.toContain('Р');
 
     fireEvent.click(screen.getByRole('button', { name: 'Add' }));
-    expect(screen.getByLabelText('Template name')).toHaveValue('New template');
-    expect((screen.getByLabelText('Document template') as HTMLSelectElement).value).toMatch(
-      /^form-/,
+    expect(screen.getByLabelText('Template name')).toHaveValue(
+      'New template',
     );
-    expect(screen.getByRole('button', { name: 'Heading' })).toBeInTheDocument();
+    expect(
+      (
+        screen.getByLabelText(
+          'Document template',
+        ) as HTMLSelectElement
+      ).value,
+    ).toMatch(/^form-/);
+    expect(
+      screen.getByRole('button', { name: 'Heading' }),
+    ).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Editable table' }));
-    expect(screen.getAllByText('Editable table').length).toBeGreaterThan(1);
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Editable table' }),
+    );
+    expect(
+      screen.getAllByText('Editable table').length,
+    ).toBeGreaterThan(1);
     fireEvent.click(screen.getByRole('button', { name: 'Add row' }));
 
-    fireEvent.click(screen.getAllByRole('button', { name: 'Duplicate' })[0]);
-    expect(screen.getByLabelText('Template name')).toHaveValue('New template copy');
+    fireEvent.click(
+      screen.getAllByRole('button', { name: 'Duplicate' })[0],
+    );
+    expect(screen.getByLabelText('Template name')).toHaveValue(
+      'New template copy',
+    );
 
-    fireEvent.click(screen.getByRole('button', { name: 'Delete template' }));
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Delete template' }),
+    );
     expect(screen.getByText('New template')).toBeInTheDocument();
   }, 20000);
 
@@ -271,7 +338,9 @@ describe('SettingsPanel', () => {
       ),
     ).toBeNull();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Save settings' }));
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Save settings' }),
+    );
 
     const stored = JSON.parse(
       window.localStorage.getItem(
@@ -289,55 +358,101 @@ describe('SettingsPanel', () => {
     const templateSelect = screen.getByLabelText('Document template');
 
     expect(templateSelect).toHaveValue('receipt');
-    expect(screen.getByLabelText('Template name')).toHaveValue('Receipt');
-    expect(screen.getByRole('button', { name: /1\. Text/ })).toBeInTheDocument();
+    expect(screen.getByLabelText('Template name')).toHaveValue(
+      'Receipt',
+    );
+    expect(
+      screen.getByRole('button', { name: /1\. Text/ }),
+    ).toBeInTheDocument();
 
-    fireEvent.change(templateSelect, { target: { value: 'barcode' } });
+    fireEvent.change(templateSelect, {
+      target: { value: 'barcode' },
+    });
 
-    expect(screen.getByLabelText('Document template')).toHaveValue('barcode');
-    expect(screen.getByLabelText('Template name')).toHaveValue('Barcode');
+    expect(screen.getByLabelText('Document template')).toHaveValue(
+      'barcode',
+    );
+    expect(screen.getByLabelText('Template name')).toHaveValue(
+      'Barcode',
+    );
     expect(screen.getByLabelText('Page size')).toHaveValue('label');
-    expect(screen.getByLabelText('Orientation')).toHaveValue('landscape');
-    expect(screen.getByRole('button', { name: /1\. Barcode/ })).toBeInTheDocument();
+    expect(screen.getByLabelText('Orientation')).toHaveValue(
+      'landscape',
+    );
+    expect(
+      screen.getByRole('button', { name: /1\. Barcode/ }),
+    ).toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText('Document template'), {
       target: { value: 'check' },
     });
 
-    expect(screen.getByLabelText('Document template')).toHaveValue('check');
-    expect(screen.getByLabelText('Template name')).toHaveValue('Check');
+    expect(screen.getByLabelText('Document template')).toHaveValue(
+      'check',
+    );
+    expect(screen.getByLabelText('Template name')).toHaveValue(
+      'Check',
+    );
     expect(screen.getByLabelText('Page size')).toHaveValue('A4');
-    expect(screen.getByRole('button', { name: /1\. Heading/ })).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: /1\. Heading/ }),
+    ).toBeInTheDocument();
   });
 
   it('disables save while service name is invalid', async () => {
     render(<SettingsPanelHarness />);
 
-    const serviceName = screen.getByLabelText('Service name in header');
+    const serviceName = screen.getByLabelText(
+      'Service name in header',
+    );
     fireEvent.change(serviceName, { target: { value: '' } });
 
-    expect(screen.getByRole('button', { name: 'Save settings' })).toBeDisabled();
+    expect(
+      screen.getByRole('button', { name: 'Save settings' }),
+    ).toBeDisabled();
   });
 
   it('shows only backups and database to a backup-only employee', async () => {
     render(<BackupOnlySettingsPanelHarness />);
 
-    expect(screen.queryByRole('tab', { name: 'Company' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('tab', { name: 'Print forms' })).not.toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: 'Backups' })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: 'Database' })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Save settings' })).not.toBeInTheDocument();
-    expect(await screen.findByText('project-goods-20260607-100000')).toBeInTheDocument();
+    expect(
+      screen.queryByRole('tab', { name: 'Company' }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('tab', { name: 'Print forms' }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole('tab', { name: 'Backups' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('tab', { name: 'Database' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Save settings' }),
+    ).not.toBeInTheDocument();
+    expect(
+      await screen.findByText('project-goods-20260607-100000'),
+    ).toBeInTheDocument();
   });
 
   it('shows only print forms to a print-only employee', () => {
     render(<PrintOnlySettingsPanelHarness />);
 
-    expect(screen.queryByRole('tab', { name: 'Company' })).not.toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: 'Print forms' })).toBeInTheDocument();
-    expect(screen.queryByRole('tab', { name: 'Backups' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('tab', { name: 'Database' })).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Save settings' })).toBeInTheDocument();
+    expect(
+      screen.queryByRole('tab', { name: 'Company' }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole('tab', { name: 'Print forms' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole('tab', { name: 'Backups' }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('tab', { name: 'Database' }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Save settings' }),
+    ).toBeInTheDocument();
   });
 
   it('loads database report when Database tab is opened', async () => {
@@ -349,26 +464,31 @@ describe('SettingsPanel', () => {
     expect(screen.getByText('sales')).toBeInTheDocument();
     expect(systemDbApi.getDbHealth).toHaveBeenCalled();
     expect(systemDbApi.getDbStats).toHaveBeenCalled();
-    expect(screen.queryByRole('button', { name: 'Save settings' })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Save settings' }),
+    ).not.toBeInTheDocument();
   });
-
 
   it('shows backup restore, restore from file, and delete actions', async () => {
     render(<BackupOnlySettingsPanelHarness />);
 
     expect(
-      screen.getByText(/Automatic backup: daily at 15:00 UTC \/ 18:00 Kyiv time/),
+      screen.getByText(
+        /Automatic backup: daily at 15:00 UTC \/ 18:00 Kyiv time/,
+      ),
     ).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Restore from file' })).toHaveClass(
-      'success-button',
-    );
-    expect(await screen.findByRole('button', { name: 'Restore' })).toHaveClass(
-      'warning-button',
-    );
-    expect(screen.getByRole('button', { name: 'Delete' })).toHaveClass(
-      'danger-button',
-    );
-    expect(screen.queryByRole('button', { name: 'Open in folder' })).not.toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Restore from file' }),
+    ).toHaveClass('success-button');
+    expect(
+      await screen.findByRole('button', { name: 'Restore' }),
+    ).toHaveClass('warning-button');
+    expect(
+      screen.getByRole('button', { name: 'Delete' }),
+    ).toHaveClass('danger-button');
+    expect(
+      screen.queryByRole('button', { name: 'Open in folder' }),
+    ).not.toBeInTheDocument();
   });
 
   it('shows failed backup errors in a separate card panel', async () => {
@@ -392,7 +512,9 @@ describe('SettingsPanel', () => {
 
     render(<BackupOnlySettingsPanelHarness />);
 
-    expect(await screen.findByText('project-goods-20260607-123001')).toBeInTheDocument();
+    expect(
+      await screen.findByText('project-goods-20260607-123001'),
+    ).toBeInTheDocument();
     expect(screen.getByText('Error')).toBeInTheDocument();
     expect(screen.getByText(longError)).toBeInTheDocument();
     expect(screen.queryByRole('table')).not.toBeInTheDocument();
@@ -401,17 +523,27 @@ describe('SettingsPanel', () => {
   it('requires delete confirmation before deleting a backup', async () => {
     render(<BackupOnlySettingsPanelHarness />);
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Delete' }));
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Delete' }),
+    );
     expect(backupApi.deleteBackup).not.toHaveBeenCalled();
 
-    fireEvent.click(screen.getAllByRole('button', { name: 'Delete' }).at(-1)!);
+    fireEvent.click(
+      screen.getAllByRole('button', { name: 'Delete' }).at(-1)!,
+    );
 
-    expect(backupApi.deleteBackup).toHaveBeenCalledWith('project-goods-20260607-100000');
-    expect(await screen.findByText('Backup deleted.')).toBeInTheDocument();
+    expect(backupApi.deleteBackup).toHaveBeenCalledWith(
+      'project-goods-20260607-100000',
+    );
+    expect(
+      await screen.findByText('Backup deleted.'),
+    ).toBeInTheDocument();
   });
 
   it('removes deleted backup from the list without showing loading state', async () => {
-    let resolveList: ((value: typeof defaultBackups) => void) | undefined;
+    let resolveList:
+      | ((value: typeof defaultBackups) => void)
+      | undefined;
     vi.spyOn(backupApi, 'listBackups')
       .mockResolvedValueOnce(defaultBackups)
       .mockImplementationOnce(
@@ -428,10 +560,16 @@ describe('SettingsPanel', () => {
     ).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
-    fireEvent.click(screen.getAllByRole('button', { name: 'Delete' }).at(-1)!);
+    fireEvent.click(
+      screen.getAllByRole('button', { name: 'Delete' }).at(-1)!,
+    );
 
-    expect(await screen.findByText('Backup deleted.')).toBeInTheDocument();
-    expect(screen.queryByText('Loading backups...')).not.toBeInTheDocument();
+    expect(
+      await screen.findByText('Backup deleted.'),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText('Loading backups...'),
+    ).not.toBeInTheDocument();
     expect(
       screen.queryByText('project-goods-20260607-100000'),
     ).not.toBeInTheDocument();
@@ -443,44 +581,73 @@ describe('SettingsPanel', () => {
   it('requires RESTORE before enabling restore confirmation', async () => {
     render(<BackupOnlySettingsPanelHarness />);
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Restore' }));
-    expect(screen.getAllByRole('button', { name: 'Restore' }).at(-1)).toBeDisabled();
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Restore' }),
+    );
+    expect(
+      screen.getAllByRole('button', { name: 'Restore' }).at(-1),
+    ).toBeDisabled();
 
-    fireEvent.change(screen.getByLabelText('Type RESTORE to confirm'), {
-      target: { value: 'RESTORE' },
-    });
+    fireEvent.change(
+      screen.getByLabelText('Type RESTORE to confirm'),
+      {
+        target: { value: 'RESTORE' },
+      },
+    );
 
-    expect(screen.getAllByRole('button', { name: 'Restore' }).at(-1)).toBeEnabled();
+    expect(
+      screen.getAllByRole('button', { name: 'Restore' }).at(-1),
+    ).toBeEnabled();
   });
 
   it('restores a backup from a selected file after confirmation', async () => {
     render(<BackupOnlySettingsPanelHarness />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Restore from file' }));
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Restore from file' }),
+    );
 
-    const confirmButton = screen.getAllByRole('button', {
-      name: 'Restore from file',
-    }).at(-1)!;
+    const confirmButton = screen
+      .getAllByRole('button', {
+        name: 'Restore from file',
+      })
+      .at(-1)!;
     expect(confirmButton).toBeDisabled();
 
-    const file = new File(['archive'], 'project-goods-20260607-100000.archive.gz', {
-      type: 'application/gzip',
-    });
+    const file = new File(
+      ['archive'],
+      'project-goods-20260607-100000.archive.gz',
+      {
+        type: 'application/gzip',
+      },
+    );
     fireEvent.change(screen.getByLabelText('Backup archive file'), {
       target: { files: [file] },
     });
-    expect(screen.getByText('project-goods-20260607-100000.archive.gz')).toBeInTheDocument();
+    expect(
+      screen.getByText('project-goods-20260607-100000.archive.gz'),
+    ).toBeInTheDocument();
     expect(confirmButton).toBeDisabled();
 
-    fireEvent.change(screen.getByLabelText('Type RESTORE to confirm'), {
-      target: { value: 'RESTORE' },
-    });
+    fireEvent.change(
+      screen.getByLabelText('Type RESTORE to confirm'),
+      {
+        target: { value: 'RESTORE' },
+      },
+    );
     expect(confirmButton).toBeEnabled();
 
     fireEvent.click(confirmButton);
 
-    expect(backupApi.restoreBackupFromFile).toHaveBeenCalledWith(file, 'RESTORE');
-    expect(await screen.findByText('Backup file restored. Safety backup: project-goods-20260607-100100-safety.')).toBeInTheDocument();
+    expect(backupApi.restoreBackupFromFile).toHaveBeenCalledWith(
+      file,
+      'RESTORE',
+    );
+    expect(
+      await screen.findByText(
+        'Backup file restored. Safety backup: project-goods-20260607-100100-safety.',
+      ),
+    ).toBeInTheDocument();
   });
 
   it('shows restore-from-file errors inside the modal', async () => {
@@ -489,7 +656,9 @@ describe('SettingsPanel', () => {
     );
     render(<BackupOnlySettingsPanelHarness />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Restore from file' }));
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Restore from file' }),
+    );
 
     const file = new File(
       ['archive'],
@@ -499,29 +668,38 @@ describe('SettingsPanel', () => {
     fireEvent.change(screen.getByLabelText('Backup archive file'), {
       target: { files: [file] },
     });
-    fireEvent.change(screen.getByLabelText('Type RESTORE to confirm'), {
-      target: { value: 'RESTORE' },
-    });
-
-    fireEvent.click(
-      screen.getAllByRole('button', { name: 'Restore from file' }).at(-1)!,
+    fireEvent.change(
+      screen.getByLabelText('Type RESTORE to confirm'),
+      {
+        target: { value: 'RESTORE' },
+      },
     );
 
-    expect(
-      await screen.findByRole('alert'),
-    ).toHaveTextContent('Backup archive file must end with .archive.gz.');
+    fireEvent.click(
+      screen
+        .getAllByRole('button', { name: 'Restore from file' })
+        .at(-1)!,
+    );
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Backup archive file must end with .archive.gz.',
+    );
     // Modal stays open so the operator can fix the file selection
-    expect(screen.getByLabelText('Backup archive file')).toBeInTheDocument();
+    expect(
+      screen.getByLabelText('Backup archive file'),
+    ).toBeInTheDocument();
   });
-it('shows an anchored tooltip with "Backup created." after creating a backup', async () => {
+  it('shows a toast notification with "Backup created." after creating a backup', async () => {
     render(<BackupOnlySettingsPanelHarness />);
 
-    const createButton = await screen.findByRole('button', { name: 'Create backup' });
+    const createButton = await screen.findByRole('button', {
+      name: 'Create backup',
+    });
     fireEvent.click(createButton);
 
     expect(backupApi.createBackup).toHaveBeenCalled();
-    const tooltip = await screen.findByRole('status');
-    expect(tooltip).toHaveTextContent('Backup created.');
-    expect(tooltip).toHaveClass('backup-create-tooltip');
+    const toast = await screen.findByRole('status');
+    expect(toast).toHaveTextContent('Backup created.');
+    expect(toast).toHaveClass('toast', 'toast-success');
   });
 });

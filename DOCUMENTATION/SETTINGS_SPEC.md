@@ -6,16 +6,16 @@ Admin page `page=settings`. Sidebar **Settings**. Host: `SettingsPanel`.
 
 ## UI entry points
 
-| Piece | File |
-| --- | --- |
-| Shell / tabs | `frontend/src/widgets/dashboard/ui/settings/SettingsPanel.tsx` |
-| Company | `CompanySettingsSection.tsx` |
-| Dashboard | `DashboardSettingsSection.tsx` |
-| Print forms | `PrintFormsSection.tsx` + `PrintFormBuilder.tsx` |
-| Backups | `BackupsSection.tsx` |
-| Database | `DatabaseReportSection.tsx` |
-| Domain CSS | `frontend/src/shared/styles/domains/settings.css` |
-| Locales | `frontend/scripts/settings-locale-en.json` / `uk.json` (merged into `locales`) |
+| Piece        | File                                                                           |
+| ------------ | ------------------------------------------------------------------------------ |
+| Shell / tabs | `frontend/src/widgets/dashboard/ui/settings/SettingsPanel.tsx`                 |
+| Company      | `CompanySettingsSection.tsx`                                                   |
+| Dashboard    | `DashboardSettingsSection.tsx`                                                 |
+| Print forms  | `PrintFormsSection.tsx` + `PrintFormBuilder.tsx`                               |
+| Backups      | `BackupsSection.tsx`                                                           |
+| Database     | `DatabaseReportSection.tsx`                                                    |
+| Domain CSS   | `frontend/src/shared/styles/domains/settings.css`                              |
+| Locales      | `frontend/scripts/settings-locale-en.json` / `uk.json` (merged into `locales`) |
 | Piece        | File                                                                           |
 | ------------ | ------------------------------------------------------------------------------ |
 | Shell / tabs | `frontend/src/widgets/dashboard/ui/settings/SettingsPanel.tsx`                 |
@@ -29,13 +29,13 @@ Admin page `page=settings`. Sidebar **Settings**. Host: `SettingsPanel`.
 
 ## Tabs
 
-| Tab | Key | Who sees it | Save button |
-| --- | --- | --- | --- |
-| Company | `company` | `owner` (`canEditSettings`) | Yes |
-| Print forms | `print` | `owner` or `printForms.manage` | Yes |
-| Dashboard | `dashboard` | `owner` | Yes |
-| Backups | `backups` | `system.backups.manage` | No |
-| Database | `database` | `system.backups.manage` | No |
+| Tab         | Key         | Who sees it                    | Save button |
+| ----------- | ----------- | ------------------------------ | ----------- |
+| Company     | `company`   | `owner` (`canEditSettings`)    | Yes         |
+| Print forms | `print`     | `owner` or `printForms.manage` | Yes         |
+| Dashboard   | `dashboard` | `owner`                        | Yes         |
+| Backups     | `backups`   | `system.backups.manage`        | No          |
+| Database    | `database`  | `system.backups.manage`        | No          |
 | Tab         | Key         | Who sees it                    | Save button |
 | ----------- | ----------- | ------------------------------ | ----------- |
 | Company     | `company`   | `owner` (`canEditSettings`)    | Yes         |
@@ -73,8 +73,7 @@ Save writes template **content** to the API. Per-employee layout (margins, page/
 
 Create, download, delete, restore, restore-from-file. Confirm restore by typing `RESTORE`. Cards show status/type badges, size, author. Scheduled retention is ops policy in [DATA_RETENTION.md](./DATA_RETENTION.md).
 
-- **Backup creation notice:** After successfully creating a manual backup, a floating dark-badge tooltip with a checkmark (`role="status"`) is anchored directly below the **Create backup** button and automatically dismisses after 3 seconds, avoiding static full-width banner disruption.
-- **Restore & delete notices:** Success feedback for archive deletion and database restoration is delivered via scoped toast notifications.
+- **Backup notices:** Success feedback for backup creation (`Backup created.`), archive deletion, and database restoration is delivered via scoped top-right toast notifications (`role="status"`, auto-dismissing after 4 seconds or on close button click).
 
 ## Database
 
@@ -82,14 +81,14 @@ Read-only Mongo health + collection sizes (`GET /api/system/db-health`, `GET /ap
 
 ## Persistence
 
-| Surface | Where | When |
-| --- | --- | --- |
-| Company + Dashboard | `PUT /api/settings` | Save |
-| Print content | `PUT /api/settings` or `PUT /api/settings/print-forms` | Save |
-| Print layout overrides | `localStorage` per employee | Save |
-| Table density | `localStorage` | Immediate |
-| Active tab | `project-goods.settings-tab` | Tab click |
-| Backups / Database | own APIs | Their buttons |
+| Surface                | Where                                                  | When          |
+| ---------------------- | ------------------------------------------------------ | ------------- |
+| Company + Dashboard    | `PUT /api/settings`                                    | Save          |
+| Print content          | `PUT /api/settings` or `PUT /api/settings/print-forms` | Save          |
+| Print layout overrides | `localStorage` per employee                            | Save          |
+| Table density          | `localStorage`                                         | Immediate     |
+| Active tab             | `project-goods.settings-tab`                           | Tab click     |
+| Backups / Database     | own APIs                                               | Their buttons |
 | Surface                | Where                                                  | When          |
 | ---------------------- | ------------------------------------------------------ | ------------- |
 | Company + Dashboard    | `PUT /api/settings`                                    | Save          |
@@ -101,14 +100,14 @@ Read-only Mongo health + collection sizes (`GET /api/system/db-health`, `GET /ap
 
 ## Adaptive
 
-| Width | Settings behavior |
-| --- | --- |
+| Width | Settings behavior                                                   |
+| ----- | ------------------------------------------------------------------- |
 | Width | Settings behavior                                                   |
 | ----- | ------------------------------------------------------------------- |
 | >1024 | 2-col identity grid; print editor + sticky preview; backup card row |
-| ≤1024 | Horizontal tab scroll; groups 1-col; db table stacks into cards |
-| ≤720 | Full-width header actions; backup actions wrap |
-| ≤480 | 44px tabs; single-column KPIs |
+| ≤1024 | Horizontal tab scroll; groups 1-col; db table stacks into cards     |
+| ≤720  | Full-width header actions; backup actions wrap                      |
+| ≤480  | 44px tabs; single-column KPIs                                       |
 | ≤1024 | Horizontal tab scroll; groups 1-col; db table stacks into cards     |
 | ≤720  | Full-width header actions; backup actions wrap                      |
 | ≤480  | 44px tabs; single-column KPIs                                       |
