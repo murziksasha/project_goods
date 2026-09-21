@@ -1,6 +1,6 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { Employee } from '../../../../entities/employee/model/types';
+import type { Employee } from '../../../../entities/employee';
 import type {
   Administrator,
   ServiceCenter,

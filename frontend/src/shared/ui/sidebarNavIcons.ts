@@ -1,5 +1,5 @@
 import type { ReactElement } from 'react';
-import type { PageKey } from '../../pages/dashboard/model/types';
+import type { PageKey } from '../config/routing';
 import type { SVGProps } from 'react';
 import {
   AccountingIcon,

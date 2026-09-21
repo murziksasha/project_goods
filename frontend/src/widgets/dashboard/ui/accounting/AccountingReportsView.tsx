@@ -1,5 +1,6 @@
+import type React from 'react';
 import { useTranslation } from 'react-i18next';
-import type { FinanceTransactionType } from '../../../../entities/finance/model/types';
+import type { FinanceTransactionType } from '../../../../entities/finance';
 import {
   formatCurrencyTotals,
   formatDateDdMmYyyy,
@@ -9,7 +10,7 @@ import {
 } from '../../model/accounting';
 import { formatMetric } from '../../model/sales-analytics';
 
-type AccountingReportsViewProps = {
+export interface AccountingReportsViewProps {
   financeOverview: FinanceOverview;
 };
 
@@ -25,9 +26,9 @@ const transactionTypeLabelKeys: Record<FinanceTransactionType, string> = {
   transfer: 'accounting.cashboxes.transfer',
 };
 
-export const AccountingReportsView = ({
+export const AccountingReportsView: React.FC<AccountingReportsViewProps> = ({
   financeOverview,
-}: AccountingReportsViewProps) => {
+}) => {
   const { t } = useTranslation();
 
   return (

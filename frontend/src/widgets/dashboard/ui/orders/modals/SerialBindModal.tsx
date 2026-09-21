@@ -1,8 +1,9 @@
+import type React from 'react';
 import { useEffect, useMemo, useState, type MouseEvent } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { Product } from '../../../../../entities/product/model/types';
-import type { SupplierOrder } from '../../../../../entities/supplier-order/model/types';
-import type { WarehouseItem } from '../../../../../entities/warehouse-settings/model/types';
+import type { Product } from '../../../../../entities/product';
+import type { SupplierOrder } from '../../../../../entities/supplier-order';
+import type { WarehouseItem } from '../../../../../entities/warehouse-settings';
 import { formatCurrency, formatDateTime } from '../../../../../shared/lib/format';
 import {
   filterProductsByWarehouse,
@@ -34,7 +35,7 @@ const stopRowToggle = (event: MouseEvent<HTMLElement>) => {
   event.stopPropagation();
 };
 
-type SerialBindModalProps = {
+export interface SerialBindModalProps {
   lineItem: SerialBindLineItem;
   warehouses: WarehouseItem[];
   availableProducts: Product[];
@@ -48,7 +49,7 @@ type SerialBindModalProps = {
   onOpenSupplierOrder?: (supplierOrderId: string, itemIndex: number) => void;
 };
 
-export const SerialBindModal = ({
+export const SerialBindModal: React.FC<SerialBindModalProps> = ({
   lineItem,
   warehouses,
   availableProducts,
@@ -60,7 +61,7 @@ export const SerialBindModal = ({
   onSave,
   onError,
   onOpenSupplierOrder,
-}: SerialBindModalProps) => {
+}) => {
   const { t } = useTranslation();
   const [selectedWarehouseId, setSelectedWarehouseId] = useState(() =>
     getDefaultWarehouseId(warehouses),

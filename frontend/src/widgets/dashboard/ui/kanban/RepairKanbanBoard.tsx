@@ -1,3 +1,4 @@
+import type React from 'react';
 import {
   Fragment,
   useEffect,
@@ -20,13 +21,13 @@ import {
   type DragStartEvent,
 } from '@dnd-kit/core';
 import { useTranslation } from 'react-i18next';
-import { hasEmployeePermission } from '../../../../entities/employee/model/permissions';
-import type { Employee } from '../../../../entities/employee/model/types';
-import type { Sale } from '../../../../entities/sale/model/types';
+import { hasEmployeePermission } from '../../../../entities/employee';
+import type { Employee } from '../../../../entities/employee';
+import type { Sale } from '../../../../entities/sale';
 import { formatCurrency } from '../../../../shared/lib/format';
 import { getSaleTotal } from '../../model/sales-analytics';
 import { getSaleClientDisplayName } from '../../model/sale-client-display';
-import { getSaleClientPhones } from '../../../../entities/client/lib/phone-match';
+import { getSaleClientPhones } from '../../../../entities/client';
 import {
   buildOrderNumber,
   formatPhoneNumber,
@@ -52,7 +53,7 @@ import {
   type KanbanPendingMove,
 } from './repair-kanban';
 
-type RepairKanbanBoardProps = {
+export interface RepairKanbanBoardProps {
   sales: Sale[];
   employees: Employee[];
   canUpdateStatus: boolean;
@@ -486,7 +487,7 @@ const KanbanColumn = ({
   );
 };
 
-export const RepairKanbanBoard = ({
+export const RepairKanbanBoard: React.FC<RepairKanbanBoardProps> = ({
   sales,
   employees,
   canUpdateStatus,
@@ -495,7 +496,7 @@ export const RepairKanbanBoard = ({
   onMasterChange,
   onOpenSale,
   onRankChange,
-}: RepairKanbanBoardProps) => {
+}) => {
   const [activeSale, setActiveSale] = useState<Sale | null>(null);
   const [overStatus, setOverStatus] = useState<RepairStatus | null>(
     null,

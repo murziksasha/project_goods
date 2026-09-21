@@ -1,8 +1,9 @@
+import type React from 'react';
 import { useTranslation } from 'react-i18next';
 import { Modal } from '../../../../../shared/ui/Modal';
 import { Button } from '../../../../../shared/ui/Button';
 
-type UnboundSerialIssueModalProps = {
+export interface UnboundSerialIssueModalProps {
   productNames: string[];
   onCancel: () => void;
   onContinue: () => void;
@@ -28,11 +29,11 @@ const WarningIcon = () => (
   </svg>
 );
 
-export const UnboundSerialIssueModal = ({
+export const UnboundSerialIssueModal: React.FC<UnboundSerialIssueModalProps> = ({
   productNames,
   onCancel,
   onContinue,
-}: UnboundSerialIssueModalProps) => {
+}) => {
   const { t } = useTranslation();
 
   return (

@@ -1,10 +1,11 @@
+import type React from 'react';
 import { useTranslation } from 'react-i18next';
-import { clientStatusFilters } from '../../../../entities/client/model/constants';
-import type { Client, ClientStatus } from '../../../../entities/client/model/types';
-import { ClientList } from '../../../../entities/client/ui/ClientList';
+import { clientStatusFilters } from '../../../../entities/client';
+import type { Client, ClientStatus } from '../../../../entities/client';
+import { ClientList } from '../../../../entities/client';
 import type { ClientStats } from '../../model/clients-workspace';
 
-type ClientPanelProps = {
+export interface ClientPanelProps {
   clients: Client[];
   isLoading: boolean;
   searchQuery: string;
@@ -19,7 +20,7 @@ type ClientPanelProps = {
   onDelete: (client: Client) => void;
 };
 
-export const ClientPanel = ({
+export const ClientPanel: React.FC<ClientPanelProps> = ({
   clients,
   isLoading,
   searchQuery,
@@ -32,7 +33,7 @@ export const ClientPanel = ({
   onSelect,
   onEdit,
   onDelete,
-}: ClientPanelProps) => {
+}) => {
   const { t } = useTranslation();
 
   return (

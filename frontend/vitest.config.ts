@@ -24,6 +24,7 @@ export default defineConfig({
   },
   test: {
     pool: 'vmForks',
+    pool: 'forks',
     fileParallelism: false,
     maxWorkers: 1,
     environment: 'jsdom',
@@ -34,7 +35,21 @@ export default defineConfig({
       provider: 'v8',
       reporter: ['text', 'html'],
       include: coverageInclude,
-      exclude: ['src/**/*.test.ts', 'src/**/*.test.tsx', 'src/test/**'],
+      exclude: [
+        'src/**/*.test.ts',
+        'src/**/*.test.tsx',
+        'src/test/**',
+      ],
+      exclude: [
+        'src/**/*.test.ts',
+        'src/**/*.test.tsx',
+        'src/test/**',
+      ],
+      exclude: [
+        'src/**/*.test.ts',
+        'src/**/*.test.tsx',
+        'src/test/**',
+      ],
       lines: 100,
       functions: 100,
       branches: 100,

@@ -1,9 +1,9 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { createDefaultSettingsForm } from '../../../../entities/settings/model/printForms';
-import type { AppSettingsFormValues } from '../../../../entities/settings/model/types';
-import * as backupApi from '../../../../entities/backup/api/backupApi';
-import * as systemDbApi from '../../../../entities/backup/api/systemDbApi';
+import { createDefaultSettingsForm } from '../../../../entities/settings';
+import type { AppSettingsFormValues } from '../../../../entities/settings';
+import * as backupApi from '../../../../entities/backup';
+import * as systemDbApi from '../../../../entities/backup';
 import { persistPrintFormLayoutOverrides } from '../../model/print-form-local-overrides';
 import { SettingsPanel } from './SettingsPanel';
 import { useEffect, useRef, useState } from 'react';

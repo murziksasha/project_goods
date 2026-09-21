@@ -1,3 +1,4 @@
+import type React from 'react';
 import { useMemo, useState, type PointerEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { formatCurrency } from '../../../../shared/lib/format';
@@ -14,7 +15,7 @@ import type {
 import { formatPercent } from '../../model/supplier-orders-workspace';
 import { AnalyticsSparkline } from '../analytics/AnalyticsSparkline';
 
-type SupplierInformationDashboardProps = {
+export interface SupplierInformationDashboardProps {
   filteredOrdersCount: number;
   isLoading: boolean;
   supplierInformation: SupplierOrderAnalytics;
@@ -221,11 +222,11 @@ const SpendChart = ({ analytics }: { analytics: SupplierOrderAnalytics }) => {
   );
 };
 
-export const SupplierInformationDashboard = ({
+export const SupplierInformationDashboard: React.FC<SupplierInformationDashboardProps> = ({
   filteredOrdersCount,
   isLoading,
   supplierInformation,
-}: SupplierInformationDashboardProps) => {
+}) => {
   const { t } = useTranslation();
   const [goodsTab, setGoodsTab] = useState<'quantity' | 'value' | 'frequency'>(
     'quantity',

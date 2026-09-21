@@ -6,7 +6,7 @@ import {
   resolveOrCreateServiceCatalogItem,
   shouldCreateMissingServiceOnSubmit,
 } from './missingService';
-import type { ServiceCatalogItem } from '../../../entities/service-catalog/model/types';
+import type { ServiceCatalogItem } from '../../../entities/service-catalog';
 
 const catalogItem = (
   patch: Partial<ServiceCatalogItem> = {},

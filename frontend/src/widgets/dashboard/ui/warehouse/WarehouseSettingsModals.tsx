@@ -1,3 +1,4 @@
+import type React from 'react';
 import type { Dispatch, SetStateAction } from 'react';
 import { useTranslation } from 'react-i18next';
 import type {
@@ -8,6 +9,15 @@ import type {
 import { ModalShell } from './WarehouseModalShell';
 
 export const ServiceCenterModal = ({
+export interface ServiceCenterModalProps {
+  modalId: string | null;
+  form: ServiceCenterFormState;
+  onFormChange: Dispatch<SetStateAction<ServiceCenterFormState>>;
+  onClose: () => void;
+  onSubmit: () => void;
+}
+
+export const ServiceCenterModal: React.FC<ServiceCenterModalProps> = ({
   modalId,
   form,
   onFormChange,
@@ -111,6 +121,17 @@ export const ServiceCenterModal = ({
 };
 
 export const WarehouseEditModal = ({
+export interface WarehouseEditModalProps {
+  modalId: string | null;
+  form: WarehouseFormState;
+  serviceCenters: ServiceCenter[];
+  locationUsage: Record<string, number>;
+  onFormChange: Dispatch<SetStateAction<WarehouseFormState>>;
+  onClose: () => void;
+  onSubmit: () => void;
+}
+
+export const WarehouseEditModal: React.FC<WarehouseEditModalProps> = ({
   modalId,
   form,
   serviceCenters,

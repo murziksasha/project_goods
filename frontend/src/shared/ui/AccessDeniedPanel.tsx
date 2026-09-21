@@ -1,3 +1,4 @@
+import type React from 'react';
 import { useTranslation } from 'react-i18next';
 import type { PageKey } from '../../pages/dashboard/model/types';
 import { getDashboardHref } from '../../pages/dashboard/model/types';
@@ -15,41 +16,41 @@ const pageLabelKeys: Record<PageKey, string> = {
   settings: 'nav.settings',
 };
 
-type AccessDeniedPanelProps = {
+export interface AccessDeniedPanelProps {
   page: PageKey;
   allowedPages: PageKey[];
   onNavigate: (page: PageKey) => void;
-};
+}
 
-export const AccessDeniedPanel = ({
+export const AccessDeniedPanel: React.FC<AccessDeniedPanelProps> = ({
   page,
   allowedPages,
   onNavigate,
-}: AccessDeniedPanelProps) => {
+}) => {
   const { t } = useTranslation();
   const pageName = t(pageLabelKeys[page]);
   const links = allowedPages.filter((item) => item !== page);
 
   return (
-    <section className="panel access-denied-panel" role="alert">
-      <div className="panel-header">
+    <section className='panel access-denied-panel' role='alert'>
+      <div className='panel-header'>
         <div>
-          <p className="section-label">{t('accessDenied.label')}</p>
+          <p className='section-label'>{t('accessDenied.label')}</p>
           <h2>{t('accessDenied.title')}</h2>
         </div>
       </div>
-      <p className="access-denied-message">
+      <p className='access-denied-message'>
         {t('accessDenied.message', { page: pageName })}
       </p>
-      <p className="muted-copy">{t('accessDenied.hint')}</p>
-      <div className="access-denied-actions">
-        <Button variant="primary" onClick={() => onNavigate('home')}>
+      <p className='muted-copy'>{t('accessDenied.hint')}</p>
+      <div className='access-denied-actions'>
+        <Button variant='primary' onClick={() => onNavigate('home')}>
           {t('accessDenied.goHome')}
         </Button>
         {links.slice(0, 4).map((item) => (
           <a
             key={item}
-            className="secondary-button access-denied-link"
+            className='secondary-button access-denied-link'
             href={getDashboardHref(item)}
             onClick={(event) => {
               event.preventDefault();

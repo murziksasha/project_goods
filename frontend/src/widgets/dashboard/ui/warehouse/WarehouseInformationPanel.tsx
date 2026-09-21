@@ -1,3 +1,4 @@
+import type React from 'react';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import * as XLSX from 'xlsx';
@@ -11,9 +12,9 @@ import {
   type WarehouseInformationFilters,
   type WarehouseInformationView,
 } from '../../model/warehouse-information';
-import type { Product } from '../../../../entities/product/model/types';
-import type { Sale } from '../../../../entities/sale/model/types';
-import type { SupplierOrder } from '../../../../entities/supplier-order/model/types';
+import type { Product } from '../../../../entities/product';
+import type { Sale } from '../../../../entities/sale';
+import type { SupplierOrder } from '../../../../entities/supplier-order';
 import type { WarehouseItem } from '../../model/warehouse-panel';
 
 const defaultFilters: WarehouseInformationFilters = {
@@ -115,6 +116,14 @@ const isBlankArticle = (article: string) => {
 };
 
 export const WarehouseInformationPanel = ({
+export interface WarehouseInformationPanelProps {
+  products: Product[];
+  sales: Sale[];
+  supplierOrders: SupplierOrder[];
+  warehouses: WarehouseItem[];
+}
+
+export const WarehouseInformationPanel: React.FC<WarehouseInformationPanelProps> = ({
   products,
   sales,
   warehouses,

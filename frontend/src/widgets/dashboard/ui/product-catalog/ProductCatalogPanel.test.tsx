@@ -1,13 +1,16 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { ClientDevice } from '../../../../entities/client-device/model/types';
-import type { CatalogProduct } from '../../../../entities/catalog-product/model/types';
-import type { Employee } from '../../../../entities/employee/model/types';
-import type { ServiceCatalogItem } from '../../../../entities/service-catalog/model/types';
-import type { Supplier } from '../../../../entities/supplier/model/types';
+import type { ClientDevice } from '../../../../entities/client-device';
+import type { CatalogProduct } from '../../../../entities/catalog-product';
+import type { Employee } from '../../../../entities/employee';
+import type { ServiceCatalogItem } from '../../../../entities/service-catalog';
+import type { Supplier } from '../../../../entities/supplier';
 import { ProductCatalogPanel } from './ProductCatalogPanel';
 
-vi.mock('../../../../entities/saved-filter/api/savedFilterApi', () => ({
+vi.mock('../../../../entities/saved-filter', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../../entities/saved-filter')>();
+  return {
+    ...actual,
   listSavedFilters: vi.fn(async () => []),
   createSavedFilter: vi.fn(async (payload: {
     scope: string;
@@ -26,7 +29,8 @@ vi.mock('../../../../entities/saved-filter/api/savedFilterApi', () => ({
     createdAt: '2026-06-13T00:00:00.000Z',
   })),
   deleteSavedFilter: vi.fn(async () => ({ id: 'saved-1', deleted: true })),
-}));
+  };
+});
 
 const employee: Employee = {
   id: 'employee-1',

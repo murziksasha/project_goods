@@ -1,8 +1,8 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { I18nextProvider } from 'react-i18next';
 import { afterEach, describe, expect, it } from 'vitest';
-import type { Product } from '../../../../entities/product/model/types';
-import type { SupplierOrder } from '../../../../entities/supplier-order/model/types';
+import type { Product } from '../../../../entities/product';
+import type { SupplierOrder } from '../../../../entities/supplier-order';
 import i18n from '../../../../shared/i18n/config';
 import type { WarehouseItem } from '../../model/warehouse-panel';
 import { WarehouseInformationPanel } from './WarehouseInformationPanel';

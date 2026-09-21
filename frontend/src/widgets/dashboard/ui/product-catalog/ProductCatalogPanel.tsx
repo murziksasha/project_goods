@@ -1,25 +1,27 @@
+import type React from 'react';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import i18n from '../../../../shared/i18n/config';
-import type { Employee } from '../../../../entities/employee/model/types';
-import type { ClientDevice } from '../../../../entities/client-device/model/types';
-import type { ClientDeviceFormValues } from '../../../../entities/client-device/model/types';
+import type { Employee } from '../../../../entities/employee';
+import type { ClientDevice } from '../../../../entities/client-device';
+import type { ClientDeviceFormValues } from '../../../../entities/client-device';
 import type {
   CatalogProduct,
   CatalogProductFormValues,
-} from '../../../../entities/catalog-product/model/types';
+} from '../../../../entities/catalog-product';
 import type {
   Supplier,
   SupplierFormValues,
-} from '../../../../entities/supplier/model/types';
+} from '../../../../entities/supplier';
 import type {
   Product,
   ProductFormValues,
-} from '../../../../entities/product/model/types';
+} from '../../../../entities/product';
 import type {
   ServiceCatalogFormValues,
   ServiceCatalogItem,
-} from '../../../../entities/service-catalog/model/types';
+} from '../../../../entities/service-catalog';
+import { ServiceCatalogForm } from '../../../../features/manage-service-catalog';
 import { ServiceCatalogForm } from '../../../../features/manage-service-catalog/ui/ServiceCatalogForm';
 import {
   CompactPaginationPanel,
@@ -65,12 +67,12 @@ import {
   createSavedFilter as createSavedFilterRequest,
   deleteSavedFilter as deleteSavedFilterRequest,
   listSavedFilters,
-} from '../../../../entities/saved-filter/api/savedFilterApi';
+} from '../../../../entities/saved-filter';
 import { SavedFiltersPanel } from '../orders/workspace/SavedFiltersPanel';
 
 export { CatalogProductModal } from './ProductCatalogModals';
 
-type ProductCatalogPanelProps = {
+export interface ProductCatalogPanelProps {
   currentEmployee: Employee | null;
   products: Product[];
   clientDevices: ClientDevice[];
@@ -155,8 +157,9 @@ type ProductCatalogPanelProps = {
     draftNote?: string,
   ) => Promise<boolean>;
 };
+}
 
-export const ProductCatalogPanel = ({
+export const ProductCatalogPanel: React.FC<ProductCatalogPanelProps> = ({
   currentEmployee,
   products,
   clientDevices,
@@ -201,7 +204,7 @@ export const ProductCatalogPanel = ({
   onMergeCatalogProduct,
   onMergeService,
   onMergeSupplier,
-}: ProductCatalogPanelProps) => {
+}) => {
   void productForm;
   void isProductSaving;
   void isProductEditing;
@@ -1473,6 +1476,7 @@ export const ProductCatalogPanel = ({
   );
 };
 
+export interface CatalogFilterPanelProps {
 type CatalogFilterPanelProps = {
   activeTab: CatalogTab;
   canSave: boolean;

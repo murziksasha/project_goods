@@ -1,18 +1,22 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { Product } from '../../../../../entities/product/model/types';
-import type { Sale } from '../../../../../entities/sale/model/types';
-import type { SupplierOrder } from '../../../../../entities/supplier-order/model/types';
-import { getOccupiedSerialNumbers } from '../../../../../entities/sale/api/saleApi';
-import { defaultPrintForms } from '../../../../../entities/settings/model/printForms';
+import type { Product } from '../../../../../entities/product';
+import type { Sale } from '../../../../../entities/sale';
+import type { SupplierOrder } from '../../../../../entities/supplier-order';
+import { getOccupiedSerialNumbers } from '../../../../../entities/sale';
+import { defaultPrintForms } from '../../../../../entities/settings';
 import i18n from '../../../../../shared/i18n/config';
 import * as clipboard from '../../../../../shared/lib/clipboard';
 import * as ordersWorkspaceShared from '../workspace/orders-workspace-shared';
 import { ProductModelModal } from './ProductModelModal';
 
-vi.mock('../../../../../entities/sale/api/saleApi', () => ({
+vi.mock('../../../../../entities/sale', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../../../entities/sale')>();
+  return {
+    ...actual,
   getOccupiedSerialNumbers: vi.fn(async () => ({ occupied: [] as string[] })),
-}));
+  };
+});
 
 const getOccupiedSerialNumbersMock = vi.mocked(getOccupiedSerialNumbers);
 

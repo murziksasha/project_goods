@@ -2,8 +2,8 @@ import {
   normalizeContentMargins,
   normalizeLabelSize,
   normalizePrintFormsForView,
-} from '../../../entities/settings/model/printForms';
-import type { PrintForm } from '../../../entities/settings/model/types';
+} from '../../../entities/settings';
+import type { PrintForm } from '../../../entities/settings';
 
 export type PrintFormLayoutOverride = Partial<
   Pick<

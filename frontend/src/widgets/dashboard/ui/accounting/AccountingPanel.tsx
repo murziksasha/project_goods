@@ -1,3 +1,4 @@
+import type React from 'react';
 import { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import i18n from '../../../../shared/i18n/config';
@@ -14,8 +15,8 @@ import {
   useUpdateFinanceCategoryMutation,
   useUpdateFinanceCurrencyMutation,
   useUpdateFinanceTransactionMutation,
-} from '../../../../entities/finance/api/financeApi';
-import { isAlwaysActiveFinanceCategory } from '../../../../entities/finance/model/category-label';
+} from '../../../../entities/finance';
+import { isAlwaysActiveFinanceCategory } from '../../../../entities/finance';
 import type {
   Cashbox,
   CreateFinanceCategoryPayload,
@@ -24,11 +25,11 @@ import type {
   FinanceTransaction,
   FinanceTransactionType,
   SupplierOrderPaymentQueueItem,
-} from '../../../../entities/finance/model/types';
-import { hasEmployeePermission } from '../../../../entities/employee/model/permissions';
-import type { Employee } from '../../../../entities/employee/model/types';
-import type { Sale } from '../../../../entities/sale/model/types';
-import type { SupplierOrder } from '../../../../entities/supplier-order/model/types';
+} from '../../../../entities/finance';
+import { hasEmployeePermission } from '../../../../entities/employee';
+import type { Employee } from '../../../../entities/employee';
+import type { Sale } from '../../../../entities/sale';
+import type { SupplierOrder } from '../../../../entities/supplier-order';
 import {
   canCancelAccountingTransaction,
   getAccountingCashboxCurrencyRows,
@@ -58,7 +59,7 @@ import { getSupplierOrderDisplayNumber } from '../../model/supplier-order-utils'
 import { Modal } from '../../../../shared/ui/Modal';
 import { Button } from '../../../../shared/ui/Button';
 
-type AccountingPanelProps = {
+export interface AccountingPanelProps {
   currentEmployee: Employee | null;
   onError: (message: string) => void;
   onSuccess: (message: string) => void;
@@ -70,7 +71,7 @@ type AccountingPanelProps = {
   syncedAccountingTab?: AccountingTab | null;
 };
 
-export const AccountingPanel = ({
+export const AccountingPanel: React.FC<AccountingPanelProps> = ({
   currentEmployee,
   onError,
   onSuccess,
@@ -78,7 +79,7 @@ export const AccountingPanel = ({
   onNavigateAccountingTab,
   registerAccountingPopstateSync,
   syncedAccountingTab = null,
-}: AccountingPanelProps) => {
+}) => {
   const { t } = useTranslation();
   const {
     allCashboxes,

@@ -1,11 +1,12 @@
+import type React from 'react';
 import { useTranslation } from 'react-i18next';
 import { formatMetric, type DashboardAnalyticsView } from '../../model/sales-analytics';
 
-type AnalyticsOperationsPanelProps = {
+export interface AnalyticsOperationsPanelProps {
   operations: DashboardAnalyticsView['operations'];
 };
 
-export const AnalyticsOperationsPanel = ({ operations }: AnalyticsOperationsPanelProps) => {
+export const AnalyticsOperationsPanel: React.FC<AnalyticsOperationsPanelProps> = ({ operations }) => {
   const { t } = useTranslation();
 
   return (

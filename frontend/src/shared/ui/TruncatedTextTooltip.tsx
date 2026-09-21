@@ -1,13 +1,19 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import type React from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from 'react';
 import { createPortal } from 'react-dom';
 
-type TruncatedTextTooltipProps = {
+export interface TruncatedTextTooltipProps {
   text: string;
   className?: string;
   children?: React.ReactNode;
   /** `select`: wrap a native <select> and measure the selected label vs inner width. */
   mode?: 'text' | 'select';
-};
+}
 
 const SELECT_CHEVRON_RESERVE_PX = 22;
 const OVERFLOW_SLACK_PX = 1;
@@ -30,7 +36,8 @@ const isNativeSelectLabelTruncated = (
   probe.style.pointerEvents = 'none';
   probe.style.whiteSpace = 'nowrap';
   probe.style.font =
-    style.font || `${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+    style.font ||
+    `${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
   probe.style.letterSpacing = style.letterSpacing;
   document.body.appendChild(probe);
   const textWidth = probe.offsetWidth;
@@ -50,12 +57,9 @@ const isNativeSelectLabelTruncated = (
  * - Full text inside tooltip is selectable and copyable
  * - `mode="select"` measures a descendant native select instead of ellipsizing the trigger
  */
-export const TruncatedTextTooltip = ({
-  text,
-  className = '',
-  children,
-  mode = 'text',
-}: TruncatedTextTooltipProps) => {
+export const TruncatedTextTooltip: React.FC<
+  TruncatedTextTooltipProps
+> = ({ text, className = '', children, mode = 'text' }) => {
   const triggerRef = useRef<HTMLElement | null>(null);
   const [isOverflow, setIsOverflow] = useState(false);
   const [show, setShow] = useState(false);
@@ -81,7 +85,8 @@ export const TruncatedTextTooltip = ({
       return overflow;
     }
 
-    const overflow = el.scrollWidth > el.clientWidth + OVERFLOW_SLACK_PX;
+    const overflow =
+      el.scrollWidth > el.clientWidth + OVERFLOW_SLACK_PX;
     setIsOverflow(overflow);
     return overflow;
   }, [isSelectMode, normalized]);

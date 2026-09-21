@@ -1,4 +1,5 @@
-export const PrinterIcon = () => (
+import type React from 'react';
+export const PrinterIcon: React.FC = () => (
   <svg
     className='print-button-icon'
     viewBox='0 0 24 24'

@@ -1,10 +1,11 @@
+import type React from 'react';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type {
   Employee,
   EmployeeFormValues,
-} from '../../../../entities/employee/model/types';
-import type { Sale } from '../../../../entities/sale/model/types';
+} from '../../../../entities/employee';
+import type { Sale } from '../../../../entities/sale';
 import { EmployeeInformationPanel } from './EmployeeInformationPanel';
 import { EmployeeManagementPanel } from './EmployeeManagementPanel';
 
@@ -12,7 +13,7 @@ export type EmployeesTab = 'employees' | 'information';
 
 const employeesTabStorageKey = 'project-goods.employees-active-tab';
 
-type EmployeesPanelProps = {
+export interface EmployeesPanelProps {
   employees: Employee[];
   sales: Sale[];
   form: EmployeeFormValues;
@@ -36,7 +37,7 @@ type EmployeesPanelProps = {
 const isEmployeesTab = (value: string | null | undefined): value is EmployeesTab =>
   value === 'employees' || value === 'information';
 
-export const EmployeesPanel = ({
+export const EmployeesPanel: React.FC<EmployeesPanelProps> = ({
   employees,
   sales,
   form,
@@ -52,7 +53,7 @@ export const EmployeesPanel = ({
   onCancelEdit,
   onEdit,
   onDelete,
-}: EmployeesPanelProps) => {
+}) => {
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<EmployeesTab>(() => {
     try {

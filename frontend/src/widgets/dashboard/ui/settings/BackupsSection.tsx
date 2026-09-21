@@ -1,3 +1,4 @@
+import type React from 'react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -7,8 +8,8 @@ import {
   listBackups,
   restoreBackup,
   restoreBackupFromFile,
-} from '../../../../entities/backup/api/backupApi';
-import type { BackupMetadata } from '../../../../entities/backup/model/types';
+} from '../../../../entities/backup';
+import type { BackupMetadata } from '../../../../entities/backup';
 import { Button } from '../../../../shared/ui/Button';
 import { EmptyState } from '../../../../shared/ui/EmptyState';
 import { InlineError } from '../../../../shared/ui/InlineError';
@@ -44,11 +45,11 @@ const backupTypeTone: Record<BackupMetadata['type'], StatusBadgeTone> = {
   scheduled: 'success',
 };
 
-type BackupsSectionProps = {
+export interface BackupsSectionProps {
   canManageBackups: boolean;
 };
 
-export const BackupsSection = ({ canManageBackups }: BackupsSectionProps) => {
+export const BackupsSection: React.FC<BackupsSectionProps> = ({ canManageBackups }) => {
   const { t } = useTranslation();
   const [backups, setBackups] = useState<BackupMetadata[]>([]);
   const [isLoading, setIsLoading] = useState(false);

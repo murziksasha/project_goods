@@ -1,3 +1,4 @@
+import type React from 'react';
 import {
   useEffect,
   useId,
@@ -7,8 +8,8 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
 } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { Sale } from '../../../../entities/sale/model/types';
-import type { PageKey } from '../../../../pages/dashboard/model/types';
+import type { Sale } from '../../../../entities/sale';
+import type { PageKey } from '../../../../shared/config/routing';
 import { useModalBackgroundScrollLock } from '../../../../shared/lib/useModalBackgroundScrollLock';
 import {
   buildCommandPaletteItems,
@@ -19,7 +20,7 @@ import {
 
 export type { CommandPaletteAction, CommandPaletteItem } from './command-palette-items';
 
-type CommandPaletteProps = {
+export interface CommandPaletteProps {
   isOpen: boolean;
   canAccessPage: (page: PageKey) => boolean;
   canCreateOrders: boolean;
@@ -29,7 +30,7 @@ type CommandPaletteProps = {
   onAction: (action: CommandPaletteAction) => void;
 };
 
-export const CommandPalette = ({
+export const CommandPalette: React.FC<CommandPaletteProps> = ({
   isOpen,
   canAccessPage,
   canCreateOrders,
@@ -37,7 +38,7 @@ export const CommandPalette = ({
   sales,
   onClose,
   onAction,
-}: CommandPaletteProps) => {
+}) => {
   const { t } = useTranslation();
   const titleId = useId();
   const inputRef = useRef<HTMLInputElement>(null);

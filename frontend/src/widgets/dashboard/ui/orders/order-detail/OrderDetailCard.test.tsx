@@ -14,18 +14,18 @@ import {
   it,
   vi,
 } from 'vitest';
-import type { CatalogProduct } from '../../../../../entities/catalog-product/model/types';
-import type { Employee } from '../../../../../entities/employee/model/types';
-import * as clientDeviceApi from '../../../../../entities/client-device/api/clientDeviceApi';
-import type { ClientDevice } from '../../../../../entities/client-device/model/types';
-import * as productApi from '../../../../../entities/product/api/productApi';
-import type { Product } from '../../../../../entities/product/model/types';
-import type { ServiceCatalogItem } from '../../../../../entities/service-catalog/model/types';
-import { defaultPrintForms } from '../../../../../entities/settings/model/printForms';
-import type { Sale } from '../../../../../entities/sale/model/types';
-import type { SupplierOrder } from '../../../../../entities/supplier-order/model/types';
-import * as warehouseSettingsApi from '../../../../../entities/warehouse-settings/api/warehouseSettingsApi';
-import type { WarehouseSettings } from '../../../../../entities/warehouse-settings/model/types';
+import type { CatalogProduct } from '../../../../../entities/catalog-product';
+import type { Employee } from '../../../../../entities/employee';
+import * as clientDeviceApi from '../../../../../entities/client-device';
+import type { ClientDevice } from '../../../../../entities/client-device';
+import * as productApi from '../../../../../entities/product';
+import type { Product } from '../../../../../entities/product';
+import type { ServiceCatalogItem } from '../../../../../entities/service-catalog';
+import { defaultPrintForms } from '../../../../../entities/settings';
+import type { Sale } from '../../../../../entities/sale';
+import type { SupplierOrder } from '../../../../../entities/supplier-order';
+import * as warehouseSettingsApi from '../../../../../entities/warehouse-settings';
+import type { WarehouseSettings } from '../../../../../entities/warehouse-settings';
 import { formatCurrency } from '../../../../../shared/lib/format';
 import {
   OrderDetailCard,
@@ -88,7 +88,7 @@ vi.mock(
   async (importOriginal) => {
     const actual =
       await importOriginal<
-        typeof import('../../../../../entities/product/api/productApi')
+        typeof import('../../../../../entities/product')
       >();
     return {
       ...actual,
@@ -102,7 +102,7 @@ vi.mock(
   async (importOriginal) => {
     const actual =
       await importOriginal<
-        typeof import('../../../../../entities/sale/api/saleApi')
+        typeof import('../../../../../entities/sale')
       >();
     return {
       ...actual,
@@ -116,7 +116,7 @@ vi.mock(
   async (importOriginal) => {
     const actual =
       await importOriginal<
-        typeof import('../../../../../entities/client-device/api/clientDeviceApi')
+        typeof import('../../../../../entities/client-device')
       >();
     return {
       ...actual,
@@ -125,43 +125,54 @@ vi.mock(
   },
 );
 
-vi.mock(
-  '../../../../../entities/warehouse-settings/api/warehouseSettingsApi',
-  () => ({
+vi.mock('../../../../../entities/warehouse-settings', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../../../entities/warehouse-settings')>();
+  return {
+    ...actual,
     getWarehouseSettings: getWarehouseSettingsMock,
-  }),
-);
+    };
+});
 
-vi.mock(
-  '../../../../../entities/service-catalog/api/serviceCatalogApi',
-  () => ({
+vi.mock('../../../../../entities/service-catalog', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../../../entities/service-catalog')>();
+  return {
+    ...actual,
     createServiceCatalogItem: createServiceCatalogItemMock,
     getServiceCatalogItems: getServiceCatalogItemsMock,
     updateServiceCatalogItem: updateServiceCatalogItemMock,
-  }),
-);
+    };
+});
 
-vi.mock(
-  '../../../../../entities/supplier-order/api/supplierOrderApi',
-  () => ({
+vi.mock('../../../../../entities/supplier-order', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../../../entities/supplier-order')>();
+  return {
+    ...actual,
     cancelSupplierOrder: vi.fn(),
     cancelSupplierOrderItem: vi.fn(),
     createSupplierOrder: vi.fn(),
     takeOnChargeSupplierOrder: vi.fn(),
     updateSupplierOrder: vi.fn(),
-  }),
-);
+    };
+});
 
-vi.mock('../../../../../entities/supplier/api/supplierApi', () => ({
+vi.mock('../../../../../entities/supplier', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../../../entities/supplier')>();
+  return {
+    ...actual,
   createSupplier: vi.fn(),
   getSuppliers: vi.fn(async () => []),
-}));
+  };
+});
 
-vi.mock('../../../../../entities/finance/api/financeApi', () => ({
+vi.mock('../../../../../entities/finance', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../../../entities/finance')>();
+  return {
+    ...actual,
   getCashboxes: getCashboxesMock,
   paySupplierOrder: paySupplierOrderMock,
   issueSupplierOrderWithoutPayment: issueSupplierOrderWithoutPaymentMock,
-}));
+  };
+});
 
 const now = '2026-06-09T09:00:00.000Z';
 const PRODUCT_SEARCH_PLACEHOLDER = 'Name, serial or article';

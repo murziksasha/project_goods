@@ -1,9 +1,10 @@
+import type React from 'react';
 import { useTranslation } from 'react-i18next';
 import type {
   FinanceTransaction,
   FinanceTransactionType,
   SupplierOrderPaymentQueueItem,
-} from '../../../../entities/finance/model/types';
+} from '../../../../entities/finance';
 import {
   formatDateDdMmYyyy,
   formatMoney,
@@ -12,12 +13,12 @@ import { getSupplierOrderDisplayNumber } from '../../model/supplier-order-utils'
 import { Modal } from '../../../../shared/ui/Modal';
 import { Button } from '../../../../shared/ui/Button';
 
-type CancelTransactionModalProps = {
+export interface CancelTransactionModalProps {
   isSaving: boolean;
   transaction: FinanceTransaction;
   onClose: () => void;
   onConfirm: () => void;
-};
+}
 
 const cancelModalTitleKey: Record<FinanceTransactionType, string> = {
   deposit: 'accounting.confirmModals.cancelDepositTitle',
@@ -25,18 +26,18 @@ const cancelModalTitleKey: Record<FinanceTransactionType, string> = {
   transfer: 'accounting.confirmModals.cancelTransferTitle',
 };
 
-const cancelModalDescriptionKey: Record<FinanceTransactionType, string> = {
+const cancelModalDescriptionKey: Record<
+  FinanceTransactionType,
+  string
+> = {
   deposit: 'accounting.confirmModals.cancelDepositDescription',
   withdraw: 'accounting.confirmModals.cancelWithdrawDescription',
   transfer: 'accounting.confirmModals.cancelTransferDescription',
 };
 
-export const CancelTransactionModal = ({
-  isSaving,
-  transaction,
-  onClose,
-  onConfirm,
-}: CancelTransactionModalProps) => {
+export const CancelTransactionModal: React.FC<
+  CancelTransactionModalProps
+> = ({ isSaving, transaction, onClose, onConfirm }) => {
   const { t } = useTranslation();
   const type = transaction.type;
 
@@ -46,17 +47,21 @@ export const CancelTransactionModal = ({
       title={t(cancelModalTitleKey[type])}
       onClose={onClose}
       closeLabel={t('common.close')}
-      className="finance-cancel-transfer-modal"
+      className='finance-cancel-transfer-modal'
       closeOnBackdrop={!isSaving}
       closeOnEscape={!isSaving}
       footer={
-        <footer className="catalog-edit-footer">
-          <Button variant="secondary" disabled={isSaving} onClick={onClose}>
+        <footer className='catalog-edit-footer'>
+          <Button
+            variant='secondary'
+            disabled={isSaving}
+            onClick={onClose}
+          >
             {t('common.cancel')}
           </Button>
           <Button
-            variant="primary"
-            className="finance-danger-button"
+            variant='primary'
+            className='finance-danger-button'
             disabled={isSaving}
             onClick={onConfirm}
           >
@@ -73,17 +78,21 @@ export const CancelTransactionModal = ({
           fromCashbox: transaction.fromCashbox?.name ?? '-',
         })}
       </p>
-      <div className="finance-cancel-transfer-summary">
+      <div className='finance-cancel-transfer-summary'>
         <span>{t('accounting.confirmModals.date')}</span>
-        <strong>{formatDateDdMmYyyy(transaction.transactionDate)}</strong>
+        <strong>
+          {formatDateDdMmYyyy(transaction.transactionDate)}
+        </strong>
         <span>{t('accounting.confirmModals.amount')}</span>
-        <strong>{formatMoney(transaction.amount, transaction.currency)}</strong>
+        <strong>
+          {formatMoney(transaction.amount, transaction.currency)}
+        </strong>
         <span>{t('accounting.confirmModals.from')}</span>
         <strong>{transaction.fromCashbox?.name ?? '-'}</strong>
         <span>{t('accounting.confirmModals.to')}</span>
         <strong>{transaction.toCashbox?.name ?? '-'}</strong>
       </div>
-      <p className="muted-copy">
+      <p className='muted-copy'>
         {t('accounting.confirmModals.cancelTransactionHistoryNote')}
       </p>
     </Modal>
@@ -93,7 +102,7 @@ export const CancelTransactionModal = ({
 /** @deprecated Use CancelTransactionModal */
 export const CancelTransferModal = CancelTransactionModal;
 
-type PaySupplierOrderModalProps = {
+export interface PaySupplierOrderModalProps {
   isSaving: boolean;
   order: SupplierOrderPaymentQueueItem;
   cashboxName: string;
@@ -101,9 +110,11 @@ type PaySupplierOrderModalProps = {
   insufficient: boolean;
   onClose: () => void;
   onConfirm: () => void;
-};
+}
 
-export const PaySupplierOrderModal = ({
+export const PaySupplierOrderModal: React.FC<
+  PaySupplierOrderModalProps
+> = ({
   isSaving,
   order,
   cashboxName,
@@ -111,7 +122,7 @@ export const PaySupplierOrderModal = ({
   insufficient,
   onClose,
   onConfirm,
-}: PaySupplierOrderModalProps) => {
+}) => {
   const { t } = useTranslation();
   const orderNumber = getSupplierOrderDisplayNumber(order);
 
@@ -126,7 +137,11 @@ export const PaySupplierOrderModal = ({
       closeOnEscape={!isSaving}
       footer={
         <footer className='catalog-edit-footer'>
-          <Button variant='secondary' onClick={onClose} disabled={isSaving}>
+          <Button
+            variant='secondary'
+            onClick={onClose}
+            disabled={isSaving}
+          >
             {t('common.cancel')}
           </Button>
           <Button
@@ -185,26 +200,39 @@ export const IssueWithoutPaymentModal = ({
       title={t('accounting.confirmModals.issueWithoutPaymentTitle')}
       onClose={onClose}
       closeLabel={t('common.close')}
-      className="finance-without-payment-modal"
+      className='finance-without-payment-modal'
       closeOnBackdrop={!isSaving}
       closeOnEscape={!isSaving}
       footer={
-        <footer className="catalog-edit-footer">
-          <Button variant="secondary" onClick={onClose} disabled={isSaving}>
+        <footer className='catalog-edit-footer'>
+          <Button
+            variant='secondary'
+            onClick={onClose}
+            disabled={isSaving}
+          >
             {t('common.cancel')}
           </Button>
-          <Button variant="primary" disabled={isSaving} onClick={onConfirm}>
+          <Button
+            variant='primary'
+            disabled={isSaving}
+            onClick={onConfirm}
+          >
             {t('accounting.confirmModals.confirm')}
           </Button>
         </footer>
       }
     >
       <p>
-        {t('accounting.confirmModals.issueWithoutPaymentDescription', {
-          orderNumber,
-        })}
+        {t(
+          'accounting.confirmModals.issueWithoutPaymentDescription',
+          {
+            orderNumber,
+          },
+        )}
       </p>
-      <p>{t('accounting.confirmModals.issueWithoutPaymentConfirm')}</p>
+      <p>
+        {t('accounting.confirmModals.issueWithoutPaymentConfirm')}
+      </p>
     </Modal>
   );
 };

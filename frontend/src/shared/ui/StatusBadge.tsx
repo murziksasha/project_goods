@@ -1,6 +1,12 @@
+import type React from 'react';
 import type { HTMLAttributes } from 'react';
 
-export type ClientStatusTone = 'new' | 'vip' | 'opt' | 'blacklist' | 'ok';
+export type ClientStatusTone =
+  | 'new'
+  | 'vip'
+  | 'opt'
+  | 'blacklist'
+  | 'ok';
 
 export type StatusBadgeTone =
   | ClientStatusTone
@@ -34,13 +40,13 @@ const resolveClientStatusTone = (
   clientStatus: ClientStatusTone | '',
 ): StatusBadgeTone => (clientStatus ? clientStatus : 'gray');
 
-export const StatusBadge = ({
+export const StatusBadge: React.FC<StatusBadgeProps> = ({
   label,
   tone,
   clientStatus,
   className = '',
   ...props
-}: StatusBadgeProps) => {
+}) => {
   const resolvedTone =
     tone ??
     (clientStatus !== undefined

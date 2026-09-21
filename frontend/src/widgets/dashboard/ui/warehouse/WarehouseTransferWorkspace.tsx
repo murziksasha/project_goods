@@ -1,6 +1,7 @@
+import type React from 'react';
 import { useMemo, type Dispatch, type SetStateAction } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { Product } from '../../../../entities/product/model/types';
+import type { Product } from '../../../../entities/product';
 import { formatDate } from '../../../../shared/lib/format';
 import type {
   ProductWarehouseMeta,
@@ -16,6 +17,21 @@ const locationLabel = (warehouseName?: string, locationName?: string) => {
 };
 
 export const TransferWorkspace = ({
+export interface TransferWorkspaceProps {
+  products: Product[];
+  selectableProducts: Product[];
+  warehouses: WarehouseItem[];
+  productWarehouseMetaById: Record<string, ProductWarehouseMeta>;
+  form: TransferFormState;
+  selectedProduct: Product | null;
+  targetLocations: WarehouseLocation[];
+  history: TransferHistoryRow[];
+  isSaving: boolean;
+  onFormChange: Dispatch<SetStateAction<TransferFormState>>;
+  onSubmit: () => void;
+}
+
+export const TransferWorkspace: React.FC<TransferWorkspaceProps> = ({
   products,
   selectableProducts,
   warehouses,

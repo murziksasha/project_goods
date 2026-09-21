@@ -3,12 +3,16 @@ import { hardReloadApp } from '../shared/lib/hardReload';
 import i18n from '../shared/i18n/config';
 
 type AppErrorBoundaryProps = {
+export interface AppErrorBoundaryProps {
   children: ReactNode;
 };
+}
 
 type AppErrorBoundaryState = {
+export interface AppErrorBoundaryState {
   error: Error | null;
 };
+}
 
 const isDevelopment = import.meta.env.DEV;
 

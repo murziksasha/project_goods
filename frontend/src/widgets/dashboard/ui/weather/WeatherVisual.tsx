@@ -1,10 +1,11 @@
+import type React from 'react';
 import { useTranslation } from 'react-i18next';
-import type { WeatherIntensity } from '../../../../entities/weather/api/weatherApi';
+import type { WeatherIntensity } from '../../../../entities/weather';
 import { degreesToCompass } from '../../model/weather-scene-params';
 import { WeatherAnimatedScene } from './WeatherAnimatedScene';
 import { WeatherSunGraphic } from './WeatherSunGraphic';
 
-type WeatherVisualProps = {
+export interface WeatherVisualProps {
   condition: string;
   temperature: number;
   humidity?: number;
@@ -16,10 +17,17 @@ type WeatherVisualProps = {
   compact?: boolean;
   animated?: boolean;
 };
+}
 
 const precipitationConditions = new Set(['rain', 'snow', 'thunder', 'fog']);
 
-export const WeatherIconStatic = ({
+export const WeatherIconStatic: React.FC<WeatherVisualProps> = ({
+export interface WeatherIconStaticProps {
+  condition: string;
+  intensity?: WeatherIntensity;
+}
+
+export const WeatherIconStatic: React.FC<WeatherIconStaticProps> = ({
   condition,
   intensity,
 }: {
@@ -106,6 +114,7 @@ export const WeatherIconStatic = ({
 };
 
 export const WeatherVisual = ({
+export const WeatherVisual: React.FC<WeatherVisualProps> = ({
   condition,
   temperature,
   humidity,
@@ -116,7 +125,7 @@ export const WeatherVisual = ({
   label,
   compact = false,
   animated = false,
-}: WeatherVisualProps) => {
+}) => {
   const { t } = useTranslation();
   const useAnimatedScene = animated && !compact;
   const windCompass = degreesToCompass(windDirection);

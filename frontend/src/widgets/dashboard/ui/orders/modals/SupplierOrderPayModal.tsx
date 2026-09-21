@@ -1,13 +1,14 @@
+import type React from 'react';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { Cashbox } from '../../../../../entities/finance/model/types';
-import type { SupplierOrder } from '../../../../../entities/supplier-order/model/types';
+import type { Cashbox } from '../../../../../entities/finance';
+import type { SupplierOrder } from '../../../../../entities/supplier-order';
 import { formatCurrency } from '../../../../../shared/lib/format';
 import { Button } from '../../../../../shared/ui/Button';
 import { Modal } from '../../../../../shared/ui/Modal';
 import { getSupplierOrderDisplayNumber } from '../../../model/supplier-order-utils';
 
-type SupplierOrderPayModalProps = {
+export interface SupplierOrderPayModalProps {
   order: SupplierOrder;
   cashboxes: Cashbox[];
   isLoading: boolean;
@@ -18,7 +19,7 @@ type SupplierOrderPayModalProps = {
   onIssueWithoutPayment: () => void;
 };
 
-export const SupplierOrderPayModal = ({
+export const SupplierOrderPayModal: React.FC<SupplierOrderPayModalProps> = ({
   order,
   cashboxes,
   isLoading,
@@ -27,7 +28,7 @@ export const SupplierOrderPayModal = ({
   onClose,
   onPay,
   onIssueWithoutPayment,
-}: SupplierOrderPayModalProps) => {
+}) => {
   const { t } = useTranslation();
   const orderNumber = getSupplierOrderDisplayNumber(order);
   const [selectedCashboxId, setSelectedCashboxId] = useState('');

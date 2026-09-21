@@ -1,3 +1,4 @@
+import type React from 'react';
 import type { KeyboardEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -26,23 +27,29 @@ export const SalePriceTierToggle = <T extends string>({
 }: SalePriceTierToggleProps<T>) => {
   const { t } = useTranslation();
 
-  const handleGroupKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+  const handleGroupKeyDown = (
+    event: KeyboardEvent<HTMLDivElement>,
+  ) => {
     if (disabled || options.length === 0) return;
-    if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+    if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight')
+      return;
 
     event.preventDefault();
-    const currentIndex = options.findIndex((option) => option.id === activeId);
+    const currentIndex = options.findIndex(
+      (option) => option.id === activeId,
+    );
     const startIndex = currentIndex >= 0 ? currentIndex : 0;
     const delta = event.key === 'ArrowRight' ? 1 : -1;
-    const nextIndex = (startIndex + delta + options.length) % options.length;
+    const nextIndex =
+      (startIndex + delta + options.length) % options.length;
     const next = options[nextIndex];
     if (next) onChange(next.id);
   };
 
   return (
     <div
-      className="product-sale-price-tier-toggle"
-      role="group"
+      className='product-sale-price-tier-toggle'
+      role='group'
       aria-label={t('product.salePrice.tierToggleAria')}
       onKeyDown={handleGroupKeyDown}
     >
@@ -60,7 +67,7 @@ export const SalePriceTierToggle = <T extends string>({
         return (
           <button
             key={option.id}
-            type="button"
+            type='button'
             className={className}
             onClick={() => onChange(option.id)}
             disabled={disabled}

@@ -1,35 +1,36 @@
+import type React from 'react';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { hasEmployeePermission } from '../../../../../entities/employee/model/permissions';
-import { isRepairOrder } from '../../../../../entities/sale/lib/sale-kind';
-import { getSaleProductName } from '../../../../../entities/sale/lib/sale-product';
+import { hasEmployeePermission } from '../../../../../entities/employee';
+import { isRepairOrder } from '../../../../../entities/sale';
+import { getSaleProductName } from '../../../../../entities/sale';
 import { formatCurrency, formatDateTime } from '../../../../../shared/lib/format';
-import { getClientDevices } from '../../../../../entities/client-device/api/clientDeviceApi';
+import { getClientDevices } from '../../../../../entities/client-device';
 import {
   cancelSupplierOrder,
   cancelSupplierOrderItem,
   takeOnChargeSupplierOrder,
   updateSupplierOrder,
-} from '../../../../../entities/supplier-order/api/supplierOrderApi';
+} from '../../../../../entities/supplier-order';
 import type {
   SupplierOrder,
   SupplierOrderStatus,
-} from '../../../../../entities/supplier-order/model/types';
-import { getWarehouseSettings } from '../../../../../entities/warehouse-settings/api/warehouseSettingsApi';
-import { createSupplier, getSuppliers } from '../../../../../entities/supplier/api/supplierApi';
-import type { Supplier } from '../../../../../entities/supplier/model/types';
-import type { ClientDevice } from '../../../../../entities/client-device/model/types';
+} from '../../../../../entities/supplier-order';
+import { getWarehouseSettings } from '../../../../../entities/warehouse-settings';
+import { createSupplier, getSuppliers } from '../../../../../entities/supplier';
+import type { Supplier } from '../../../../../entities/supplier';
+import type { ClientDevice } from '../../../../../entities/client-device';
 import {
   getUnbindClientDeviceAction,
   unbindClientDevice,
-} from '../../../../../entities/client-device/lib/unbind-client-device';
+} from '../../../../../entities/client-device';
 import { OrderPaymentDiscountControl } from './OrderPaymentDiscountControl';
 import {
   getCashboxes,
   issueSupplierOrderWithoutPayment,
   paySupplierOrder,
-} from '../../../../../entities/finance/api/financeApi';
-import type { Cashbox } from '../../../../../entities/finance/model/types';
+} from '../../../../../entities/finance';
+import type { Cashbox } from '../../../../../entities/finance';
 import { AccountingIcon, CheckIcon } from '../../../../../shared/ui/NavIcons';
 import { SupplierOrderModal } from '../modals/SupplierOrderModal';
 import { SupplierOrderPayModal } from '../modals/SupplierOrderPayModal';
@@ -112,7 +113,7 @@ const getIsCompactLayout = () =>
   typeof window.matchMedia === 'function' &&
   window.matchMedia(COMPACT_LAYOUT_MEDIA_QUERY).matches;
 
-export const OrderDetailCard = ({
+export const OrderDetailCard: React.FC<OrderDetailCardProps> = ({
   sale,
   sales,
   supplierOrders,
@@ -158,7 +159,7 @@ export const OrderDetailCard = ({
   onSuccess,
   onSaveMainInfo,
   onSaveUserNote,
-}: OrderDetailCardProps) => {
+}) => {
   const { t, i18n } = useTranslation();
   const isSaleCard = !isRepairOrder(sale);
   const [comment, setComment] = useState('');
