@@ -32,7 +32,26 @@
     "createDevice": "Create device",
     "createSupplier": "Create supplier",
     "createProduct": "Create product",
-    "createService": "Create service"
+    "createService": "Create service",
+    "merge": "Merge"
+  },
+  "recordMergeModal": {
+    "titleDevice": "Merge client devices",
+    "titleProduct": "Merge products",
+    "titleService": "Merge services",
+    "titleSupplier": "Merge suppliers",
+    "description": "Select two records. Data from Source will be merged into Target, and Source will be permanently deleted.",
+    "targetLabel": "Target (Surviving)",
+    "sourceLabel": "Source (To delete)",
+    "searchPlaceholder": "Search by name...",
+    "searchSupplierPlaceholder": "Search by name or phone...",
+    "swap": "Swap",
+    "swapAriaLabel": "Swap target and source records",
+    "differentRecordsWarning": "Target and source records must be different.",
+    "targetSectionTitle": "Surviving Record (Target)",
+    "sourceSectionTitle": "Record to Remove (Source)",
+    "merge": "Merge",
+    "merging": "Merging..."
   },
   "filters": {
     "deviceName": "Device name",

@@ -41,6 +41,8 @@ import {
   ClientDeviceModal,
   SupplierModal,
 } from './ProductCatalogModals';
+import { CatalogRecordMergeModal } from '../../../../features/catalog-duplicate-merge';
+import { formatCurrency } from '../../../../shared/lib/format';
 import {
   catalogTabStorageKey,
   catalogActiveFiltersStorageKey,
@@ -249,6 +251,7 @@ export const ProductCatalogPanel: React.FC<
     useState<CatalogProduct | null>(null);
   const [isServiceFormOpen, setIsServiceFormOpen] = useState(false);
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
+  const [isMergeModalOpen, setIsMergeModalOpen] = useState(false);
   const [draftFiltersByTab, setDraftFiltersByTab] = useState<
     Record<CatalogTab, CatalogFilters>
   >(readCatalogActiveFilters);
@@ -959,37 +962,75 @@ export const ProductCatalogPanel: React.FC<
         </div>
         <div className='catalog-toolbar-actions'>
           {isProductsTab ? (
-            <button
-              type='button'
-              className='orders-create-button'
-              onClick={() => setIsCreateDeviceModalOpen(true)}
-            >
-              {t('catalog.toolbar.createDevice')}
-            </button>
+            <>
+              <button
+                type='button'
+                className='toolbar-filter-button'
+                onClick={() => setIsMergeModalOpen(true)}
+              >
+                {t('catalog.toolbar.merge')}
+              </button>
+              <button
+                type='button'
+                className='orders-create-button'
+                onClick={() => setIsCreateDeviceModalOpen(true)}
+              >
+                {t('catalog.toolbar.createDevice')}
+              </button>
+            </>
           ) : isSuppliersTab ? (
-            <button
-              type='button'
-              className='orders-create-button'
-              onClick={() => setIsCreateSupplierModalOpen(true)}
-            >
-              {t('catalog.toolbar.createSupplier')}
-            </button>
+            <>
+              <button
+                type='button'
+                className='toolbar-filter-button'
+                onClick={() => setIsMergeModalOpen(true)}
+              >
+                {t('catalog.toolbar.merge')}
+              </button>
+              <button
+                type='button'
+                className='orders-create-button'
+                onClick={() => setIsCreateSupplierModalOpen(true)}
+              >
+                {t('catalog.toolbar.createSupplier')}
+              </button>
+            </>
           ) : isCatalogProductsTab ? (
-            <button
-              type='button'
-              className='orders-create-button'
-              onClick={() => setIsCreateCatalogProductModalOpen(true)}
-            >
-              {t('catalog.toolbar.createProduct')}
-            </button>
+            <>
+              <button
+                type='button'
+                className='toolbar-filter-button'
+                onClick={() => setIsMergeModalOpen(true)}
+              >
+                {t('catalog.toolbar.merge')}
+              </button>
+              <button
+                type='button'
+                className='orders-create-button'
+                onClick={() =>
+                  setIsCreateCatalogProductModalOpen(true)
+                }
+              >
+                {t('catalog.toolbar.createProduct')}
+              </button>
+            </>
           ) : (
-            <button
-              type='button'
-              className='orders-create-button'
-              onClick={openServiceForm}
-            >
-              {t('catalog.toolbar.createService')}
-            </button>
+            <>
+              <button
+                type='button'
+                className='toolbar-filter-button'
+                onClick={() => setIsMergeModalOpen(true)}
+              >
+                {t('catalog.toolbar.merge')}
+              </button>
+              <button
+                type='button'
+                className='orders-create-button'
+                onClick={openServiceForm}
+              >
+                {t('catalog.toolbar.createService')}
+              </button>
+            </>
           )}
         </div>
       </div>
@@ -1471,6 +1512,87 @@ export const ProductCatalogPanel: React.FC<
             />
           </label>
         </Modal>
+      ) : null}
+
+      {isMergeModalOpen && isProductsTab ? (
+        <CatalogRecordMergeModal<ClientDevice>
+          isOpen={isMergeModalOpen}
+          title={t('catalog.recordMergeModal.titleDevice')}
+          records={clientDevices}
+          onClose={() => setIsMergeModalOpen(false)}
+          onMerge={async (targetId, sourceId) => {
+            if (onMergeClientDevice) {
+              return onMergeClientDevice(targetId, sourceId);
+            }
+          }}
+          getRecordId={(device) => device.id}
+          getRecordName={(device) => device.name}
+          getRecordSecondaryText={(device) =>
+            device.clientName || device.clientPhone || undefined
+          }
+          getRecordNote={(device) => device.note}
+        />
+      ) : null}
+
+      {isMergeModalOpen && isCatalogProductsTab ? (
+        <CatalogRecordMergeModal<CatalogProduct>
+          isOpen={isMergeModalOpen}
+          title={t('catalog.recordMergeModal.titleProduct')}
+          records={catalogProducts}
+          onClose={() => setIsMergeModalOpen(false)}
+          onMerge={async (targetId, sourceId) => {
+            if (onMergeCatalogProduct) {
+              return onMergeCatalogProduct(targetId, sourceId);
+            }
+          }}
+          getRecordId={(product) => product.id}
+          getRecordName={(product) => product.name}
+          getRecordNote={(product) => product.note}
+        />
+      ) : null}
+
+      {isMergeModalOpen && isSuppliersTab ? (
+        <CatalogRecordMergeModal<Supplier>
+          isOpen={isMergeModalOpen}
+          title={t('catalog.recordMergeModal.titleSupplier')}
+          records={suppliers}
+          searchPlaceholder={t(
+            'catalog.recordMergeModal.searchSupplierPlaceholder',
+          )}
+          onClose={() => setIsMergeModalOpen(false)}
+          onMerge={async (targetId, sourceId) => {
+            if (onMergeSupplier) {
+              return onMergeSupplier(targetId, sourceId);
+            }
+          }}
+          getRecordId={(supplier) => supplier.id}
+          getRecordName={(supplier) => supplier.name}
+          getRecordSecondaryText={(supplier) => supplier.phone}
+          getRecordNote={(supplier) => supplier.note}
+        />
+      ) : null}
+
+      {isMergeModalOpen &&
+      !isProductsTab &&
+      !isCatalogProductsTab &&
+      !isSuppliersTab ? (
+        <CatalogRecordMergeModal<ServiceCatalogItem>
+          isOpen={isMergeModalOpen}
+          title={t('catalog.recordMergeModal.titleService')}
+          records={services}
+          onClose={() => setIsMergeModalOpen(false)}
+          onMerge={async (targetId, sourceId) => {
+            if (onMergeService) {
+              return onMergeService(targetId, sourceId);
+            }
+          }}
+          getRecordId={(service) => service.id}
+          getRecordName={(service) => service.name}
+          getRecordSecondaryText={(service) =>
+            formatCurrency(Number(service.price) || 0)
+          }
+          getRecordNote={(service) => service.note}
+        />
       ) : null}
     </section>
   );

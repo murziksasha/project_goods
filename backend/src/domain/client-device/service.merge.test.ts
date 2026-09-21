@@ -75,28 +75,137 @@ describe('mergeClientDevices', () => {
     ).rejects.toThrow('Source client device not found.');
   });
 
-  it('rejects cross-client merges', async () => {
+  it('allows cross-client merges, relinking sales, preserving device continuity for source client, and deleting source', async () => {
+    const target = createMockDevice(
+      targetDeviceId,
+      'iPhone 13',
+      clientId1,
+      'Target note',
+    );
+    const source = createMockDevice(
+      sourceDeviceId,
+      'iphone 13',
+      clientId2,
+      'Source note',
+    );
+
     vi.spyOn(ClientDevice, 'findById').mockImplementation(((
       id: string,
     ) => {
       if (id === targetDeviceId) {
-        return leanResult(
-          createMockDevice(targetDeviceId, 'iPhone 13', clientId1),
-        );
+        return leanResult(target);
       }
       if (id === sourceDeviceId) {
-        return leanResult(
-          createMockDevice(sourceDeviceId, 'iphone 13', clientId2),
-        );
+        return leanResult(source);
       }
       return leanResult(null);
     }) as never);
 
-    await expect(
-      mergeClientDevices(targetDeviceId, sourceDeviceId),
-    ).rejects.toThrow(
-      'Cannot merge devices belonging to different clients.',
+    vi.spyOn(ClientDevice, 'exists').mockResolvedValue(
+      false as never,
     );
+    const saveSpy = vi
+      .spyOn(ClientDevice.prototype, 'save')
+      .mockResolvedValue({} as never);
+
+    const matchingSale = {
+      _id: 'sale-2',
+      client: clientId2,
+      kind: 'repair',
+      productSnapshot: {
+        article: 'ART-2',
+        name: 'iphone 13',
+        serialNumber: 'SN-001',
+      },
+      lineItems: [],
+    };
+    vi.spyOn(Sale, 'find').mockReturnValue({
+      lean: vi.fn().mockResolvedValue([matchingSale]),
+    } as never);
+    const saleFindByIdAndUpdate = vi
+      .spyOn(Sale, 'findByIdAndUpdate')
+      .mockResolvedValue({} as never);
+
+    vi.spyOn(ClientDevice, 'findByIdAndUpdate').mockImplementation(((
+      id: string,
+      update: any,
+    ) =>
+      leanResult({
+        ...target,
+        ...update,
+      })) as never);
+    const sourceFindByIdAndDelete = vi
+      .spyOn(ClientDevice, 'findByIdAndDelete')
+      .mockReturnValue(leanResult(source) as never);
+
+    const result = await mergeClientDevices(
+      targetDeviceId,
+      sourceDeviceId,
+      'Draft note',
+    );
+
+    expect(result.device.name).toBe('iPhone 13');
+    expect(result.removedDeviceId).toBe(sourceDeviceId);
+    expect(result.relinkedSalesCount).toBe(1);
+    expect(result.movedSalesCount).toBe(1);
+    expect(saveSpy).toHaveBeenCalled();
+    expect(saleFindByIdAndUpdate).toHaveBeenCalledWith(
+      'sale-2',
+      expect.objectContaining({
+        productSnapshot: expect.objectContaining({
+          name: 'iPhone 13',
+        }),
+      }),
+      expect.anything(),
+    );
+    expect(sourceFindByIdAndDelete).toHaveBeenCalledWith(
+      sourceDeviceId,
+      expect.anything(),
+    );
+  });
+
+  it('allows merging unassigned source device (client: null) into client-assigned target device', async () => {
+    const target = createMockDevice(
+      targetDeviceId,
+      'iPhone 13',
+      clientId1,
+      'Target note',
+    );
+    const source = createMockDevice(
+      sourceDeviceId,
+      'iphone 13',
+      null,
+      'Source note',
+    );
+
+    vi.spyOn(ClientDevice, 'findById').mockImplementation(((
+      id: string,
+    ) => {
+      if (id === targetDeviceId) return leanResult(target);
+      if (id === sourceDeviceId) return leanResult(source);
+      return leanResult(null);
+    }) as never);
+
+    vi.spyOn(ClientDevice, 'findByIdAndUpdate').mockImplementation(((
+      id: string,
+      update: any,
+    ) =>
+      leanResult({
+        ...target,
+        ...update,
+      })) as never);
+    vi.spyOn(ClientDevice, 'findByIdAndDelete').mockReturnValue(
+      leanResult(source) as never,
+    );
+
+    const result = await mergeClientDevices(
+      targetDeviceId,
+      sourceDeviceId,
+    );
+
+    expect(result.device.name).toBe('iPhone 13');
+    expect(result.removedDeviceId).toBe(sourceDeviceId);
+    expect(result.movedSalesCount).toBe(0);
   });
 
   it('merges devices belonging to the same client, consolidates notes, relinks sales, and deletes source', async () => {
