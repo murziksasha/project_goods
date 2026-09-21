@@ -37,29 +37,12 @@ import {
   setPriceOption,
   setServicePriceOption,
 } from './product-catalog-shared';
-import { findCatalogDuplicate } from '../../../../features/catalog-duplicate-merge';
-import { CatalogMergeConfirmationModal } from '../../../../features/catalog-duplicate-merge';
-import { findCatalogDuplicate } from '../../../../features/catalog-duplicate-merge/lib/detectDuplicate';
-import { CatalogMergeConfirmationModal } from '../../../../features/catalog-duplicate-merge/ui/CatalogMergeConfirmationModal';
+import {
+  findCatalogDuplicate,
+  CatalogMergeConfirmationModal,
+} from '../../../../features/catalog-duplicate-merge';
 
-export const SupplierModal: React.FC<CatalogProductModalProps> = ({
 export interface SupplierModalProps {
-  modalId: string | null;
-  form: SupplierFormValues;
-  isSaving: boolean;
-  onFormChange: <K extends keyof SupplierFormValues>(field: K, value: SupplierFormValues[K]) => void;
-  onClose: () => void;
-  onSubmit: () => void;
-}
-
-export const SupplierModal: React.FC<SupplierModalProps> = ({
-  supplier,
-  suppliers = [],
-  onClose,
-  onSave,
-  onCreate,
-  onMerge,
-}: {
   supplier: Supplier;
   suppliers?: Supplier[];
   onClose: () => void;
@@ -70,6 +53,15 @@ export const SupplierModal: React.FC<SupplierModalProps> = ({
     sourceSupplierId: string,
     draftNote?: string,
   ) => Promise<boolean>;
+}
+
+export const SupplierModal: React.FC<SupplierModalProps> = ({
+  supplier,
+  suppliers = [],
+  onClose,
+  onSave,
+  onCreate,
+  onMerge,
 }) => {
   const { t } = useTranslation();
   const phoneInputRef = useRef<HTMLInputElement>(null);
@@ -293,7 +285,6 @@ export const SupplierModal: React.FC<SupplierModalProps> = ({
 };
 
 export interface CatalogProductModalProps {
-type CatalogProductModalProps = {
   product: Product;
   catalogNumber: number;
   form: ProductFormValues;
@@ -307,20 +298,11 @@ type CatalogProductModalProps = {
   onClose: () => void;
   onArchive: () => void;
   onActivate: () => void;
-};
-
-export const CatalogProductModal = ({
-export interface CatalogProductModalProps {
-  modalId: string | null;
-  form: CatalogProductFormValues;
-  isSaving: boolean;
-  suppliers: Supplier[];
-  onFormChange: <K extends keyof CatalogProductFormValues>(field: K, value: CatalogProductFormValues[K]) => void;
-  onClose: () => void;
-  onSubmit: () => void;
 }
 
-export const CatalogProductModal: React.FC<CatalogProductModalProps> = ({
+export const CatalogProductModal: React.FC<
+  CatalogProductModalProps
+> = ({
   product,
   catalogNumber,
   form,
@@ -332,7 +314,6 @@ export const CatalogProductModal: React.FC<CatalogProductModalProps> = ({
   onArchive,
   onActivate,
 }) => {
-}: CatalogProductModalProps) => {
   const { t } = useTranslation();
 
   const saveAndClose = async () => {
@@ -558,7 +539,6 @@ export const CatalogProductModal: React.FC<CatalogProductModalProps> = ({
 };
 
 export interface CatalogServiceModalProps {
-type CatalogServiceModalProps = {
   service: ServiceCatalogItem;
   services?: ServiceCatalogItem[];
   catalogNumber: number;
@@ -579,10 +559,11 @@ type CatalogServiceModalProps = {
     sourceServiceId: string,
     draftNote?: string,
   ) => Promise<boolean>;
-};
+}
 
-export const CatalogServiceModal: React.FC<CatalogServiceModalProps> = ({
-export const CatalogServiceModal = ({
+export const CatalogServiceModal: React.FC<
+  CatalogServiceModalProps
+> = ({
   service,
   services = [],
   catalogNumber,
@@ -597,7 +578,6 @@ export const CatalogServiceModal = ({
   onActivate,
   onMerge,
 }) => {
-}: CatalogServiceModalProps) => {
   const { t } = useTranslation();
   const [duplicateTarget, setDuplicateTarget] =
     useState<ServiceCatalogItem | null>(null);
@@ -798,25 +778,7 @@ export const CatalogServiceModal = ({
   );
 };
 
-export const ClientDeviceModal = ({
 export interface ClientDeviceModalProps {
-  modalId: string | null;
-  form: ClientDeviceFormValues;
-  isSaving: boolean;
-  clients: Client[];
-  onFormChange: <K extends keyof ClientDeviceFormValues>(field: K, value: ClientDeviceFormValues[K]) => void;
-  onClose: () => void;
-  onSubmit: () => void;
-}
-
-export const ClientDeviceModal: React.FC<ClientDeviceModalProps> = ({
-  device,
-  clientDevices = [],
-  onClose,
-  onSave,
-  onRemove,
-  onMerge,
-}: {
   device: ClientDevice;
   clientDevices?: ClientDevice[];
   onClose: () => void;
@@ -827,6 +789,15 @@ export const ClientDeviceModal: React.FC<ClientDeviceModalProps> = ({
     sourceDeviceId: string,
     draftNote?: string,
   ) => Promise<boolean>;
+}
+
+export const ClientDeviceModal: React.FC<ClientDeviceModalProps> = ({
+  device,
+  clientDevices = [],
+  onClose,
+  onSave,
+  onRemove,
+  onMerge,
 }) => {
   const { t } = useTranslation();
   const [name, setName] = useState(device.name);

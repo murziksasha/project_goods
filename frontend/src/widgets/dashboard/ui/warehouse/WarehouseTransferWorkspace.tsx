@@ -11,12 +11,14 @@ import type {
   WarehouseItem,
 } from '../../model/warehouse-panel';
 
-const locationLabel = (warehouseName?: string, locationName?: string) => {
+const locationLabel = (
+  warehouseName?: string,
+  locationName?: string,
+) => {
   if (!warehouseName && !locationName) return '';
   return `${warehouseName ?? '-'} / ${locationName ?? '-'}`;
 };
 
-export const TransferWorkspace = ({
 export interface TransferWorkspaceProps {
   products: Product[];
   selectableProducts: Product[];
@@ -43,18 +45,6 @@ export const TransferWorkspace: React.FC<TransferWorkspaceProps> = ({
   isSaving,
   onFormChange,
   onSubmit,
-}: {
-  products: Product[];
-  selectableProducts: Product[];
-  warehouses: WarehouseItem[];
-  productWarehouseMetaById: Record<string, ProductWarehouseMeta>;
-  form: TransferFormState;
-  selectedProduct: Product | null;
-  targetLocations: WarehouseLocation[];
-  history: TransferHistoryRow[];
-  isSaving: boolean;
-  onFormChange: Dispatch<SetStateAction<TransferFormState>>;
-  onSubmit: () => void;
 }) => {
   const { t } = useTranslation();
   const currentMeta = selectedProduct
@@ -70,7 +60,10 @@ export const TransferWorkspace: React.FC<TransferWorkspaceProps> = ({
     currentMeta?.warehouseName,
     currentMeta?.locationName,
   );
-  const toLabel = locationLabel(targetWarehouse?.name, targetLocation?.name);
+  const toLabel = locationLabel(
+    targetWarehouse?.name,
+    targetLocation?.name,
+  );
   const isSameLocation =
     Boolean(selectedProduct) &&
     currentMeta?.warehouseId === form.toWarehouseId &&
@@ -93,7 +86,10 @@ export const TransferWorkspace: React.FC<TransferWorkspaceProps> = ({
     if (history.length === 0) return [];
     const counts = new Map<string, number>();
     for (const row of history) {
-      const key = locationLabel(row.toWarehouseName, row.toLocationName);
+      const key = locationLabel(
+        row.toWarehouseName,
+        row.toLocationName,
+      );
       counts.set(key, (counts.get(key) ?? 0) + 1);
     }
     return [...counts.entries()]
@@ -142,7 +138,10 @@ export const TransferWorkspace: React.FC<TransferWorkspaceProps> = ({
 
       <div className='warehouse-transfer-grid'>
         <div className='warehouse-transfer-form'>
-          <div className='warehouse-transfer-route' aria-live='polite'>
+          <div
+            className='warehouse-transfer-route'
+            aria-live='polite'
+          >
             <div
               className={
                 fromLabel
@@ -151,9 +150,14 @@ export const TransferWorkspace: React.FC<TransferWorkspaceProps> = ({
               }
             >
               <span>{t('warehouse.transfer.route.from')}</span>
-              <strong>{fromLabel || t('warehouse.transfer.route.empty')}</strong>
+              <strong>
+                {fromLabel || t('warehouse.transfer.route.empty')}
+              </strong>
             </div>
-            <span className='warehouse-transfer-route-arrow' aria-hidden='true'>
+            <span
+              className='warehouse-transfer-route-arrow'
+              aria-hidden='true'
+            >
               →
             </span>
             <div
@@ -164,7 +168,9 @@ export const TransferWorkspace: React.FC<TransferWorkspaceProps> = ({
               }
             >
               <span>{t('warehouse.transfer.route.to')}</span>
-              <strong>{toLabel || t('warehouse.transfer.route.empty')}</strong>
+              <strong>
+                {toLabel || t('warehouse.transfer.route.empty')}
+              </strong>
             </div>
           </div>
 
@@ -175,7 +181,9 @@ export const TransferWorkspace: React.FC<TransferWorkspaceProps> = ({
               onChange={(event) => selectProduct(event.target.value)}
               disabled={isSaving}
             >
-              <option value=''>{t('warehouse.transfer.selectStockItem')}</option>
+              <option value=''>
+                {t('warehouse.transfer.selectStockItem')}
+              </option>
               {selectableProducts.map((product) => (
                 <option key={product.id} value={product.id}>
                   {`${product.name} / ${product.serialNumber || product.article}`}
@@ -294,8 +302,15 @@ export const TransferWorkspace: React.FC<TransferWorkspaceProps> = ({
                     <strong>{share.label}</strong>
                     <span>{share.count}</span>
                   </div>
-                  <span className='warehouse-info-share-track' aria-hidden='true'>
-                    <span style={{ width: `${Math.max(share.percent, 8)}%` }} />
+                  <span
+                    className='warehouse-info-share-track'
+                    aria-hidden='true'
+                  >
+                    <span
+                      style={{
+                        width: `${Math.max(share.percent, 8)}%`,
+                      }}
+                    />
                   </span>
                 </div>
               ))}
@@ -319,11 +334,29 @@ export const TransferWorkspace: React.FC<TransferWorkspaceProps> = ({
               <table className='catalog-table table-card-stack'>
                 <thead>
                   <tr>
-                    <th>{t('warehouse.transfer.stockTable.columns.product')}</th>
-                    <th>{t('warehouse.transfer.stockTable.columns.serial')}</th>
-                    <th>{t('warehouse.transfer.stockTable.columns.warehouse')}</th>
-                    <th>{t('warehouse.transfer.stockTable.columns.location')}</th>
-                    <th>{t('warehouse.transfer.stockTable.columns.qty')}</th>
+                    <th>
+                      {t(
+                        'warehouse.transfer.stockTable.columns.product',
+                      )}
+                    </th>
+                    <th>
+                      {t(
+                        'warehouse.transfer.stockTable.columns.serial',
+                      )}
+                    </th>
+                    <th>
+                      {t(
+                        'warehouse.transfer.stockTable.columns.warehouse',
+                      )}
+                    </th>
+                    <th>
+                      {t(
+                        'warehouse.transfer.stockTable.columns.location',
+                      )}
+                    </th>
+                    <th>
+                      {t('warehouse.transfer.stockTable.columns.qty')}
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -342,7 +375,10 @@ export const TransferWorkspace: React.FC<TransferWorkspaceProps> = ({
                         aria-pressed={product.id === form.productId}
                         onClick={() => selectProduct(product.id)}
                         onKeyDown={(event) => {
-                          if (event.key !== 'Enter' && event.key !== ' ') {
+                          if (
+                            event.key !== 'Enter' &&
+                            event.key !== ' '
+                          ) {
                             return;
                           }
                           event.preventDefault();
@@ -404,16 +440,39 @@ export const TransferWorkspace: React.FC<TransferWorkspaceProps> = ({
             {t('warehouse.transfer.historyTable.empty')}
           </p>
         ) : (
-          <div className='catalog-table-wrap' data-global-scrollbar='off'>
+          <div
+            className='catalog-table-wrap'
+            data-global-scrollbar='off'
+          >
             <table className='catalog-table table-card-stack'>
               <thead>
                 <tr>
-                  <th>{t('warehouse.transfer.historyTable.columns.date')}</th>
-                  <th>{t('warehouse.transfer.historyTable.columns.product')}</th>
-                  <th>{t('warehouse.transfer.historyTable.columns.from')}</th>
-                  <th>{t('warehouse.transfer.historyTable.columns.to')}</th>
-                  <th>{t('warehouse.transfer.historyTable.columns.by')}</th>
-                  <th>{t('warehouse.transfer.historyTable.columns.note')}</th>
+                  <th>
+                    {t(
+                      'warehouse.transfer.historyTable.columns.date',
+                    )}
+                  </th>
+                  <th>
+                    {t(
+                      'warehouse.transfer.historyTable.columns.product',
+                    )}
+                  </th>
+                  <th>
+                    {t(
+                      'warehouse.transfer.historyTable.columns.from',
+                    )}
+                  </th>
+                  <th>
+                    {t('warehouse.transfer.historyTable.columns.to')}
+                  </th>
+                  <th>
+                    {t('warehouse.transfer.historyTable.columns.by')}
+                  </th>
+                  <th>
+                    {t(
+                      'warehouse.transfer.historyTable.columns.note',
+                    )}
+                  </th>
                 </tr>
               </thead>
               <tbody>

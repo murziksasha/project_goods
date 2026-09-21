@@ -22,7 +22,6 @@ import type {
   ServiceCatalogItem,
 } from '../../../../entities/service-catalog';
 import { ServiceCatalogForm } from '../../../../features/manage-service-catalog';
-import { ServiceCatalogForm } from '../../../../features/manage-service-catalog/ui/ServiceCatalogForm';
 import {
   CompactPaginationPanel,
   PaginationPanel,
@@ -156,10 +155,11 @@ export interface ProductCatalogPanelProps {
     sourceSupplierId: string,
     draftNote?: string,
   ) => Promise<boolean>;
-};
 }
 
-export const ProductCatalogPanel: React.FC<ProductCatalogPanelProps> = ({
+export const ProductCatalogPanel: React.FC<
+  ProductCatalogPanelProps
+> = ({
   currentEmployee,
   products,
   clientDevices,
@@ -1477,7 +1477,6 @@ export const ProductCatalogPanel: React.FC<ProductCatalogPanelProps> = ({
 };
 
 export interface CatalogFilterPanelProps {
-type CatalogFilterPanelProps = {
   activeTab: CatalogTab;
   canSave: boolean;
   draftFilters: CatalogFilters;
@@ -1496,9 +1495,9 @@ type CatalogFilterPanelProps = {
     field: K,
     value: CatalogFilters[K],
   ) => void;
-};
+}
 
-const CatalogFilterPanel = ({
+const CatalogFilterPanel: React.FC<CatalogFilterPanelProps> = ({
   activeTab,
   canSave,
   draftFilters,
@@ -1514,7 +1513,7 @@ const CatalogFilterPanel = ({
   onNameChange,
   onSave,
   onUpdate,
-}: CatalogFilterPanelProps) => {
+}) => {
   const { t } = useTranslation();
   const isServicesTab = activeTab === 'services';
   const queryLabel =

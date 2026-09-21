@@ -71,10 +71,11 @@ export interface SupplierOrdersToolbarProps {
   ) => void;
   onResetColumns: () => void;
   onOpenSingleMatch?: () => void;
-};
 }
 
-export const SupplierOrdersToolbar: React.FC<SupplierOrdersToolbarProps> = ({
+export const SupplierOrdersToolbar: React.FC<
+  SupplierOrdersToolbarProps
+> = ({
   activeTab,
   activeFiltersCount,
   filteredOrdersCount,
@@ -339,9 +340,11 @@ export interface SupplierOrdersTableProps {
   ) => void;
   onPageChange: (page: number) => void;
   onPageSizeChange: (pageSize: number) => void;
-};
+}
 
-export const SupplierOrdersTable: React.FC<SupplierOrdersTableProps> = ({
+export const SupplierOrdersTable: React.FC<
+  SupplierOrdersTableProps
+> = ({
   expandedOrderIds,
   filteredOrdersCount,
   totals,
@@ -912,18 +915,7 @@ export const SupplierOrdersTable: React.FC<SupplierOrdersTableProps> = ({
   );
 };
 
-export const SupplierOrderStatusMenuPortal = ({
 export interface SupplierOrderStatusMenuPortalProps {
-  menu: { id: string; currentStatus: SupplierOrderStatus; buttonRect: DOMRect } | null;
-  onClose: () => void;
-  onSelectStatus: (orderId: string, status: SupplierOrderStatus) => void;
-}
-
-export const SupplierOrderStatusMenuPortal: React.FC<SupplierOrderStatusMenuPortalProps> = ({
-  openStatusOrder,
-  statusMenuPosition,
-  onUpdateStatus,
-}: {
   openStatusOrder: { key: string; order: SupplierOrder } | null;
   statusMenuPosition: {
     top: number;
@@ -935,7 +927,11 @@ export const SupplierOrderStatusMenuPortal: React.FC<SupplierOrderStatusMenuPort
     order: SupplierOrder,
     status: SupplierOrderStatus,
   ) => void;
-}) => {
+}
+
+export const SupplierOrderStatusMenuPortal: React.FC<
+  SupplierOrderStatusMenuPortalProps
+> = ({ openStatusOrder, statusMenuPosition, onUpdateStatus }) => {
   const { t } = useTranslation();
   const optionsRef = useRef<HTMLDivElement | null>(null);
 
@@ -1021,23 +1017,7 @@ export const SupplierOrderStatusMenuPortal: React.FC<SupplierOrderStatusMenuPort
   );
 };
 
-export const SupplierEditModal = ({
 export interface SupplierEditModalProps {
-  isOpen: boolean;
-  form: SupplierFormValues;
-  isSaving: boolean;
-  onChange: <K extends keyof SupplierFormValues>(field: K, value: SupplierFormValues[K]) => void;
-  onClose: () => void;
-  onSubmit: () => void;
-}
-
-export const SupplierEditModal: React.FC<SupplierEditModalProps> = ({
-  form,
-  isSaving,
-  onClose,
-  onFormChange,
-  onSave,
-}: {
   form: {
     name: string;
     phone: string;
@@ -1055,6 +1035,14 @@ export const SupplierEditModal: React.FC<SupplierEditModalProps> = ({
     }>
   >;
   onSave: () => void;
+}
+
+export const SupplierEditModal: React.FC<SupplierEditModalProps> = ({
+  form,
+  isSaving,
+  onClose,
+  onFormChange,
+  onSave,
 }) => {
   const { t } = useTranslation();
 
@@ -1144,24 +1132,7 @@ export const SupplierEditModal: React.FC<SupplierEditModalProps> = ({
   );
 };
 
-export const CatalogProductEditModal = ({
 export interface CatalogProductEditModalProps {
-  isOpen: boolean;
-  form: CatalogProductFormValues;
-  suppliers: Supplier[];
-  isSaving: boolean;
-  onChange: <K extends keyof CatalogProductFormValues>(field: K, value: CatalogProductFormValues[K]) => void;
-  onClose: () => void;
-  onSubmit: () => void;
-}
-
-export const CatalogProductEditModal: React.FC<CatalogProductEditModalProps> = ({
-  form,
-  isSaving,
-  onClose,
-  onFormChange,
-  onSave,
-}: {
   form: { name: string; note: string; isActive: boolean };
   isSaving: boolean;
   onClose: () => void;
@@ -1169,7 +1140,11 @@ export const CatalogProductEditModal: React.FC<CatalogProductEditModalProps> = (
     SetStateAction<{ name: string; note: string; isActive: boolean }>
   >;
   onSave: () => void;
-}) => {
+}
+
+export const CatalogProductEditModal: React.FC<
+  CatalogProductEditModalProps
+> = ({ form, isSaving, onClose, onFormChange, onSave }) => {
   const { t } = useTranslation();
 
   return (

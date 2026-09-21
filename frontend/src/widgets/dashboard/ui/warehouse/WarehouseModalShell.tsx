@@ -3,7 +3,6 @@ import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Modal } from '../../../../shared/ui/Modal';
 
-export const ModalShell = ({
 export interface ModalShellProps {
   title: string;
   children: ReactNode;
@@ -20,13 +19,6 @@ export const ModalShell: React.FC<ModalShellProps> = ({
   onSubmit,
   submitLabel,
   canSubmit,
-}: {
-  title: string;
-  children: ReactNode;
-  onClose: () => void;
-  onSubmit: () => void;
-  submitLabel: string;
-  canSubmit: boolean;
 }) => {
   const { t } = useTranslation();
 
@@ -36,9 +28,9 @@ export const ModalShell: React.FC<ModalShellProps> = ({
       title={title}
       onClose={onClose}
       closeLabel={t('common.close')}
-      className="warehouse-settings-modal"
-      bodyClassName="warehouse-settings-modal-body"
-      footerClassName="warehouse-settings-modal-footer"
+      className='warehouse-settings-modal'
+      bodyClassName='warehouse-settings-modal-body'
+      footerClassName='warehouse-settings-modal-footer'
       showDefaultFooter
       cancelLabel={t('common.cancel')}
       submitLabel={submitLabel}

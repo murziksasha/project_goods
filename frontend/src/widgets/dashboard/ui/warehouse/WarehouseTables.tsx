@@ -12,7 +12,6 @@ import {
 import { useTranslation } from 'react-i18next';
 import type { Product } from '../../../../entities/product';
 import type { Sale } from '../../../../entities/sale';
-import { getOrderLink } from '../../../../pages/dashboard/model/dashboard-navigation';
 import { getOrderLink } from '../../../../shared/config/routing';
 import {
   formatCurrency,
@@ -158,19 +157,6 @@ const ReceiptStarButton = ({
     </button>
   );
 };
-
-export const ReceiptsTable = ({
-  receipts,
-  groups,
-  view,
-  visibleColumns,
-  onOpenOrder,
-  onOpenGroupOrder,
-  onOpenProduct,
-  onOpenSupplier,
-  onToggleFavorite,
-  canManageSupplierOrders,
-}: {
 export interface ReceiptsTableProps {
   receipts: ReceiptRow[];
   groups?: Array<{

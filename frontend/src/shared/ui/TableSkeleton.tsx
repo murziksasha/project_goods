@@ -1,15 +1,9 @@
 import type React from 'react';
-export type TableSkeletonProps = {
-  rows?: number;
-  columns?: number;
-  className?: string;
-  label?: string;
-};
-
 export interface TableSkeletonProps {
   rows?: number;
   columns?: number;
   className?: string;
+  label?: string;
 }
 
 export const TableSkeleton: React.FC<TableSkeletonProps> = ({
@@ -17,7 +11,7 @@ export const TableSkeleton: React.FC<TableSkeletonProps> = ({
   columns = 5,
   className = '',
   label = 'Loading',
-}: TableSkeletonProps) => (
+}) => (
   <div
     className={`table-skeleton ${className}`.trim()}
     role='status'

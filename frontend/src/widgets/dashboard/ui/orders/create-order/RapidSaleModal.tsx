@@ -21,8 +21,6 @@ import {
 import { NumberStepper } from '../../../../../shared/ui/NumberStepper';
 import { ProductSalePriceField } from '../../../../../entities/product';
 import { ServiceSalePriceField } from '../../../../../entities/service-catalog';
-import { ProductSalePriceField } from '../../../../../shared/ui/ProductSalePriceField';
-import { ServiceSalePriceField } from '../../../../../shared/ui/ServiceSalePriceField';
 import { Modal } from '../../../../../shared/ui/Modal';
 import { Button } from '../../../../../shared/ui/Button';
 import { createRuntimeId } from '../../../../../shared/lib/runtime-id';
@@ -50,7 +48,6 @@ import {
 } from '../../../model/warehouse-serial-filter';
 import { WarehouseSelectField } from '../../warehouse/WarehouseSelectField';
 
-type RapidSaleModalProps = {
 export interface RapidSaleModalProps {
   products: Product[];
   sales: Sale[];
@@ -58,10 +55,8 @@ export interface RapidSaleModalProps {
   onClose: () => void;
   onSubmit: (items: RapidSaleDraftItem[]) => Promise<void>;
   onError: (message: string) => void;
-};
 }
 
-export const RapidSaleModal = ({
 export const RapidSaleModal: React.FC<RapidSaleModalProps> = ({
   products,
   sales,
@@ -69,7 +64,6 @@ export const RapidSaleModal: React.FC<RapidSaleModalProps> = ({
   onClose,
   onSubmit,
   onError,
-}: RapidSaleModalProps) => {
 }) => {
   const { t } = useTranslation();
   const warrantyOptions = getWarrantyOptions();

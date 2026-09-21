@@ -8,7 +8,6 @@ import type {
 } from '../../model/warehouse-panel';
 import { ModalShell } from './WarehouseModalShell';
 
-export const ServiceCenterModal = ({
 export interface ServiceCenterModalProps {
   modalId: string | null;
   form: ServiceCenterFormState;
@@ -17,19 +16,9 @@ export interface ServiceCenterModalProps {
   onSubmit: () => void;
 }
 
-export const ServiceCenterModal: React.FC<ServiceCenterModalProps> = ({
-  modalId,
-  form,
-  onFormChange,
-  onClose,
-  onSubmit,
-}: {
-  modalId: string | null;
-  form: ServiceCenterFormState;
-  onFormChange: Dispatch<SetStateAction<ServiceCenterFormState>>;
-  onClose: () => void;
-  onSubmit: () => void;
-}) => {
+export const ServiceCenterModal: React.FC<
+  ServiceCenterModalProps
+> = ({ modalId, form, onFormChange, onClose, onSubmit }) => {
   const { t } = useTranslation();
 
   if (!modalId) return null;
@@ -60,7 +49,9 @@ export const ServiceCenterModal: React.FC<ServiceCenterModalProps> = ({
               name: event.target.value,
             }))
           }
-          placeholder={t('warehouse.modals.serviceCenter.namePlaceholder')}
+          placeholder={t(
+            'warehouse.modals.serviceCenter.namePlaceholder',
+          )}
         />
       </label>
       <label className='field'>
@@ -74,12 +65,16 @@ export const ServiceCenterModal: React.FC<ServiceCenterModalProps> = ({
                 color: event.target.value,
               }))
             }
-            placeholder={t('warehouse.modals.serviceCenter.colorPlaceholder')}
+            placeholder={t(
+              'warehouse.modals.serviceCenter.colorPlaceholder',
+            )}
           />
           <input
             className='warehouse-settings-color-picker'
             type='color'
-            aria-label={t('warehouse.modals.serviceCenter.colorAriaLabel')}
+            aria-label={t(
+              'warehouse.modals.serviceCenter.colorAriaLabel',
+            )}
             value={form.color}
             onChange={(event) =>
               onFormChange((current) => ({
@@ -91,7 +86,9 @@ export const ServiceCenterModal: React.FC<ServiceCenterModalProps> = ({
         </div>
       </label>
       <label className='field'>
-        <span>{t('warehouse.modals.serviceCenter.addressLabel')}</span>
+        <span>
+          {t('warehouse.modals.serviceCenter.addressLabel')}
+        </span>
         <input
           value={form.address}
           onChange={(event) =>
@@ -100,7 +97,9 @@ export const ServiceCenterModal: React.FC<ServiceCenterModalProps> = ({
               address: event.target.value,
             }))
           }
-          placeholder={t('warehouse.modals.serviceCenter.addressPlaceholder')}
+          placeholder={t(
+            'warehouse.modals.serviceCenter.addressPlaceholder',
+          )}
         />
       </label>
       <label className='field'>
@@ -113,14 +112,15 @@ export const ServiceCenterModal: React.FC<ServiceCenterModalProps> = ({
               phone: event.target.value,
             }))
           }
-          placeholder={t('warehouse.modals.serviceCenter.phonePlaceholder')}
+          placeholder={t(
+            'warehouse.modals.serviceCenter.phonePlaceholder',
+          )}
         />
       </label>
     </ModalShell>
   );
 };
 
-export const WarehouseEditModal = ({
 export interface WarehouseEditModalProps {
   modalId: string | null;
   form: WarehouseFormState;
@@ -131,7 +131,9 @@ export interface WarehouseEditModalProps {
   onSubmit: () => void;
 }
 
-export const WarehouseEditModal: React.FC<WarehouseEditModalProps> = ({
+export const WarehouseEditModal: React.FC<
+  WarehouseEditModalProps
+> = ({
   modalId,
   form,
   serviceCenters,
@@ -139,14 +141,6 @@ export const WarehouseEditModal: React.FC<WarehouseEditModalProps> = ({
   onFormChange,
   onClose,
   onSubmit,
-}: {
-  modalId: string | null;
-  form: WarehouseFormState;
-  serviceCenters: ServiceCenter[];
-  locationUsage: Record<string, number>;
-  onFormChange: Dispatch<SetStateAction<WarehouseFormState>>;
-  onClose: () => void;
-  onSubmit: () => void;
 }) => {
   const { t } = useTranslation();
 
@@ -155,7 +149,8 @@ export const WarehouseEditModal: React.FC<WarehouseEditModalProps> = ({
     .map((location) => location.name.trim().toLowerCase())
     .filter(Boolean);
   const hasDuplicateLocations =
-    new Set(normalizedLocationNames).size !== normalizedLocationNames.length;
+    new Set(normalizedLocationNames).size !==
+    normalizedLocationNames.length;
 
   return (
     <ModalShell
@@ -174,7 +169,9 @@ export const WarehouseEditModal: React.FC<WarehouseEditModalProps> = ({
       canSubmit={
         form.name.trim().length > 1 &&
         Boolean(form.serviceCenterId) &&
-        form.locations.some((location) => location.name.trim().length > 0) &&
+        form.locations.some(
+          (location) => location.name.trim().length > 0,
+        ) &&
         !hasDuplicateLocations
       }
     >
@@ -188,7 +185,9 @@ export const WarehouseEditModal: React.FC<WarehouseEditModalProps> = ({
               name: event.target.value,
             }))
           }
-          placeholder={t('warehouse.modals.warehouse.namePlaceholder')}
+          placeholder={t(
+            'warehouse.modals.warehouse.namePlaceholder',
+          )}
         />
       </label>
       <label className='create-inline-checkbox'>
@@ -205,7 +204,9 @@ export const WarehouseEditModal: React.FC<WarehouseEditModalProps> = ({
         <span>{t('warehouse.modals.warehouse.active')}</span>
       </label>
       <label className='field'>
-        <span>{t('warehouse.modals.warehouse.serviceCenterLabel')}</span>
+        <span>
+          {t('warehouse.modals.warehouse.serviceCenterLabel')}
+        </span>
         <select
           value={form.serviceCenterId}
           onChange={(event) =>
@@ -226,7 +227,9 @@ export const WarehouseEditModal: React.FC<WarehouseEditModalProps> = ({
         </select>
       </label>
       <label className='field'>
-        <span>{t('warehouse.modals.warehouse.receiptAddressLabel')}</span>
+        <span>
+          {t('warehouse.modals.warehouse.receiptAddressLabel')}
+        </span>
         <input
           value={form.receiptAddress}
           onChange={(event) =>
@@ -238,7 +241,9 @@ export const WarehouseEditModal: React.FC<WarehouseEditModalProps> = ({
         />
       </label>
       <label className='field'>
-        <span>{t('warehouse.modals.warehouse.receiptPhoneLabel')}</span>
+        <span>
+          {t('warehouse.modals.warehouse.receiptPhoneLabel')}
+        </span>
         <input
           value={form.receiptPhone}
           onChange={(event) =>
@@ -284,7 +289,9 @@ export const WarehouseEditModal: React.FC<WarehouseEditModalProps> = ({
                 />
                 <span
                   className='warehouse-settings-location-usage'
-                  title={t('warehouse.modals.warehouse.locationUsageTitle')}
+                  title={t(
+                    'warehouse.modals.warehouse.locationUsageTitle',
+                  )}
                 >
                   {usageCount}
                 </span>

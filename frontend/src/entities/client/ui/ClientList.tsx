@@ -1,6 +1,5 @@
 import type React from 'react';
 import { useTranslation } from 'react-i18next';
-import { formatDate } from '../../../shared/lib/format';
 import type { Client } from '../model/types';
 import {
   getClientStatusClass,
@@ -10,10 +9,7 @@ import {
 } from '../model/constants';
 import { formatUkrainianPhone } from '../../../shared/lib/phoneFormatter';
 import { defaultClientStats, type ClientStats } from '../model/types';
-import { getClientPhones } from '../model/forms';
-import { getClientStatusColor } from '../model/constants';
 
-type ClientListProps = {
 export interface ClientListProps {
   clients: Client[];
   isLoading: boolean;
@@ -23,10 +19,8 @@ export interface ClientListProps {
   onSelect: (client: Client) => void;
   onEdit: (client: Client) => void;
   onDelete: (client: Client) => void;
-};
 }
 
-export const ClientList = ({
 export const ClientList: React.FC<ClientListProps> = ({
   clients,
   isLoading,
@@ -36,7 +30,6 @@ export const ClientList: React.FC<ClientListProps> = ({
   onSelect,
   onEdit,
   onDelete,
-}: ClientListProps) => {
 }) => {
   const { t } = useTranslation();
 
@@ -44,13 +37,11 @@ export const ClientList: React.FC<ClientListProps> = ({
     return (
       <p className='empty-state'>{t('clients.table.loading')}</p>
     );
-    return <p className="empty-state">{t('legacy.clientList.loading')}</p>;
   }
 
   if (clients.length === 0) {
     return (
       <p className='empty-state'>
-      <p className="empty-state">
         {searchQuery
           ? t('legacy.clientList.noSearchResults')
           : t('legacy.clientList.empty')}
@@ -78,28 +69,6 @@ export const ClientList: React.FC<ClientListProps> = ({
             <div className='card-link'>
               <h3>{client.name}</h3>
               <p>{formatUkrainianPhone(client.phone)}</p>
-    <div className="product-list">
-      {clients.map((client) => {
-        const phones = getClientPhones(client);
-        return (
-          <article key={client.id} className="product-card">
-            <div className="product-card-header">
-              <div>
-                <div className="product-title-row">
-                  <h3>{client.name}</h3>
-                  <span
-                    className={`stock-badge ${getClientStatusColor(client.status)}`}
-                  >
-                    {t(`legacy.clientList.status.${client.status}`)}
-                  </span>
-                </div>
-                {phones.length > 0 && (
-                  <p>{phones.join(', ')}</p>
-                )}
-                {client.address && <p>{client.address}</p>}
-                {client.note && <p>{client.note}</p>}
-              </div>
-              <small>{formatDate(client.createdAt)}</small>
             </div>
             {(() => {
               const stats =
@@ -150,26 +119,6 @@ export const ClientList: React.FC<ClientListProps> = ({
           </div>
         </article>
       ))}
-
-            <div className="card-actions">
-              <button
-                className="ghost-button"
-                type="button"
-                onClick={() => onEdit(client)}
-              >
-                {t('common.edit')}
-              </button>
-              <button
-                className="danger-button"
-                type="button"
-                onClick={() => onDelete(client)}
-              >
-                {t('common.delete')}
-              </button>
-            </div>
-          </article>
-        );
-      })}
     </div>
   );
 };

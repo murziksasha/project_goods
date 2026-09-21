@@ -1,23 +1,22 @@
-import type React from 'react';
 import type { KeyboardEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 
 export type SalePriceTierBadgeVariant = 'retail' | 'wholesale';
 
-export type SalePriceTierOption<T extends string> = {
+export interface SalePriceTierOption<T extends string> {
   id: T;
   shortLabel: string;
   ariaLabel: string;
   variant: SalePriceTierBadgeVariant;
   wide?: boolean;
-};
+}
 
-type SalePriceTierToggleProps<T extends string> = {
+export interface SalePriceTierToggleProps<T extends string> {
   options: Array<SalePriceTierOption<T>>;
   activeId: T | null;
   onChange: (id: T) => void;
   disabled?: boolean;
-};
+}
 
 export const SalePriceTierToggle = <T extends string>({
   options,

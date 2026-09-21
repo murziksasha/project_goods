@@ -15,7 +15,6 @@ import {
 import { NumberStepper } from '../../../shared/ui/NumberStepper';
 import { ProductSalePriceTierToggle } from './ProductSalePriceTierToggle';
 
-type ProductSalePriceFieldProps = {
 export interface ProductSalePriceFieldProps {
   value: string;
   onChange: (value: string) => void;
@@ -32,11 +31,11 @@ export interface ProductSalePriceFieldProps {
   fieldClassName?: string;
   tierTogglePlacement?: 'inline' | 'label' | 'compact' | 'none';
   onFocus?: () => void;
-};
 }
 
-export const ProductSalePriceField = ({
-export const ProductSalePriceField: React.FC<ProductSalePriceFieldProps> = ({
+export const ProductSalePriceField: React.FC<
+  ProductSalePriceFieldProps
+> = ({
   value,
   onChange,
   product,
@@ -52,7 +51,6 @@ export const ProductSalePriceField: React.FC<ProductSalePriceFieldProps> = ({
   fieldClassName,
   tierTogglePlacement = 'inline',
   onFocus,
-}: ProductSalePriceFieldProps) => {
 }) => {
   const showTierToggle = product
     ? hasWholesaleSalePrice(product)

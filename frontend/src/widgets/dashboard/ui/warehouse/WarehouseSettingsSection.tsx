@@ -16,25 +16,6 @@ const settingsTabLabelKeys: Record<SettingsTab, string> = {
   warehouses: 'warehouse.settings.tabs.warehouses',
   administrators: 'warehouse.settings.tabs.administrators',
 };
-
-export const WarehouseSettings = ({
-  tab,
-  onTabChange,
-  employees,
-  serviceCenters,
-  warehouses,
-  administrators,
-  warehousesByServiceCenter,
-  activeWarehousesByServiceCenter,
-  warehouseProductCounts,
-  onCreateServiceCenter,
-  onEditServiceCenter,
-  onCreateWarehouse,
-  onEditWarehouse,
-  onAdministratorChange,
-  onSaveAdministrators,
-  isSaving,
-}: {
 export interface WarehouseSettingsProps {
   tab: SettingsTab;
   onTabChange: (tab: SettingsTab) => void;
@@ -102,21 +83,25 @@ export const WarehouseSettings: React.FC<WarehouseSettingsProps> = ({
   const [warehouseStatusFilter, setWarehouseStatusFilter] = useState<
     'all' | 'active' | 'inactive'
   >('all');
-  const warehouseMultiselectRefs = useRef<Map<string, HTMLDetailsElement>>(
-    new Map(),
-  );
+  const warehouseMultiselectRefs = useRef<
+    Map<string, HTMLDetailsElement>
+  >(new Map());
 
   useEffect(() => {
     const handleOutsideClick = (event: MouseEvent) => {
       warehouseMultiselectRefs.current.forEach((detailsEl) => {
-        if (detailsEl.open && !detailsEl.contains(event.target as Node)) {
+        if (
+          detailsEl.open &&
+          !detailsEl.contains(event.target as Node)
+        ) {
           detailsEl.open = false;
         }
       });
     };
 
     document.addEventListener('mousedown', handleOutsideClick);
-    return () => document.removeEventListener('mousedown', handleOutsideClick);
+    return () =>
+      document.removeEventListener('mousedown', handleOutsideClick);
   }, []);
   const activeWarehouses = useMemo(
     () => warehouses.filter((warehouse) => warehouse.isActive),
@@ -144,7 +129,9 @@ export const WarehouseSettings: React.FC<WarehouseSettingsProps> = ({
   const visibleAdministrators = useMemo(
     () =>
       administrators.filter((administrator) =>
-        employees.some((employee) => employee.id === administrator.employeeId),
+        employees.some(
+          (employee) => employee.id === administrator.employeeId,
+        ),
       ),
     [administrators, employees],
   );
@@ -171,9 +158,9 @@ export const WarehouseSettings: React.FC<WarehouseSettingsProps> = ({
     const activeWarehouseIds = warehouseIds.filter(
       (warehouseId) => warehouseMap[warehouseId]?.isActive,
     );
-    const hasDefaultWarehouse = warehouseIds.includes(
-      administrator.defaultWarehouseId,
-    ) && warehouseMap[administrator.defaultWarehouseId]?.isActive;
+    const hasDefaultWarehouse =
+      warehouseIds.includes(administrator.defaultWarehouseId) &&
+      warehouseMap[administrator.defaultWarehouseId]?.isActive;
     const hasDefaultLocation =
       warehouseMap[administrator.defaultWarehouseId]?.locations.some(
         (location) => location.id === administrator.defaultLocationId,
@@ -269,13 +256,19 @@ export const WarehouseSettings: React.FC<WarehouseSettingsProps> = ({
                 <thead>
                   <tr>
                     <th>
-                      {t('warehouse.settings.serviceCenters.columns.name')}
+                      {t(
+                        'warehouse.settings.serviceCenters.columns.name',
+                      )}
                     </th>
                     <th>
-                      {t('warehouse.settings.serviceCenters.columns.address')}
+                      {t(
+                        'warehouse.settings.serviceCenters.columns.address',
+                      )}
                     </th>
                     <th>
-                      {t('warehouse.settings.serviceCenters.columns.phone')}
+                      {t(
+                        'warehouse.settings.serviceCenters.columns.phone',
+                      )}
                     </th>
                     <th>
                       {t(
@@ -299,7 +292,9 @@ export const WarehouseSettings: React.FC<WarehouseSettingsProps> = ({
                             style={{
                               backgroundColor: serviceCenter.color,
                             }}
-                            onClick={() => onEditServiceCenter(serviceCenter)}
+                            onClick={() =>
+                              onEditServiceCenter(serviceCenter)
+                            }
                             aria-label={t(
                               'warehouse.settings.serviceCenters.editAriaLabel',
                               { name: serviceCenter.name },
@@ -308,7 +303,9 @@ export const WarehouseSettings: React.FC<WarehouseSettingsProps> = ({
                           <button
                             type='button'
                             className='settings-link-button'
-                            onClick={() => onEditServiceCenter(serviceCenter)}
+                            onClick={() =>
+                              onEditServiceCenter(serviceCenter)
+                            }
                           >
                             {serviceCenter.name}
                           </button>
@@ -322,7 +319,9 @@ export const WarehouseSettings: React.FC<WarehouseSettingsProps> = ({
                         <button
                           type='button'
                           className='settings-link-button'
-                          onClick={() => onEditServiceCenter(serviceCenter)}
+                          onClick={() =>
+                            onEditServiceCenter(serviceCenter)
+                          }
                         >
                           {serviceCenter.address}
                         </button>
@@ -335,7 +334,9 @@ export const WarehouseSettings: React.FC<WarehouseSettingsProps> = ({
                         <button
                           type='button'
                           className='settings-link-button'
-                          onClick={() => onEditServiceCenter(serviceCenter)}
+                          onClick={() =>
+                            onEditServiceCenter(serviceCenter)
+                          }
                         >
                           {serviceCenter.phone}
                         </button>
@@ -346,14 +347,19 @@ export const WarehouseSettings: React.FC<WarehouseSettingsProps> = ({
                         )}
                       >
                         <span className='warehouse-info-chip'>
-                          {t('warehouse.settings.warehousesActiveTotal', {
-                            active:
-                              activeWarehousesByServiceCenter[
-                                serviceCenter.id
-                              ] ?? 0,
-                            total:
-                              warehousesByServiceCenter[serviceCenter.id] ?? 0,
-                          })}
+                          {t(
+                            'warehouse.settings.warehousesActiveTotal',
+                            {
+                              active:
+                                activeWarehousesByServiceCenter[
+                                  serviceCenter.id
+                                ] ?? 0,
+                              total:
+                                warehousesByServiceCenter[
+                                  serviceCenter.id
+                                ] ?? 0,
+                            },
+                          )}
                         </span>
                       </td>
                     </tr>
@@ -369,17 +375,24 @@ export const WarehouseSettings: React.FC<WarehouseSettingsProps> = ({
         <>
           <div className='warehouse-settings-actions'>
             <label className='warehouse-settings-filter'>
-              <span>{t('warehouse.settings.warehouses.statusFilter')}</span>
+              <span>
+                {t('warehouse.settings.warehouses.statusFilter')}
+              </span>
               <select
                 value={warehouseStatusFilter}
                 onChange={(event) =>
                   setWarehouseStatusFilter(
-                    event.target.value as typeof warehouseStatusFilter,
+                    event.target
+                      .value as typeof warehouseStatusFilter,
                   )
                 }
               >
-                <option value='all'>{t('warehouse.common.all')}</option>
-                <option value='active'>{t('warehouse.common.active')}</option>
+                <option value='all'>
+                  {t('warehouse.common.all')}
+                </option>
+                <option value='active'>
+                  {t('warehouse.common.active')}
+                </option>
                 <option value='inactive'>
                   {t('warehouse.common.inactive')}
                 </option>
@@ -402,21 +415,49 @@ export const WarehouseSettings: React.FC<WarehouseSettingsProps> = ({
               <table className='catalog-table warehouse-settings-table table-card-stack'>
                 <thead>
                   <tr>
-                    <th>{t('warehouse.settings.warehouses.columns.id')}</th>
-                    <th>{t('warehouse.settings.warehouses.columns.name')}</th>
-                    <th>{t('warehouse.settings.warehouses.columns.status')}</th>
                     <th>
-                      {t('warehouse.settings.warehouses.columns.location')}
-                    </th>
-                    <th>{t('warehouse.settings.warehouses.columns.address')}</th>
-                    <th>{t('warehouse.settings.warehouses.columns.phone')}</th>
-                    <th>
-                      {t('warehouse.settings.warehouses.columns.locations')}
+                      {t('warehouse.settings.warehouses.columns.id')}
                     </th>
                     <th>
-                      {t('warehouse.settings.warehouses.columns.products')}
+                      {t(
+                        'warehouse.settings.warehouses.columns.name',
+                      )}
                     </th>
-                    <th>{t('warehouse.settings.warehouses.columns.action')}</th>
+                    <th>
+                      {t(
+                        'warehouse.settings.warehouses.columns.status',
+                      )}
+                    </th>
+                    <th>
+                      {t(
+                        'warehouse.settings.warehouses.columns.location',
+                      )}
+                    </th>
+                    <th>
+                      {t(
+                        'warehouse.settings.warehouses.columns.address',
+                      )}
+                    </th>
+                    <th>
+                      {t(
+                        'warehouse.settings.warehouses.columns.phone',
+                      )}
+                    </th>
+                    <th>
+                      {t(
+                        'warehouse.settings.warehouses.columns.locations',
+                      )}
+                    </th>
+                    <th>
+                      {t(
+                        'warehouse.settings.warehouses.columns.products',
+                      )}
+                    </th>
+                    <th>
+                      {t(
+                        'warehouse.settings.warehouses.columns.action',
+                      )}
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -543,10 +584,14 @@ export const WarehouseSettings: React.FC<WarehouseSettingsProps> = ({
                 <thead>
                   <tr>
                     <th>
-                      {t('warehouse.settings.administrators.administrator')}
+                      {t(
+                        'warehouse.settings.administrators.administrator',
+                      )}
                     </th>
                     <th>
-                      {t('warehouse.settings.administrators.viewWarehouses')}
+                      {t(
+                        'warehouse.settings.administrators.viewWarehouses',
+                      )}
                     </th>
                     <th>
                       {t(
@@ -562,8 +607,8 @@ export const WarehouseSettings: React.FC<WarehouseSettingsProps> = ({
                     );
                     if (!employee) return null;
                     const availableLocations =
-                      administrator.warehouseIds.flatMap(
-                        (warehouseId) => {
+                      administrator.warehouseIds
+                        .flatMap((warehouseId) => {
                           const warehouse = warehouseMap[warehouseId];
                           if (!warehouse) return [];
                           return warehouse.locations.map(
@@ -574,8 +619,10 @@ export const WarehouseSettings: React.FC<WarehouseSettingsProps> = ({
                               label: `${warehouse.name} ${location.name}`,
                             }),
                           );
-                        },
-                      ).filter((location) => location.warehouseIsActive);
+                        })
+                        .filter(
+                          (location) => location.warehouseIsActive,
+                        );
                     const selectedWarehouseNames =
                       administrator.warehouseIds
                         .map(
@@ -586,11 +633,14 @@ export const WarehouseSettings: React.FC<WarehouseSettingsProps> = ({
                     const isAllSelected =
                       activeWarehouses.length > 0 &&
                       activeWarehouses.every((warehouse) =>
-                        administrator.warehouseIds.includes(warehouse.id),
+                        administrator.warehouseIds.includes(
+                          warehouse.id,
+                        ),
                       );
                     const warehouseSearch =
-                      adminWarehouseSearch[administrator.employeeId] ??
-                      '';
+                      adminWarehouseSearch[
+                        administrator.employeeId
+                      ] ?? '';
                     const filteredWarehouses = warehouses.filter(
                       (warehouse) =>
                         warehouse.name
@@ -634,7 +684,9 @@ export const WarehouseSettings: React.FC<WarehouseSettingsProps> = ({
                                 ? t(
                                     'warehouse.settings.administrators.allSelected',
                                     {
-                                      count: administrator.warehouseIds.length,
+                                      count:
+                                        administrator.warehouseIds
+                                          .length,
                                     },
                                   )
                                 : selectedWarehouseNames.join(', ') ||
@@ -693,54 +745,58 @@ export const WarehouseSettings: React.FC<WarehouseSettingsProps> = ({
                                 </span>
                               </label>
                               <div className='warehouse-admin-options'>
-                                {filteredWarehouses.map((warehouse) => (
-                                  <label
-                                    key={warehouse.id}
-                                    className='warehouse-admin-checkline'
-                                  >
-                                    <input
-                                      type='checkbox'
-                                      checked={administrator.warehouseIds.includes(
-                                        warehouse.id,
-                                      )}
-                                      onChange={(event) => {
-                                        const nextWarehouseIds = event
-                                          .target.checked
-                                          ? [
-                                              ...administrator.warehouseIds,
-                                              warehouse.id,
-                                            ]
-                                          : administrator.warehouseIds.filter(
-                                              (warehouseId) =>
-                                                warehouseId !==
-                                                warehouse.id,
-                                            );
-                                        onAdministratorChange(
-                                          (current) =>
-                                            current.map((item) =>
-                                              item.employeeId ===
-                                              administrator.employeeId
-                                                ? ensureAdminDefaults(
-                                                    {
-                                                      ...item,
-                                                      warehouseIds:
-                                                        nextWarehouseIds,
-                                                    },
-                                                    nextWarehouseIds,
-                                                  )
-                                                : item,
-                                            ),
-                                        );
-                                      }}
-                                    />
-                                    <span>{warehouse.name}</span>
-                                    {!warehouse.isActive ? (
-                                      <span className='catalog-inactive-badge'>
-                                        {t('warehouse.common.inactive')}
-                                      </span>
-                                    ) : null}
-                                  </label>
-                                ))}
+                                {filteredWarehouses.map(
+                                  (warehouse) => (
+                                    <label
+                                      key={warehouse.id}
+                                      className='warehouse-admin-checkline'
+                                    >
+                                      <input
+                                        type='checkbox'
+                                        checked={administrator.warehouseIds.includes(
+                                          warehouse.id,
+                                        )}
+                                        onChange={(event) => {
+                                          const nextWarehouseIds =
+                                            event.target.checked
+                                              ? [
+                                                  ...administrator.warehouseIds,
+                                                  warehouse.id,
+                                                ]
+                                              : administrator.warehouseIds.filter(
+                                                  (warehouseId) =>
+                                                    warehouseId !==
+                                                    warehouse.id,
+                                                );
+                                          onAdministratorChange(
+                                            (current) =>
+                                              current.map((item) =>
+                                                item.employeeId ===
+                                                administrator.employeeId
+                                                  ? ensureAdminDefaults(
+                                                      {
+                                                        ...item,
+                                                        warehouseIds:
+                                                          nextWarehouseIds,
+                                                      },
+                                                      nextWarehouseIds,
+                                                    )
+                                                  : item,
+                                              ),
+                                          );
+                                        }}
+                                      />
+                                      <span>{warehouse.name}</span>
+                                      {!warehouse.isActive ? (
+                                        <span className='catalog-inactive-badge'>
+                                          {t(
+                                            'warehouse.common.inactive',
+                                          )}
+                                        </span>
+                                      ) : null}
+                                    </label>
+                                  ),
+                                )}
                               </div>
                             </div>
                           </details>

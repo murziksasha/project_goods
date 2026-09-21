@@ -1,28 +1,23 @@
 import type React from 'react';
 import type { ReactNode } from 'react';
 
-export type InlineErrorProps = {
-  children: ReactNode;
 export interface InlineErrorProps {
+  children?: ReactNode;
   message?: ReactNode;
   className?: string;
 }
 
 export const InlineError: React.FC<InlineErrorProps> = ({
+  children,
   message,
   className = '',
 }) => {
-  if (!message) return null;
+  const content = children ?? message;
+  if (!content) return null;
 
   return (
-    <p className={`inline-error-banner ${className}`.trim()} role="alert">
-      {message}
+    <p className={`inline-error ${className}`.trim()} role='alert'>
+      {content}
     </p>
   );
 };
-
-export const InlineError = ({ children, className = '' }: InlineErrorProps) => (
-  <p className={`inline-error ${className}`.trim()} role="alert">
-    {children}
-  </p>
-);

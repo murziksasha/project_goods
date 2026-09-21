@@ -1,6 +1,6 @@
-import type { ReactElement } from 'react';
+import type { FC } from 'react';
 import type { PageKey } from '../config/routing';
-import type { SVGProps } from 'react';
+import type { IconProps } from './NavIcons';
 import {
   AccountingIcon,
   CatalogIcon,
@@ -13,14 +13,7 @@ import {
   WarehouseIcon,
 } from './NavIcons';
 
-type IconProps = SVGProps<SVGSVGElement> & {
-  title?: string;
-};
-
-export const sidebarNavIcons: Record<
-  PageKey,
-  (props: IconProps) => ReactElement
-> = {
+export const sidebarNavIcons: Record<PageKey, FC<IconProps>> = {
   home: HomeIcon,
   orders: OrdersIcon,
   kanban: KanbanIcon,
