@@ -20,6 +20,7 @@ export interface CatalogRecordMergeModalProps<T> {
   getRecordName: (record: T) => string;
   getRecordSecondaryText?: (record: T) => string | undefined;
   getRecordNote?: (record: T) => string | undefined;
+  matchesRecord?: (record: T, query: string) => boolean;
   searchPlaceholder?: string;
 }
 
@@ -34,6 +35,7 @@ export const CatalogRecordMergeModal = <T,>({
   getRecordName,
   getRecordSecondaryText,
   getRecordNote,
+  matchesRecord,
   searchPlaceholder,
 }: CatalogRecordMergeModalProps<T>): React.ReactElement | null => {
   const { t } = useTranslation();
@@ -54,42 +56,66 @@ export const CatalogRecordMergeModal = <T,>({
     t('catalog.recordMergeModal.searchPlaceholder');
 
   const targetOptions = useMemo(() => {
-    const q = targetQuery.trim().toLowerCase();
+    const q = targetQuery.trim();
     if (!q) return records.slice(0, 15);
+    const qLower = q.toLowerCase();
     return records
       .filter((rec) => {
+        if (matchesRecord) return matchesRecord(rec, q);
         const name = getRecordName(rec).toLowerCase();
-        if (name.includes(q)) return true;
+        if (name.includes(qLower)) return true;
         const sec = getRecordSecondaryText?.(rec)?.toLowerCase();
-        return Boolean(sec && sec.includes(q));
+        return Boolean(sec && sec.includes(qLower));
       })
       .slice(0, 15);
-  }, [records, targetQuery, getRecordName, getRecordSecondaryText]);
+  }, [
+    records,
+    targetQuery,
+    getRecordName,
+    getRecordSecondaryText,
+    matchesRecord,
+  ]);
 
   const sourceOptions = useMemo(() => {
-    const q = sourceQuery.trim().toLowerCase();
+    const q = sourceQuery.trim();
     if (!q) return records.slice(0, 15);
+    const qLower = q.toLowerCase();
     return records
       .filter((rec) => {
+        if (matchesRecord) return matchesRecord(rec, q);
         const name = getRecordName(rec).toLowerCase();
-        if (name.includes(q)) return true;
+        if (name.includes(qLower)) return true;
         const sec = getRecordSecondaryText?.(rec)?.toLowerCase();
-        return Boolean(sec && sec.includes(q));
+        return Boolean(sec && sec.includes(qLower));
       })
       .slice(0, 15);
-  }, [records, sourceQuery, getRecordName, getRecordSecondaryText]);
+  }, [
+    records,
+    sourceQuery,
+    getRecordName,
+    getRecordSecondaryText,
+    matchesRecord,
+  ]);
 
-  const { rootRef: targetRootRef, isVisible: isTargetVisible } =
-    useDismissibleSuggestions({
-      query: targetQuery,
-      isActive: showTargetSuggestions && targetOptions.length > 0,
-    });
+  const {
+    rootRef: targetRootRef,
+    panelRef: targetPanelRef,
+    isVisible: isTargetVisible,
+    resetDismissed: resetTargetDismissed,
+  } = useDismissibleSuggestions({
+    query: targetQuery,
+    isActive: showTargetSuggestions && targetOptions.length > 0,
+  });
 
-  const { rootRef: sourceRootRef, isVisible: isSourceVisible } =
-    useDismissibleSuggestions({
-      query: sourceQuery,
-      isActive: showSourceSuggestions && sourceOptions.length > 0,
-    });
+  const {
+    rootRef: sourceRootRef,
+    panelRef: sourcePanelRef,
+    isVisible: isSourceVisible,
+    resetDismissed: resetSourceDismissed,
+  } = useDismissibleSuggestions({
+    query: sourceQuery,
+    isActive: showSourceSuggestions && sourceOptions.length > 0,
+  });
 
   const handleSelectTarget = (record: T) => {
     setTargetRecord(record);
@@ -187,29 +213,41 @@ export const CatalogRecordMergeModal = <T,>({
           </InlineError>
         ) : null}
 
-        <label
+        <div
           ref={targetRootRef}
-          className='field field-wide modal-suggestions-anchor'
+          className='catalog-merge-field-group'
         >
-          <span>{t('catalog.recordMergeModal.targetLabel')}</span>
-          <input
-            value={targetQuery}
-            placeholder={effectivePlaceholder}
-            aria-label={t('catalog.recordMergeModal.targetLabel')}
-            onChange={(event) => {
-              const value = event.target.value;
-              setTargetQuery(value);
-              setShowTargetSuggestions(true);
-              if (
-                targetRecord &&
-                getRecordName(targetRecord) !== value
-              ) {
-                setTargetRecord(null);
-              }
-            }}
-          />
+          <label className='field field-wide'>
+            <span>{t('catalog.recordMergeModal.targetLabel')}</span>
+            <input
+              value={targetQuery}
+              placeholder={effectivePlaceholder}
+              aria-label={t('catalog.recordMergeModal.targetLabel')}
+              onFocus={() => {
+                resetTargetDismissed();
+                setShowTargetSuggestions(true);
+                setShowSourceSuggestions(false);
+              }}
+              onChange={(event) => {
+                const value = event.target.value;
+                setTargetQuery(value);
+                setShowTargetSuggestions(true);
+                setShowSourceSuggestions(false);
+                if (
+                  targetRecord &&
+                  getRecordName(targetRecord) !== value
+                ) {
+                  setTargetRecord(null);
+                }
+              }}
+            />
+          </label>
           {isTargetVisible ? (
-            <div className='suggestions-panel'>
+            <div
+              ref={targetPanelRef}
+              className='suggestions-panel catalog-merge-suggestions'
+              role='listbox'
+            >
               {targetOptions.map((item) => {
                 const id = getRecordId(item);
                 const name = getRecordName(item);
@@ -219,6 +257,7 @@ export const CatalogRecordMergeModal = <T,>({
                     key={id}
                     type='button'
                     className='suggestion-item'
+                    onMouseDown={(event) => event.preventDefault()}
                     onClick={() => handleSelectTarget(item)}
                   >
                     <strong>{name}</strong>
@@ -228,7 +267,7 @@ export const CatalogRecordMergeModal = <T,>({
               })}
             </div>
           ) : null}
-        </label>
+        </div>
 
         <div
           className='catalog-merge-swap-row'
@@ -249,29 +288,41 @@ export const CatalogRecordMergeModal = <T,>({
           </Button>
         </div>
 
-        <label
+        <div
           ref={sourceRootRef}
-          className='field field-wide modal-suggestions-anchor'
+          className='catalog-merge-field-group'
         >
-          <span>{t('catalog.recordMergeModal.sourceLabel')}</span>
-          <input
-            value={sourceQuery}
-            placeholder={effectivePlaceholder}
-            aria-label={t('catalog.recordMergeModal.sourceLabel')}
-            onChange={(event) => {
-              const value = event.target.value;
-              setSourceQuery(value);
-              setShowSourceSuggestions(true);
-              if (
-                sourceRecord &&
-                getRecordName(sourceRecord) !== value
-              ) {
-                setSourceRecord(null);
-              }
-            }}
-          />
+          <label className='field field-wide'>
+            <span>{t('catalog.recordMergeModal.sourceLabel')}</span>
+            <input
+              value={sourceQuery}
+              placeholder={effectivePlaceholder}
+              aria-label={t('catalog.recordMergeModal.sourceLabel')}
+              onFocus={() => {
+                resetSourceDismissed();
+                setShowSourceSuggestions(true);
+                setShowTargetSuggestions(false);
+              }}
+              onChange={(event) => {
+                const value = event.target.value;
+                setSourceQuery(value);
+                setShowSourceSuggestions(true);
+                setShowTargetSuggestions(false);
+                if (
+                  sourceRecord &&
+                  getRecordName(sourceRecord) !== value
+                ) {
+                  setSourceRecord(null);
+                }
+              }}
+            />
+          </label>
           {isSourceVisible ? (
-            <div className='suggestions-panel'>
+            <div
+              ref={sourcePanelRef}
+              className='suggestions-panel catalog-merge-suggestions'
+              role='listbox'
+            >
               {sourceOptions.map((item) => {
                 const id = getRecordId(item);
                 const name = getRecordName(item);
@@ -281,6 +332,7 @@ export const CatalogRecordMergeModal = <T,>({
                     key={id}
                     type='button'
                     className='suggestion-item'
+                    onMouseDown={(event) => event.preventDefault()}
                     onClick={() => handleSelectSource(item)}
                   >
                     <strong>{name}</strong>
@@ -290,7 +342,7 @@ export const CatalogRecordMergeModal = <T,>({
               })}
             </div>
           ) : null}
-        </label>
+        </div>
 
         {targetRecord && sourceRecord && !isSameRecord ? (
           <div

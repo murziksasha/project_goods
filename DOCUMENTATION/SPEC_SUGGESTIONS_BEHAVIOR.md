@@ -112,6 +112,7 @@ In modal forms with lookup fields (supplier/client/product/service/device):
 ## Notes
 
 - This rule applies uniformly for clients, products, devices, suppliers, services, and merge selectors.
+- All merge selectors (Products, Services, Client devices, Clients, Suppliers) share `CatalogRecordMergeModal` from `features/catalog-duplicate-merge` for unified dismissible suggestions, keyboard handling, and scrolling.
 - Debounce/min-symbol thresholds for loading suggestions are configured per field and do not change this rule.
 
 ## Create Order Device Rule

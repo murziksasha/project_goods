@@ -30,7 +30,8 @@ import {
 import { PaginationPanel } from '../../../../shared/ui/PaginationPanel';
 import { ClientCardModal } from './ClientCardModal';
 import { ClientCreateModal } from './ClientCreateModal';
-import { ClientMergeModal, type ClientMergeField } from './ClientMergeModal';
+import { CatalogRecordMergeModal } from '../../../../features/catalog-duplicate-merge';
+import { formatClientPhonesLabel } from '../../../../entities/client';
 import { ClientsFilterPanel } from './ClientsFilterPanel';
 import { ClientsTable } from './ClientsTable';
 import { ClientsToolbar } from './ClientsToolbar';
@@ -43,7 +44,6 @@ import {
   getActiveClientFiltersCount,
   getClientSaleIncome,
   getClientStatsMap,
-  getClientSubtitle,
   getFilteredClients,
   getStoredClientCardTab,
   isOptionalAddressValid,
@@ -100,7 +100,7 @@ export interface ClientsWorkspaceProps {
     payload: ClientDeviceFormValues,
   ) => Promise<boolean>;
   onDeleteClientDevice: (deviceId: string) => Promise<boolean>;
-};
+}
 
 const MAX_PHONE_LENGTH = 10;
 
@@ -179,12 +179,17 @@ export const ClientsWorkspace: React.FC<ClientsWorkspaceProps> = ({
     (): Array<{
       labelKey: string;
       value: ClientStatus | 'all';
-    }> => [{ labelKey: 'clients.filters.statusAll', value: 'all' }, ...clientStatusOptions],
+    }> => [
+      { labelKey: 'clients.filters.statusAll', value: 'all' },
+      ...clientStatusOptions,
+    ],
     [],
   );
   const [isFilterOpen, setIsFilterOpen] = useState(() => {
     try {
-      const parsed = JSON.parse(window.localStorage.getItem(clientsFiltersStorageKey) ?? '{}') as Partial<{
+      const parsed = JSON.parse(
+        window.localStorage.getItem(clientsFiltersStorageKey) ?? '{}',
+      ) as Partial<{
         isFilterOpen: boolean;
       }>;
       return Boolean(parsed.isFilterOpen);
@@ -192,10 +197,13 @@ export const ClientsWorkspace: React.FC<ClientsWorkspaceProps> = ({
       return false;
     }
   });
-  const [draftFilters, setDraftFilters] =
-    useState<ClientFilters>(() => {
+  const [draftFilters, setDraftFilters] = useState<ClientFilters>(
+    () => {
       try {
-        const parsed = JSON.parse(window.localStorage.getItem(clientsFiltersStorageKey) ?? '{}') as Partial<{
+        const parsed = JSON.parse(
+          window.localStorage.getItem(clientsFiltersStorageKey) ??
+            '{}',
+        ) as Partial<{
           draftFilters: ClientFilters;
           appliedFilters: ClientFilters;
           searchValue: string;
@@ -205,11 +213,15 @@ export const ClientsWorkspace: React.FC<ClientsWorkspaceProps> = ({
       } catch {
         return emptyFilters;
       }
-    });
-  const [appliedFilters, setAppliedFilters] =
-    useState<ClientFilters>(() => {
+    },
+  );
+  const [appliedFilters, setAppliedFilters] = useState<ClientFilters>(
+    () => {
       try {
-        const parsed = JSON.parse(window.localStorage.getItem(clientsFiltersStorageKey) ?? '{}') as Partial<{
+        const parsed = JSON.parse(
+          window.localStorage.getItem(clientsFiltersStorageKey) ??
+            '{}',
+        ) as Partial<{
           draftFilters: ClientFilters;
           appliedFilters: ClientFilters;
           searchValue: string;
@@ -219,10 +231,13 @@ export const ClientsWorkspace: React.FC<ClientsWorkspaceProps> = ({
       } catch {
         return emptyFilters;
       }
-    });
+    },
+  );
   const [searchValue, setSearchValue] = useState(() => {
     try {
-      const parsed = JSON.parse(window.localStorage.getItem(clientsFiltersStorageKey) ?? '{}') as Partial<{
+      const parsed = JSON.parse(
+        window.localStorage.getItem(clientsFiltersStorageKey) ?? '{}',
+      ) as Partial<{
         searchValue: string;
       }>;
       return parsed.searchValue ?? '';
@@ -234,23 +249,18 @@ export const ClientsWorkspace: React.FC<ClientsWorkspaceProps> = ({
     Array<SavedFilter<ClientFilters, 'clients' | 'suppliers'>>
   >([]);
   const [newFilterName, setNewFilterName] = useState('');
-  const [newFilterIcon, setNewFilterIcon] = useState(filterIconOptions[0]);
+  const [newFilterIcon, setNewFilterIcon] = useState(
+    filterIconOptions[0],
+  );
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isMergeModalOpen, setIsMergeModalOpen] = useState(false);
   const [isClientCardOpen, setIsClientCardOpen] = useState(false);
-  const [clientCardTab, setClientCardTab] =
-    useState<ClientCardTab>(getStoredClientCardTab);
+  const [clientCardTab, setClientCardTab] = useState<ClientCardTab>(
+    getStoredClientCardTab,
+  );
   const [personForm, setPersonForm] = useState({
     ...emptyClientDraft,
   });
-  const [mergeTargetQuery, setMergeTargetQuery] = useState('');
-  const [mergeSourceQuery, setMergeSourceQuery] = useState('');
-  const [showMergeTargetSuggestions, setShowMergeTargetSuggestions] =
-    useState(false);
-  const [showMergeSourceSuggestions, setShowMergeSourceSuggestions] =
-    useState(false);
-  const [mergeTargetId, setMergeTargetId] = useState('');
-  const [mergeSourceId, setMergeSourceId] = useState('');
   const [mainTabForm, setMainTabForm] = useState<ClientMainForm>({
     name: '',
     phone: '',
@@ -318,7 +328,8 @@ export const ClientsWorkspace: React.FC<ClientsWorkspaceProps> = ({
   useEffect(() => {
     if (!selectedClient || !selectedClientId) return;
 
-    const clientChanged = hydratedClientIdRef.current !== selectedClientId;
+    const clientChanged =
+      hydratedClientIdRef.current !== selectedClientId;
     const serverChanged =
       hydratedUpdatedAtRef.current !== selectedClient.updatedAt;
 
@@ -377,56 +388,6 @@ export const ClientsWorkspace: React.FC<ClientsWorkspaceProps> = ({
   );
   const activeHistoryRows =
     clientCardTab === 'orders' ? ordersHistory : salesHistory;
-
-  const mergeTargetOptions = useMemo(() => {
-    const query = mergeTargetQuery.trim();
-    if (!query) return [];
-
-    return clients
-      .filter((client) => clientMatchesPhoneQuery(client, query))
-      .slice(0, 6);
-  }, [clients, mergeTargetQuery]);
-
-  const mergeSourceOptions = useMemo(() => {
-    const query = mergeSourceQuery.trim();
-    if (!query) return [];
-
-    return clients
-      .filter((client) => clientMatchesPhoneQuery(client, query))
-      .slice(0, 6);
-  }, [clients, mergeSourceQuery]);
-
-  const handleMergeQueryChange = (
-    field: ClientMergeField,
-    value: string,
-  ) => {
-    if (field === 'target') {
-      setMergeTargetQuery(value);
-      setMergeTargetId('');
-      setShowMergeTargetSuggestions(true);
-      return;
-    }
-
-    setMergeSourceQuery(value);
-    setMergeSourceId('');
-    setShowMergeSourceSuggestions(true);
-  };
-
-  const handleMergeClientSelect = (
-    field: ClientMergeField,
-    client: Client,
-  ) => {
-    if (field === 'target') {
-      setMergeTargetId(client.id);
-      setMergeTargetQuery(getClientSubtitle(client));
-      setShowMergeTargetSuggestions(false);
-      return;
-    }
-
-    setMergeSourceId(client.id);
-    setMergeSourceQuery(getClientSubtitle(client));
-    setShowMergeSourceSuggestions(false);
-  };
 
   const applyFilters = () => {
     const next = normalizeClientFiltersForApply(draftFilters);
@@ -559,9 +520,13 @@ export const ClientsWorkspace: React.FC<ClientsWorkspaceProps> = ({
     })();
   };
   const applySavedFilter = (filterId: string) => {
-    const savedFilter = savedFilters.find((item) => item.id === filterId);
+    const savedFilter = savedFilters.find(
+      (item) => item.id === filterId,
+    );
     if (!savedFilter) return;
-    const nextFilters = normalizeClientFiltersForApply(savedFilter.filters);
+    const nextFilters = normalizeClientFiltersForApply(
+      savedFilter.filters,
+    );
     setDraftFilters(nextFilters);
     setAppliedFilters(nextFilters);
     setSearchValue(nextFilters.query);
@@ -604,7 +569,10 @@ export const ClientsWorkspace: React.FC<ClientsWorkspaceProps> = ({
 
   useEffect(() => {
     try {
-      window.localStorage.setItem(clientCardTabStorageKey, clientCardTab);
+      window.localStorage.setItem(
+        clientCardTabStorageKey,
+        clientCardTab,
+      );
     } catch {
       // Ignore localStorage write errors.
     }
@@ -624,15 +592,17 @@ export const ClientsWorkspace: React.FC<ClientsWorkspaceProps> = ({
     hydratedUpdatedAtRef.current = null;
   }, [onSelectClient]);
 
-  const handleMainTabFormChange: Dispatch<SetStateAction<ClientMainForm>> = (
-    value,
-  ) => {
+  const handleMainTabFormChange: Dispatch<
+    SetStateAction<ClientMainForm>
+  > = (value) => {
     isMainTabDirtyRef.current = true;
     setMainTabForm(value);
   };
 
   const validatePhone = (phone: string): boolean => {
-    const phoneFormatError = t('clients.messages.errors.invalidPhoneFormat');
+    const phoneFormatError = t(
+      'clients.messages.errors.invalidPhoneFormat',
+    );
     const normalized = normalizePhone(phone);
     if (normalized.length === 0) {
       setMainTabPhoneError(phoneFormatError);
@@ -670,27 +640,6 @@ export const ClientsWorkspace: React.FC<ClientsWorkspaceProps> = ({
     });
   };
 
-  const handleMergeClients = async () => {
-    if (
-      !mergeTargetId ||
-      !mergeSourceId ||
-      mergeTargetId === mergeSourceId
-    )
-      return;
-
-    const isSuccess = await onMergeClients(
-      mergeTargetId,
-      mergeSourceId,
-    );
-    if (!isSuccess) return;
-
-    setIsMergeModalOpen(false);
-    setMergeTargetQuery('');
-    setMergeSourceQuery('');
-    setMergeTargetId('');
-    setMergeSourceId('');
-  };
-
   const handleMainTabSave = async () => {
     if (!selectedClientId) return;
 
@@ -713,7 +662,10 @@ export const ClientsWorkspace: React.FC<ClientsWorkspaceProps> = ({
       note: mainTabForm.note,
     };
     const payload = {
-      ...mapClientDraftToPayload(draftForSave, mainTabForm.status as ClientStatus | ''),
+      ...mapClientDraftToPayload(
+        draftForSave,
+        mainTabForm.status as ClientStatus | '',
+      ),
       expectedUpdatedAt: selectedClient?.updatedAt,
     };
     const isSuccess = await onUpdateClient(selectedClientId, payload);
@@ -848,22 +800,25 @@ export const ClientsWorkspace: React.FC<ClientsWorkspaceProps> = ({
       ) : null}
 
       {isMergeModalOpen ? (
-        <ClientMergeModal
+        <CatalogRecordMergeModal<Client>
+          isOpen={isMergeModalOpen}
+          title={t('clients.merge.title')}
+          records={clients}
+          searchPlaceholder={t('clients.merge.searchPlaceholder')}
           isSaving={isSaving}
-          sourceId={mergeSourceId}
-          sourceOptions={mergeSourceOptions}
-          sourceQuery={mergeSourceQuery}
-          targetId={mergeTargetId}
-          targetOptions={mergeTargetOptions}
-          targetQuery={mergeTargetQuery}
-          showSourceSuggestions={showMergeSourceSuggestions}
-          showTargetSuggestions={showMergeTargetSuggestions}
           onClose={() => setIsMergeModalOpen(false)}
-          onMerge={() => {
-            void handleMergeClients();
+          onMerge={async (targetId, sourceId) => {
+            return onMergeClients(targetId, sourceId);
           }}
-          onQueryChange={handleMergeQueryChange}
-          onSelectClient={handleMergeClientSelect}
+          getRecordId={(client) => client.id}
+          getRecordName={(client) => client.name}
+          getRecordSecondaryText={(client) =>
+            formatClientPhonesLabel(client)
+          }
+          getRecordNote={(client) => client.note}
+          matchesRecord={(client, query) =>
+            clientMatchesPhoneQuery(client, query)
+          }
         />
       ) : null}
 
@@ -876,8 +831,8 @@ export const ClientsWorkspace: React.FC<ClientsWorkspaceProps> = ({
           isHistoryLoading={isHistoryLoading}
           isSaving={isSaving}
           clientVisitCount={
-            statsByClient.get(selectedClientId ?? '')?.visits
-            ?? selectedHistorySales.length
+            statsByClient.get(selectedClientId ?? '')?.visits ??
+            selectedHistorySales.length
           }
           clientTotalRevenue={
             clientCardTab === 'orders'
@@ -916,9 +871,3 @@ export const ClientsWorkspace: React.FC<ClientsWorkspaceProps> = ({
     </section>
   );
 };
-
-
-
-
-
-

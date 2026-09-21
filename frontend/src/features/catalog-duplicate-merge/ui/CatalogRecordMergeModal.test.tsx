@@ -285,4 +285,102 @@ describe('CatalogRecordMergeModal', () => {
       ).toBeInTheDocument();
     });
   });
+
+  it('filters records using custom matchesRecord prop when provided', () => {
+    const matchesRecord = vi.fn((item: MockItem, q: string) => {
+      return Boolean(item.phone && item.phone.includes(q));
+    });
+
+    render(
+      <CatalogRecordMergeModal
+        isOpen
+        title='Merge devices'
+        records={mockRecords}
+        onClose={vi.fn()}
+        onMerge={vi.fn()}
+        getRecordId={(item) => item.id}
+        getRecordName={(item) => item.name}
+        getRecordSecondaryText={(item) => item.phone}
+        matchesRecord={matchesRecord}
+      />,
+    );
+
+    const targetInput = screen.getByLabelText(
+      /Target \(Surviving\)/i,
+    );
+    fireEvent.change(targetInput, { target: { value: '333333' } });
+
+    expect(matchesRecord).toHaveBeenCalled();
+    expect(
+      screen.getByRole('button', { name: /^Samsung Galaxy\+/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: /^iPhone 13\+/i }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('reopens suggestions on input focus after being dismissed', () => {
+    render(
+      <CatalogRecordMergeModal
+        isOpen
+        title='Merge devices'
+        records={mockRecords}
+        onClose={vi.fn()}
+        onMerge={vi.fn()}
+        getRecordId={(item) => item.id}
+        getRecordName={(item) => item.name}
+        getRecordSecondaryText={(item) => item.phone}
+      />,
+    );
+
+    const sourceInput = screen.getByLabelText(
+      /Source \(To delete\)/i,
+    );
+    fireEvent.change(sourceInput, {
+      target: { value: 'iPhone' },
+    });
+
+    expect(
+      screen.getByRole('button', { name: /^iPhone 13 Pro\+/i }),
+    ).toBeInTheDocument();
+
+    // Dismiss by pointer down on the dialog backdrop or outside
+    fireEvent.pointerDown(document.body);
+    expect(
+      screen.queryByRole('button', { name: /^iPhone 13 Pro\+/i }),
+    ).not.toBeInTheDocument();
+
+    // Focus on the input reopens suggestions
+    fireEvent.focus(sourceInput);
+    expect(
+      screen.getByRole('button', { name: /^iPhone 13 Pro\+/i }),
+    ).toBeInTheDocument();
+  });
+
+  it('renders suggestion buttons outside the label tag', () => {
+    render(
+      <CatalogRecordMergeModal
+        isOpen
+        title='Merge devices'
+        records={mockRecords}
+        onClose={vi.fn()}
+        onMerge={vi.fn()}
+        getRecordId={(item) => item.id}
+        getRecordName={(item) => item.name}
+      />,
+    );
+
+    const targetInput = screen.getByLabelText(
+      /Target \(Surviving\)/i,
+    );
+    fireEvent.change(targetInput, { target: { value: 'iPhone' } });
+
+    const option = screen.getAllByRole('button', {
+      name: /^iPhone 13/i,
+    })[0];
+    expect(option.closest('label')).toBeNull();
+    expect(
+      option.closest('.catalog-merge-suggestions'),
+    ).not.toBeNull();
+  });
 });

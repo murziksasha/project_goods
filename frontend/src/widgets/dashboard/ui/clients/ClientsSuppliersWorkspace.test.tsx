@@ -333,4 +333,107 @@ describe('ClientsSuppliersWorkspace suppliers filters', () => {
       expect(onImportSuppliers).toHaveBeenCalledWith(testFile);
     });
   });
+
+  it('opens CatalogRecordMergeModal on Clients tab with swap and target/source inputs', async () => {
+    renderWorkspace([supplier()]);
+
+    const mergeButton = screen.getByRole('button', { name: 'Merge' });
+    fireEvent.click(mergeButton);
+
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    expect(screen.getByText('Merge clients')).toBeInTheDocument();
+    expect(
+      screen.getByLabelText(/Target \(Surviving\)/i),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByLabelText(/Source \(To delete\)/i),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: /swap/i }),
+    ).toBeInTheDocument();
+  });
+
+  it('opens CatalogRecordMergeModal on Suppliers tab and merges selected suppliers', async () => {
+    const onMergeSuppliers = vi.fn().mockResolvedValue(true);
+
+    render(
+      <ClientsSuppliersWorkspace
+        currentEmployee={employee}
+        clients={[]}
+        sales={[]}
+        suppliers={[
+          supplier({
+            id: 's-1',
+            name: 'Alpha Supplier',
+            phone: '+380501111111',
+          }),
+          supplier({
+            id: 's-2',
+            name: 'Beta Supplier',
+            phone: '+380502222222',
+          }),
+        ]}
+        selectedClientId={null}
+        history={null}
+        isClientsLoading={false}
+        isHistoryLoading={false}
+        isSaving={false}
+        isClientImporting={false}
+        isClientExporting={false}
+        onSelectClient={vi.fn()}
+        onDeleteClient={vi.fn()}
+        onCreateClient={vi.fn().mockResolvedValue(true)}
+        onImportClients={vi.fn().mockResolvedValue(true)}
+        onExportClients={vi.fn().mockResolvedValue(undefined)}
+        onMergeClients={vi.fn().mockResolvedValue(true)}
+        onMergeSuppliers={onMergeSuppliers}
+        onUpdateClient={vi.fn().mockResolvedValue(true)}
+        onCreateSupplier={vi.fn().mockResolvedValue(true)}
+        onUpdateSupplier={vi.fn().mockResolvedValue(true)}
+        onOpenSaleCard={vi.fn()}
+        clientDevices={[]}
+        onUpdateClientDevice={vi.fn().mockResolvedValue(true)}
+        onDeleteClientDevice={vi.fn().mockResolvedValue(true)}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('tab', { name: /Suppliers/ }));
+    const mergeButton = screen.getByRole('button', { name: 'Merge' });
+    fireEvent.click(mergeButton);
+
+    const dialog = screen.getByRole('dialog');
+    expect(
+      within(dialog).getByText('Merge suppliers'),
+    ).toBeInTheDocument();
+
+    const targetInput = within(dialog).getByLabelText(
+      /Target \(Surviving\)/i,
+    );
+    fireEvent.change(targetInput, { target: { value: 'Alpha' } });
+    fireEvent.click(
+      within(dialog).getByRole('button', {
+        name: /^Alpha Supplier\+/i,
+      }),
+    );
+
+    const sourceInput = within(dialog).getByLabelText(
+      /Source \(To delete\)/i,
+    );
+    fireEvent.change(sourceInput, { target: { value: 'Beta' } });
+    fireEvent.click(
+      within(dialog).getByRole('button', {
+        name: /^Beta Supplier\+/i,
+      }),
+    );
+
+    const confirmMergeBtn = within(dialog).getByRole('button', {
+      name: /^Merge$/i,
+    });
+    expect(confirmMergeBtn).not.toBeDisabled();
+    fireEvent.click(confirmMergeBtn);
+
+    await waitFor(() => {
+      expect(onMergeSuppliers).toHaveBeenCalledWith('s-1', 's-2');
+    });
+  });
 });
