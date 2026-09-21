@@ -1,5 +1,5 @@
 import type React from 'react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   createBackup,
@@ -64,10 +64,35 @@ export const BackupsSection: React.FC<BackupsSectionProps> = ({ canManageBackups
   const [restoreFileError, setRestoreFileError] = useState('');
   const [isRestoreFileModalOpen, setIsRestoreFileModalOpen] = useState(false);
   const [isRestoring, setIsRestoring] = useState(false);
-  const [message, setMessage] = useState('');
+  const [showCreateTooltip, setShowCreateTooltip] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
   const [error, setError] = useState('');
   const [backupsPage, setBackupsPage] = useState(1);
   const [backupsPageSize, setBackupsPageSize] = useState(30);
+  const createTooltipTimeoutRef = useRef<number | null>(null);
+  const toastTimeoutRef = useRef<number | null>(null);
+
+  const showToast = useCallback((text: string) => {
+    if (toastTimeoutRef.current) {
+      window.clearTimeout(toastTimeoutRef.current);
+    }
+    setToastMessage(text);
+    toastTimeoutRef.current = window.setTimeout(() => {
+      setToastMessage('');
+      toastTimeoutRef.current = null;
+    }, 4000);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (createTooltipTimeoutRef.current) {
+        window.clearTimeout(createTooltipTimeoutRef.current);
+      }
+      if (toastTimeoutRef.current) {
+        window.clearTimeout(toastTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const refreshBackups = useCallback(
     async (opts?: { silent?: boolean }) => {
@@ -107,16 +132,23 @@ export const BackupsSection: React.FC<BackupsSectionProps> = ({ canManageBackups
 
   const handleCreateBackup = async () => {
     setIsCreating(true);
-    setMessage('');
+    setShowCreateTooltip(false);
     setError('');
     try {
       const backup = await createBackup();
       await refreshBackups({ silent: true });
-      setMessage(
-        backup.status === 'completed'
-          ? t('settings.backups.messages.created')
-          : backup.error || t('settings.backups.messages.finishedWithError'),
-      );
+      if (backup.status === 'completed') {
+        setShowCreateTooltip(true);
+        if (createTooltipTimeoutRef.current) {
+          window.clearTimeout(createTooltipTimeoutRef.current);
+        }
+        createTooltipTimeoutRef.current = window.setTimeout(() => {
+          setShowCreateTooltip(false);
+          createTooltipTimeoutRef.current = null;
+        }, 3000);
+      } else {
+        setError(backup.error || t('settings.backups.messages.finishedWithError'));
+      }
     } catch (requestError) {
       setError(
         requestError instanceof Error
@@ -156,13 +188,12 @@ export const BackupsSection: React.FC<BackupsSectionProps> = ({ canManageBackups
     if (!deleteTarget) return;
     const deletedId = deleteTarget.id;
     setDeletingBackupId(deletedId);
-    setMessage('');
     setError('');
     try {
       await deleteBackup(deletedId);
       setBackups((prev) => prev.filter((backup) => backup.id !== deletedId));
       setDeleteTarget(null);
-      setMessage(t('settings.backups.messages.deleted'));
+      showToast(t('settings.backups.messages.deleted'));
       void refreshBackups({ silent: true });
     } catch (requestError) {
       setError(
@@ -178,14 +209,13 @@ export const BackupsSection: React.FC<BackupsSectionProps> = ({ canManageBackups
   const handleRestoreBackup = async () => {
     if (!restoreTarget) return;
     setIsRestoring(true);
-    setMessage('');
     setError('');
     try {
       const result = await restoreBackup(restoreTarget.id, restoreConfirmation);
       setRestoreTarget(null);
       setRestoreConfirmation('');
       await refreshBackups({ silent: true });
-      setMessage(
+      showToast(
         t('settings.backups.messages.restored', {
           safetyBackupId: result.safetyBackupId,
         }),
@@ -217,14 +247,13 @@ export const BackupsSection: React.FC<BackupsSectionProps> = ({ canManageBackups
   const handleRestoreBackupFromFile = async () => {
     if (!restoreFile) return;
     setIsRestoring(true);
-    setMessage('');
     setError('');
     setRestoreFileError('');
     try {
       const result = await restoreBackupFromFile(restoreFile, restoreFileConfirmation);
       closeRestoreFileModal();
       await refreshBackups({ silent: true });
-      setMessage(
+      showToast(
         t('settings.backups.messages.restoredFromFile', {
           safetyBackupId: result.safetyBackupId,
         }),
@@ -268,19 +297,41 @@ export const BackupsSection: React.FC<BackupsSectionProps> = ({ canManageBackups
             >
               {t('settings.backups.restoreFromFile')}
             </Button>
-            <Button
-              onClick={() => void handleCreateBackup()}
-              disabled={isCreating || isRestoring}
-            >
-              {isCreating
-                ? t('settings.backups.creating')
-                : t('settings.backups.createBackup')}
-            </Button>
+            <div className="backup-create-action-wrapper">
+              <Button
+                onClick={() => void handleCreateBackup()}
+                disabled={isCreating || isRestoring}
+              >
+                {isCreating
+                  ? t('settings.backups.creating')
+                  : t('settings.backups.createBackup')}
+              </Button>
+              {showCreateTooltip ? (
+                <div className="backup-create-tooltip" role="status">
+                  <span className="backup-create-tooltip-icon" aria-hidden="true">✓</span>
+                  <span>{t('settings.backups.messages.created')}</span>
+                </div>
+              ) : null}
+            </div>
           </div>
         }
       />
 
-      {message ? <p className="success-message">{message}</p> : null}
+      {toastMessage ? (
+        <aside className="toast-stack" aria-live="polite" aria-atomic="true">
+          <p className="toast toast-success" role="status">
+            <span>{toastMessage}</span>
+            <button
+              type="button"
+              className="toast-close"
+              aria-label={t('common.close') || 'Close'}
+              onClick={() => setToastMessage('')}
+            >
+              ×
+            </button>
+          </p>
+        </aside>
+      ) : null}
       {error && !isRestoreFileModalOpen ? <InlineError>{error}</InlineError> : null}
 
       {isLoading ? (

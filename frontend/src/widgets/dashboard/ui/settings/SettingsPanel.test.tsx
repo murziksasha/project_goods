@@ -513,4 +513,15 @@ describe('SettingsPanel', () => {
     // Modal stays open so the operator can fix the file selection
     expect(screen.getByLabelText('Backup archive file')).toBeInTheDocument();
   });
+it('shows an anchored tooltip with "Backup created." after creating a backup', async () => {
+    render(<BackupOnlySettingsPanelHarness />);
+
+    const createButton = await screen.findByRole('button', { name: 'Create backup' });
+    fireEvent.click(createButton);
+
+    expect(backupApi.createBackup).toHaveBeenCalled();
+    const tooltip = await screen.findByRole('status');
+    expect(tooltip).toHaveTextContent('Backup created.');
+    expect(tooltip).toHaveClass('backup-create-tooltip');
+  });
 });
