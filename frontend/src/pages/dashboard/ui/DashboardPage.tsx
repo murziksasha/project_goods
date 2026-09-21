@@ -1682,11 +1682,15 @@ export const DashboardPage: React.FC = () => {
                 isSaving={state.isClientSaving}
                 isClientImporting={state.isClientImporting}
                 isClientExporting={state.isClientExporting}
+                isSupplierImporting={state.isSupplierImporting}
+                isSupplierExporting={state.isSupplierExporting}
                 onSelectClient={actions.setSelectedClientId}
                 onDeleteClient={actions.deleteClient}
                 onCreateClient={actions.createClientCard}
                 onImportClients={actions.importClientsFromFile}
                 onExportClients={actions.exportClients}
+                onImportSuppliers={actions.importSuppliersFromFile}
+                onExportSuppliers={actions.exportSuppliers}
                 onMergeClients={actions.mergeClients}
                 onMergeSuppliers={actions.mergeSuppliers}
                 onUpdateClient={actions.updateClientCard}

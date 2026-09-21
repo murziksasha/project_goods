@@ -18,16 +18,16 @@ const Harness = ({
   });
 
   const panel = isVisible ? (
-    <div data-testid="panel" ref={splitPanel ? panelRef : undefined}>
-      <button type="button">Suggestion</button>
+    <div data-testid='panel' ref={splitPanel ? panelRef : undefined}>
+      <button type='button'>Suggestion</button>
     </div>
   ) : null;
 
   return (
     <div>
-      <div data-testid="outside">outside</div>
-      <div data-testid="root" ref={rootRef}>
-        <input data-testid="input" value={query} readOnly />
+      <div data-testid='outside'>outside</div>
+      <div data-testid='root' ref={rootRef}>
+        <input data-testid='input' value={query} readOnly />
         {splitPanel ? null : panel}
       </div>
       {splitPanel ? panel : null}
@@ -50,14 +50,14 @@ const EditableHarness = ({
 
   return (
     <div>
-      <div data-testid="outside">outside</div>
-      <div data-testid="root" ref={rootRef}>
+      <div data-testid='outside'>outside</div>
+      <div data-testid='root' ref={rootRef}>
         <input
-          data-testid="input"
+          data-testid='input'
           value={query}
           onChange={(event) => setQuery(event.target.value)}
         />
-        {isVisible ? <div data-testid="panel">Suggestion</div> : null}
+        {isVisible ? <div data-testid='panel'>Suggestion</div> : null}
       </div>
     </div>
   );
@@ -65,28 +65,32 @@ const EditableHarness = ({
 
 describe('useDismissibleSuggestions', () => {
   it('shows the panel while active and not dismissed', () => {
-    render(<Harness query="samsung" isActive />);
+    render(<Harness query='samsung' isActive />);
     expect(screen.getByTestId('panel')).toBeInTheDocument();
   });
 
   it('hides on pointerdown outside without changing the input', () => {
-    render(<Harness query="samsung" isActive />);
+    render(<Harness query='samsung' isActive />);
     fireEvent.pointerDown(screen.getByTestId('outside'));
     expect(screen.queryByTestId('panel')).not.toBeInTheDocument();
     expect(screen.getByTestId('input')).toHaveValue('samsung');
   });
 
   it('keeps the panel open when clicking the input or a suggestion', () => {
-    render(<Harness query="samsung" isActive />);
+    render(<Harness query='samsung' isActive />);
     fireEvent.pointerDown(screen.getByTestId('input'));
     expect(screen.getByTestId('panel')).toBeInTheDocument();
-    fireEvent.pointerDown(screen.getByRole('button', { name: 'Suggestion' }));
+    fireEvent.pointerDown(
+      screen.getByRole('button', { name: 'Suggestion' }),
+    );
     expect(screen.getByTestId('panel')).toBeInTheDocument();
   });
 
   it('treats a split panel as inside the widget', () => {
-    render(<Harness query="samsung" isActive splitPanel />);
-    fireEvent.pointerDown(screen.getByRole('button', { name: 'Suggestion' }));
+    render(<Harness query='samsung' isActive splitPanel />);
+    fireEvent.pointerDown(
+      screen.getByRole('button', { name: 'Suggestion' }),
+    );
     expect(screen.getByTestId('panel')).toBeInTheDocument();
     fireEvent.pointerDown(screen.getByTestId('outside'));
     expect(screen.queryByTestId('panel')).not.toBeInTheDocument();
@@ -95,7 +99,7 @@ describe('useDismissibleSuggestions', () => {
   it('hides on Escape and stops the event from reaching parent listeners', () => {
     const parentListener = vi.fn();
     window.addEventListener('keydown', parentListener);
-    render(<Harness query="samsung" isActive />);
+    render(<Harness query='samsung' isActive />);
 
     fireEvent.keyDown(screen.getByTestId('input'), { key: 'Escape' });
 
@@ -105,7 +109,7 @@ describe('useDismissibleSuggestions', () => {
   });
 
   it('stays hidden on the same query and reopens after an edit', () => {
-    render(<EditableHarness initialQuery="samsung" isActive />);
+    render(<EditableHarness initialQuery='samsung' isActive />);
     fireEvent.pointerDown(screen.getByTestId('outside'));
     expect(screen.queryByTestId('panel')).not.toBeInTheDocument();
 
@@ -118,8 +122,44 @@ describe('useDismissibleSuggestions', () => {
     expect(screen.getByTestId('panel')).toBeInTheDocument();
   });
 
+  it('reopens on resetDismissed without editing the query', () => {
+    const ResetHarness = () => {
+      const { rootRef, isVisible, resetDismissed } =
+        useDismissibleSuggestions({
+          query: 'samsung',
+          isActive: true,
+        });
+
+      return (
+        <div>
+          <div data-testid='outside'>outside</div>
+          <div ref={rootRef}>
+            <input
+              data-testid='input'
+              value='samsung'
+              readOnly
+              onFocus={resetDismissed}
+            />
+            {isVisible ? (
+              <div data-testid='panel'>Suggestion</div>
+            ) : null}
+          </div>
+        </div>
+      );
+    };
+
+    render(<ResetHarness />);
+    expect(screen.getByTestId('panel')).toBeInTheDocument();
+
+    fireEvent.pointerDown(screen.getByTestId('outside'));
+    expect(screen.queryByTestId('panel')).not.toBeInTheDocument();
+
+    fireEvent.focus(screen.getByTestId('input'));
+    expect(screen.getByTestId('panel')).toBeInTheDocument();
+  });
+
   it('does not render while inactive', () => {
-    render(<Harness query="samsung" isActive={false} />);
+    render(<Harness query='samsung' isActive={false} />);
     expect(screen.queryByTestId('panel')).not.toBeInTheDocument();
   });
 });

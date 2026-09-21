@@ -285,6 +285,8 @@ export const useDashboardPage = (
   const [isClientSaving, setIsClientSaving] = useState(false);
   const [isClientImporting, setIsClientImporting] = useState(false);
   const [isClientExporting, setIsClientExporting] = useState(false);
+  const [isSupplierImporting, setIsSupplierImporting] = useState(false);
+  const [isSupplierExporting, setIsSupplierExporting] = useState(false);
   const [isSaleSaving, setIsSaleSaving] = useState(false);
   const [isEmployeeSaving, setIsEmployeeSaving] = useState(false);
   const [isSettingsSaving, setIsSettingsSaving] = useState(false);
@@ -733,6 +735,8 @@ export const useDashboardPage = (
     setIsClientSaving,
     setIsClientImporting,
     setIsClientExporting,
+    setIsSupplierImporting,
+    setIsSupplierExporting,
     setIsSaleSaving,
     setIsEmployeeSaving,
     setIsSettingsSaving,
@@ -901,6 +905,8 @@ export const useDashboardPage = (
       isClientSaving,
       isClientImporting,
       isClientExporting,
+      isSupplierImporting,
+      isSupplierExporting,
       isSaleSaving,
       isEmployeeSaving,
       isSettingsSaving,

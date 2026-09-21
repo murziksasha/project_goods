@@ -1,4 +1,10 @@
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { ClientDevice } from '../../../../entities/client-device';
 import type { CatalogProduct } from '../../../../entities/catalog-product';
@@ -7,30 +13,41 @@ import type { ServiceCatalogItem } from '../../../../entities/service-catalog';
 import type { Supplier } from '../../../../entities/supplier';
 import { ProductCatalogPanel } from './ProductCatalogPanel';
 
-vi.mock('../../../../entities/saved-filter', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../../../../entities/saved-filter')>();
-  return {
-    ...actual,
-  listSavedFilters: vi.fn(async () => []),
-  createSavedFilter: vi.fn(async (payload: {
-    scope: string;
-    tab: string;
-    name: string;
-    icon: string;
-    filters: unknown;
-  }) => ({
-    id: 'saved-1',
-    employeeId: 'employee-1',
-    scope: payload.scope,
-    tab: payload.tab,
-    name: payload.name,
-    icon: payload.icon,
-    filters: payload.filters,
-    createdAt: '2026-06-13T00:00:00.000Z',
-  })),
-  deleteSavedFilter: vi.fn(async () => ({ id: 'saved-1', deleted: true })),
-  };
-});
+vi.mock(
+  '../../../../entities/saved-filter',
+  async (importOriginal) => {
+    const actual =
+      await importOriginal<
+        typeof import('../../../../entities/saved-filter')
+      >();
+    return {
+      ...actual,
+      listSavedFilters: vi.fn(async () => []),
+      createSavedFilter: vi.fn(
+        async (payload: {
+          scope: string;
+          tab: string;
+          name: string;
+          icon: string;
+          filters: unknown;
+        }) => ({
+          id: 'saved-1',
+          employeeId: 'employee-1',
+          scope: payload.scope,
+          tab: payload.tab,
+          name: payload.name,
+          icon: payload.icon,
+          filters: payload.filters,
+          createdAt: '2026-06-13T00:00:00.000Z',
+        }),
+      ),
+      deleteSavedFilter: vi.fn(async () => ({
+        id: 'saved-1',
+        deleted: true,
+      })),
+    };
+  },
+);
 
 const employee: Employee = {
   id: 'employee-1',
@@ -119,6 +136,10 @@ const renderPanel = ({
   services = [],
   searchQuery = '',
   onServiceCancelEdit = vi.fn<() => void>(),
+  onMergeClientDevice = vi.fn(async () => true),
+  onMergeCatalogProduct = vi.fn(async () => true),
+  onMergeService = vi.fn(async () => true),
+  onMergeSupplier = vi.fn(async () => true),
 }: {
   catalogProducts?: CatalogProduct[];
   clientDevices?: ClientDevice[];
@@ -126,6 +147,26 @@ const renderPanel = ({
   services?: ServiceCatalogItem[];
   searchQuery?: string;
   onServiceCancelEdit?: () => void;
+  onMergeClientDevice?: (
+    targetDeviceId: string,
+    sourceDeviceId: string,
+    draftNote?: string,
+  ) => Promise<boolean>;
+  onMergeCatalogProduct?: (
+    targetCatalogProductId: string,
+    sourceCatalogProductId: string,
+    draftNote?: string,
+  ) => Promise<boolean>;
+  onMergeService?: (
+    targetServiceId: string,
+    sourceServiceId: string,
+    draftNote?: string,
+  ) => Promise<boolean>;
+  onMergeSupplier?: (
+    targetSupplierId: string,
+    sourceSupplierId: string,
+    draftNote?: string,
+  ) => Promise<boolean>;
 } = {}) =>
   render(
     <ProductCatalogPanel
@@ -186,6 +227,10 @@ const renderPanel = ({
       onUpdateCatalogProduct={vi.fn(async () => true)}
       onCreateCatalogProduct={vi.fn(async () => true)}
       onDeleteCatalogProduct={vi.fn(async () => true)}
+      onMergeClientDevice={onMergeClientDevice}
+      onMergeCatalogProduct={onMergeCatalogProduct}
+      onMergeService={onMergeService}
+      onMergeSupplier={onMergeSupplier}
     />,
   );
 
@@ -217,9 +262,15 @@ describe('ProductCatalogPanel client devices search', () => {
 
     typeCatalogSearch('кавома');
 
-    expect(screen.getByText('Кавомашина Delonghi')).toBeInTheDocument();
-    expect(screen.getByText('Кавомашина Saeco incanto Sirius')).toBeInTheDocument();
-    expect(screen.queryByText('Робот пилосос RoboRock')).not.toBeInTheDocument();
+    expect(
+      screen.getByText('Кавомашина Delonghi'),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText('Кавомашина Saeco incanto Sirius'),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText('Робот пилосос RoboRock'),
+    ).not.toBeInTheDocument();
   });
 
   it('keeps the no devices state for unmatched device names', () => {
@@ -267,9 +318,13 @@ describe('ProductCatalogPanel client devices search', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
 
     expect(screen.getByText('Coffee machine')).toBeInTheDocument();
-    expect(screen.queryByText('Robot vacuum')).not.toBeInTheDocument();
+    expect(
+      screen.queryByText('Robot vacuum'),
+    ).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Save filter' }));
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Save filter' }),
+    );
     fireEvent.change(screen.getByPlaceholderText('My filter'), {
       target: { value: 'Active coffee' },
     });
@@ -279,7 +334,10 @@ describe('ProductCatalogPanel client devices search', () => {
       expect(
         screen
           .getAllByRole('button', { name: /Active coffee/ })
-          .some((button) => button.className === 'orders-filter-saved-button'),
+          .some(
+            (button) =>
+              button.className === 'orders-filter-saved-button',
+          ),
       ).toBe(true);
     });
 
@@ -288,7 +346,10 @@ describe('ProductCatalogPanel client devices search', () => {
     expect(
       screen
         .queryAllByRole('button', { name: /Active coffee/ })
-        .some((button) => button.className === 'orders-filter-saved-button'),
+        .some(
+          (button) =>
+            button.className === 'orders-filter-saved-button',
+        ),
     ).toBe(false);
   });
 
@@ -298,23 +359,37 @@ describe('ProductCatalogPanel client devices search', () => {
     renderPanel({ onServiceCancelEdit });
 
     fireEvent.click(screen.getByRole('button', { name: 'Services' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Create service' }));
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Create service' }),
+    );
 
-    expect(screen.getByRole('heading', { name: 'Add service' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { name: 'Add service' }),
+    ).toBeInTheDocument();
     onServiceCancelEdit.mockClear();
 
     fireEvent.click(screen.getByRole('button', { name: 'Close' }));
 
-    expect(screen.queryByRole('heading', { name: 'Add service' })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('heading', { name: 'Add service' }),
+    ).not.toBeInTheDocument();
     expect(onServiceCancelEdit).toHaveBeenCalledTimes(1);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Create service' }));
-    expect(screen.getByRole('heading', { name: 'Add service' })).toBeInTheDocument();
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Create service' }),
+    );
+    expect(
+      screen.getByRole('heading', { name: 'Add service' }),
+    ).toBeInTheDocument();
     onServiceCancelEdit.mockClear();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Create service' }));
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Create service' }),
+    );
 
-    expect(screen.queryByRole('heading', { name: 'Add service' })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('heading', { name: 'Add service' }),
+    ).not.toBeInTheDocument();
     expect(onServiceCancelEdit).toHaveBeenCalledTimes(1);
   });
 
@@ -336,7 +411,9 @@ describe('ProductCatalogPanel client devices search', () => {
       ],
     });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Suppliers' }));
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Suppliers' }),
+    );
     fireEvent.click(screen.getByRole('button', { name: 'Filter' }));
     fireEvent.change(screen.getByLabelText('Status'), {
       target: { value: 'active' },
@@ -347,7 +424,9 @@ describe('ProductCatalogPanel client devices search', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
 
     expect(screen.getByText('Fresh Supplier')).toBeInTheDocument();
-    expect(screen.queryByText('Old Supplier')).not.toBeInTheDocument();
+    expect(
+      screen.queryByText('Old Supplier'),
+    ).not.toBeInTheDocument();
   });
 
   it('keeps search queries isolated across catalog tabs', () => {
@@ -357,14 +436,19 @@ describe('ProductCatalogPanel client devices search', () => {
         clientDevice({ id: 'device-robot', name: 'Robot vacuum' }),
       ],
       catalogProducts: [
-        catalogProduct({ id: 'product-filter', name: 'Coffee filter' }),
+        catalogProduct({
+          id: 'product-filter',
+          name: 'Coffee filter',
+        }),
         catalogProduct({ id: 'product-cable', name: 'Power cable' }),
       ],
     });
 
     typeCatalogSearch('Coffee');
     expect(screen.getByText('Coffee machine')).toBeInTheDocument();
-    expect(screen.queryByText('Robot vacuum')).not.toBeInTheDocument();
+    expect(
+      screen.queryByText('Robot vacuum'),
+    ).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Products' }));
     expect(screen.getByText('Coffee filter')).toBeInTheDocument();
@@ -373,28 +457,126 @@ describe('ProductCatalogPanel client devices search', () => {
 
   it('renders useful columns and drops dummy service checkboxes', () => {
     renderPanel({
-      clientDevices: [clientDevice({ name: 'Coffee machine', note: 'Kitchen' })],
-      catalogProducts: [catalogProduct({ name: 'Coffee filter', note: 'Mesh' })],
-      suppliers: [supplier({ name: 'Fresh Supplier', note: 'Main parts' })],
+      clientDevices: [
+        clientDevice({ name: 'Coffee machine', note: 'Kitchen' }),
+      ],
+      catalogProducts: [
+        catalogProduct({ name: 'Coffee filter', note: 'Mesh' }),
+      ],
+      suppliers: [
+        supplier({ name: 'Fresh Supplier', note: 'Main parts' }),
+      ],
       services: [serviceItem()],
     });
 
-    expect(screen.getByRole('columnheader', { name: 'Usage' })).toBeInTheDocument();
-    expect(screen.getByRole('columnheader', { name: 'Note' })).toBeInTheDocument();
-    expect(screen.getByRole('columnheader', { name: 'Status' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('columnheader', { name: 'Usage' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('columnheader', { name: 'Note' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('columnheader', { name: 'Status' }),
+    ).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Products' }));
-    expect(screen.getByRole('columnheader', { name: 'Last seen' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('columnheader', { name: 'Last seen' }),
+    ).toBeInTheDocument();
     expect(screen.getByText('Mesh')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Services' }));
-    expect(screen.getByRole('columnheader', { name: 'Price' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('columnheader', { name: 'Price' }),
+    ).toBeInTheDocument();
     expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'x' })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'x' }),
+    ).not.toBeInTheDocument();
     expect(screen.getByText('Board repair')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Suppliers' }));
-    expect(screen.getByRole('columnheader', { name: 'Phone' })).toBeInTheDocument();
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Suppliers' }),
+    );
+    expect(
+      screen.getByRole('columnheader', { name: 'Phone' }),
+    ).toBeInTheDocument();
     expect(screen.getByText('Main parts')).toBeInTheDocument();
+  });
+
+  it('renders merge button on all 4 tabs and opens the corresponding merge modal', () => {
+    renderPanel({
+      clientDevices: [
+        clientDevice({ id: 'd-1', name: 'Delonghi Device' }),
+        clientDevice({ id: 'd-2', name: 'Saeco Device' }),
+      ],
+      catalogProducts: [
+        catalogProduct({ id: 'cp-1', name: 'Display Module' }),
+        catalogProduct({ id: 'cp-2', name: 'Battery 4000mAh' }),
+      ],
+      services: [
+        serviceItem({ id: 's-1', name: 'Screen Replacement' }),
+        serviceItem({ id: 's-2', name: 'Diagnostic' }),
+      ],
+      suppliers: [
+        supplier({ id: 'sup-1', name: 'Alpha Supplier' }),
+        supplier({ id: 'sup-2', name: 'Beta Supplier' }),
+      ],
+    });
+
+    // 1. Client devices tab (default)
+    const deviceMergeButton = screen.getByRole('button', {
+      name: 'Merge',
+    });
+    expect(deviceMergeButton).toBeInTheDocument();
+    fireEvent.click(deviceMergeButton);
+    expect(
+      screen.getByText('Merge client devices'),
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(
+      screen.queryByText('Merge client devices'),
+    ).not.toBeInTheDocument();
+
+    // 2. Products tab
+    fireEvent.click(screen.getByRole('button', { name: 'Products' }));
+    const productMergeButton = screen.getByRole('button', {
+      name: 'Merge',
+    });
+    expect(productMergeButton).toBeInTheDocument();
+    fireEvent.click(productMergeButton);
+    expect(screen.getByText('Merge products')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(
+      screen.queryByText('Merge products'),
+    ).not.toBeInTheDocument();
+
+    // 3. Services tab
+    fireEvent.click(screen.getByRole('button', { name: 'Services' }));
+    const serviceMergeButton = screen.getByRole('button', {
+      name: 'Merge',
+    });
+    expect(serviceMergeButton).toBeInTheDocument();
+    fireEvent.click(serviceMergeButton);
+    expect(screen.getByText('Merge services')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(
+      screen.queryByText('Merge services'),
+    ).not.toBeInTheDocument();
+
+    // 4. Suppliers tab
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Suppliers' }),
+    );
+    const supplierMergeButton = screen.getByRole('button', {
+      name: 'Merge',
+    });
+    expect(supplierMergeButton).toBeInTheDocument();
+    fireEvent.click(supplierMergeButton);
+    expect(screen.getByText('Merge suppliers')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(
+      screen.queryByText('Merge suppliers'),
+    ).not.toBeInTheDocument();
   });
 });

@@ -461,79 +461,109 @@ export const mergeClientDevices = async (
       ? sourceDevice.client.toString()
       : '';
 
-    if (targetClientId !== sourceClientId) {
-      throw new HttpError(
-        400,
-        'Cannot merge devices belonging to different clients.',
-      );
-    }
-
     const mergedNote = mergeNotes(
       targetDevice.note,
       sourceDevice.note,
       draftNote,
     );
 
-    let relinkedSalesCount = 0;
-    if (targetDevice.client) {
-      const salesQuery = {
-        client: targetDevice.client,
-        kind: 'repair',
-        $or: [
-          {
-            'productSnapshot.name': {
-              $regex: buildSnapshotNamePattern(sourceDevice.name),
-              $options: 'i',
-            },
-          },
-          {
-            'lineItems.name': {
-              $regex: buildLineItemNamePattern(sourceDevice.name),
-              $options: 'i',
-            },
-          },
-        ],
-      };
+    const clientIdsToRelink = [
+      targetDevice.client,
+      sourceDevice.client,
+    ].filter(Boolean);
 
-      const matchingSales = await Sale.find(salesQuery, null, {
+    const clientCondition =
+      sourceDevice.client == null
+        ? {}
+        : clientIdsToRelink.length === 1
+          ? { client: clientIdsToRelink[0] }
+          : { client: { $in: clientIdsToRelink } };
+
+    const salesQuery: Record<string, unknown> = {
+      ...clientCondition,
+      kind: 'repair',
+      $or: [
+        {
+          'productSnapshot.name': {
+            $regex: buildSnapshotNamePattern(sourceDevice.name),
+            $options: 'i',
+          },
+        },
+        {
+          'lineItems.name': {
+            $regex: buildLineItemNamePattern(sourceDevice.name),
+            $options: 'i',
+          },
+        },
+      ],
+    };
+
+    const matchingSales = await Sale.find(
+      salesQuery as unknown as Parameters<typeof Sale.find>[0],
+      null,
+      {
         session: session ?? undefined,
-      }).lean();
+      },
+    ).lean();
 
-      for (const sale of matchingSales) {
-        const snapshotName = sale.productSnapshot?.name ?? '';
-        const nextSnapshotName = matchesSnapshotDeviceName(
-          snapshotName,
-          sourceDevice.name,
-        )
-          ? targetDevice.name
-          : snapshotName;
+    for (const sale of matchingSales) {
+      const snapshotName = sale.productSnapshot?.name ?? '';
+      const nextSnapshotName = matchesSnapshotDeviceName(
+        snapshotName,
+        sourceDevice.name,
+      )
+        ? targetDevice.name
+        : snapshotName;
 
-        const nextLineItems = (sale.lineItems ?? []).map((item) => {
-          if (item.kind !== 'product') return item;
-          if (
-            !matchesLineItemDeviceName(item.name, sourceDevice.name)
-          )
-            return item;
-          return {
-            ...item,
-            name: targetDevice.name,
-          };
-        });
+      const nextLineItems = (sale.lineItems ?? []).map((item) => {
+        if (item.kind !== 'product') return item;
+        if (!matchesLineItemDeviceName(item.name, sourceDevice.name))
+          return item;
+        return {
+          ...item,
+          name: targetDevice.name,
+        };
+      });
 
-        await Sale.findByIdAndUpdate(
-          sale._id,
-          {
-            productSnapshot: {
-              article: sale.productSnapshot?.article ?? '',
-              name: nextSnapshotName,
-              serialNumber: sale.productSnapshot?.serialNumber ?? '',
-            },
-            lineItems: nextLineItems,
+      await Sale.findByIdAndUpdate(
+        sale._id,
+        {
+          productSnapshot: {
+            article: sale.productSnapshot?.article ?? '',
+            name: nextSnapshotName,
+            serialNumber: sale.productSnapshot?.serialNumber ?? '',
           },
-          { session: session ?? undefined },
-        );
+          lineItems: nextLineItems,
+        },
+        { session: session ?? undefined },
+      );
+    }
+    const relinkedSalesCount = matchingSales.length;
+
+    if (sourceDevice.client && sourceClientId !== targetClientId) {
+      const targetNameKey = toNameKey(targetDevice.name);
+      const sourceClientHasTarget = await ClientDevice.exists({
+        client: sourceDevice.client,
+        nameKey: targetNameKey,
+      });
+      if (!sourceClientHasTarget) {
+        const newDeviceForSourceClient = new ClientDevice({
+          client: sourceDevice.client,
+          clientName: sourceDevice.clientName,
+          clientPhone: sourceDevice.clientPhone,
+          name: targetDevice.name,
+          serialNumber:
+            sourceDevice.serialNumber ||
+            targetDevice.serialNumber ||
+            '',
+          note: sourceDevice.note,
+          source: sourceDevice.source,
+          isActive: sourceDevice.isActive,
+        });
+        await newDeviceForSourceClient.save({
+          session: session ?? undefined,
+        });
       }
-      relinkedSalesCount = matchingSales.length;
     }
 
     const updatedTarget = await ClientDevice.findByIdAndUpdate(
@@ -573,6 +603,7 @@ export const mergeClientDevices = async (
       device: formatClientDevice(updatedTarget, usageCount),
       removedDeviceId: sourceDeviceId,
       relinkedSalesCount,
+      movedSalesCount: relinkedSalesCount,
     };
   });
 };

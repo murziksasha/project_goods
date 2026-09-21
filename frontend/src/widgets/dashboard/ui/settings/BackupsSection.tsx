@@ -1,5 +1,11 @@
 import type React from 'react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   createBackup,
@@ -33,13 +39,19 @@ const formatBackupDate = (value: string) => {
   return date.toLocaleString('uk-UA');
 };
 
-const backupStatusTone: Record<BackupMetadata['status'], StatusBadgeTone> = {
+const backupStatusTone: Record<
+  BackupMetadata['status'],
+  StatusBadgeTone
+> = {
   completed: 'success',
   failed: 'danger',
   running: 'info',
 };
 
-const backupTypeTone: Record<BackupMetadata['type'], StatusBadgeTone> = {
+const backupTypeTone: Record<
+  BackupMetadata['type'],
+  StatusBadgeTone
+> = {
   manual: 'gray',
   safety: 'warning',
   scheduled: 'success',
@@ -47,27 +59,53 @@ const backupTypeTone: Record<BackupMetadata['type'], StatusBadgeTone> = {
 
 export interface BackupsSectionProps {
   canManageBackups: boolean;
-};
+}
 
-export const BackupsSection: React.FC<BackupsSectionProps> = ({ canManageBackups }) => {
+export const BackupsSection: React.FC<BackupsSectionProps> = ({
+  canManageBackups,
+}) => {
   const { t } = useTranslation();
   const [backups, setBackups] = useState<BackupMetadata[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [downloadingBackupId, setDownloadingBackupId] = useState('');
   const [deletingBackupId, setDeletingBackupId] = useState('');
-  const [deleteTarget, setDeleteTarget] = useState<BackupMetadata | null>(null);
-  const [restoreTarget, setRestoreTarget] = useState<BackupMetadata | null>(null);
+  const [deleteTarget, setDeleteTarget] =
+    useState<BackupMetadata | null>(null);
+  const [restoreTarget, setRestoreTarget] =
+    useState<BackupMetadata | null>(null);
   const [restoreConfirmation, setRestoreConfirmation] = useState('');
   const [restoreFile, setRestoreFile] = useState<File | null>(null);
-  const [restoreFileConfirmation, setRestoreFileConfirmation] = useState('');
+  const [restoreFileConfirmation, setRestoreFileConfirmation] =
+    useState('');
   const [restoreFileError, setRestoreFileError] = useState('');
-  const [isRestoreFileModalOpen, setIsRestoreFileModalOpen] = useState(false);
+  const [isRestoreFileModalOpen, setIsRestoreFileModalOpen] =
+    useState(false);
   const [isRestoring, setIsRestoring] = useState(false);
-  const [message, setMessage] = useState('');
+  const [toastMessage, setToastMessage] = useState('');
   const [error, setError] = useState('');
   const [backupsPage, setBackupsPage] = useState(1);
   const [backupsPageSize, setBackupsPageSize] = useState(30);
+  const toastTimeoutRef = useRef<number | null>(null);
+
+  const showToast = useCallback((text: string) => {
+    if (toastTimeoutRef.current) {
+      window.clearTimeout(toastTimeoutRef.current);
+    }
+    setToastMessage(text);
+    toastTimeoutRef.current = window.setTimeout(() => {
+      setToastMessage('');
+      toastTimeoutRef.current = null;
+    }, 4000);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (toastTimeoutRef.current) {
+        window.clearTimeout(toastTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const refreshBackups = useCallback(
     async (opts?: { silent?: boolean }) => {
@@ -99,7 +137,10 @@ export const BackupsSection: React.FC<BackupsSectionProps> = ({ canManageBackups
   }, [backups, backupsPage, backupsPageSize]);
 
   useEffect(() => {
-    const pageCount = Math.max(1, Math.ceil(backups.length / backupsPageSize));
+    const pageCount = Math.max(
+      1,
+      Math.ceil(backups.length / backupsPageSize),
+    );
     if (backupsPage > pageCount) {
       setBackupsPage(pageCount);
     }
@@ -107,16 +148,18 @@ export const BackupsSection: React.FC<BackupsSectionProps> = ({ canManageBackups
 
   const handleCreateBackup = async () => {
     setIsCreating(true);
-    setMessage('');
     setError('');
     try {
       const backup = await createBackup();
       await refreshBackups({ silent: true });
-      setMessage(
-        backup.status === 'completed'
-          ? t('settings.backups.messages.created')
-          : backup.error || t('settings.backups.messages.finishedWithError'),
-      );
+      if (backup.status === 'completed') {
+        showToast(t('settings.backups.messages.created'));
+      } else {
+        setError(
+          backup.error ||
+            t('settings.backups.messages.finishedWithError'),
+        );
+      }
     } catch (requestError) {
       setError(
         requestError instanceof Error
@@ -156,13 +199,14 @@ export const BackupsSection: React.FC<BackupsSectionProps> = ({ canManageBackups
     if (!deleteTarget) return;
     const deletedId = deleteTarget.id;
     setDeletingBackupId(deletedId);
-    setMessage('');
     setError('');
     try {
       await deleteBackup(deletedId);
-      setBackups((prev) => prev.filter((backup) => backup.id !== deletedId));
+      setBackups((prev) =>
+        prev.filter((backup) => backup.id !== deletedId),
+      );
       setDeleteTarget(null);
-      setMessage(t('settings.backups.messages.deleted'));
+      showToast(t('settings.backups.messages.deleted'));
       void refreshBackups({ silent: true });
     } catch (requestError) {
       setError(
@@ -178,14 +222,16 @@ export const BackupsSection: React.FC<BackupsSectionProps> = ({ canManageBackups
   const handleRestoreBackup = async () => {
     if (!restoreTarget) return;
     setIsRestoring(true);
-    setMessage('');
     setError('');
     try {
-      const result = await restoreBackup(restoreTarget.id, restoreConfirmation);
+      const result = await restoreBackup(
+        restoreTarget.id,
+        restoreConfirmation,
+      );
       setRestoreTarget(null);
       setRestoreConfirmation('');
       await refreshBackups({ silent: true });
-      setMessage(
+      showToast(
         t('settings.backups.messages.restored', {
           safetyBackupId: result.safetyBackupId,
         }),
@@ -217,14 +263,16 @@ export const BackupsSection: React.FC<BackupsSectionProps> = ({ canManageBackups
   const handleRestoreBackupFromFile = async () => {
     if (!restoreFile) return;
     setIsRestoring(true);
-    setMessage('');
     setError('');
     setRestoreFileError('');
     try {
-      const result = await restoreBackupFromFile(restoreFile, restoreFileConfirmation);
+      const result = await restoreBackupFromFile(
+        restoreFile,
+        restoreFileConfirmation,
+      );
       closeRestoreFileModal();
       await refreshBackups({ silent: true });
-      setMessage(
+      showToast(
         t('settings.backups.messages.restoredFromFile', {
           safetyBackupId: result.safetyBackupId,
         }),
@@ -243,14 +291,14 @@ export const BackupsSection: React.FC<BackupsSectionProps> = ({ canManageBackups
 
   if (!canManageBackups) {
     return (
-      <section className="settings-section">
+      <section className='settings-section'>
         <EmptyState>{t('settings.backups.noPermission')}</EmptyState>
       </section>
     );
   }
 
   return (
-    <section className="settings-section">
+    <section className='settings-section'>
       <PageHeader
         title={t('settings.backups.title')}
         subtitle={
@@ -260,9 +308,9 @@ export const BackupsSection: React.FC<BackupsSectionProps> = ({ canManageBackups
           </>
         }
         actions={
-          <div className="settings-actions">
+          <div className='settings-actions'>
             <Button
-              variant="success"
+              variant='success'
               onClick={openRestoreFileModal}
               disabled={isCreating || isRestoring}
             >
@@ -280,38 +328,65 @@ export const BackupsSection: React.FC<BackupsSectionProps> = ({ canManageBackups
         }
       />
 
-      {message ? <p className="success-message">{message}</p> : null}
-      {error && !isRestoreFileModalOpen ? <InlineError>{error}</InlineError> : null}
+      {toastMessage ? (
+        <aside
+          className='toast-stack'
+          aria-live='polite'
+          aria-atomic='true'
+        >
+          <p className='toast toast-success' role='status'>
+            <span>{toastMessage}</span>
+            <button
+              type='button'
+              className='toast-close'
+              aria-label={t('common.close') || 'Close'}
+              onClick={() => setToastMessage('')}
+            >
+              ×
+            </button>
+          </p>
+        </aside>
+      ) : null}
+      {error && !isRestoreFileModalOpen ? (
+        <InlineError>{error}</InlineError>
+      ) : null}
 
       {isLoading ? (
         <LoadingState>{t('settings.backups.loading')}</LoadingState>
       ) : backups.length === 0 ? (
         <EmptyState>{t('settings.backups.empty')}</EmptyState>
       ) : (
-        <div className="backup-list" aria-label={t('settings.backups.archivesAriaLabel')}>
+        <div
+          className='backup-list'
+          aria-label={t('settings.backups.archivesAriaLabel')}
+        >
           {paginatedBackups.map((backup) => (
             <article
               key={backup.id}
               className={`backup-card backup-card-${backup.status}`}
             >
-              <div className="backup-card-main">
-                <div className="backup-created-cell">
-                  <div className="backup-card-title-row">
-                    <strong>{formatBackupDate(backup.createdAt)}</strong>
+              <div className='backup-card-main'>
+                <div className='backup-created-cell'>
+                  <div className='backup-card-title-row'>
+                    <strong>
+                      {formatBackupDate(backup.createdAt)}
+                    </strong>
                   </div>
                   <span>{backup.id}</span>
                 </div>
-                <div className="backup-card-badges">
+                <div className='backup-card-badges'>
                   <StatusBadge
                     tone={backupStatusTone[backup.status]}
-                    label={t(`settings.backups.status.${backup.status}`)}
+                    label={t(
+                      `settings.backups.status.${backup.status}`,
+                    )}
                   />
                   <StatusBadge
                     tone={backupTypeTone[backup.type]}
                     label={t(`settings.backups.type.${backup.type}`)}
                   />
                 </div>
-                <dl className="backup-card-meta">
+                <dl className='backup-card-meta'>
                   <div>
                     <dt>{t('settings.backups.size')}</dt>
                     <dd>{formatBackupSize(backup.sizeBytes)}</dd>
@@ -321,9 +396,9 @@ export const BackupsSection: React.FC<BackupsSectionProps> = ({ canManageBackups
                     <dd>{backup.author || '-'}</dd>
                   </div>
                 </dl>
-                <div className="card-actions backup-actions">
+                <div className='card-actions backup-actions'>
                   <Button
-                    variant="ghost"
+                    variant='ghost'
                     onClick={() => void handleDownloadBackup(backup)}
                     disabled={
                       backup.status !== 'completed' ||
@@ -336,26 +411,34 @@ export const BackupsSection: React.FC<BackupsSectionProps> = ({ canManageBackups
                       : t('settings.backups.download')}
                   </Button>
                   <Button
-                    variant="danger"
+                    variant='danger'
                     onClick={() => setDeleteTarget(backup)}
-                    disabled={backup.status === 'running' || isCreating || isRestoring}
+                    disabled={
+                      backup.status === 'running' ||
+                      isCreating ||
+                      isRestoring
+                    }
                   >
                     {t('settings.backups.delete')}
                   </Button>
                   <Button
-                    variant="warning"
+                    variant='warning'
                     onClick={() => {
                       setRestoreTarget(backup);
                       setRestoreConfirmation('');
                     }}
-                    disabled={backup.status !== 'completed' || isCreating || isRestoring}
+                    disabled={
+                      backup.status !== 'completed' ||
+                      isCreating ||
+                      isRestoring
+                    }
                   >
                     {t('settings.backups.restore')}
                   </Button>
                 </div>
               </div>
               {backup.error ? (
-                <div className="backup-error-panel">
+                <div className='backup-error-panel'>
                   <strong>{t('settings.backups.error')}</strong>
                   <p>{backup.error}</p>
                 </div>
@@ -384,21 +467,21 @@ export const BackupsSection: React.FC<BackupsSectionProps> = ({ canManageBackups
           title={t('settings.backups.deleteTitle')}
           onClose={() => setDeleteTarget(null)}
           closeLabel={t('common.close')}
-          shellClassName="payment-modal payment-modal-message modal-dialog"
+          shellClassName='payment-modal payment-modal-message modal-dialog'
           closeOnBackdrop={deletingBackupId !== deleteTarget.id}
           closeOnEscape={deletingBackupId !== deleteTarget.id}
           footer={
-            <footer className="payment-modal-footer">
-              <div className="payment-modal-actions">
+            <footer className='payment-modal-footer'>
+              <div className='payment-modal-actions'>
                 <Button
-                  variant="secondary"
+                  variant='secondary'
                   onClick={() => setDeleteTarget(null)}
                   disabled={deletingBackupId === deleteTarget.id}
                 >
                   {t('common.cancel')}
                 </Button>
                 <Button
-                  variant="danger"
+                  variant='danger'
                   onClick={() => void handleDeleteBackup()}
                   disabled={deletingBackupId === deleteTarget.id}
                 >
@@ -410,7 +493,11 @@ export const BackupsSection: React.FC<BackupsSectionProps> = ({ canManageBackups
             </footer>
           }
         >
-          <p>{t('settings.backups.deleteMessage', { id: deleteTarget.id })}</p>
+          <p>
+            {t('settings.backups.deleteMessage', {
+              id: deleteTarget.id,
+            })}
+          </p>
         </Modal>
       ) : null}
 
@@ -423,14 +510,14 @@ export const BackupsSection: React.FC<BackupsSectionProps> = ({ canManageBackups
             setRestoreConfirmation('');
           }}
           closeLabel={t('common.close')}
-          shellClassName="payment-modal payment-modal-message modal-dialog"
+          shellClassName='payment-modal payment-modal-message modal-dialog'
           closeOnBackdrop={!isRestoring}
           closeOnEscape={!isRestoring}
           footer={
-            <footer className="payment-modal-footer">
-              <div className="payment-modal-actions">
+            <footer className='payment-modal-footer'>
+              <div className='payment-modal-actions'>
                 <Button
-                  variant="secondary"
+                  variant='secondary'
                   onClick={() => {
                     setRestoreTarget(null);
                     setRestoreConfirmation('');
@@ -440,9 +527,11 @@ export const BackupsSection: React.FC<BackupsSectionProps> = ({ canManageBackups
                   {t('common.cancel')}
                 </Button>
                 <Button
-                  variant="warning"
+                  variant='warning'
                   onClick={() => void handleRestoreBackup()}
-                  disabled={isRestoring || restoreConfirmation !== 'RESTORE'}
+                  disabled={
+                    isRestoring || restoreConfirmation !== 'RESTORE'
+                  }
                 >
                   {isRestoring
                     ? t('settings.backups.restoring')
@@ -452,12 +541,18 @@ export const BackupsSection: React.FC<BackupsSectionProps> = ({ canManageBackups
             </footer>
           }
         >
-          <p>{t('settings.backups.restoreMessage', { id: restoreTarget.id })}</p>
-          <label className="field field-wide">
+          <p>
+            {t('settings.backups.restoreMessage', {
+              id: restoreTarget.id,
+            })}
+          </p>
+          <label className='field field-wide'>
             <span>{t('settings.backups.typeRestoreToConfirm')}</span>
             <input
               value={restoreConfirmation}
-              onChange={(event) => setRestoreConfirmation(event.target.value)}
+              onChange={(event) =>
+                setRestoreConfirmation(event.target.value)
+              }
               placeholder={t('settings.backups.restorePlaceholder')}
             />
           </label>
@@ -470,24 +565,26 @@ export const BackupsSection: React.FC<BackupsSectionProps> = ({ canManageBackups
           title={t('settings.backups.restoreFromFileTitle')}
           onClose={closeRestoreFileModal}
           closeLabel={t('common.close')}
-          shellClassName="payment-modal payment-modal-message modal-dialog"
+          shellClassName='payment-modal payment-modal-message modal-dialog'
           closeOnBackdrop={!isRestoring}
           closeOnEscape={!isRestoring}
           footer={
-            <footer className="payment-modal-footer">
-              <div className="payment-modal-actions">
+            <footer className='payment-modal-footer'>
+              <div className='payment-modal-actions'>
                 <Button
-                  variant="secondary"
+                  variant='secondary'
                   onClick={closeRestoreFileModal}
                   disabled={isRestoring}
                 >
                   {t('common.cancel')}
                 </Button>
                 <Button
-                  variant="success"
+                  variant='success'
                   onClick={() => void handleRestoreBackupFromFile()}
                   disabled={
-                    isRestoring || !restoreFile || restoreFileConfirmation !== 'RESTORE'
+                    isRestoring ||
+                    !restoreFile ||
+                    restoreFileConfirmation !== 'RESTORE'
                   }
                 >
                   {isRestoring
@@ -500,15 +597,15 @@ export const BackupsSection: React.FC<BackupsSectionProps> = ({ canManageBackups
         >
           <p>{t('settings.backups.restoreFromFileMessage')}</p>
           {restoreFileError ? (
-            <p className="empty-state" role="alert">
+            <p className='empty-state' role='alert'>
               {restoreFileError}
             </p>
           ) : null}
-          <label className="field field-wide">
+          <label className='field field-wide'>
             <span>{t('settings.backups.backupArchiveFile')}</span>
             <input
-              type="file"
-              accept=".gz,.archive.gz,application/gzip,application/octet-stream"
+              type='file'
+              accept='.gz,.archive.gz,application/gzip,application/octet-stream'
               onChange={(event) => {
                 setRestoreFile(event.target.files?.[0] ?? null);
                 setRestoreFileError('');
@@ -516,13 +613,17 @@ export const BackupsSection: React.FC<BackupsSectionProps> = ({ canManageBackups
             />
           </label>
           {restoreFile ? (
-            <p className="backup-file-selection">{restoreFile.name}</p>
+            <p className='backup-file-selection'>
+              {restoreFile.name}
+            </p>
           ) : null}
-          <label className="field field-wide">
+          <label className='field field-wide'>
             <span>{t('settings.backups.typeRestoreToConfirm')}</span>
             <input
               value={restoreFileConfirmation}
-              onChange={(event) => setRestoreFileConfirmation(event.target.value)}
+              onChange={(event) =>
+                setRestoreFileConfirmation(event.target.value)
+              }
               placeholder={t('settings.backups.restorePlaceholder')}
             />
           </label>

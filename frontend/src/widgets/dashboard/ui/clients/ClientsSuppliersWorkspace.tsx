@@ -1,5 +1,5 @@
 import type React from 'react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { formatDateTime } from '../../../../shared/lib/format';
 import {
@@ -28,9 +28,8 @@ import {
   type SupplierFormState,
 } from '../../../../entities/supplier';
 import type { Employee } from '../../../../entities/employee';
-import { useDismissibleSuggestions } from '../../../../shared/lib/useDismissibleSuggestions';
+import { CatalogRecordMergeModal } from '../../../../features/catalog-duplicate-merge';
 import { Button } from '../../../../shared/ui/Button';
-import { Modal } from '../../../../shared/ui/Modal';
 import { PageHeader } from '../../../../shared/ui/PageHeader';
 import { StatusBadge } from '../../../../shared/ui/StatusBadge';
 import { CopyableValue } from '../../../../shared/ui/CopyableValue';
@@ -54,7 +53,6 @@ import {
 import { SavedFiltersPanel } from '../orders/workspace/SavedFiltersPanel';
 
 type TabKey = 'clients' | 'suppliers';
-type SupplierSuggestionField = 'target' | 'source';
 type SupplierStatusFilter = 'all' | 'active' | 'inactive';
 type SupplierFilters = {
   query: string;
@@ -166,25 +164,6 @@ const getSearchText = (supplier: Supplier) =>
     .join(' ')
     .toLowerCase();
 
-const getSupplierLabel = (supplier: Supplier) =>
-  `${supplier.name} (${getPrimarySupplierPhone(supplier)})`;
-
-const getSupplierMergeOptions = (
-  suppliers: Supplier[],
-  query: string,
-) => {
-  const normalized = query.trim().toLowerCase();
-  if (!normalized) return [];
-
-  return suppliers
-    .filter((supplier) =>
-      `${supplier.name} ${getSupplierPhones(supplier).join(' ')}`
-        .toLowerCase()
-        .includes(normalized),
-    )
-    .slice(0, 6);
-};
-
 const normalizeSupplierPhoneDigits = (phone: string) =>
   phone.replace(/\D/g, '');
 
@@ -230,11 +209,15 @@ export interface ClientsSuppliersWorkspaceProps {
   isSaving: boolean;
   isClientImporting: boolean;
   isClientExporting: boolean;
+  isSupplierImporting?: boolean;
+  isSupplierExporting?: boolean;
   onSelectClient: (clientId: string | null) => void;
   onDeleteClient: (client: Client) => Promise<void>;
   onCreateClient: (payload: ClientFormValues) => Promise<boolean>;
   onImportClients: (file: File) => Promise<boolean>;
   onExportClients: () => Promise<void>;
+  onImportSuppliers?: (file: File) => Promise<boolean>;
+  onExportSuppliers?: () => Promise<void>;
   onMergeClients: (
     targetClientId: string,
     sourceClientId: string,
@@ -277,11 +260,15 @@ export const ClientsSuppliersWorkspace: React.FC<
   isSaving,
   isClientImporting,
   isClientExporting,
+  isSupplierImporting = false,
+  isSupplierExporting = false,
   onSelectClient,
   onDeleteClient,
   onCreateClient,
   onImportClients,
   onExportClients,
+  onImportSuppliers,
+  onExportSuppliers,
   onMergeClients,
   onUpdateClient,
   onOpenSaleCard,
@@ -294,6 +281,7 @@ export const ClientsSuppliersWorkspace: React.FC<
   onUpdateClientDevice,
   onDeleteClientDevice,
 }) => {
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<TabKey>(
     getStoredClientsSuppliersTab,
   );
@@ -318,17 +306,23 @@ export const ClientsSuppliersWorkspace: React.FC<
   const [isMergeModalOpen, setIsMergeModalOpen] = useState(false);
   const [suppliersPage, setSuppliersPage] = useState(1);
   const [suppliersPageSize, setSuppliersPageSize] = useState(30);
-  const [mergeTargetQuery, setMergeTargetQuery] = useState('');
-  const [mergeSourceQuery, setMergeSourceQuery] = useState('');
-  const [showMergeTargetSuggestions, setShowMergeTargetSuggestions] =
-    useState(false);
-  const [showMergeSourceSuggestions, setShowMergeSourceSuggestions] =
-    useState(false);
-  const [mergeTargetId, setMergeTargetId] = useState('');
-  const [mergeSourceId, setMergeSourceId] = useState('');
   const [form, setForm] = useState<SupplierFormState>(
     defaultSupplierForm,
   );
+  const supplierImportInputRef = useRef<HTMLInputElement | null>(
+    null,
+  );
+
+  const handleSupplierImportFileSelect = async (
+    file: File | null,
+  ) => {
+    if (!file || !onImportSuppliers) return;
+
+    const isSuccess = await onImportSuppliers(file);
+    if (isSuccess) {
+      setSuppliersPage(1);
+    }
+  };
 
   const filteredSuppliers = useMemo(() => {
     const filters = appliedSupplierFilters;
@@ -380,14 +374,6 @@ export const ClientsSuppliersWorkspace: React.FC<
     [editingSupplierId, form, suppliers],
   );
 
-  const mergeTargetOptions = useMemo(
-    () => getSupplierMergeOptions(suppliers, mergeTargetQuery),
-    [mergeTargetQuery, suppliers],
-  );
-  const mergeSourceOptions = useMemo(
-    () => getSupplierMergeOptions(suppliers, mergeSourceQuery),
-    [mergeSourceQuery, suppliers],
-  );
   const visibleSupplierSavedFilters = useMemo(
     () =>
       currentEmployee?.id
@@ -421,16 +407,6 @@ export const ClientsSuppliersWorkspace: React.FC<
     setIsCreateModalOpen(true);
   };
 
-  const resetMergeModal = () => {
-    setIsMergeModalOpen(false);
-    setMergeTargetQuery('');
-    setMergeSourceQuery('');
-    setMergeTargetId('');
-    setMergeSourceId('');
-    setShowMergeTargetSuggestions(false);
-    setShowMergeSourceSuggestions(false);
-  };
-
   const handleSaveSupplier = async () => {
     const payload = toSupplierPayload(form);
 
@@ -442,56 +418,6 @@ export const ClientsSuppliersWorkspace: React.FC<
 
     if (!isSuccess) return;
     setIsCreateModalOpen(false);
-  };
-
-  const handleMergeSuppliers = async () => {
-    if (
-      !mergeTargetId ||
-      !mergeSourceId ||
-      mergeTargetId === mergeSourceId
-    ) {
-      return;
-    }
-
-    const isSuccess = await onMergeSuppliers(
-      mergeTargetId,
-      mergeSourceId,
-    );
-    if (!isSuccess) return;
-
-    resetMergeModal();
-  };
-
-  const handleMergeQueryChange = (
-    field: SupplierSuggestionField,
-    value: string,
-  ) => {
-    if (field === 'target') {
-      setMergeTargetQuery(value);
-      setMergeTargetId('');
-      setShowMergeTargetSuggestions(true);
-      return;
-    }
-
-    setMergeSourceQuery(value);
-    setMergeSourceId('');
-    setShowMergeSourceSuggestions(true);
-  };
-
-  const handleMergeSupplierSelect = (
-    field: SupplierSuggestionField,
-    supplier: Supplier,
-  ) => {
-    if (field === 'target') {
-      setMergeTargetId(supplier.id);
-      setMergeTargetQuery(getSupplierLabel(supplier));
-      setShowMergeTargetSuggestions(false);
-      return;
-    }
-
-    setMergeSourceId(supplier.id);
-    setMergeSourceQuery(getSupplierLabel(supplier));
-    setShowMergeSourceSuggestions(false);
   };
 
   const applySupplierFilters = () => {
@@ -741,6 +667,9 @@ export const ClientsSuppliersWorkspace: React.FC<
           canSaveFilter={Boolean(currentEmployee?.id)}
           draftFilters={draftSupplierFilters}
           isFilterOpen={isSupplierFilterOpen}
+          isImporting={isSupplierImporting}
+          isExporting={isSupplierExporting}
+          isBusy={isSaving}
           newFilterIcon={newSupplierFilterIcon}
           newFilterName={newSupplierFilterName}
           query={appliedSupplierFilters.query}
@@ -767,6 +696,10 @@ export const ClientsSuppliersWorkspace: React.FC<
           onQueryChange={updateSupplierQuery}
           onOpenCreateModal={openCreateModal}
           onOpenEditModal={openEditModal}
+          onOpenImport={() => supplierImportInputRef.current?.click()}
+          onOpenExport={() => {
+            void onExportSuppliers?.();
+          }}
           onOpenMergeModal={() => setIsMergeModalOpen(true)}
           onSaveFilter={saveSupplierFilter}
           onToggleFilters={() =>
@@ -775,6 +708,18 @@ export const ClientsSuppliersWorkspace: React.FC<
           onUpdateFilters={setDraftSupplierFilters}
         />
       )}
+
+      <input
+        ref={supplierImportInputRef}
+        type='file'
+        className='clients-import-input'
+        accept='.xls,.xlsx,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        onChange={(event) => {
+          const file = event.target.files?.[0] ?? null;
+          event.target.value = '';
+          void handleSupplierImportFileSelect(file);
+        }}
+      />
 
       {isCreateModalOpen ? (
         <SupplierEditorModal
@@ -789,20 +734,31 @@ export const ClientsSuppliersWorkspace: React.FC<
       ) : null}
 
       {isMergeModalOpen ? (
-        <SupplierMergeModal
+        <CatalogRecordMergeModal<Supplier>
+          isOpen={isMergeModalOpen}
+          title={t('clients.suppliers.merge.title')}
+          records={suppliers}
+          searchPlaceholder={t(
+            'catalog.recordMergeModal.searchSupplierPlaceholder',
+          )}
           isSaving={isSaving}
-          sourceId={mergeSourceId}
-          sourceOptions={mergeSourceOptions}
-          sourceQuery={mergeSourceQuery}
-          targetId={mergeTargetId}
-          targetOptions={mergeTargetOptions}
-          targetQuery={mergeTargetQuery}
-          showSourceSuggestions={showMergeSourceSuggestions}
-          showTargetSuggestions={showMergeTargetSuggestions}
-          onClose={resetMergeModal}
-          onQueryChange={handleMergeQueryChange}
-          onSelectSupplier={handleMergeSupplierSelect}
-          onMerge={() => void handleMergeSuppliers()}
+          onClose={() => setIsMergeModalOpen(false)}
+          onMerge={async (targetId, sourceId) => {
+            return onMergeSuppliers(targetId, sourceId);
+          }}
+          getRecordId={(supplier) => supplier.id}
+          getRecordName={(supplier) => supplier.name}
+          getRecordSecondaryText={(supplier) =>
+            getPrimarySupplierPhone(supplier) || supplier.phone
+          }
+          getRecordNote={(supplier) => supplier.note}
+          matchesRecord={(supplier, query) => {
+            const normalized = query.trim().toLowerCase();
+            if (!normalized) return true;
+            return `${supplier.name} ${getSupplierPhones(supplier).join(' ')}`
+              .toLowerCase()
+              .includes(normalized);
+          }}
         />
       ) : null}
     </section>
@@ -860,6 +816,9 @@ const SuppliersWorkspace = ({
   canSaveFilter,
   draftFilters,
   isFilterOpen,
+  isImporting,
+  isExporting,
+  isBusy,
   newFilterIcon,
   newFilterName,
   query,
@@ -879,6 +838,8 @@ const SuppliersWorkspace = ({
   onQueryChange,
   onOpenCreateModal,
   onOpenEditModal,
+  onOpenImport,
+  onOpenExport,
   onOpenMergeModal,
   onSaveFilter,
   onToggleFilters,
@@ -888,6 +849,9 @@ const SuppliersWorkspace = ({
   canSaveFilter: boolean;
   draftFilters: SupplierFilters;
   isFilterOpen: boolean;
+  isImporting: boolean;
+  isExporting: boolean;
+  isBusy: boolean;
   newFilterIcon: string;
   newFilterName: string;
   query: string;
@@ -907,6 +871,8 @@ const SuppliersWorkspace = ({
   onQueryChange: (value: string) => void;
   onOpenCreateModal: () => void;
   onOpenEditModal: (supplier: Supplier) => void;
+  onOpenImport: () => void;
+  onOpenExport: () => void;
   onOpenMergeModal: () => void;
   onSaveFilter: () => void;
   onToggleFilters: () => void;
@@ -916,6 +882,9 @@ const SuppliersWorkspace = ({
     <SuppliersToolbar
       activeFiltersCount={activeFiltersCount}
       isFilterOpen={isFilterOpen}
+      isImporting={isImporting}
+      isExporting={isExporting}
+      isBusy={isBusy}
       query={query}
       totalSuppliersCount={totalSuppliersCount}
       page={page}
@@ -923,6 +892,8 @@ const SuppliersWorkspace = ({
       onPageChange={onPageChange}
       onQueryChange={onQueryChange}
       onOpenCreateModal={onOpenCreateModal}
+      onOpenImport={onOpenImport}
+      onOpenExport={onOpenExport}
       onOpenMergeModal={onOpenMergeModal}
       onToggleFilters={onToggleFilters}
     />
@@ -959,6 +930,9 @@ const SuppliersWorkspace = ({
 const SuppliersToolbar = ({
   activeFiltersCount,
   isFilterOpen,
+  isImporting,
+  isExporting,
+  isBusy,
   query,
   totalSuppliersCount,
   page,
@@ -966,11 +940,16 @@ const SuppliersToolbar = ({
   onPageChange,
   onQueryChange,
   onOpenCreateModal,
+  onOpenImport,
+  onOpenExport,
   onOpenMergeModal,
   onToggleFilters,
 }: {
   activeFiltersCount: number;
   isFilterOpen: boolean;
+  isImporting: boolean;
+  isExporting: boolean;
+  isBusy: boolean;
   query: string;
   totalSuppliersCount: number;
   page: number;
@@ -978,6 +957,8 @@ const SuppliersToolbar = ({
   onPageChange: (page: number) => void;
   onQueryChange: (value: string) => void;
   onOpenCreateModal: () => void;
+  onOpenImport: () => void;
+  onOpenExport: () => void;
   onOpenMergeModal: () => void;
   onToggleFilters: () => void;
 }) => {
@@ -1046,13 +1027,36 @@ const SuppliersToolbar = ({
           </div>
         </div>
         <div className='orders-toolbar-actions clients-toolbar-actions'>
-          <Button variant='ghost' onClick={onOpenMergeModal}>
+          <Button
+            variant='success'
+            onClick={onOpenImport}
+            disabled={isBusy || isImporting || isExporting}
+          >
+            {isImporting
+              ? t('clients.suppliers.toolbar.importing')
+              : t('clients.suppliers.toolbar.importXls')}
+          </Button>
+          <Button
+            variant='secondary'
+            onClick={onOpenExport}
+            disabled={isBusy || isImporting || isExporting}
+          >
+            {isExporting
+              ? t('clients.suppliers.toolbar.exporting')
+              : t('clients.suppliers.toolbar.exportXls')}
+          </Button>
+          <Button
+            variant='ghost'
+            onClick={onOpenMergeModal}
+            disabled={isBusy || isImporting}
+          >
             {t('clients.suppliers.toolbar.merge')}
           </Button>
           <Button
             variant='success'
             className='orders-create-button'
             onClick={onOpenCreateModal}
+            disabled={isBusy || isImporting}
           >
             {t('clients.suppliers.toolbar.createSupplier')}
           </Button>
@@ -1313,167 +1317,3 @@ const SuppliersTable = ({
     </div>
   );
 };
-
-const SupplierMergeModal = ({
-  isSaving,
-  sourceId,
-  sourceOptions,
-  sourceQuery,
-  targetId,
-  targetOptions,
-  targetQuery,
-  showSourceSuggestions,
-  showTargetSuggestions,
-  onClose,
-  onQueryChange,
-  onSelectSupplier,
-  onMerge,
-}: {
-  isSaving: boolean;
-  sourceId: string;
-  sourceOptions: Supplier[];
-  sourceQuery: string;
-  targetId: string;
-  targetOptions: Supplier[];
-  targetQuery: string;
-  showSourceSuggestions: boolean;
-  showTargetSuggestions: boolean;
-  onClose: () => void;
-  onQueryChange: (
-    field: SupplierSuggestionField,
-    value: string,
-  ) => void;
-  onSelectSupplier: (
-    field: SupplierSuggestionField,
-    supplier: Supplier,
-  ) => void;
-  onMerge: () => void;
-}) => {
-  const { t } = useTranslation();
-  const canMerge =
-    !isSaving &&
-    Boolean(targetId) &&
-    Boolean(sourceId) &&
-    targetId !== sourceId;
-
-  return (
-    <Modal
-      isOpen
-      title={t('clients.suppliers.merge.title')}
-      onClose={onClose}
-      closeLabel={t('common.close')}
-      closeOnBackdrop={!isSaving}
-      closeOnEscape={!isSaving}
-      className='clients-modal'
-      bodyClassName='clients-modal-body'
-      footer={
-        <footer className='catalog-edit-footer clients-modal-footer'>
-          <Button
-            variant='secondary'
-            onClick={onClose}
-            disabled={isSaving}
-          >
-            {t('common.cancel')}
-          </Button>
-          <Button
-            variant='primary'
-            disabled={!canMerge}
-            onClick={onMerge}
-          >
-            {isSaving
-              ? t('clients.suppliers.merge.merging')
-              : t('clients.suppliers.merge.mergeSuppliers')}
-          </Button>
-        </footer>
-      }
-    >
-      <p className='muted-copy'>
-        {t('clients.suppliers.merge.description')}
-      </p>
-      <SupplierMergeField
-        label={t('clients.suppliers.merge.supplier1')}
-        options={targetOptions}
-        query={targetQuery}
-        showSuggestions={showTargetSuggestions}
-        onQueryChange={(value) => onQueryChange('target', value)}
-        onSelectSupplier={(supplier) =>
-          onSelectSupplier('target', supplier)
-        }
-      />
-      <SupplierMergeField
-        label={t('clients.suppliers.merge.supplier2')}
-        options={sourceOptions}
-        query={sourceQuery}
-        showSuggestions={showSourceSuggestions}
-        onQueryChange={(value) => onQueryChange('source', value)}
-        onSelectSupplier={(supplier) =>
-          onSelectSupplier('source', supplier)
-        }
-      />
-    </Modal>
-  );
-};
-
-const SupplierMergeField = ({
-  label,
-  options,
-  query,
-  showSuggestions,
-  onQueryChange,
-  onSelectSupplier,
-}: {
-  label: string;
-  options: Supplier[];
-  query: string;
-  showSuggestions: boolean;
-  onQueryChange: (value: string) => void;
-  onSelectSupplier: (supplier: Supplier) => void;
-}) => {
-  const { t } = useTranslation();
-  const { rootRef, isVisible } = useDismissibleSuggestions({
-    query,
-    isActive: showSuggestions && options.length > 0,
-  });
-
-  return (
-    <label
-      ref={rootRef}
-      className='field field-wide modal-suggestions-anchor'
-    >
-      <span>{label}</span>
-      <input
-        value={query}
-        placeholder={t('clients.suppliers.merge.searchPlaceholder')}
-        onChange={(event) => onQueryChange(event.target.value)}
-      />
-      {isVisible ? (
-        <SupplierSuggestions
-          options={options}
-          onSelectSupplier={onSelectSupplier}
-        />
-      ) : null}
-    </label>
-  );
-};
-
-const SupplierSuggestions = ({
-  options,
-  onSelectSupplier,
-}: {
-  options: Supplier[];
-  onSelectSupplier: (supplier: Supplier) => void;
-}) => (
-  <div className='suggestions-panel'>
-    {options.map((supplier) => (
-      <button
-        key={supplier.id}
-        type='button'
-        className='suggestion-item'
-        onClick={() => onSelectSupplier(supplier)}
-      >
-        <strong>{supplier.name}</strong>
-        <span>{getPrimarySupplierPhone(supplier)}</span>
-      </button>
-    ))}
-  </div>
-);

@@ -318,19 +318,20 @@ describe('ClientsWorkspace', () => {
     expect(screen.getByText('Olena Kovalenko')).toBeInTheDocument();
   });
 
-  it('enables merge only after two different clients are selected', () => {
+      it('enables merge only after two different clients are selected', () => {
     const ivan = createClient({ id: 'client-ivan', name: 'Ivan Petrenko' });
     const olena = createClient({ id: 'client-olena', name: 'Olena Kovalenko' });
     renderWorkspace({ clients: [ivan, olena] });
 
     fireEvent.click(screen.getByRole('button', { name: 'Merge' }));
 
-    const mergeButton = screen.getByRole('button', {
-      name: 'Merge clients',
+    const modal = screen.getByRole('dialog');
+    const mergeButton = within(modal).getByRole('button', {
+      name: /^Merge$/i,
     });
     expect(mergeButton).toBeDisabled();
 
-    fireEvent.change(screen.getByLabelText('Client 1'), {
+    fireEvent.change(screen.getByLabelText(/Target \(Surviving\)/i), {
       target: { value: 'Ivan' },
     });
     fireEvent.click(
@@ -340,7 +341,7 @@ describe('ClientsWorkspace', () => {
     );
     expect(mergeButton).toBeDisabled();
 
-    fireEvent.change(screen.getByLabelText('Client 2'), {
+    fireEvent.change(screen.getByLabelText(/Source \(To delete\)/i), {
       target: { value: 'Olena' },
     });
     fireEvent.click(
@@ -352,14 +353,14 @@ describe('ClientsWorkspace', () => {
     expect(mergeButton).not.toBeDisabled();
   });
 
-  it('dismisses merge suggestions on outside click and keeps the typed query', () => {
+    it('dismisses merge suggestions on outside click and keeps the typed query', () => {
     const ivan = createClient({ id: 'client-ivan', name: 'Ivan Petrenko' });
     const olena = createClient({ id: 'client-olena', name: 'Olena Kovalenko' });
     renderWorkspace({ clients: [ivan, olena] });
 
     fireEvent.click(screen.getByRole('button', { name: 'Merge' }));
 
-    const clientOne = screen.getByLabelText('Client 1');
+    const clientOne = screen.getByLabelText(/Target \(Surviving\)/i);
     fireEvent.change(clientOne, { target: { value: 'Ivan' } });
     expect(
       screen
@@ -367,7 +368,7 @@ describe('ClientsWorkspace', () => {
         .some((button) => button.className === 'suggestion-item'),
     ).toBe(true);
 
-    fireEvent.pointerDown(screen.getByLabelText('Client 2'));
+    fireEvent.pointerDown(screen.getByLabelText(/Source \(To delete\)/i));
     expect(
       screen.queryAllByRole('button', { name: /Ivan Petrenko/ }).some(
         (button) => button.className === 'suggestion-item',

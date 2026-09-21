@@ -32,7 +32,26 @@
     "createDevice": "Створити пристрій",
     "createSupplier": "Створити постачальника",
     "createProduct": "Створити товар",
-    "createService": "Створити послугу"
+    "createService": "Створити послугу",
+    "merge": "Об'єднати"
+  },
+  "recordMergeModal": {
+    "titleDevice": "Об'єднати пристрої клієнтів",
+    "titleProduct": "Об'єднати товари",
+    "titleService": "Об'єднати послуги",
+    "titleSupplier": "Об'єднати постачальників",
+    "description": "Виберіть два записи. Дані з дубліката будуть об'єднані в основний запис, а дублікат буде остаточно видалено.",
+    "targetLabel": "Основний (залишиться)",
+    "sourceLabel": "Дублікат (буде видалено)",
+    "searchPlaceholder": "Пошук за назвою...",
+    "searchSupplierPlaceholder": "Пошук за назвою або телефоном...",
+    "swap": "Поміняти",
+    "swapAriaLabel": "Поміняти місцями основний запис і дублікат",
+    "differentRecordsWarning": "Основний запис та дублікат мають бути різними.",
+    "targetSectionTitle": "Запис, що залишається (Ціль)",
+    "sourceSectionTitle": "Запис для видалення (Джерело)",
+    "merge": "Об'єднати",
+    "merging": "Об'єднання..."
   },
   "filters": {
     "deviceName": "Назва пристрою",

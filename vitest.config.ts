@@ -7,23 +7,7 @@ const frontendDir = path.join(projectRoot, 'frontend');
 const requireFromFrontend = createRequire(
   path.join(frontendDir, 'package.json'),
 );
-const requireFromFrontend = createRequire(
-  path.join(frontendDir, 'package.json'),
-);
-const requireFromFrontend = createRequire(
-  path.join(frontendDir, 'package.json'),
-);
 
-const { defineConfig } = requireFromFrontend(
-  'vitest/config',
-) as typeof import('vitest/config');
-const react = requireFromFrontend('@vitejs/plugin-react')
-  .default as typeof import('@vitejs/plugin-react').default;
-const { defineConfig } = requireFromFrontend(
-  'vitest/config',
-) as typeof import('vitest/config');
-const react = requireFromFrontend('@vitejs/plugin-react')
-  .default as typeof import('@vitejs/plugin-react').default;
 const { defineConfig } = requireFromFrontend(
   'vitest/config',
 ) as typeof import('vitest/config');
@@ -37,7 +21,6 @@ export default defineConfig({
     dedupe: ['react', 'react-dom', 'react-i18next', 'i18next'],
   },
   test: {
-    pool: 'vmForks',
     pool: 'forks',
     fileParallelism: false,
     maxWorkers: 1,
