@@ -6,10 +6,15 @@ import {
   mergeSuppliers,
   updateSupplier,
 } from './service';
+import {
+  exportSuppliersWorkbook,
+  importSuppliersWorkbook,
+} from './excel';
 import type {
   MergeSuppliersPayload,
   SupplierPayload,
 } from '../shared/types';
+import { HttpError } from '../../shared/lib/errors';
 import {
   requireAnyPermission,
   requirePermission,
@@ -30,6 +35,22 @@ export const list = async (req: Request, res: Response): Promise<void> => {
 export const create = async (req: Request, res: Response): Promise<void> => {
   await requirePermission(req, 'clients.manage');
   res.status(201).json(await createSupplier(req.body as SupplierPayload));
+};
+
+export const importSuppliers = async (req: Request, res: Response): Promise<void> => {
+  await requirePermission(req, 'clients.manage');
+  if (!Buffer.isBuffer(req.body) || req.body.length === 0) {
+    throw new HttpError(400, 'Excel file is required.');
+  }
+  res.status(201).json(await importSuppliersWorkbook(req.body));
+};
+
+export const exportSuppliers = async (req: Request, res: Response): Promise<void> => {
+  await requirePermission(req, 'clients.manage');
+  const buffer = await exportSuppliersWorkbook();
+  res.setHeader('Content-Disposition', 'attachment; filename="suppliers.xls"');
+  res.setHeader('Content-Type', 'application/vnd.ms-excel');
+  res.send(buffer);
 };
 
 export const merge = async (req: Request, res: Response): Promise<void> => {

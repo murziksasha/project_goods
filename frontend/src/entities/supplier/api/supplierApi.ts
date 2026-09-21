@@ -4,7 +4,11 @@ import {
   apiClient,
   getApiErrorMessage,
 } from '../../../shared/api/http';
-import type { Supplier, SupplierFormValues } from '../model/types';
+import type {
+  Supplier,
+  SupplierFormValues,
+  SupplierImportReport,
+} from '../model/types';
 
 export const useSuppliersQuery = (enabled = true) =>
   useQuery({
@@ -68,6 +72,45 @@ export const mergeSuppliers = async (
       draftNote,
     });
     return response.data;
+  } catch (error) {
+    throw new Error(getApiErrorMessage(error));
+  }
+};
+
+export const importSuppliers = async (file: File) => {
+  try {
+    const response = await apiClient.post<SupplierImportReport>(
+      '/suppliers/import',
+      file,
+      {
+        headers: {
+          'Content-Type': file.type || 'application/octet-stream',
+        },
+        timeout: 120000,
+      },
+    );
+
+    return response.data;
+  } catch (error) {
+    throw new Error(getApiErrorMessage(error));
+  }
+};
+
+export const exportSuppliers = async () => {
+  try {
+    const response = await apiClient.get<Blob>('/suppliers/export', {
+      responseType: 'blob',
+      timeout: 120000,
+    });
+
+    const downloadUrl = window.URL.createObjectURL(response.data);
+    const link = document.createElement('a');
+    link.href = downloadUrl;
+    link.download = 'suppliers.xls';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(downloadUrl);
   } catch (error) {
     throw new Error(getApiErrorMessage(error));
   }

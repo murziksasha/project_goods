@@ -74,6 +74,8 @@ import { normalizeDashboardPreferences } from '../../../entities/settings';
 import { writeCachedCompanySettings } from '../../../entities/settings';
 import {
   createSupplier,
+  exportSuppliers,
+  importSuppliers,
   mergeSuppliers as mergeSuppliersApi,
   updateSupplier,
 } from '../../../entities/supplier';
@@ -167,6 +169,8 @@ type DashboardActionParams = {
   setIsClientSaving: Setter<boolean>;
   setIsClientImporting: Setter<boolean>;
   setIsClientExporting: Setter<boolean>;
+  setIsSupplierImporting: Setter<boolean>;
+  setIsSupplierExporting: Setter<boolean>;
   setIsSaleSaving: Setter<boolean>;
   setIsEmployeeSaving: Setter<boolean>;
   setIsSettingsSaving: Setter<boolean>;
@@ -286,6 +290,8 @@ export const createDashboardActions = ({
   setIsClientSaving,
   setIsClientImporting,
   setIsClientExporting,
+  setIsSupplierImporting,
+  setIsSupplierExporting,
   setIsSaleSaving,
   setIsEmployeeSaving,
   setIsSettingsSaving,
@@ -1594,6 +1600,55 @@ export const createDashboardActions = ({
         );
       } finally {
         setIsClientExporting(false);
+      }
+    },
+    importSuppliersFromFile: async (file: File) => {
+      setIsSupplierImporting(true);
+      clearNotifications();
+      try {
+        const report = await importSuppliers(file);
+        await safeRefresh(
+          refreshSuppliers,
+          i18n.t('dashboard.actions.errors.failedRefreshSuppliers'),
+        );
+        setSuccessMessage(
+          i18n.t('dashboard.actions.success.supplierImportCompleted', {
+            created: report.created,
+            skippedExisting: report.skippedExisting,
+            skippedInvalid:
+              report.skippedMissingRequired + report.validationFailed,
+          }),
+        );
+        return true;
+      } catch (requestError) {
+        setError(
+          getRequestErrorMessage(
+            requestError,
+            i18n.t('dashboard.actions.errors.failedImportSuppliers'),
+          ),
+        );
+        return false;
+      } finally {
+        setIsSupplierImporting(false);
+      }
+    },
+    exportSuppliers: async () => {
+      setIsSupplierExporting(true);
+      clearNotifications();
+      try {
+        await exportSuppliers();
+        setSuccessMessage(
+          i18n.t('dashboard.actions.success.supplierExportPrepared'),
+        );
+      } catch (requestError) {
+        setError(
+          getRequestErrorMessage(
+            requestError,
+            i18n.t('dashboard.actions.errors.failedExportSuppliers'),
+          ),
+        );
+      } finally {
+        setIsSupplierExporting(false);
       }
     },
     seedDemoData: async (kind: DemoSeedKind = 'all') => {

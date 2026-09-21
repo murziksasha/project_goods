@@ -1,4 +1,4 @@
-﻿{
+{
   "nav": {
     "home": "Головна",
     "orders": "Замовлення",
@@ -1669,6 +1669,10 @@
         "searchPlaceholder": "Пошук за імʼям, телефоном або замовленням постачальника",
         "searchAriaLabel": "Пошук постачальника",
         "clearSearchAriaLabel": "Очистити пошук",
+        "importXls": "Імпорт XLS",
+        "importing": "Імпорт...",
+        "exportXls": "Експорт XLS",
+        "exporting": "Експорт...",
         "merge": "Обʼєднати",
         "createSupplier": "Створити постачальника"
       },
@@ -3187,6 +3191,8 @@
         "productExportPrepared": "Експорт товарів підготовлено.",
         "clientImportCompleted": "Імпорт клієнтів завершено: створено {{created}}, пропущено наявних {{skippedExisting}}, пропущено невалідних {{skippedInvalid}}.",
         "clientExportPrepared": "Експорт клієнтів підготовлено.",
+        "supplierImportCompleted": "Імпорт постачальників завершено: створено {{created}}, пропущено наявних {{skippedExisting}}, пропущено невалідних {{skippedInvalid}}.",
+        "supplierExportPrepared": "Експорт постачальників підготовлено.",
         "demoSeedWithBackup": "{{message}} Страхова копія: {{safetyBackupId}}.",
         "orderSaved": "Замовлення успішно збережено.",
         "catalogProductUpdated": "Товар каталогу оновлено.",
@@ -3233,6 +3239,8 @@
         "failedExportProducts": "Не вдалося експортувати товари.",
         "failedImportClients": "Не вдалося імпортувати клієнтів.",
         "failedExportClients": "Не вдалося експортувати клієнтів.",
+        "failedImportSuppliers": "Не вдалося імпортувати постачальників.",
+        "failedExportSuppliers": "Не вдалося експортувати постачальників.",
         "failedSeedDemoData": "Не вдалося завантажити демо-дані.",
         "failedUpdateClientDevice": "Не вдалося оновити пристрій клієнта.",
         "failedRemoveClientDevice": "Не вдалося видалити пристрій клієнта.",

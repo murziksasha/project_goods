@@ -27,10 +27,12 @@
 
 - If build fails, fix it directly without entering infinite repair loops.
 - **Circuit Breaker:** Max 2 automated fix attempts per failure. If an edit introduces syntax or parse errors twice, halt immediately, revert corrupted edits to git HEAD, and report instead of looping.
-- **Scoped Verification First:** Run targeted checks on modified files first (`npm run test:frontend -- <path>` or `npm run typecheck --prefix frontend`) before full-project sweeps.
+- **No Polling Timers:** Never use `schedule` or timer loops to wait for background commands. Stop calling tools and wait for reactive system wakeup.
+- **Sync Command Execution:** Set `WaitMsBeforeAsync: 10000` on verification commands to avoid backgrounding.
+- **Scoped Verification:** Run targeted checks on modified packages only (`--prefix frontend` or `--prefix backend`), not root sweeps, during iterations.
 - **Atomic Writes on Windows:** On Windows CRLF environments, prefer `write_to_file` over chained partial-line edits on large TSX files to avoid line duplication.
 - Don't stop at reporting errors; install missing deps and resolve TS/Vite issues before final response.
-- After code changes, run `npm run typecheck` and `npm run lint`. Fix all issues before responding.
+- After code changes, run scoped typecheck and lint (`--prefix <pkg>`). Fix all issues before responding.
 
 ## Architecture: Feature-Sliced Design (Frontend)
 

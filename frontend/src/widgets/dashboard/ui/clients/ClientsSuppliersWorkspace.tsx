@@ -1,5 +1,5 @@
 import type React from 'react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { formatDateTime } from '../../../../shared/lib/format';
 import {
@@ -230,11 +230,15 @@ export interface ClientsSuppliersWorkspaceProps {
   isSaving: boolean;
   isClientImporting: boolean;
   isClientExporting: boolean;
+  isSupplierImporting?: boolean;
+  isSupplierExporting?: boolean;
   onSelectClient: (clientId: string | null) => void;
   onDeleteClient: (client: Client) => Promise<void>;
   onCreateClient: (payload: ClientFormValues) => Promise<boolean>;
   onImportClients: (file: File) => Promise<boolean>;
   onExportClients: () => Promise<void>;
+  onImportSuppliers?: (file: File) => Promise<boolean>;
+  onExportSuppliers?: () => Promise<void>;
   onMergeClients: (
     targetClientId: string,
     sourceClientId: string,
@@ -277,11 +281,15 @@ export const ClientsSuppliersWorkspace: React.FC<
   isSaving,
   isClientImporting,
   isClientExporting,
+  isSupplierImporting = false,
+  isSupplierExporting = false,
   onSelectClient,
   onDeleteClient,
   onCreateClient,
   onImportClients,
   onExportClients,
+  onImportSuppliers,
+  onExportSuppliers,
   onMergeClients,
   onUpdateClient,
   onOpenSaleCard,
@@ -329,6 +337,20 @@ export const ClientsSuppliersWorkspace: React.FC<
   const [form, setForm] = useState<SupplierFormState>(
     defaultSupplierForm,
   );
+  const supplierImportInputRef = useRef<HTMLInputElement | null>(
+    null,
+  );
+
+  const handleSupplierImportFileSelect = async (
+    file: File | null,
+  ) => {
+    if (!file || !onImportSuppliers) return;
+
+    const isSuccess = await onImportSuppliers(file);
+    if (isSuccess) {
+      setSuppliersPage(1);
+    }
+  };
 
   const filteredSuppliers = useMemo(() => {
     const filters = appliedSupplierFilters;
@@ -741,6 +763,9 @@ export const ClientsSuppliersWorkspace: React.FC<
           canSaveFilter={Boolean(currentEmployee?.id)}
           draftFilters={draftSupplierFilters}
           isFilterOpen={isSupplierFilterOpen}
+          isImporting={isSupplierImporting}
+          isExporting={isSupplierExporting}
+          isBusy={isSaving}
           newFilterIcon={newSupplierFilterIcon}
           newFilterName={newSupplierFilterName}
           query={appliedSupplierFilters.query}
@@ -767,6 +792,10 @@ export const ClientsSuppliersWorkspace: React.FC<
           onQueryChange={updateSupplierQuery}
           onOpenCreateModal={openCreateModal}
           onOpenEditModal={openEditModal}
+          onOpenImport={() => supplierImportInputRef.current?.click()}
+          onOpenExport={() => {
+            void onExportSuppliers?.();
+          }}
           onOpenMergeModal={() => setIsMergeModalOpen(true)}
           onSaveFilter={saveSupplierFilter}
           onToggleFilters={() =>
@@ -775,6 +804,18 @@ export const ClientsSuppliersWorkspace: React.FC<
           onUpdateFilters={setDraftSupplierFilters}
         />
       )}
+
+      <input
+        ref={supplierImportInputRef}
+        type='file'
+        className='clients-import-input'
+        accept='.xls,.xlsx,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        onChange={(event) => {
+          const file = event.target.files?.[0] ?? null;
+          event.target.value = '';
+          void handleSupplierImportFileSelect(file);
+        }}
+      />
 
       {isCreateModalOpen ? (
         <SupplierEditorModal
@@ -860,6 +901,9 @@ const SuppliersWorkspace = ({
   canSaveFilter,
   draftFilters,
   isFilterOpen,
+  isImporting,
+  isExporting,
+  isBusy,
   newFilterIcon,
   newFilterName,
   query,
@@ -879,6 +923,8 @@ const SuppliersWorkspace = ({
   onQueryChange,
   onOpenCreateModal,
   onOpenEditModal,
+  onOpenImport,
+  onOpenExport,
   onOpenMergeModal,
   onSaveFilter,
   onToggleFilters,
@@ -888,6 +934,9 @@ const SuppliersWorkspace = ({
   canSaveFilter: boolean;
   draftFilters: SupplierFilters;
   isFilterOpen: boolean;
+  isImporting: boolean;
+  isExporting: boolean;
+  isBusy: boolean;
   newFilterIcon: string;
   newFilterName: string;
   query: string;
@@ -907,6 +956,8 @@ const SuppliersWorkspace = ({
   onQueryChange: (value: string) => void;
   onOpenCreateModal: () => void;
   onOpenEditModal: (supplier: Supplier) => void;
+  onOpenImport: () => void;
+  onOpenExport: () => void;
   onOpenMergeModal: () => void;
   onSaveFilter: () => void;
   onToggleFilters: () => void;
@@ -916,6 +967,9 @@ const SuppliersWorkspace = ({
     <SuppliersToolbar
       activeFiltersCount={activeFiltersCount}
       isFilterOpen={isFilterOpen}
+      isImporting={isImporting}
+      isExporting={isExporting}
+      isBusy={isBusy}
       query={query}
       totalSuppliersCount={totalSuppliersCount}
       page={page}
@@ -923,6 +977,8 @@ const SuppliersWorkspace = ({
       onPageChange={onPageChange}
       onQueryChange={onQueryChange}
       onOpenCreateModal={onOpenCreateModal}
+      onOpenImport={onOpenImport}
+      onOpenExport={onOpenExport}
       onOpenMergeModal={onOpenMergeModal}
       onToggleFilters={onToggleFilters}
     />
@@ -959,6 +1015,9 @@ const SuppliersWorkspace = ({
 const SuppliersToolbar = ({
   activeFiltersCount,
   isFilterOpen,
+  isImporting,
+  isExporting,
+  isBusy,
   query,
   totalSuppliersCount,
   page,
@@ -966,11 +1025,16 @@ const SuppliersToolbar = ({
   onPageChange,
   onQueryChange,
   onOpenCreateModal,
+  onOpenImport,
+  onOpenExport,
   onOpenMergeModal,
   onToggleFilters,
 }: {
   activeFiltersCount: number;
   isFilterOpen: boolean;
+  isImporting: boolean;
+  isExporting: boolean;
+  isBusy: boolean;
   query: string;
   totalSuppliersCount: number;
   page: number;
@@ -978,6 +1042,8 @@ const SuppliersToolbar = ({
   onPageChange: (page: number) => void;
   onQueryChange: (value: string) => void;
   onOpenCreateModal: () => void;
+  onOpenImport: () => void;
+  onOpenExport: () => void;
   onOpenMergeModal: () => void;
   onToggleFilters: () => void;
 }) => {
@@ -1046,13 +1112,36 @@ const SuppliersToolbar = ({
           </div>
         </div>
         <div className='orders-toolbar-actions clients-toolbar-actions'>
-          <Button variant='ghost' onClick={onOpenMergeModal}>
+          <Button
+            variant='success'
+            onClick={onOpenImport}
+            disabled={isBusy || isImporting || isExporting}
+          >
+            {isImporting
+              ? t('clients.suppliers.toolbar.importing')
+              : t('clients.suppliers.toolbar.importXls')}
+          </Button>
+          <Button
+            variant='secondary'
+            onClick={onOpenExport}
+            disabled={isBusy || isImporting || isExporting}
+          >
+            {isExporting
+              ? t('clients.suppliers.toolbar.exporting')
+              : t('clients.suppliers.toolbar.exportXls')}
+          </Button>
+          <Button
+            variant='ghost'
+            onClick={onOpenMergeModal}
+            disabled={isBusy || isImporting}
+          >
             {t('clients.suppliers.toolbar.merge')}
           </Button>
           <Button
             variant='success'
             className='orders-create-button'
             onClick={onOpenCreateModal}
+            disabled={isBusy || isImporting}
           >
             {t('clients.suppliers.toolbar.createSupplier')}
           </Button>
