@@ -1,12 +1,9 @@
-import type { AnalyticsDateRange } from './analytics-date-range';
+import type {
+  AnalyticsDateRange,
+  StatsPeriod,
+} from '../../../entities/analytics';
 
-export type StatsPeriod =
-  | 'whole'
-  | 'today'
-  | 'currentMonth'
-  | 'lastMonth'
-  | 'currentYear'
-  | 'lastYear';
+export type { StatsPeriod };
 
 export const statsPeriodOptions: Array<{ value: StatsPeriod; labelKey: string }> = [
   { value: 'whole', labelKey: 'analytics.periods.whole' },

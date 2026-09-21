@@ -1,7 +1,7 @@
 import type {
   SupplierOrder,
   SupplierOrderStatus,
-} from '../../../entities/supplier-order/model/types';
+} from '../../../entities/supplier-order';
 import {
   getActiveSupplierOrderItems,
   isMultiItemSupplierOrder,

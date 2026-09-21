@@ -1,0 +1,268 @@
+export type PageKey =
+  | 'home'
+  | 'orders'
+  | 'kanban'
+  | 'clients'
+  | 'employees'
+  | 'settings'
+  | 'accounting'
+  | 'catalog'
+  | 'warehouse';
+
+export type OrdersTab =
+  | 'orders'
+  | 'kanban'
+  | 'sales'
+  | 'supplierOrders'
+  | 'supplierInformation';
+
+export type CreateOrderTab = 'repair' | 'sale';
+
+export type AccountingTab =
+  | 'cashboxes'
+  | 'transactions'
+  | 'orders'
+  | 'information'
+  | 'reports';
+
+export const isAccountingTab = (
+  value: string | null,
+): value is AccountingTab =>
+  value === 'cashboxes' ||
+  value === 'transactions' ||
+  value === 'orders' ||
+  value === 'information' ||
+  value === 'reports';
+
+export const pageKeys: PageKey[] = [
+  'home',
+  'orders',
+  'kanban',
+  'clients',
+  'employees',
+  'settings',
+  'accounting',
+  'catalog',
+  'warehouse',
+];
+
+export const ordersTabs: OrdersTab[] = [
+  'orders',
+  'kanban',
+  'sales',
+  'supplierOrders',
+  'supplierInformation',
+];
+
+export const ordersTabStorageKey = 'project-goods.orders-tab';
+
+export type DashboardLocation = {
+  page: PageKey;
+  ordersTab: OrdersTab;
+  createOrder: CreateOrderTab | null;
+  saleId: string | null;
+  accountingTab: AccountingTab | null;
+};
+
+export const getOrdersTabForCreateOrder = (
+  tab: CreateOrderTab,
+): OrdersTab => (tab === 'sale' ? 'sales' : 'orders');
+
+export const getCreateOrderForOrdersTab = (
+  tab: OrdersTab,
+): CreateOrderTab => (tab === 'sales' ? 'sale' : 'repair');
+
+export const isRepairOrdersTab = (tab: OrdersTab) =>
+  tab === 'orders' || tab === 'kanban';
+
+export const resolveOrdersTab = (
+  params: URLSearchParams,
+  createOrder: CreateOrderTab | null,
+): OrdersTab => {
+  if (createOrder) {
+    return getOrdersTabForCreateOrder(createOrder);
+  }
+
+  const ordersTabParam = params.get('ordersTab');
+  return ordersTabs.includes(ordersTabParam as OrdersTab)
+    ? (ordersTabParam as OrdersTab)
+    : 'orders';
+};
+
+export const parseDashboardLocation = (
+  search: string,
+): DashboardLocation => {
+  const params = new URLSearchParams(
+    search.startsWith('?') ? search.slice(1) : search,
+  );
+  const pageParam = params.get('page');
+  const rawPage = pageKeys.includes(pageParam as PageKey)
+    ? (pageParam as PageKey)
+    : 'home';
+
+  const createOrderParam = params.get('createOrder');
+  const createOrder =
+    createOrderParam === 'repair' || createOrderParam === 'sale'
+      ? createOrderParam
+      : null;
+  const isKanbanAlias = rawPage === 'kanban';
+  const page: PageKey = isKanbanAlias ? 'orders' : rawPage;
+  const ordersTab = isKanbanAlias
+    ? 'kanban'
+    : resolveOrdersTab(params, createOrder);
+  const saleId = params.get('saleId')?.trim() || null;
+  const accountingTabParam = params.get('accountingTab');
+  const accountingTab =
+    page === 'accounting' && isAccountingTab(accountingTabParam)
+      ? accountingTabParam
+      : null;
+
+  return {
+    page,
+    ordersTab,
+    createOrder,
+    saleId,
+    accountingTab,
+  };
+};
+
+export const parseDashboardLocationFromWindow = () =>
+  parseDashboardLocation(window.location.search);
+
+export const buildDashboardHref = (
+  location: Partial<DashboardLocation> &
+    Pick<DashboardLocation, 'page'>,
+  baseHref: string = window.location.href,
+): string => {
+  const url = new URL(baseHref);
+  const isKanbanAlias = location.page === 'kanban';
+  const page: PageKey = isKanbanAlias ? 'orders' : location.page;
+  const ordersTab = isKanbanAlias
+    ? 'kanban'
+    : (location.ordersTab ?? 'orders');
+  const createOrder = location.createOrder ?? null;
+  const saleId = location.saleId ?? null;
+  const accountingTab = location.accountingTab ?? null;
+
+  if (page === 'home') {
+    url.searchParams.delete('page');
+  } else {
+    url.searchParams.set('page', page);
+  }
+
+  if (page === 'orders') {
+    url.searchParams.set('ordersTab', ordersTab);
+  } else {
+    url.searchParams.delete('ordersTab');
+  }
+
+  if (page !== 'accounting') {
+    url.searchParams.delete('accountingTab');
+    url.searchParams.delete('accountingSettings');
+  } else if (accountingTab) {
+    url.searchParams.set('accountingTab', accountingTab);
+  }
+
+  if (page === 'orders' && createOrder) {
+    url.searchParams.set('createOrder', createOrder);
+  } else {
+    url.searchParams.delete('createOrder');
+  }
+
+  if (page === 'orders' && saleId && !createOrder) {
+    url.searchParams.set('saleId', saleId);
+  } else {
+    url.searchParams.delete('saleId');
+  }
+
+  return `${url.pathname}${url.search}${url.hash}`;
+};
+
+export const getDashboardHref = (
+  page: PageKey,
+  options: {
+    ordersTab?: OrdersTab;
+    createOrder?: CreateOrderTab;
+    saleId?: string;
+    accountingTab?: AccountingTab;
+  } = {},
+) =>
+  buildDashboardHref({
+    page,
+    ordersTab: options.ordersTab,
+    createOrder: options.createOrder ?? null,
+    saleId: options.saleId ?? null,
+    accountingTab: options.accountingTab ?? null,
+  });
+
+export const getCurrentDashboardHref = () =>
+  `${window.location.pathname}${window.location.search}${window.location.hash}`;
+
+export const navigateDashboard = (
+  location: Partial<DashboardLocation> &
+    Pick<DashboardLocation, 'page'>,
+  options: { replace?: boolean } = {},
+) => {
+  const href = buildDashboardHref(location);
+  const currentHref = getCurrentDashboardHref();
+
+  if (href === currentHref) {
+    return;
+  }
+
+  if (options.replace) {
+    window.history.replaceState(null, '', href);
+  } else {
+    window.history.pushState(null, '', href);
+  }
+};
+
+export const getOrderLink = (
+  saleId: string,
+  kind: 'repair' | 'sale',
+) =>
+  buildDashboardHref({
+    page: 'orders',
+    ordersTab: kind === 'sale' ? 'sales' : 'orders',
+    createOrder: null,
+    saleId,
+    accountingTab: null,
+  });
+
+export const getPageFromUrlOrNull = (): PageKey | null => {
+  const page = new URLSearchParams(window.location.search).get(
+    'page',
+  );
+
+  if (!pageKeys.includes(page as PageKey)) return null;
+  return page === 'kanban' ? 'orders' : (page as PageKey);
+};
+
+export const getPageFromUrl = (): PageKey =>
+  getPageFromUrlOrNull() ?? 'home';
+
+export const getOrdersTabFromUrl = (): OrdersTab | null => {
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('page') === 'kanban') return 'kanban';
+  const tab = params.get('ordersTab');
+
+  return ordersTabs.includes(tab as OrdersTab)
+    ? (tab as OrdersTab)
+    : null;
+};
+
+export const getCreateOrderFromUrl = (): CreateOrderTab | null => {
+  const tab = new URLSearchParams(window.location.search).get(
+    'createOrder',
+  );
+
+  return tab === 'repair' || tab === 'sale' ? tab : null;
+};
+
+export const getStoredOrdersTab = (): OrdersTab => {
+  const tab = window.localStorage.getItem(ordersTabStorageKey);
+
+  return ordersTabs.includes(tab as OrdersTab)
+    ? (tab as OrdersTab)
+    : 'orders';
+};

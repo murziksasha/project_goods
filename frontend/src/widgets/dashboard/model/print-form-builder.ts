@@ -1,8 +1,8 @@
-import type { PrintForm } from '../../../entities/settings/model/types';
+import type { PrintForm } from '../../../entities/settings';
 import {
   createLayoutPrintForm,
   defaultLabelSize,
-} from '../../../entities/settings/model/printForms';
+} from '../../../entities/settings';
 import i18n from '../../../shared/i18n/config';
 
 export const createNewPrintForm = (sortOrder: number): PrintForm =>

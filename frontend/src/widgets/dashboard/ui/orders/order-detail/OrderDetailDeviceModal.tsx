@@ -1,9 +1,10 @@
+import type React from 'react';
 import { useTranslation } from 'react-i18next';
-import type { ClientDevice } from '../../../../../entities/client-device/model/types';
+import type { ClientDevice } from '../../../../../entities/client-device';
 import { Modal } from '../../../../../shared/ui/Modal';
 import { Button } from '../../../../../shared/ui/Button';
 
-export type OrderDetailDeviceModalProps = {
+export interface OrderDetailDeviceModalProps {
   deviceSearch: string;
   newDeviceName: string;
   clearSerialOnDeviceApply: boolean;
@@ -21,7 +22,7 @@ export type OrderDetailDeviceModalProps = {
   onCreateAndApply: () => void;
 };
 
-export const OrderDetailDeviceModal = ({
+export const OrderDetailDeviceModal: React.FC<OrderDetailDeviceModalProps> = ({
   deviceSearch,
   newDeviceName,
   clearSerialOnDeviceApply,
@@ -37,7 +38,7 @@ export const OrderDetailDeviceModal = ({
   onApplyDeviceName,
   onUnbindDevice,
   onCreateAndApply,
-}: OrderDetailDeviceModalProps) => {
+}) => {
   const { t } = useTranslation();
 
   return (

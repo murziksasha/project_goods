@@ -1,9 +1,10 @@
+import type React from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '../../../../shared/ui/Button';
 import { CompactPaginationPanel } from '../../../../shared/ui/PaginationPanel';
 import { PageHeader } from '../../../../shared/ui/PageHeader';
 
-type ClientsToolbarProps = {
+export interface ClientsToolbarProps {
   activeFiltersCount: number;
   filteredClientsCount: number;
   isFilterOpen: boolean;
@@ -23,7 +24,7 @@ type ClientsToolbarProps = {
   isBusy: boolean;
 };
 
-export const ClientsToolbar = ({
+export const ClientsToolbar: React.FC<ClientsToolbarProps> = ({
   activeFiltersCount,
   filteredClientsCount,
   isFilterOpen,
@@ -41,7 +42,7 @@ export const ClientsToolbar = ({
   isExporting,
   isImporting,
   isBusy,
-}: ClientsToolbarProps) => {
+}) => {
   const { t } = useTranslation();
 
   return (

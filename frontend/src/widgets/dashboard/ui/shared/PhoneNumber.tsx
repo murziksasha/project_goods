@@ -1,6 +1,13 @@
+import type React from 'react';
 import { getPhoneNumberGroups } from '../orders/workspace/orders-workspace-shared';
 
-export const PhoneNumber = ({ value }: { value: string }) => {
+export interface PhoneNumberProps {
+  value: string;
+}
+
+export const PhoneNumber: React.FC<PhoneNumberProps> = ({
+  value,
+}) => {
   const groups = getPhoneNumberGroups(value);
 
   if (groups.length === 0) {
@@ -15,4 +22,3 @@ export const PhoneNumber = ({ value }: { value: string }) => {
     </span>
   );
 };
-

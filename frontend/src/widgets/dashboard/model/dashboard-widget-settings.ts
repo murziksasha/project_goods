@@ -1,5 +1,5 @@
 import { getWeatherLocationPreset } from '../../../shared/config/default-weather-location';
-import type { DashboardPreferences, WeatherLocationPreset } from '../../../entities/settings/model/types';
+import type { DashboardPreferences, WeatherLocationPreset } from '../../../entities/settings';
 
 export type DashboardWidgetOverrides = Partial<{
   collapsed: boolean;

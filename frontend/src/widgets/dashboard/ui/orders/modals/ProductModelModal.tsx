@@ -1,14 +1,15 @@
+import type React from 'react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { Product, ProductModelUpdatePayload } from '../../../../../entities/product/model/types';
-import type { Sale } from '../../../../../entities/sale/model/types';
-import type { PrintForm } from '../../../../../entities/settings/model/types';
-import { defaultPrintForms } from '../../../../../entities/settings/model/printForms';
-import type { SupplierOrder } from '../../../../../entities/supplier-order/model/types';
-import type { WarehouseItem } from '../../../../../entities/warehouse-settings/model/types';
+import type { Product, ProductModelUpdatePayload } from '../../../../../entities/product';
+import type { Sale } from '../../../../../entities/sale';
+import type { PrintForm } from '../../../../../entities/settings';
+import { defaultPrintForms } from '../../../../../entities/settings';
+import type { SupplierOrder } from '../../../../../entities/supplier-order';
+import type { WarehouseItem } from '../../../../../entities/warehouse-settings';
 import { formatCurrency, formatDate } from '../../../../../shared/lib/format';
 import { normalizeDecimalInput } from '../../../../../shared/lib/decimal';
-import { getOccupiedSerialNumbers } from '../../../../../entities/sale/api/saleApi';
+import { getOccupiedSerialNumbers } from '../../../../../entities/sale';
 import { printWarehouseSerialLabels } from '../workspace/orders-workspace-shared';
 import { Modal } from '../../../../../shared/ui/Modal';
 import { Button } from '../../../../../shared/ui/Button';
@@ -32,7 +33,7 @@ const EMPTY_SALES: Sale[] = [];
 const EMPTY_SUPPLIER_ORDERS: SupplierOrder[] = [];
 const EMPTY_VALUE = '\u2014';
 
-type ProductModelModalProps = {
+export interface ProductModelModalProps {
   name: string;
   products: Product[];
   sales?: Sale[];
@@ -63,7 +64,7 @@ const getInitialSelectedPrintIds = (
   return [];
 };
 
-export const ProductModelModal = ({
+export const ProductModelModal: React.FC<ProductModelModalProps> = ({
   name,
   products,
   sales = EMPTY_SALES,
@@ -77,7 +78,7 @@ export const ProductModelModal = ({
   onClose,
   onSave,
   onOpenSupplierOrder,
-}: ProductModelModalProps) => {
+}) => {
   const { t } = useTranslation();
   const matchingProducts = useMemo(
     () => getActiveStockProductsByExactModelName(products, sales, name),

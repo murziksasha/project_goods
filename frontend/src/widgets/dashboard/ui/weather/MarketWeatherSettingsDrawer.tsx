@@ -1,8 +1,9 @@
+import type React from 'react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { WeatherIntensity } from '../../../../entities/weather/api/weatherApi';
+import type { WeatherIntensity } from '../../../../entities/weather';
 import { getWeatherLocationPreset } from '../../../../shared/config/default-weather-location';
-import type { DashboardPreferences } from '../../../../entities/settings/model/types';
+import type { DashboardPreferences } from '../../../../entities/settings';
 import type { WindTier } from '../../model/weather-scene-params';
 import {
   storeDashboardWidgetOverrides,
@@ -11,7 +12,7 @@ import {
 import { WeatherAnimatedScene } from './WeatherAnimatedScene';
 import { WeatherIconStatic } from './WeatherVisual';
 
-type MarketWeatherSettingsDrawerProps = {
+export interface MarketWeatherSettingsDrawerProps {
   isOpen: boolean;
   preferences: DashboardPreferences;
   overrides: DashboardWidgetOverrides;
@@ -44,13 +45,13 @@ const PREVIEW_WIND_DIRECTION = 90;
 
 const precipitationConditions = new Set<string>(['rain', 'snow', 'thunder', 'fog']);
 
-export const MarketWeatherSettingsDrawer = ({
+export const MarketWeatherSettingsDrawer: React.FC<MarketWeatherSettingsDrawerProps> = ({
   isOpen,
   preferences,
   overrides,
   onOverridesChange,
   onClose,
-}: MarketWeatherSettingsDrawerProps) => {
+}) => {
   const { t } = useTranslation();
   const [previewCondition, setPreviewCondition] =
     useState<(typeof PREVIEW_CONDITIONS)[number]>('rain');

@@ -1,8 +1,9 @@
-type WeatherSceneFogProps = {
+import type React from 'react';
+export interface WeatherSceneFogProps {
   intensity?: string;
 };
 
-export const WeatherSceneFog = ({ intensity }: WeatherSceneFogProps) => (
+export const WeatherSceneFog: React.FC<WeatherSceneFogProps> = ({ intensity }) => (
   <div
     className={[
       'weather-scene-fog',

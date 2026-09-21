@@ -1,9 +1,13 @@
+import type React from 'react';
 import { useTranslation } from 'react-i18next';
-import type { ClientDevice } from '../../../../entities/client-device/model/types';
-import type { CatalogProduct } from '../../../../entities/catalog-product/model/types';
-import type { Supplier } from '../../../../entities/supplier/model/types';
-import type { ServiceCatalogItem } from '../../../../entities/service-catalog/model/types';
-import { formatCurrency, formatDate } from '../../../../shared/lib/format';
+import type { ClientDevice } from '../../../../entities/client-device';
+import type { CatalogProduct } from '../../../../entities/catalog-product';
+import type { Supplier } from '../../../../entities/supplier';
+import type { ServiceCatalogItem } from '../../../../entities/service-catalog';
+import {
+  formatCurrency,
+  formatDate,
+} from '../../../../shared/lib/format';
 import { EmptyState } from '../../../../shared/ui/EmptyState';
 import { StatusBadge } from '../../../../shared/ui/StatusBadge';
 import { TableSkeleton } from '../../../../shared/ui/TableSkeleton';
@@ -13,7 +17,7 @@ import { CatalogCopyableName } from './CatalogCopyableName';
 const CatalogNote = ({ note }: { note: string }) => {
   const trimmed = note.trim();
   return (
-    <span className="catalog-note-cell" title={trimmed || undefined}>
+    <span className='catalog-note-cell' title={trimmed || undefined}>
       {trimmed || '-'}
     </span>
   );
@@ -23,22 +27,28 @@ const CatalogStatus = ({ isActive }: { isActive: boolean }) => {
   const { t } = useTranslation();
   return (
     <StatusBadge
-      label={isActive ? t('catalog.filters.active') : t('catalog.filters.inactive')}
+      label={
+        isActive
+          ? t('catalog.filters.active')
+          : t('catalog.filters.inactive')
+      }
       tone={isActive ? 'success' : 'gray'}
     />
   );
 };
 
-export const SuppliersTable = ({
-  suppliers,
-  searchQuery,
-  rowStartIndex,
-  onSelectSupplier,
-}: {
+export interface SuppliersTableProps {
   suppliers: Supplier[];
   searchQuery: string;
   rowStartIndex: number;
   onSelectSupplier: (supplier: Supplier) => void;
+}
+
+export const SuppliersTable: React.FC<SuppliersTableProps> = ({
+  suppliers,
+  searchQuery,
+  rowStartIndex,
+  onSelectSupplier,
 }) => {
   const { t } = useTranslation();
   const normalizedQuery = searchQuery.trim().toLowerCase();
@@ -54,23 +64,31 @@ export const SuppliersTable = ({
   }
 
   return (
-    <div className="catalog-table-wrap catalog-card-table-wrap">
-      <table className="catalog-table catalog-table-compact catalog-card-table">
+    <div className='catalog-table-wrap catalog-card-table-wrap'>
+      <table className='catalog-table catalog-table-compact catalog-card-table'>
         <thead>
           <tr>
-            <th className="catalog-col-id">{t('catalog.tables.columns.id')}</th>
+            <th className='catalog-col-id'>
+              {t('catalog.tables.columns.id')}
+            </th>
             <th>{t('catalog.tables.columns.name')}</th>
-            <th className="catalog-col-phone">{t('catalog.tables.columns.phone')}</th>
+            <th className='catalog-col-phone'>
+              {t('catalog.tables.columns.phone')}
+            </th>
             <th>{t('catalog.tables.columns.note')}</th>
-            <th className="catalog-col-status">{t('catalog.tables.columns.status')}</th>
-            <th className="catalog-col-date">{t('catalog.tables.columns.created')}</th>
+            <th className='catalog-col-status'>
+              {t('catalog.tables.columns.status')}
+            </th>
+            <th className='catalog-col-date'>
+              {t('catalog.tables.columns.created')}
+            </th>
           </tr>
         </thead>
         <tbody>
           {suppliers.map((supplier, index) => (
             <tr
               key={supplier.id}
-              className="catalog-table-row"
+              className='catalog-table-row'
               onClick={() => onSelectSupplier(supplier)}
             >
               <td data-label={t('catalog.tables.columns.id')}>
@@ -109,21 +127,21 @@ export const SuppliersTable = ({
   );
 };
 
-type ProductsTableProps = {
+export interface ProductsTableProps {
   products: ClientDevice[];
   isLoading: boolean;
   searchQuery: string;
   rowStartIndex: number;
   onSelectDevice: (device: ClientDevice) => void;
-};
+}
 
-export const ProductsTable = ({
+export const ProductsTable: React.FC<ProductsTableProps> = ({
   products,
   isLoading,
   searchQuery,
   rowStartIndex,
   onSelectDevice,
-}: ProductsTableProps) => {
+}) => {
   const { t } = useTranslation();
 
   if (isLoading) {
@@ -139,29 +157,39 @@ export const ProductsTable = ({
   if (products.length === 0) {
     return (
       <EmptyState>
-        {searchQuery ? t('catalog.tables.noDevicesFound') : t('catalog.tables.noDevicesYet')}
+        {searchQuery
+          ? t('catalog.tables.noDevicesFound')
+          : t('catalog.tables.noDevicesYet')}
       </EmptyState>
     );
   }
 
   return (
-    <div className="catalog-table-wrap catalog-card-table-wrap">
-      <table className="catalog-table catalog-table-compact catalog-card-table">
+    <div className='catalog-table-wrap catalog-card-table-wrap'>
+      <table className='catalog-table catalog-table-compact catalog-card-table'>
         <thead>
           <tr>
-            <th className="catalog-col-id">{t('catalog.tables.columns.id')}</th>
+            <th className='catalog-col-id'>
+              {t('catalog.tables.columns.id')}
+            </th>
             <th>{t('catalog.tables.columns.name')}</th>
             <th>{t('catalog.tables.columns.note')}</th>
-            <th className="catalog-col-usage">{t('catalog.tables.columns.usage')}</th>
-            <th className="catalog-col-status">{t('catalog.tables.columns.status')}</th>
-            <th className="catalog-col-date">{t('catalog.tables.columns.date')}</th>
+            <th className='catalog-col-usage'>
+              {t('catalog.tables.columns.usage')}
+            </th>
+            <th className='catalog-col-status'>
+              {t('catalog.tables.columns.status')}
+            </th>
+            <th className='catalog-col-date'>
+              {t('catalog.tables.columns.date')}
+            </th>
           </tr>
         </thead>
         <tbody>
           {products.map((product, index) => (
             <tr
               key={product.id}
-              className="catalog-table-row"
+              className='catalog-table-row'
               onClick={() => onSelectDevice(product)}
             >
               <td data-label={t('catalog.tables.columns.id')}>
@@ -193,18 +221,22 @@ export const ProductsTable = ({
   );
 };
 
-export const CatalogProductsTable = ({
-  products,
-  isLoading,
-  searchQuery,
-  rowStartIndex,
-  onSelectProduct,
-}: {
+export interface CatalogProductsTableProps {
   products: CatalogProduct[];
   isLoading: boolean;
   searchQuery: string;
   rowStartIndex: number;
   onSelectProduct: (product: CatalogProduct) => void;
+}
+
+export const CatalogProductsTable: React.FC<
+  CatalogProductsTableProps
+> = ({
+  products,
+  isLoading,
+  searchQuery,
+  rowStartIndex,
+  onSelectProduct,
 }) => {
   const { t } = useTranslation();
   const normalizedQuery = searchQuery.trim().toLowerCase();
@@ -222,29 +254,39 @@ export const CatalogProductsTable = ({
   if (products.length === 0) {
     return (
       <EmptyState>
-        {normalizedQuery ? t('catalog.tables.noProductsFound') : t('catalog.tables.noProductsYet')}
+        {normalizedQuery
+          ? t('catalog.tables.noProductsFound')
+          : t('catalog.tables.noProductsYet')}
       </EmptyState>
     );
   }
 
   return (
-    <div className="catalog-table-wrap catalog-card-table-wrap">
-      <table className="catalog-table catalog-table-compact catalog-card-table">
+    <div className='catalog-table-wrap catalog-card-table-wrap'>
+      <table className='catalog-table catalog-table-compact catalog-card-table'>
         <thead>
           <tr>
-            <th className="catalog-col-id">{t('catalog.tables.columns.id')}</th>
+            <th className='catalog-col-id'>
+              {t('catalog.tables.columns.id')}
+            </th>
             <th>{t('catalog.tables.columns.name')}</th>
             <th>{t('catalog.tables.columns.note')}</th>
-            <th className="catalog-col-usage">{t('catalog.tables.columns.usage')}</th>
-            <th className="catalog-col-status">{t('catalog.tables.columns.status')}</th>
-            <th className="catalog-col-date">{t('catalog.tables.columns.lastSeen')}</th>
+            <th className='catalog-col-usage'>
+              {t('catalog.tables.columns.usage')}
+            </th>
+            <th className='catalog-col-status'>
+              {t('catalog.tables.columns.status')}
+            </th>
+            <th className='catalog-col-date'>
+              {t('catalog.tables.columns.lastSeen')}
+            </th>
           </tr>
         </thead>
         <tbody>
           {products.map((product, index) => (
             <tr
               key={product.id}
-              className="catalog-table-row"
+              className='catalog-table-row'
               onClick={() => onSelectProduct(product)}
             >
               <td data-label={t('catalog.tables.columns.id')}>
@@ -276,21 +318,21 @@ export const CatalogProductsTable = ({
   );
 };
 
-type ServicesTableProps = {
+export interface ServicesTableProps {
   services: ServiceCatalogItem[];
   isLoading: boolean;
   searchQuery: string;
   onEdit: (service: ServiceCatalogItem) => void;
   rowStartIndex: number;
-};
+}
 
-export const ServicesTable = ({
+export const ServicesTable: React.FC<ServicesTableProps> = ({
   services,
   isLoading,
   searchQuery,
   onEdit,
   rowStartIndex,
-}: ServicesTableProps) => {
+}) => {
   const { t } = useTranslation();
 
   if (isLoading) {
@@ -306,29 +348,39 @@ export const ServicesTable = ({
   if (services.length === 0) {
     return (
       <EmptyState>
-        {searchQuery ? t('catalog.tables.noServicesFound') : t('catalog.tables.noServicesYet')}
+        {searchQuery
+          ? t('catalog.tables.noServicesFound')
+          : t('catalog.tables.noServicesYet')}
       </EmptyState>
     );
   }
 
   return (
-    <div className="catalog-table-wrap catalog-card-table-wrap">
-      <table className="catalog-table catalog-table-services catalog-card-table">
+    <div className='catalog-table-wrap catalog-card-table-wrap'>
+      <table className='catalog-table catalog-table-services catalog-card-table'>
         <thead>
           <tr>
-            <th className="catalog-col-id">{t('catalog.tables.columns.id')}</th>
+            <th className='catalog-col-id'>
+              {t('catalog.tables.columns.id')}
+            </th>
             <th>{t('catalog.tables.columns.name')}</th>
-            <th className="catalog-col-price">{t('catalog.tables.columns.price')}</th>
+            <th className='catalog-col-price'>
+              {t('catalog.tables.columns.price')}
+            </th>
             <th>{t('catalog.tables.columns.note')}</th>
-            <th className="catalog-col-status">{t('catalog.tables.columns.status')}</th>
-            <th className="catalog-col-date">{t('catalog.tables.columns.updated')}</th>
+            <th className='catalog-col-status'>
+              {t('catalog.tables.columns.status')}
+            </th>
+            <th className='catalog-col-date'>
+              {t('catalog.tables.columns.updated')}
+            </th>
           </tr>
         </thead>
         <tbody>
           {services.map((service, index) => (
             <tr
               key={service.id}
-              className="catalog-table-row"
+              className='catalog-table-row'
               onClick={() => onEdit(service)}
             >
               <td data-label={t('catalog.tables.columns.id')}>

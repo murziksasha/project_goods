@@ -1,18 +1,19 @@
+import type React from 'react';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { CopyableValue } from '../../../../shared/ui/CopyableValue';
 
-type CatalogCopyableNameProps = {
+export interface CatalogCopyableNameProps {
   name: string;
   onOpen: () => void;
   children?: ReactNode;
 };
 
-export const CatalogCopyableName = ({
+export const CatalogCopyableName: React.FC<CatalogCopyableNameProps> = ({
   name,
   onOpen,
   children,
-}: CatalogCopyableNameProps) => {
+}) => {
   const { t } = useTranslation();
 
   return (

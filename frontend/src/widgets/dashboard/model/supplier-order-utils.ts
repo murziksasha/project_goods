@@ -1,4 +1,4 @@
-import type { Supplier } from '../../../entities/supplier/model/types';
+import type { Supplier } from '../../../entities/supplier';
 import i18n from '../../../shared/i18n/config';
 import type {
   SupplierOrder,
@@ -6,7 +6,7 @@ import type {
   SupplierOrderStatus,
   SupplierPaymentStatus,
   SupplierReceiptStatus,
-} from '../../../entities/supplier-order/model/types';
+} from '../../../entities/supplier-order';
 
 export type SupplierOrderModalLocks = {
   isContentLocked: boolean;

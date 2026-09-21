@@ -1,16 +1,17 @@
+import type React from 'react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useDismissibleSuggestions } from '../../../../../shared/lib/useDismissibleSuggestions';
-import type { Product } from '../../../../../entities/product/model/types';
-import type { ProductSalePriceTier } from '../../../../../entities/product/lib/sale-prices';
+import type { Product } from '../../../../../entities/product';
+import type { ProductSalePriceTier } from '../../../../../entities/product';
 import { NumberStepper } from '../../../../../shared/ui/NumberStepper';
-import { ProductSalePriceField } from '../../../../../shared/ui/ProductSalePriceField';
+import { ProductSalePriceField } from '../../../../../entities/product';
 import { formatCurrency } from '../../../../../shared/lib/format';
 import type { OrderDetailProductSuggestion } from '../../../model/create-order-products';
 import type { SaleOrderItem } from './create-order-card-shared';
 import { getWarrantyOptions } from '../workspace/orders-workspace-shared';
 
-type CreateOrderSaleSectionProps = {
+export interface CreateOrderSaleSectionProps {
   products: Product[];
   saleItems: SaleOrderItem[];
   focusedSaleItem: SaleOrderItem | null;
@@ -34,7 +35,7 @@ type CreateOrderSaleSectionProps = {
   ) => void;
 };
 
-export const CreateOrderSaleSection = ({
+export const CreateOrderSaleSection: React.FC<CreateOrderSaleSectionProps> = ({
   products,
   saleItems,
   focusedSaleItem,
@@ -50,7 +51,7 @@ export const CreateOrderSaleSection = ({
   onAddSaleItem,
   onRemoveSaleItem,
   onApplySaleProduct,
-}: CreateOrderSaleSectionProps) => {
+}) => {
   const { t } = useTranslation();
   const warrantyOptions = getWarrantyOptions();
   const {

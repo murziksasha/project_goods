@@ -1,3 +1,4 @@
+import type React from 'react';
 import {
   Fragment,
   useEffect,
@@ -9,9 +10,9 @@ import {
   type ReactNode,
 } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { Product } from '../../../../entities/product/model/types';
-import type { Sale } from '../../../../entities/sale/model/types';
-import { getOrderLink } from '../../../../pages/dashboard/model/dashboard-navigation';
+import type { Product } from '../../../../entities/product';
+import type { Sale } from '../../../../entities/sale';
+import { getOrderLink } from '../../../../shared/config/routing';
 import {
   formatCurrency,
   formatDate,
@@ -156,19 +157,7 @@ const ReceiptStarButton = ({
     </button>
   );
 };
-
-export const ReceiptsTable = ({
-  receipts,
-  groups,
-  view,
-  visibleColumns,
-  onOpenOrder,
-  onOpenGroupOrder,
-  onOpenProduct,
-  onOpenSupplier,
-  onToggleFavorite,
-  canManageSupplierOrders,
-}: {
+export interface ReceiptsTableProps {
   receipts: ReceiptRow[];
   groups?: Array<{
     id: string;
@@ -183,6 +172,19 @@ export const ReceiptsTable = ({
   onOpenSupplier: (receipt: ReceiptRow) => void;
   onToggleFavorite: (receipt: ReceiptRow) => void;
   canManageSupplierOrders: boolean;
+}
+
+export const ReceiptsTable: React.FC<ReceiptsTableProps> = ({
+  receipts,
+  groups,
+  view,
+  visibleColumns,
+  onOpenOrder,
+  onOpenGroupOrder,
+  onOpenProduct,
+  onOpenSupplier,
+  onToggleFavorite,
+  canManageSupplierOrders,
 }) => {
   const { t } = useTranslation();
   const [expandedIds, setExpandedIds] = useState<Set<string>>(

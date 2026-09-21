@@ -1,11 +1,12 @@
+import type React from 'react';
 import { WeatherSceneSkyFallback } from '../WeatherSceneSkyFallback';
 
-type WeatherSceneSkyProps = {
+export interface WeatherSceneSkyProps {
   condition: string;
   intensity?: string;
 };
 
-export const WeatherSceneSky = ({ condition, intensity }: WeatherSceneSkyProps) => (
+export const WeatherSceneSky: React.FC<WeatherSceneSkyProps> = ({ condition, intensity }) => (
   <>
     <WeatherSceneSkyFallback condition={condition} intensity={intensity} />
     <div className="weather-scene-sky" />

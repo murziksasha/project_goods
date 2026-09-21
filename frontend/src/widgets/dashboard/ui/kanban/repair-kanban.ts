@@ -3,7 +3,7 @@ import {
   pointerWithin,
   type CollisionDetection,
 } from '@dnd-kit/core';
-import type { Sale } from '../../../../entities/sale/model/types';
+import type { Sale } from '../../../../entities/sale';
 import {
   kanbanVisibleRepairStatuses,
   normalizeOrderStatus,

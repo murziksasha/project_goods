@@ -1,10 +1,13 @@
+import type React from 'react';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { Client } from '../../../entities/client/model/types';
-import type { Product } from '../../../entities/product/model/types';
-import type { ProductSalePriceTier } from '../../../entities/product/lib/sale-prices';
+import type { Client } from '../../../entities/client';
+import {
+  ProductSalePriceField,
+  type Product,
+  type ProductSalePriceTier,
+} from '../../../entities/product';
 import { NumberStepper } from '../../../shared/ui/NumberStepper';
-import { ProductSalePriceField } from '../../../shared/ui/ProductSalePriceField';
 import type { SaleFormValues } from '../../../entities/sale/model/types';
 import {
   DEBOUNCE_MS,
@@ -17,7 +20,7 @@ import {
 import { ClientLookupFields } from './ClientLookupFields';
 import { ProductLookupField } from './ProductLookupField';
 
-type SaleFormProps = {
+export interface SaleFormProps {
   clients: Client[];
   products: Product[];
   form: SaleFormValues;
@@ -29,9 +32,9 @@ type SaleFormProps = {
   ) => void;
   onSubmit: () => void;
   onCancelEdit: () => void;
-};
+}
 
-export const SaleForm = ({
+export const SaleForm: React.FC<SaleFormProps> = ({
   clients,
   products,
   form,
@@ -40,35 +43,51 @@ export const SaleForm = ({
   onChange,
   onSubmit,
   onCancelEdit,
-}: SaleFormProps) => {
+}) => {
   const { t } = useTranslation();
   const [clientNameInput, setClientNameInput] = useState('');
   const [clientPhoneInput, setClientPhoneInput] = useState('');
   const [productInput, setProductInput] = useState('');
-  const [clientSuggestions, setClientSuggestions] = useState<Client[]>([]);
-  const [productSuggestions, setProductSuggestions] = useState<Product[]>([]);
-  const [priceTier, setPriceTier] = useState<ProductSalePriceTier | null>(null);
+  const [clientSuggestions, setClientSuggestions] = useState<
+    Client[]
+  >([]);
+  const [productSuggestions, setProductSuggestions] = useState<
+    Product[]
+  >([]);
+  const [priceTier, setPriceTier] =
+    useState<ProductSalePriceTier | null>(null);
   const previousProductIdRef = useRef(form.productId);
 
-  const selectedClient = clients.find((client) => client.id === form.clientId) ?? null;
-  const selectedProduct = products.find((product) => product.id === form.productId) ?? null;
+  const selectedClient =
+    clients.find((client) => client.id === form.clientId) ?? null;
+  const selectedProduct =
+    products.find((product) => product.id === form.productId) ?? null;
   const displayedClientNameInput =
-    form.clientId && selectedClient ? selectedClient.name : clientNameInput;
+    form.clientId && selectedClient
+      ? selectedClient.name
+      : clientNameInput;
   const displayedClientPhoneInput =
-    form.clientId && selectedClient ? selectedClient.phone : clientPhoneInput;
+    form.clientId && selectedClient
+      ? selectedClient.phone
+      : clientPhoneInput;
   const displayedProductInput =
-    form.productId && selectedProduct ? getProductLabel(selectedProduct) : productInput;
+    form.productId && selectedProduct
+      ? getProductLabel(selectedProduct)
+      : productInput;
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
       const normalizedName = normalizeText(displayedClientNameInput);
-      const normalizedPhone = normalizeDigits(displayedClientPhoneInput);
+      const normalizedPhone = normalizeDigits(
+        displayedClientPhoneInput,
+      );
 
       setClientSuggestions(
         clients
           .filter((client) => {
             const matchesName =
-              !normalizedName || client.name.toLowerCase().includes(normalizedName);
+              !normalizedName ||
+              client.name.toLowerCase().includes(normalizedName);
             const matchesPhone =
               !normalizedPhone ||
               normalizeDigits(client.phone).includes(normalizedPhone);
@@ -93,7 +112,12 @@ export const SaleForm = ({
               return true;
             }
 
-            return [product.name, product.article, product.serialNumber, product.note]
+            return [
+              product.name,
+              product.article,
+              product.serialNumber,
+              product.note,
+            ]
               .join(' ')
               .toLowerCase()
               .includes(normalizedQuery);
@@ -120,17 +144,22 @@ export const SaleForm = ({
   };
 
   useEffect(() => {
-    if (form.productId && form.productId !== previousProductIdRef.current) {
+    if (
+      form.productId &&
+      form.productId !== previousProductIdRef.current
+    ) {
       setPriceTier('retail');
     }
     previousProductIdRef.current = form.productId;
   }, [form.productId]);
 
   return (
-    <section className="panel">
-      <div className="panel-header">
+    <section className='panel'>
+      <div className='panel-header'>
         <div>
-          <p className="section-label">{t('legacy.saleForm.sectionLabel')}</p>
+          <p className='section-label'>
+            {t('legacy.saleForm.sectionLabel')}
+          </p>
           <h2>
             {isEditing
               ? t('legacy.saleForm.editTitle')
@@ -138,23 +167,29 @@ export const SaleForm = ({
           </h2>
         </div>
         {isEditing ? (
-          <button className="ghost-button" type="button" onClick={onCancelEdit}>
+          <button
+            className='ghost-button'
+            type='button'
+            onClick={onCancelEdit}
+          >
             {t('common.cancel')}
           </button>
         ) : null}
       </div>
 
-      <div className="form-grid">
-        <label className="field">
+      <div className='form-grid'>
+        <label className='field'>
           <span>{t('legacy.saleForm.date')}</span>
           <input
-            type="date"
+            type='date'
             value={form.saleDate}
-            onChange={(event) => onChange('saleDate', event.target.value)}
+            onChange={(event) =>
+              onChange('saleDate', event.target.value)
+            }
           />
         </label>
 
-        <label className="field">
+        <label className='field'>
           <span>{t('legacy.saleForm.quantity')}</span>
           <NumberStepper
             min={1}
@@ -193,8 +228,8 @@ export const SaleForm = ({
 
         <ProductSalePriceField
           label={t('legacy.saleForm.salePrice')}
-          fieldClassName="field sale-price-field-labeled"
-          tierTogglePlacement="label"
+          fieldClassName='field sale-price-field-labeled'
+          tierTogglePlacement='label'
           value={form.salePrice}
           onChange={(value) => onChange('salePrice', value)}
           product={selectedProduct}
@@ -204,7 +239,7 @@ export const SaleForm = ({
           ariaLabel={t('legacy.saleForm.salePrice')}
         />
 
-        <label className="field field-wide">
+        <label className='field field-wide'>
           <span>{t('common.note')}</span>
           <textarea
             rows={4}
@@ -216,8 +251,8 @@ export const SaleForm = ({
       </div>
 
       <button
-        className="primary-button"
-        type="button"
+        className='primary-button'
+        type='button'
         onClick={onSubmit}
         disabled={
           isSaving ||

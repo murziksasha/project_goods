@@ -1,3 +1,4 @@
+import type React from 'react';
 import type { SetStateAction } from 'react';
 import { useTranslation } from 'react-i18next';
 import type {
@@ -6,8 +7,8 @@ import type {
   FinanceCategory,
   FinanceCurrency,
   FinanceTransactionType,
-} from '../../../../entities/finance/model/types';
-import { OTHER_CATEGORY_SLUG } from '../../../../entities/finance/model/types';
+} from '../../../../entities/finance';
+import { OTHER_CATEGORY_SLUG } from '../../../../entities/finance';
 import { FinanceCategorySelect } from './FinanceCategorySelect';
 import { parseDecimal } from '../../../../shared/lib/decimal';
 import {
@@ -21,7 +22,7 @@ import {
   formatMoney,
 } from '../../model/accounting';
 
-type AccountingOperationFormProps = {
+export interface AccountingOperationFormProps {
   allowedTransactionCurrencies: string[];
   availableBalance: number | null;
   canCreateDeposit: boolean;
@@ -41,7 +42,7 @@ type AccountingOperationFormProps = {
   onTransactionTypeChange: (type: FinanceTransactionType) => void;
 };
 
-export const AccountingOperationForm = ({
+export const AccountingOperationForm: React.FC<AccountingOperationFormProps> = ({
   allowedTransactionCurrencies,
   availableBalance,
   canCreateDeposit,
@@ -57,7 +58,7 @@ export const AccountingOperationForm = ({
   onCreateTransaction,
   onTransactionFormChange,
   onTransactionTypeChange,
-}: AccountingOperationFormProps) => {
+}) => {
   const { t } = useTranslation();
   const showFrom = transactionForm.type !== 'deposit';
   const showTo = transactionForm.type !== 'withdraw';

@@ -1,3 +1,4 @@
+import type React from 'react';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -7,7 +8,7 @@ import {
 } from './orders-workspace-shared';
 import { buildOrdersFilterChips } from './orders-filter-chips';
 
-type OrdersActiveFilterChipsProps = {
+export interface OrdersActiveFilterChipsProps {
   filters: OrdersFilters;
   assigneeLabelById: Map<string, string>;
   assigneeFieldLabel?: string;
@@ -15,13 +16,13 @@ type OrdersActiveFilterChipsProps = {
   onClearAll: () => void;
 };
 
-export const OrdersActiveFilterChips = ({
+export const OrdersActiveFilterChips: React.FC<OrdersActiveFilterChipsProps> = ({
   filters,
   assigneeLabelById,
   assigneeFieldLabel,
   onChangeFilters,
   onClearAll,
-}: OrdersActiveFilterChipsProps) => {
+}) => {
   const { t } = useTranslation();
 
   const chips = useMemo(

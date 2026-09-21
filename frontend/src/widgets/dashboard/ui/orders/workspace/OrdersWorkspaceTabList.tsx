@@ -1,8 +1,9 @@
+import type React from 'react';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { orderTabs, type OrdersTab } from './orders-workspace-shared';
 
-type OrdersWorkspaceTabListProps = {
+export interface OrdersWorkspaceTabListProps {
   activeTab: OrdersTab;
   visibleTabs: OrdersTab[];
   permittedTabs?: OrdersTab[];
@@ -10,13 +11,13 @@ type OrdersWorkspaceTabListProps = {
   onToggleTabVisibility?: (tab: OrdersTab) => void;
 };
 
-export const OrdersWorkspaceTabList = ({
+export const OrdersWorkspaceTabList: React.FC<OrdersWorkspaceTabListProps> = ({
   activeTab,
   visibleTabs,
   permittedTabs,
   onActiveTabChange,
   onToggleTabVisibility,
-}: OrdersWorkspaceTabListProps) => {
+}) => {
   const { t } = useTranslation();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);

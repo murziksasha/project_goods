@@ -1,41 +1,53 @@
 import './types/express-augment';
 import cors from 'cors';
-import express, { type NextFunction, type Request, type Response } from 'express';
+import express, {
+  type NextFunction,
+  type Request,
+  type Response,
+} from 'express';
 import helmet from 'helmet';
 import mongoose from 'mongoose';
 import { env } from './config/env';
 import { requireAuthUnlessPublic } from './shared/middleware/auth';
-import { clientRouter } from './routes/client.routes';
-import { authRouter } from './routes/auth.routes';
-import { backupRouter } from './routes/backup.routes';
-import { demoRouter } from './routes/demo.routes';
-import { employeeRouter } from './routes/employee.routes';
-import { financeRouter } from './routes/finance.routes';
-import { healthRouter } from './routes/health.routes';
-import { productRouter } from './routes/product.routes';
-import { saleRouter } from './routes/sale.routes';
-import { serviceCatalogRouter } from './routes/service-catalog.routes';
-import { settingsRouter } from './routes/settings.routes';
-import { supplierRouter } from './routes/supplier.routes';
-import { clientDeviceRouter } from './routes/client-device.routes';
-import { catalogProductRouter } from './routes/catalog-product.routes';
-import { supplierOrderRouter } from './routes/supplier-order.routes';
-import { warehouseSettingsRouter } from './routes/warehouse-settings.routes';
-import { marketRouter } from './routes/market.routes';
-import { weatherRouter } from './routes/weather.routes';
-import { analyticsRouter } from './routes/analytics.routes';
-import { archiveRouter } from './routes/archive.routes';
-import { savedFilterRouter } from './routes/saved-filter.routes';
-import { eventsRouter } from './routes/events.routes';
+import { clientRouter } from './domain/client/routes';
+import { authRouter } from './domain/auth/routes';
+import { backupRouter } from './domain/backup/routes';
+import { demoRouter } from './domain/demo/routes';
+import { employeeRouter } from './domain/employee/routes';
+import { financeRouter } from './domain/finance/routes';
+import { healthRouter } from './domain/system/routes';
+import { productRouter } from './domain/product/routes';
+import { saleRouter } from './domain/sale/routes';
+import { serviceCatalogRouter } from './domain/service-catalog/routes';
+import { settingsRouter } from './domain/settings/routes';
+import { supplierRouter } from './domain/supplier/routes';
+import { clientDeviceRouter } from './domain/client-device/routes';
+import { catalogProductRouter } from './domain/catalog-product/routes';
+import { supplierOrderRouter } from './domain/supplier-order/routes';
+import { warehouseSettingsRouter } from './domain/warehouse-settings/routes';
+import { marketRouter } from './domain/market/routes';
+import { weatherRouter } from './domain/weather/routes';
+import { analyticsRouter } from './domain/analytics/routes';
+import { archiveRouter } from './domain/archive/routes';
+import { savedFilterRouter } from './domain/saved-filter/routes';
+import { eventsRouter } from './domain/events/routes';
 import { publishDomainEvent } from './shared/lib/domain-events';
-import { HttpError, getErrorMessage, isDuplicateKeyError } from './shared/lib/errors';
+import {
+  AppError,
+  HttpError,
+  getErrorMessage,
+  isDuplicateKeyError,
+} from './shared/lib/errors';
 
 export const app = express();
 
 app.use(helmet());
 
 const resolvedCorsOrigin = env.clientOrigin
-  ? env.clientOrigin.split(',').map((origin) => origin.trim()).filter(Boolean)
+  ? env.clientOrigin
+      .split(',')
+      .map((origin) => origin.trim())
+      .filter(Boolean)
   : null;
 
 if (!resolvedCorsOrigin && process.env.NODE_ENV === 'production') {
@@ -47,20 +59,30 @@ if (!resolvedCorsOrigin && process.env.NODE_ENV === 'production') {
 app.use(
   cors({
     // Production without CLIENT_ORIGIN: deny reflected origins. Dev: allow all.
-    origin: resolvedCorsOrigin ?? (process.env.NODE_ENV === 'production' ? false : true),
+    origin:
+      resolvedCorsOrigin ??
+      (process.env.NODE_ENV === 'production' ? false : true),
   }),
 );
 app.use(express.json({ limit: '1mb' }));
 
 app.use((req, res, next) => {
   res.on('finish', () => {
-    if (req.method === 'GET' || req.method === 'HEAD' || req.method === 'OPTIONS') {
+    if (
+      req.method === 'GET' ||
+      req.method === 'HEAD' ||
+      req.method === 'OPTIONS'
+    ) {
       return;
     }
     if (res.statusCode >= 400) return;
     const path = (req.originalUrl || req.path).split('?')[0] ?? '';
     if (!path.startsWith('/api/')) return;
-    if (path.includes('/auth/login') || path.includes('/events/stream')) return;
+    if (
+      path.includes('/auth/login') ||
+      path.includes('/events/stream')
+    )
+      return;
     publishDomainEvent({
       type: 'resource.changed',
       method: req.method,
@@ -98,19 +120,26 @@ app.use((_req, res) => {
   res.status(404).json({ message: 'Route not found' });
 });
 
-app.use((error: unknown, _req: Request, res: Response, _next: NextFunction) => {
-  const statusCode =
-    error instanceof HttpError
-      ? error.statusCode
-      : 
-    error instanceof mongoose.Error.ValidationError || isDuplicateKeyError(error)
-      ? 400
-      : 500;
-  const message = getErrorMessage(error);
+app.use(
+  (
+    error: unknown,
+    _req: Request,
+    res: Response,
+    _next: NextFunction,
+  ) => {
+    const statusCode =
+      error instanceof AppError || error instanceof HttpError
+        ? error.statusCode
+        : error instanceof mongoose.Error.ValidationError ||
+            isDuplicateKeyError(error)
+          ? 400
+          : 500;
+    const message = getErrorMessage(error);
 
-  if (statusCode === 500) {
-    console.error(error);
-  }
+    if (statusCode === 500) {
+      console.error(error);
+    }
 
-  res.status(statusCode).json({ message });
-});
+    res.status(statusCode).json({ message });
+  },
+);

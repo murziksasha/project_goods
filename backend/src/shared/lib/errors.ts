@@ -1,11 +1,21 @@
 import mongoose from 'mongoose';
 
-export class HttpError extends Error {
+export class AppError extends Error {
   statusCode: number;
+  code?: string;
 
-  constructor(statusCode: number, message: string) {
+  constructor(statusCode: number, message: string, code?: string) {
     super(message);
+    this.name = 'AppError';
     this.statusCode = statusCode;
+    this.code = code;
+  }
+}
+
+export class HttpError extends AppError {
+  constructor(statusCode: number, message: string, code?: string) {
+    super(statusCode, message, code);
+    this.name = 'HttpError';
   }
 }
 

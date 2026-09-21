@@ -1,13 +1,14 @@
+import type React from 'react';
 import { useTranslation } from 'react-i18next';
-import type { Client } from '../../../../entities/client/model/types';
-import { formatClientPhonesLabel } from '../../../../entities/client/lib/phone-match';
+import type { Client } from '../../../../entities/client';
+import { formatClientPhonesLabel } from '../../../../entities/client';
 import { useDismissibleSuggestions } from '../../../../shared/lib/useDismissibleSuggestions';
 import { Modal } from '../../../../shared/ui/Modal';
 import { Button } from '../../../../shared/ui/Button';
 
 type ClientMergeField = 'target' | 'source';
 
-type ClientMergeModalProps = {
+export interface ClientMergeModalProps {
   isSaving: boolean;
   sourceId: string;
   sourceOptions: Client[];
@@ -23,7 +24,7 @@ type ClientMergeModalProps = {
   onSelectClient: (field: ClientMergeField, client: Client) => void;
 };
 
-export const ClientMergeModal = ({
+export const ClientMergeModal: React.FC<ClientMergeModalProps> = ({
   isSaving,
   sourceId,
   sourceOptions,
@@ -37,7 +38,7 @@ export const ClientMergeModal = ({
   onMerge,
   onQueryChange,
   onSelectClient,
-}: ClientMergeModalProps) => {
+}) => {
   const { t } = useTranslation();
 
   return (

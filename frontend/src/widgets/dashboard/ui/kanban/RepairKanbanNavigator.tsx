@@ -1,10 +1,11 @@
+import type React from 'react';
 import { useDroppable } from '@dnd-kit/core';
 import { useTranslation } from 'react-i18next';
 import type { RepairStatus } from '../orders/workspace/orders-workspace-shared';
 import { kanbanVisibleRepairStatuses } from '../orders/workspace/orders-workspace-shared';
 import { railDropId } from './repair-kanban';
 
-type RepairKanbanNavigatorProps = {
+export interface RepairKanbanNavigatorProps {
   counts: Map<RepairStatus, number>;
   activeStatus: RepairStatus | null;
   overStatus: RepairStatus | null;
@@ -57,13 +58,13 @@ const NavigatorChip = ({
   );
 };
 
-export const RepairKanbanNavigator = ({
+export const RepairKanbanNavigator: React.FC<RepairKanbanNavigatorProps> = ({
   counts,
   activeStatus,
   overStatus,
   isDragging,
   onSelect,
-}: RepairKanbanNavigatorProps) => {
+}) => {
   const { t } = useTranslation();
 
   return (

@@ -1,36 +1,33 @@
-import {
-  useEffect,
-  useMemo,
-  useState,
-} from 'react';
+import type React from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { formatDateTime } from '../../../../shared/lib/format';
 import {
   CompactPaginationPanel,
   PaginationPanel,
 } from '../../../../shared/ui/PaginationPanel';
-import type { Sale } from '../../../../entities/sale/model/types';
+import type { Sale } from '../../../../entities/sale';
 import type {
   Client,
   ClientFormValues,
   ClientHistory,
-} from '../../../../entities/client/model/types';
+} from '../../../../entities/client';
 import type {
   ClientDevice,
   ClientDeviceFormValues,
-} from '../../../../entities/client-device/model/types';
+} from '../../../../entities/client-device';
 import type {
   Supplier,
   SupplierFormValues,
-} from '../../../../entities/supplier/model/types';
+} from '../../../../entities/supplier';
 import {
   getPrimarySupplierPhone,
   getSupplierPhones,
   mapSupplierFormToPayload,
   toSupplierForm,
   type SupplierFormState,
-} from '../../../../entities/supplier/model/forms';
-import type { Employee } from '../../../../entities/employee/model/types';
+} from '../../../../entities/supplier';
+import type { Employee } from '../../../../entities/employee';
 import { useDismissibleSuggestions } from '../../../../shared/lib/useDismissibleSuggestions';
 import { Button } from '../../../../shared/ui/Button';
 import { Modal } from '../../../../shared/ui/Modal';
@@ -53,7 +50,7 @@ import {
   createSavedFilter as createSavedFilterRequest,
   deleteSavedFilter as deleteSavedFilterRequest,
   listSavedFilters,
-} from '../../../../entities/saved-filter/api/savedFilterApi';
+} from '../../../../entities/saved-filter';
 import { SavedFiltersPanel } from '../orders/workspace/SavedFiltersPanel';
 
 type TabKey = 'clients' | 'suppliers';
@@ -68,8 +65,10 @@ type SupplierFilters = {
   note: string;
 };
 
-const clientsSuppliersTabStorageKey = 'project-goods.clients-suppliers-tab';
-const supplierFiltersStorageKey = 'project-goods.suppliers-active-filters';
+const clientsSuppliersTabStorageKey =
+  'project-goods.clients-suppliers-tab';
+const supplierFiltersStorageKey =
+  'project-goods.suppliers-active-filters';
 const defaultSupplierForm: SupplierFormState = {
   name: '',
   phone: '+380',
@@ -78,10 +77,11 @@ const defaultSupplierForm: SupplierFormState = {
   note: '',
   isActive: true,
 };
-const clientsSuppliersTabs: Array<{ key: TabKey; labelKey: string }> = [
-  { key: 'clients', labelKey: 'clients.tabs.clients' },
-  { key: 'suppliers', labelKey: 'clients.tabs.suppliers' },
-];
+const clientsSuppliersTabs: Array<{ key: TabKey; labelKey: string }> =
+  [
+    { key: 'clients', labelKey: 'clients.tabs.clients' },
+    { key: 'suppliers', labelKey: 'clients.tabs.suppliers' },
+  ];
 const emptySupplierFilters: SupplierFilters = {
   query: '',
   supplierId: '',
@@ -93,7 +93,9 @@ const emptySupplierFilters: SupplierFilters = {
 
 const getStoredClientsSuppliersTab = (): TabKey => {
   try {
-    const storedTab = window.localStorage.getItem(clientsSuppliersTabStorageKey);
+    const storedTab = window.localStorage.getItem(
+      clientsSuppliersTabStorageKey,
+    );
     return storedTab === 'clients' || storedTab === 'suppliers'
       ? storedTab
       : 'clients';
@@ -122,7 +124,8 @@ const readSupplierFilters = () => {
   try {
     return normalizeSupplierFilters(
       JSON.parse(
-        window.localStorage.getItem(supplierFiltersStorageKey) ?? '{}',
+        window.localStorage.getItem(supplierFiltersStorageKey) ??
+          '{}',
       ) as Partial<SupplierFilters>,
     );
   } catch {
@@ -149,8 +152,9 @@ const getActiveSupplierFiltersCount = (filters: SupplierFilters) =>
   (filters.dateTo ? 1 : 0) +
   (filters.note ? 1 : 0);
 
-const toSupplierPayload = (form: SupplierFormState): SupplierFormValues =>
-  mapSupplierFormToPayload(form);
+const toSupplierPayload = (
+  form: SupplierFormState,
+): SupplierFormValues => mapSupplierFormToPayload(form);
 
 const getSearchText = (supplier: Supplier) =>
   [
@@ -181,7 +185,8 @@ const getSupplierMergeOptions = (
     .slice(0, 6);
 };
 
-const normalizeSupplierPhoneDigits = (phone: string) => phone.replace(/\D/g, '');
+const normalizeSupplierPhoneDigits = (phone: string) =>
+  phone.replace(/\D/g, '');
 
 const findDuplicateSupplier = (
   suppliers: Supplier[],
@@ -189,7 +194,9 @@ const findDuplicateSupplier = (
   editingSupplierId: string | null,
 ) => {
   const name = form.name.trim().toLowerCase();
-  const formPhoneDigits = (form.phones?.length ? form.phones : [form.phone])
+  const formPhoneDigits = (
+    form.phones?.length ? form.phones : [form.phone]
+  )
     .map((phone) => normalizeSupplierPhoneDigits(phone || ''))
     .filter((phone) => phone.length > 0);
 
@@ -200,8 +207,8 @@ const findDuplicateSupplier = (
 
     const sameName =
       name.length > 0 && supplier.name.trim().toLowerCase() === name;
-    const supplierPhoneDigits = getSupplierPhones(supplier).map((phone) =>
-      normalizeSupplierPhoneDigits(phone),
+    const supplierPhoneDigits = getSupplierPhones(supplier).map(
+      (phone) => normalizeSupplierPhoneDigits(phone),
     );
     const samePhone = formPhoneDigits.some((phoneDigits) =>
       supplierPhoneDigits.includes(phoneDigits),
@@ -211,7 +218,7 @@ const findDuplicateSupplier = (
   });
 };
 
-type Props = {
+export interface ClientsSuppliersWorkspaceProps {
   currentEmployee: Employee | null;
   clients: Client[];
   sales: Sale[];
@@ -254,9 +261,11 @@ type Props = {
     payload: ClientDeviceFormValues,
   ) => Promise<boolean>;
   onDeleteClientDevice: (deviceId: string) => Promise<boolean>;
-};
+}
 
-export const ClientsSuppliersWorkspace = ({
+export const ClientsSuppliersWorkspace: React.FC<
+  ClientsSuppliersWorkspaceProps
+> = ({
   currentEmployee,
   clients,
   sales,
@@ -284,11 +293,12 @@ export const ClientsSuppliersWorkspace = ({
   clientDevices,
   onUpdateClientDevice,
   onDeleteClientDevice,
-}: Props) => {
+}) => {
   const [activeTab, setActiveTab] = useState<TabKey>(
     getStoredClientsSuppliersTab,
   );
-  const [isSupplierFilterOpen, setIsSupplierFilterOpen] = useState(false);
+  const [isSupplierFilterOpen, setIsSupplierFilterOpen] =
+    useState(false);
   const [draftSupplierFilters, setDraftSupplierFilters] =
     useState<SupplierFilters>(readSupplierFilters);
   const [appliedSupplierFilters, setAppliedSupplierFilters] =
@@ -296,14 +306,15 @@ export const ClientsSuppliersWorkspace = ({
   const [savedFilters, setSavedFilters] = useState<
     Array<SavedFilter<ClientFilters | SupplierFilters, TabKey>>
   >([]);
-  const [newSupplierFilterName, setNewSupplierFilterName] = useState('');
+  const [newSupplierFilterName, setNewSupplierFilterName] =
+    useState('');
   const [newSupplierFilterIcon, setNewSupplierFilterIcon] = useState(
     filterIconOptions[0],
   );
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [editingSupplierId, setEditingSupplierId] = useState<string | null>(
-    null,
-  );
+  const [editingSupplierId, setEditingSupplierId] = useState<
+    string | null
+  >(null);
   const [isMergeModalOpen, setIsMergeModalOpen] = useState(false);
   const [suppliersPage, setSuppliersPage] = useState(1);
   const [suppliersPageSize, setSuppliersPageSize] = useState(30);
@@ -315,7 +326,9 @@ export const ClientsSuppliersWorkspace = ({
     useState(false);
   const [mergeTargetId, setMergeTargetId] = useState('');
   const [mergeSourceId, setMergeSourceId] = useState('');
-  const [form, setForm] = useState<SupplierFormState>(defaultSupplierForm);
+  const [form, setForm] = useState<SupplierFormState>(
+    defaultSupplierForm,
+  );
 
   const filteredSuppliers = useMemo(() => {
     const filters = appliedSupplierFilters;
@@ -327,15 +340,24 @@ export const ClientsSuppliersWorkspace = ({
     );
 
     return sortedSuppliers.filter((supplier) => {
-      if (normalized && !getSearchText(supplier).includes(normalized)) {
+      if (
+        normalized &&
+        !getSearchText(supplier).includes(normalized)
+      ) {
         return false;
       }
-      if (supplierId && !supplier.id.toLowerCase().includes(supplierId)) {
+      if (
+        supplierId &&
+        !supplier.id.toLowerCase().includes(supplierId)
+      ) {
         return false;
       }
-      if (note && !supplier.note.toLowerCase().includes(note)) return false;
-      if (filters.status === 'active' && !supplier.isActive) return false;
-      if (filters.status === 'inactive' && supplier.isActive) return false;
+      if (note && !supplier.note.toLowerCase().includes(note))
+        return false;
+      if (filters.status === 'active' && !supplier.isActive)
+        return false;
+      if (filters.status === 'inactive' && supplier.isActive)
+        return false;
       if (
         !isSupplierDateInRange(
           supplier.createdAt,
@@ -423,11 +445,18 @@ export const ClientsSuppliersWorkspace = ({
   };
 
   const handleMergeSuppliers = async () => {
-    if (!mergeTargetId || !mergeSourceId || mergeTargetId === mergeSourceId) {
+    if (
+      !mergeTargetId ||
+      !mergeSourceId ||
+      mergeTargetId === mergeSourceId
+    ) {
       return;
     }
 
-    const isSuccess = await onMergeSuppliers(mergeTargetId, mergeSourceId);
+    const isSuccess = await onMergeSuppliers(
+      mergeTargetId,
+      mergeSourceId,
+    );
     if (!isSuccess) return;
 
     resetMergeModal();
@@ -466,7 +495,9 @@ export const ClientsSuppliersWorkspace = ({
   };
 
   const applySupplierFilters = () => {
-    const nextFilters = normalizeSupplierFilters(draftSupplierFilters);
+    const nextFilters = normalizeSupplierFilters(
+      draftSupplierFilters,
+    );
     setDraftSupplierFilters(nextFilters);
     setAppliedSupplierFilters(nextFilters);
     setSuppliersPage(1);
@@ -529,7 +560,9 @@ export const ClientsSuppliersWorkspace = ({
                 name: created.name,
                 icon: created.icon,
                 tab: created.tab as TabKey,
-                filters: created.filters as ClientFilters | SupplierFilters,
+                filters: created.filters as
+                  | ClientFilters
+                  | SupplierFilters,
                 createdAt: created.createdAt,
               });
             } catch {
@@ -564,7 +597,9 @@ export const ClientsSuppliersWorkspace = ({
               name: item.name,
               icon: item.icon,
               tab: item.tab as TabKey,
-              filters: item.filters as ClientFilters | SupplierFilters,
+              filters: item.filters as
+                | ClientFilters
+                | SupplierFilters,
               createdAt: item.createdAt,
             })),
           );
@@ -612,7 +647,9 @@ export const ClientsSuppliersWorkspace = ({
   };
 
   const applySupplierSavedFilter = (filterId: string) => {
-    const savedFilter = savedFilters.find((item) => item.id === filterId);
+    const savedFilter = savedFilters.find(
+      (item) => item.id === filterId,
+    );
     if (!savedFilter || savedFilter.tab !== 'suppliers') return;
     const nextFilters = normalizeSupplierFilters(
       savedFilter.filters as SupplierFilters,
@@ -647,7 +684,10 @@ export const ClientsSuppliersWorkspace = ({
 
   useEffect(() => {
     try {
-      window.localStorage.setItem(clientsSuppliersTabStorageKey, activeTab);
+      window.localStorage.setItem(
+        clientsSuppliersTabStorageKey,
+        activeTab,
+      );
     } catch {
       // Ignore localStorage write errors.
     }
@@ -902,7 +942,10 @@ const SuppliersWorkspace = ({
       onFilterNameChange={onFilterNameChange}
       onSaveFilter={onSaveFilter}
     />
-    <SuppliersTable suppliers={suppliers} onOpenEditModal={onOpenEditModal} />
+    <SuppliersTable
+      suppliers={suppliers}
+      onOpenEditModal={onOpenEditModal}
+    />
     <PaginationPanel
       totalItems={totalSuppliersCount}
       page={page}
@@ -949,66 +992,72 @@ const SuppliersToolbar = ({
           defaultValue: '{{count}} records',
         })}
       />
-    <div className='orders-toolbar clients-toolbar'>
-      <div className='orders-toolbar-left'>
-        <CompactPaginationPanel
-          totalItems={totalSuppliersCount}
-          page={page}
-          pageSize={pageSize}
-          onPageChange={onPageChange}
-        />
-        <button
-          type='button'
-          className='toolbar-filter-button toolbar-filter-toggle-button'
-          aria-expanded={isFilterOpen}
-          onClick={onToggleFilters}
-        >
-          {t('clients.suppliers.toolbar.filter')}
-          {activeFiltersCount > 0 ? (
-            <span className='toolbar-filter-count'>
-              {activeFiltersCount}
-            </span>
-          ) : null}
-        </button>
-        <div className='orders-search-group orders-search-group-clearable clients-search-group'>
-          <input
-            value={query}
-            onChange={(event) => onQueryChange(event.target.value)}
-            placeholder={t('clients.suppliers.toolbar.searchPlaceholder')}
-            aria-label={t('clients.suppliers.toolbar.searchAriaLabel')}
+      <div className='orders-toolbar clients-toolbar'>
+        <div className='orders-toolbar-left'>
+          <CompactPaginationPanel
+            totalItems={totalSuppliersCount}
+            page={page}
+            pageSize={pageSize}
+            onPageChange={onPageChange}
           />
-          {query ? (
-            <span
-              role='button'
-              tabIndex={0}
-              className='orders-search-clear'
-              aria-label={t('clients.suppliers.toolbar.clearSearchAriaLabel')}
-              onClick={() => onQueryChange('')}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter' || event.key === ' ') {
-                  event.preventDefault();
-                  onQueryChange('');
-                }
-              }}
-            >
-              x
-            </span>
-          ) : null}
+          <button
+            type='button'
+            className='toolbar-filter-button toolbar-filter-toggle-button'
+            aria-expanded={isFilterOpen}
+            onClick={onToggleFilters}
+          >
+            {t('clients.suppliers.toolbar.filter')}
+            {activeFiltersCount > 0 ? (
+              <span className='toolbar-filter-count'>
+                {activeFiltersCount}
+              </span>
+            ) : null}
+          </button>
+          <div className='orders-search-group orders-search-group-clearable clients-search-group'>
+            <input
+              value={query}
+              onChange={(event) => onQueryChange(event.target.value)}
+              placeholder={t(
+                'clients.suppliers.toolbar.searchPlaceholder',
+              )}
+              aria-label={t(
+                'clients.suppliers.toolbar.searchAriaLabel',
+              )}
+            />
+            {query ? (
+              <span
+                role='button'
+                tabIndex={0}
+                className='orders-search-clear'
+                aria-label={t(
+                  'clients.suppliers.toolbar.clearSearchAriaLabel',
+                )}
+                onClick={() => onQueryChange('')}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    onQueryChange('');
+                  }
+                }}
+              >
+                x
+              </span>
+            ) : null}
+          </div>
+        </div>
+        <div className='orders-toolbar-actions clients-toolbar-actions'>
+          <Button variant='ghost' onClick={onOpenMergeModal}>
+            {t('clients.suppliers.toolbar.merge')}
+          </Button>
+          <Button
+            variant='success'
+            className='orders-create-button'
+            onClick={onOpenCreateModal}
+          >
+            {t('clients.suppliers.toolbar.createSupplier')}
+          </Button>
         </div>
       </div>
-      <div className='orders-toolbar-actions clients-toolbar-actions'>
-        <Button variant='ghost' onClick={onOpenMergeModal}>
-          {t('clients.suppliers.toolbar.merge')}
-        </Button>
-        <Button
-          variant='success'
-          className='orders-create-button'
-          onClick={onOpenCreateModal}
-        >
-          {t('clients.suppliers.toolbar.createSupplier')}
-        </Button>
-      </div>
-    </div>
     </div>
   );
 };
@@ -1067,7 +1116,9 @@ const SuppliersFilterPanel = ({
         saveTitle={
           canSaveFilter
             ? t('clients.suppliers.filters.saveFilter')
-            : t('clients.suppliers.filters.saveFilterRequiresEmployee')
+            : t(
+                'clients.suppliers.filters.saveFilterRequiresEmployee',
+              )
         }
         onApply={onApplySavedFilter}
         onDelete={onDeleteSavedFilter}
@@ -1077,12 +1128,18 @@ const SuppliersFilterPanel = ({
       />
       <div className='orders-filter-grid'>
         <label className='orders-filter-field'>
-          <span>{t('clients.suppliers.filters.namePhoneOrOrder')}</span>
+          <span>
+            {t('clients.suppliers.filters.namePhoneOrOrder')}
+          </span>
           <input
             type='text'
             value={draftFilters.query}
-            onChange={(event) => updateFilter('query', event.target.value)}
-            placeholder={t('clients.suppliers.filters.namePhoneOrOrderPlaceholder')}
+            onChange={(event) =>
+              updateFilter('query', event.target.value)
+            }
+            placeholder={t(
+              'clients.suppliers.filters.namePhoneOrOrderPlaceholder',
+            )}
           />
         </label>
         <label className='orders-filter-field'>
@@ -1093,7 +1150,9 @@ const SuppliersFilterPanel = ({
             onChange={(event) =>
               updateFilter('supplierId', event.target.value)
             }
-            placeholder={t('clients.suppliers.filters.supplierIdPlaceholder')}
+            placeholder={t(
+              'clients.suppliers.filters.supplierIdPlaceholder',
+            )}
           />
         </label>
         <label className='orders-filter-field'>
@@ -1107,9 +1166,15 @@ const SuppliersFilterPanel = ({
               )
             }
           >
-            <option value='all'>{t('clients.suppliers.filters.statusAll')}</option>
-            <option value='active'>{t('clients.suppliers.filters.statusActive')}</option>
-            <option value='inactive'>{t('clients.suppliers.filters.statusInactive')}</option>
+            <option value='all'>
+              {t('clients.suppliers.filters.statusAll')}
+            </option>
+            <option value='active'>
+              {t('clients.suppliers.filters.statusActive')}
+            </option>
+            <option value='inactive'>
+              {t('clients.suppliers.filters.statusInactive')}
+            </option>
           </select>
         </label>
         <label className='orders-filter-field'>
@@ -1117,7 +1182,9 @@ const SuppliersFilterPanel = ({
           <input
             type='date'
             value={draftFilters.dateFrom}
-            onChange={(event) => updateFilter('dateFrom', event.target.value)}
+            onChange={(event) =>
+              updateFilter('dateFrom', event.target.value)
+            }
           />
         </label>
         <label className='orders-filter-field'>
@@ -1125,7 +1192,9 @@ const SuppliersFilterPanel = ({
           <input
             type='date'
             value={draftFilters.dateTo}
-            onChange={(event) => updateFilter('dateTo', event.target.value)}
+            onChange={(event) =>
+              updateFilter('dateTo', event.target.value)
+            }
           />
         </label>
         <label className='orders-filter-field'>
@@ -1133,8 +1202,12 @@ const SuppliersFilterPanel = ({
           <input
             type='text'
             value={draftFilters.note}
-            onChange={(event) => updateFilter('note', event.target.value)}
-            placeholder={t('clients.suppliers.filters.notePlaceholder')}
+            onChange={(event) =>
+              updateFilter('note', event.target.value)
+            }
+            placeholder={t(
+              'clients.suppliers.filters.notePlaceholder',
+            )}
           />
         </label>
       </div>
@@ -1208,7 +1281,9 @@ const SuppliersTable = ({
                       label={
                         supplier.isActive
                           ? t('clients.suppliers.table.statusActive')
-                          : t('clients.suppliers.table.statusInactive')
+                          : t(
+                              'clients.suppliers.table.statusInactive',
+                            )
                       }
                     />
                   </td>
@@ -1264,7 +1339,10 @@ const SupplierMergeModal = ({
   showSourceSuggestions: boolean;
   showTargetSuggestions: boolean;
   onClose: () => void;
-  onQueryChange: (field: SupplierSuggestionField, value: string) => void;
+  onQueryChange: (
+    field: SupplierSuggestionField,
+    value: string,
+  ) => void;
   onSelectSupplier: (
     field: SupplierSuggestionField,
     supplier: Supplier,
@@ -1273,7 +1351,10 @@ const SupplierMergeModal = ({
 }) => {
   const { t } = useTranslation();
   const canMerge =
-    !isSaving && Boolean(targetId) && Boolean(sourceId) && targetId !== sourceId;
+    !isSaving &&
+    Boolean(targetId) &&
+    Boolean(sourceId) &&
+    targetId !== sourceId;
 
   return (
     <Modal
@@ -1287,10 +1368,18 @@ const SupplierMergeModal = ({
       bodyClassName='clients-modal-body'
       footer={
         <footer className='catalog-edit-footer clients-modal-footer'>
-          <Button variant='secondary' onClick={onClose} disabled={isSaving}>
+          <Button
+            variant='secondary'
+            onClick={onClose}
+            disabled={isSaving}
+          >
             {t('common.cancel')}
           </Button>
-          <Button variant='primary' disabled={!canMerge} onClick={onMerge}>
+          <Button
+            variant='primary'
+            disabled={!canMerge}
+            onClick={onMerge}
+          >
             {isSaving
               ? t('clients.suppliers.merge.merging')
               : t('clients.suppliers.merge.mergeSuppliers')}
@@ -1307,7 +1396,9 @@ const SupplierMergeModal = ({
         query={targetQuery}
         showSuggestions={showTargetSuggestions}
         onQueryChange={(value) => onQueryChange('target', value)}
-        onSelectSupplier={(supplier) => onSelectSupplier('target', supplier)}
+        onSelectSupplier={(supplier) =>
+          onSelectSupplier('target', supplier)
+        }
       />
       <SupplierMergeField
         label={t('clients.suppliers.merge.supplier2')}
@@ -1315,7 +1406,9 @@ const SupplierMergeModal = ({
         query={sourceQuery}
         showSuggestions={showSourceSuggestions}
         onQueryChange={(value) => onQueryChange('source', value)}
-        onSelectSupplier={(supplier) => onSelectSupplier('source', supplier)}
+        onSelectSupplier={(supplier) =>
+          onSelectSupplier('source', supplier)
+        }
       />
     </Modal>
   );
@@ -1384,5 +1477,3 @@ const SupplierSuggestions = ({
     ))}
   </div>
 );
-
-

@@ -1,24 +1,24 @@
 import type { MouseEvent as ReactMouseEvent } from 'react';
 import JsBarcode from 'jsbarcode';
-import type { Employee } from '../../../../../entities/employee/model/types';
-import type { Sale } from '../../../../../entities/sale/model/types';
-import { isRepairOrder } from '../../../../../entities/sale/lib/sale-kind';
+import type { Employee } from '../../../../../entities/employee';
+import type { Sale } from '../../../../../entities/sale';
+import { isRepairOrder } from '../../../../../entities/sale';
 import {
   getSaleProductArticle,
   getSaleProductId,
   getSaleProductName,
   getSaleProductSerialNumber,
-} from '../../../../../entities/sale/lib/sale-product';
+} from '../../../../../entities/sale';
 import { formatCurrency, formatDateTime } from '../../../../../shared/lib/format';
 import { sanitizePrintHtml } from '../../../../../shared/lib/sanitizeHtml';
 import i18n from '../../../../../shared/i18n/config';
 import { getSaleClientDisplayName } from '../../../model/sale-client-display';
 import { groupPrintProductLineItems } from '../../../model/order-line-item-groups';
-import type { SupplierOrder } from '../../../../../entities/supplier-order/model/types';
-import type { Product, ProductModelUpdatePayload } from '../../../../../entities/product/model/types';
-import type { CatalogProduct } from '../../../../../entities/catalog-product/model/types';
-import type { ClientDevice, ClientDeviceFormValues } from '../../../../../entities/client-device/model/types';
-import type { PrintForm } from '../../../../../entities/settings/model/types';
+import type { SupplierOrder } from '../../../../../entities/supplier-order';
+import type { Product, ProductModelUpdatePayload } from '../../../../../entities/product';
+import type { CatalogProduct } from '../../../../../entities/catalog-product';
+import type { ClientDevice, ClientDeviceFormValues } from '../../../../../entities/client-device';
+import type { PrintForm } from '../../../../../entities/settings';
 import {
   getOrientedLabelSize,
   getPrintContentMarginVars,
@@ -30,7 +30,7 @@ import {
   printLabelDocumentStyles,
   renderPrintTemplate as renderSettingsPrintTemplate,
   type PrintTemplateData,
-} from '../../../../../entities/settings/model/printForms';
+} from '../../../../../entities/settings';
 
 export type OrdersWorkspaceProps = {
   sales: Sale[];
@@ -1569,6 +1569,16 @@ export const printWarehouseSerialLabels = async (
     autoClose: true,
     batchLabels: printableItems.length > 1,
   });
+};
+
+export type SerialPrintItem = WarehouseSerialPrintItem;
+
+export const printSerialNumbers = (
+  items: SerialPrintItem[],
+  printForms: PrintForm[],
+  title = i18n.t('warehouse.print.serialNumbersTitle'),
+) => {
+  void printWarehouseSerialLabels(items, printForms, title);
 };
 
 export const renderOrderPrintCodes = async (

@@ -1,8 +1,10 @@
 import { useQuery } from '@tanstack/react-query';
-import { apiClient, getApiErrorMessage } from '../../../shared/api/http';
+import {
+  apiClient,
+  getApiErrorMessage,
+} from '../../../shared/api/http';
 import { queryKeys } from '../../../shared/api/queryClient';
-import type { StatsPeriod } from '../../../widgets/dashboard/model/stats-period';
-import type { AnalyticsDateRange } from '../../../widgets/dashboard/model/analytics-date-range';
+import type { AnalyticsDateRange, StatsPeriod } from '../model/types';
 
 export type AnalyticsChartSnapshot = {
   year: number;
@@ -105,7 +107,9 @@ export type DashboardAnalyticsParams = {
   dateTo?: string;
 };
 
-export const buildAnalyticsQuery = (params: DashboardAnalyticsParams = {}) => {
+export const buildAnalyticsQuery = (
+  params: DashboardAnalyticsParams = {},
+) => {
   const query: Record<string, string> = {};
   if (params.period) query.period = params.period;
   if (params.dateFrom) query.dateFrom = params.dateFrom;
@@ -113,11 +117,16 @@ export const buildAnalyticsQuery = (params: DashboardAnalyticsParams = {}) => {
   return query;
 };
 
-export const getDashboardAnalytics = async (params: DashboardAnalyticsParams = {}) => {
+export const getDashboardAnalytics = async (
+  params: DashboardAnalyticsParams = {},
+) => {
   try {
-    const response = await apiClient.get<DashboardAnalyticsResponse>('/analytics/dashboard', {
-      params: buildAnalyticsQuery(params),
-    });
+    const response = await apiClient.get<DashboardAnalyticsResponse>(
+      '/analytics/dashboard',
+      {
+        params: buildAnalyticsQuery(params),
+      },
+    );
     return response.data;
   } catch (error) {
     throw new Error(getApiErrorMessage(error));
@@ -131,8 +140,12 @@ export const useDashboardAnalyticsQuery = (
 ) => {
   const params: DashboardAnalyticsParams = {
     period: statsPeriod,
-    ...(analyticsDateRange?.dateFrom ? { dateFrom: analyticsDateRange.dateFrom } : {}),
-    ...(analyticsDateRange?.dateTo ? { dateTo: analyticsDateRange.dateTo } : {}),
+    ...(analyticsDateRange?.dateFrom
+      ? { dateFrom: analyticsDateRange.dateFrom }
+      : {}),
+    ...(analyticsDateRange?.dateTo
+      ? { dateTo: analyticsDateRange.dateTo }
+      : {}),
   };
 
   return useQuery({

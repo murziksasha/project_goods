@@ -1,12 +1,13 @@
+import type React from 'react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
-import { getDbHealth, getDbStats } from '../../../../entities/backup/api/systemDbApi';
+import { getDbHealth, getDbStats } from '../../../../entities/backup';
 import type {
   CollectionStorageStats,
   DatabaseHealth,
   DatabaseStorageStats,
-} from '../../../../entities/backup/model/dbReportTypes';
+} from '../../../../entities/backup';
 import { Button } from '../../../../shared/ui/Button';
 import { EmptyState } from '../../../../shared/ui/EmptyState';
 import { InlineError } from '../../../../shared/ui/InlineError';
@@ -14,7 +15,7 @@ import { LoadingState } from '../../../../shared/ui/LoadingState';
 import { PageHeader } from '../../../../shared/ui/PageHeader';
 import { StatusBadge } from '../../../../shared/ui/StatusBadge';
 
-type DatabaseReportSectionProps = {
+export interface DatabaseReportSectionProps {
   canManageBackups: boolean;
 };
 
@@ -113,9 +114,9 @@ const buildAttention = (collections: CollectionStorageStats[], t: TFunction) => 
   return items;
 };
 
-export const DatabaseReportSection = ({
+export const DatabaseReportSection: React.FC<DatabaseReportSectionProps> = ({
   canManageBackups,
-}: DatabaseReportSectionProps) => {
+}) => {
   const { t } = useTranslation();
   const [health, setHealth] = useState<DatabaseHealth | null>(null);
   const [stats, setStats] = useState<DatabaseStorageStats | null>(null);

@@ -1,9 +1,10 @@
+import type React from 'react';
 import { useTranslation } from 'react-i18next';
 import { useDismissibleSuggestions } from '../../../../../shared/lib/useDismissibleSuggestions';
-import type { ServiceCatalogItem } from '../../../../../entities/service-catalog/model/types';
-import type { ServiceSalePriceTier } from '../../../../../entities/service-catalog/lib/sale-prices';
+import type { ServiceCatalogItem } from '../../../../../entities/service-catalog';
+import type { ServiceSalePriceTier } from '../../../../../entities/service-catalog';
 import { NumberStepper } from '../../../../../shared/ui/NumberStepper';
-import { ServiceSalePriceField } from '../../../../../shared/ui/ServiceSalePriceField';
+import { ServiceSalePriceField } from '../../../../../entities/service-catalog';
 import { formatCurrency } from '../../../../../shared/lib/format';
 import type { SaleServiceOrderItem } from './create-order-card-shared';
 import { getWarrantyOptions } from '../workspace/orders-workspace-shared';
@@ -11,7 +12,7 @@ import { getWarrantyOptions } from '../workspace/orders-workspace-shared';
 const COLLAPSE_ICON_EXPANDED = '\u2303';
 const COLLAPSE_ICON_COLLAPSED = '\u2304';
 
-type CreateOrderSaleServicesSectionProps = {
+export interface CreateOrderSaleServicesSectionProps {
   isOpen: boolean;
   serviceQuery: string;
   servicePrice: string;
@@ -35,7 +36,7 @@ type CreateOrderSaleServicesSectionProps = {
   onRemoveServiceItem: (itemId: string) => void;
 };
 
-export const CreateOrderSaleServicesSection = ({
+export const CreateOrderSaleServicesSection: React.FC<CreateOrderSaleServicesSectionProps> = ({
   isOpen,
   serviceQuery,
   servicePrice,
@@ -57,7 +58,7 @@ export const CreateOrderSaleServicesSection = ({
   onAddService,
   onOpenCreateService,
   onRemoveServiceItem,
-}: CreateOrderSaleServicesSectionProps) => {
+}) => {
   const { t } = useTranslation();
   const warrantyOptions = getWarrantyOptions();
   const visibleServiceSuggestions =

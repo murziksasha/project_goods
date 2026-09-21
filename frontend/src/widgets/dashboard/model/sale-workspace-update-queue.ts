@@ -1,4 +1,4 @@
-import type { Sale } from '../../../entities/sale/model/types';
+import type { Sale } from '../../../entities/sale';
 
 export type SaleWorkspaceQueuePayload = {
   status?: string;

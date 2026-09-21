@@ -1,25 +1,32 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import type React from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { useTranslation } from 'react-i18next';
-import type { Product } from '../../../../../entities/product/model/types';
-import type { Sale } from '../../../../../entities/sale/model/types';
+import type { Product } from '../../../../../entities/product';
+import type { Sale } from '../../../../../entities/sale';
 import {
   createServiceCatalogItem,
   getServiceCatalogItems,
-} from '../../../../../entities/service-catalog/api/serviceCatalogApi';
-import type { ServiceCatalogItem } from '../../../../../entities/service-catalog/model/types';
+} from '../../../../../entities/service-catalog';
+import type { ServiceCatalogItem } from '../../../../../entities/service-catalog';
 import {
   formatServiceRetailSalePrice,
   type ServiceSalePriceTier,
-} from '../../../../../entities/service-catalog/lib/sale-prices';
-import { useWarehouseSettingsQuery } from '../../../../../entities/warehouse-settings/api/warehouseSettingsApi';
-import type { ProductSalePriceTier } from '../../../../../entities/product/lib/sale-prices';
+} from '../../../../../entities/service-catalog';
+import { useWarehouseSettingsQuery } from '../../../../../entities/warehouse-settings';
+import type { ProductSalePriceTier } from '../../../../../entities/product';
 import {
   PRICE_STEPPER_PRECISION,
   PRICE_STEPPER_STEP,
 } from '../../../../../shared/lib/price-stepper';
 import { NumberStepper } from '../../../../../shared/ui/NumberStepper';
-import { ProductSalePriceField } from '../../../../../shared/ui/ProductSalePriceField';
-import { ServiceSalePriceField } from '../../../../../shared/ui/ServiceSalePriceField';
+import { ProductSalePriceField } from '../../../../../entities/product';
+import { ServiceSalePriceField } from '../../../../../entities/service-catalog';
 import { Modal } from '../../../../../shared/ui/Modal';
 import { Button } from '../../../../../shared/ui/Button';
 import { createRuntimeId } from '../../../../../shared/lib/runtime-id';
@@ -47,23 +54,23 @@ import {
 } from '../../../model/warehouse-serial-filter';
 import { WarehouseSelectField } from '../../warehouse/WarehouseSelectField';
 
-type RapidSaleModalProps = {
+export interface RapidSaleModalProps {
   products: Product[];
   sales: Sale[];
   isSaving: boolean;
   onClose: () => void;
   onSubmit: (items: RapidSaleDraftItem[]) => Promise<void>;
   onError: (message: string) => void;
-};
+}
 
-export const RapidSaleModal = ({
+export const RapidSaleModal: React.FC<RapidSaleModalProps> = ({
   products,
   sales,
   isSaving,
   onClose,
   onSubmit,
   onError,
-}: RapidSaleModalProps) => {
+}) => {
   const { t } = useTranslation();
   const warrantyOptions = getWarrantyOptions();
   const [draftItems, setDraftItems] = useState<RapidSaleDraftItem[]>(
@@ -433,7 +440,7 @@ export const RapidSaleModal = ({
     );
   };
 
-  const handleIssued = async () => {
+  const handleIssued = useCallback(async () => {
     const errorKey = validateRapidSaleDraft(draftItems);
     if (errorKey) {
       onError(t(errorKey));
@@ -441,7 +448,7 @@ export const RapidSaleModal = ({
     }
 
     await onSubmit(draftItems);
-  };
+  }, [draftItems, onError, onSubmit, t]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -486,6 +493,7 @@ export const RapidSaleModal = ({
       document.removeEventListener('keydown', handleKeyDown, true);
   }, [
     draftItems.length,
+    handleIssued,
     isSaving,
     onClose,
     productQuery,

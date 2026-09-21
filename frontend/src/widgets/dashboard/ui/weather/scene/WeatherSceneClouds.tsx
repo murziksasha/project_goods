@@ -1,14 +1,15 @@
-type WeatherSceneCloudsProps = {
+import type React from 'react';
+export interface WeatherSceneCloudsProps {
   count: number;
   variant?: 'default' | 'dark' | 'faint';
 };
 
 const cloudClasses = ['weather-scene-cloud-a', 'weather-scene-cloud-b', 'weather-scene-cloud-c'];
 
-export const WeatherSceneClouds = ({
+export const WeatherSceneClouds: React.FC<WeatherSceneCloudsProps> = ({
   count,
   variant = 'default',
-}: WeatherSceneCloudsProps) => (
+}) => (
   <>
     {cloudClasses.slice(0, count).map((cloudClass) => (
       <div

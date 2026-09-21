@@ -1,10 +1,11 @@
+import type React from 'react';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Modal } from '../../../shared/ui/Modal';
 import { Button } from '../../../shared/ui/Button';
 import { InlineError } from '../../../shared/ui/InlineError';
 
-export type CatalogMergeConfirmationModalProps = {
+export interface CatalogMergeConfirmationModalProps {
   isOpen: boolean;
   isMerging?: boolean;
   targetName: string;
@@ -16,9 +17,11 @@ export type CatalogMergeConfirmationModalProps = {
   error?: string | null;
   onConfirm: () => void | Promise<void>;
   onClose: () => void;
-};
+}
 
-export const CatalogMergeConfirmationModal = ({
+export const CatalogMergeConfirmationModal: React.FC<
+  CatalogMergeConfirmationModalProps
+> = ({
   isOpen,
   isMerging = false,
   targetName,
@@ -30,7 +33,7 @@ export const CatalogMergeConfirmationModal = ({
   error,
   onConfirm,
   onClose,
-}: CatalogMergeConfirmationModalProps) => {
+}) => {
   const { t } = useTranslation();
 
   return (

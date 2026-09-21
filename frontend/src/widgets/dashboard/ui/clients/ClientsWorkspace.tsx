@@ -1,4 +1,5 @@
-﻿import {
+import type React from 'react';
+import {
   useCallback,
   useEffect,
   useMemo,
@@ -8,20 +9,20 @@
   type SetStateAction,
 } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { Employee } from '../../../../entities/employee/model/types';
+import type { Employee } from '../../../../entities/employee';
 import type {
   Client,
   ClientFormValues,
   ClientHistory,
   ClientStatus,
-} from '../../../../entities/client/model/types';
-import { clientMatchesPhoneQuery } from '../../../../entities/client/lib/phone-match';
-import { clientStatusOptions } from '../../../../entities/client/model/constants';
-import type { Sale } from '../../../../entities/sale/model/types';
+} from '../../../../entities/client';
+import { clientMatchesPhoneQuery } from '../../../../entities/client';
+import { clientStatusOptions } from '../../../../entities/client';
+import type { Sale } from '../../../../entities/sale';
 import type {
   ClientDevice,
   ClientDeviceFormValues,
-} from '../../../../entities/client-device/model/types';
+} from '../../../../entities/client-device';
 import {
   isValidUkrainianPhone,
   normalizePhone,
@@ -60,13 +61,13 @@ import {
   createSavedFilter as createSavedFilterRequest,
   deleteSavedFilter as deleteSavedFilterRequest,
   listSavedFilters,
-} from '../../../../entities/saved-filter/api/savedFilterApi';
+} from '../../../../entities/saved-filter';
 import {
   readSavedFilters,
   type SavedFilter,
 } from '../../model/saved-filters';
 
-type ClientsWorkspaceProps = {
+export interface ClientsWorkspaceProps {
   currentEmployee: Employee | null;
   clients: Client[];
   sales: Sale[];
@@ -148,7 +149,7 @@ const getLegacyClientAddress = (client: Client) =>
   getMetaFieldFromNote(client.note, 'Address') ||
   getMetaFieldFromNoteLegacy(client.note, 'Address');
 
-export const ClientsWorkspace = ({
+export const ClientsWorkspace: React.FC<ClientsWorkspaceProps> = ({
   currentEmployee,
   clients,
   sales,
@@ -172,7 +173,7 @@ export const ClientsWorkspace = ({
   clientDevices,
   onUpdateClientDevice,
   onDeleteClientDevice,
-}: ClientsWorkspaceProps) => {
+}) => {
   const { t } = useTranslation();
   const filterStatusOptions = useMemo(
     (): Array<{

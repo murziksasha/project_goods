@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import i18n from '../../../shared/i18n/config';
-import type { CatalogProduct } from '../../../entities/catalog-product/model/types';
-import type { Product } from '../../../entities/product/model/types';
-import type { Sale } from '../../../entities/sale/model/types';
+import type { CatalogProduct } from '../../../entities/catalog-product';
+import type { Product } from '../../../entities/product';
+import type { Sale } from '../../../entities/sale';
 import {
   buildCreateOrderProductSuggestions,
   buildCreateOrderSaleLineItems,

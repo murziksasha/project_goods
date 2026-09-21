@@ -1,9 +1,10 @@
+import type React from 'react';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { DashboardPreferences } from '../../../../entities/settings/model/types';
-import type { Product } from '../../../../entities/product/model/types';
-import type { Sale } from '../../../../entities/sale/model/types';
-import { useDashboardAnalyticsQuery } from '../../../../entities/analytics/api/analyticsApi';
+import type { DashboardPreferences } from '../../../../entities/settings';
+import type { Product } from '../../../../entities/product';
+import type { Sale } from '../../../../entities/sale';
+import { useDashboardAnalyticsQuery } from '../../../../entities/analytics';
 import {
   getAnalyticsDateRangeFilterCount,
   type AnalyticsDateRange,
@@ -26,7 +27,7 @@ import { AnalyticsStockPanel } from './AnalyticsStockPanel';
 import { AnalyticsSignalsPanel } from './AnalyticsSignalsPanel';
 import { AnalyticsTopItemsPanel } from './AnalyticsTopItemsPanel';
 
-type AnalyticsHeroSectionProps = {
+export interface AnalyticsHeroSectionProps {
   sales: Sale[];
   orders: Sale[];
   products: Product[];
@@ -52,7 +53,7 @@ const previousLabelForPeriod = (period: StatsPeriod, hasCustomRange: boolean, t:
   return t('analytics.delta.previousPeriod');
 };
 
-export const AnalyticsHeroSection = ({
+export const AnalyticsHeroSection: React.FC<AnalyticsHeroSectionProps> = ({
   sales,
   orders,
   products,
@@ -70,7 +71,7 @@ export const AnalyticsHeroSection = ({
   onApplyAnalyticsDateRange,
   onClearAnalyticsDateRange,
   onSeed,
-}: AnalyticsHeroSectionProps) => {
+}) => {
   const { t } = useTranslation();
   const serverQuery = useDashboardAnalyticsQuery(true, statsPeriod, analyticsDateRange);
   const localAnalytics = useMemo(

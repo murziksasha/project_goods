@@ -1,3 +1,4 @@
+import type React from 'react';
 import { Fragment, type Dispatch, type SetStateAction } from 'react';
 import { useTranslation } from 'react-i18next';
 import type {
@@ -5,14 +6,14 @@ import type {
   FinanceCategory,
   FinanceTransaction,
   FinanceTransactionType,
-} from '../../../../entities/finance/model/types';
+} from '../../../../entities/finance';
 import {
   getFinanceCategoryLabel,
   getTransactionFilterCategories,
   shouldShowWithdrawCategorySubtitle,
-} from '../../../../entities/finance/model/category-label';
-import type { Sale } from '../../../../entities/sale/model/types';
-import type { SupplierOrder } from '../../../../entities/supplier-order/model/types';
+} from '../../../../entities/finance';
+import type { Sale } from '../../../../entities/sale';
+import type { SupplierOrder } from '../../../../entities/supplier-order';
 import {
   CompactPaginationPanel,
   PaginationPanel,
@@ -28,7 +29,7 @@ import {
 } from '../../model/accounting';
 import { getOrderLink } from '../orders/create-order/create-order-card-shared';
 
-type AccountingTransactionsViewProps = {
+export interface AccountingTransactionsViewProps {
   activeFiltersCount: number;
   allCurrencyCodes: string[];
   categories: FinanceCategory[];
@@ -59,7 +60,7 @@ type AccountingTransactionsViewProps = {
   onEditTransactionNote?: (transaction: FinanceTransaction) => void;
 };
 
-export const AccountingTransactionsView = ({
+export const AccountingTransactionsView: React.FC<AccountingTransactionsViewProps> = ({
   activeFiltersCount,
   allCurrencyCodes,
   categories,
@@ -88,7 +89,7 @@ export const AccountingTransactionsView = ({
   onSetDraftFilters,
   onSetTransactionToCancel,
   onEditTransactionNote,
-}: AccountingTransactionsViewProps) => {
+}) => {
   const { t } = useTranslation();
   const transactionTypeLabel = (type: FinanceTransactionType) =>
     t(`accounting.cashboxes.${type}`);

@@ -13,9 +13,9 @@ import {
   useFinanceReportQuery,
   useFinanceTransactionsQuery,
   useSupplierOrdersForPaymentQuery,
-} from '../../../../entities/finance/api/financeApi';
-import type { Cashbox } from '../../../../entities/finance/model/types';
-import { useSupplierOrdersQuery } from '../../../../entities/supplier-order/api/supplierOrderApi';
+} from '../../../../entities/finance';
+import type { Cashbox } from '../../../../entities/finance';
+import { useSupplierOrdersQuery } from '../../../../entities/supplier-order';
 import {
   accountingCashboxOrderStorageKey,
   applyCashboxOrder,

@@ -1,12 +1,13 @@
+import type React from 'react';
 import type { MouseEvent as ReactMouseEvent } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { PageKey } from '../../../pages/dashboard/model/types';
-import { getDashboardHref } from '../../../pages/dashboard/model/types';
+import type { PageKey } from '../../../shared/config/routing';
+import { getDashboardHref } from '../../../shared/config/routing';
 import { sidebarNavIcons } from '../../../shared/ui/sidebarNavIcons';
 import type { MobileNavItem } from '../model/constants';
 import { mobileNavPriority } from '../model/constants';
 
-type DashboardMobileNavProps = {
+export interface DashboardMobileNavProps {
   items: MobileNavItem[];
   activePage: PageKey;
   canAccessPage: (page: PageKey) => boolean;
@@ -15,16 +16,18 @@ type DashboardMobileNavProps = {
     key: PageKey,
   ) => void;
   onOpenMore?: () => void;
-};
+}
 
 /** Bottom tab bar for narrow layouts (≤1024px, shown via CSS). */
-export const DashboardMobileNav = ({
+export const DashboardMobileNav: React.FC<
+  DashboardMobileNavProps
+> = ({
   items,
   activePage,
   canAccessPage,
   onNavClick,
   onOpenMore,
-}: DashboardMobileNavProps) => {
+}) => {
   const { t } = useTranslation();
   const ranked = [...items].sort((left, right) => {
     const leftRank = mobileNavPriority.indexOf(left.key as PageKey);
@@ -41,7 +44,10 @@ export const DashboardMobileNav = ({
   if (visible.length === 0) return null;
 
   return (
-    <nav className="mobile-bottom-nav" aria-label={t('common.mainMenu')}>
+    <nav
+      className='mobile-bottom-nav'
+      aria-label={t('common.mainMenu')}
+    >
       {visible.map((item) => {
         const Icon = sidebarNavIcons[item.key];
         const isActive = item.key === activePage;
@@ -57,23 +63,30 @@ export const DashboardMobileNav = ({
             aria-current={isActive ? 'page' : undefined}
             onClick={(event) => onNavClick(event, item.key)}
           >
-            <span className="mobile-bottom-nav-icon" aria-hidden="true">
+            <span
+              className='mobile-bottom-nav-icon'
+              aria-hidden='true'
+            >
               <Icon />
             </span>
-            <span className="mobile-bottom-nav-label">{t(item.labelKey)}</span>
+            <span className='mobile-bottom-nav-label'>
+              {t(item.labelKey)}
+            </span>
           </a>
         );
       })}
       {onOpenMore ? (
         <button
-          type="button"
-          className="mobile-bottom-nav-item"
+          type='button'
+          className='mobile-bottom-nav-item'
           onClick={onOpenMore}
         >
-          <span className="mobile-bottom-nav-icon" aria-hidden="true">
+          <span className='mobile-bottom-nav-icon' aria-hidden='true'>
             ⋯
           </span>
-          <span className="mobile-bottom-nav-label">{t('common.more')}</span>
+          <span className='mobile-bottom-nav-label'>
+            {t('common.more')}
+          </span>
         </button>
       ) : null}
     </nav>

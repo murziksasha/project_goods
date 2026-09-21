@@ -1,12 +1,13 @@
+import type React from 'react';
 import { useTranslation } from 'react-i18next';
-import type { ServiceCatalogFormValues } from '../../../entities/service-catalog/model/types';
+import type { ServiceCatalogFormValues } from '../../../entities/service-catalog';
 import {
   PRICE_STEPPER_PRECISION,
   PRICE_STEPPER_STEP,
 } from '../../../shared/lib/price-stepper';
 import { NumberStepper } from '../../../shared/ui/NumberStepper';
 
-type ServiceCatalogFormProps = {
+export interface ServiceCatalogFormProps {
   form: ServiceCatalogFormValues;
   isSaving: boolean;
   isEditing: boolean;
@@ -17,12 +18,14 @@ type ServiceCatalogFormProps = {
   ) => void;
   onSubmit: () => void;
   onCancelEdit: () => void;
-};
+}
 
 const hasEmptyRequiredFields = (form: ServiceCatalogFormValues) =>
   !form.name.trim() || !form.price.trim();
 
-export const ServiceCatalogForm = ({
+export const ServiceCatalogForm: React.FC<
+  ServiceCatalogFormProps
+> = ({
   form,
   isSaving,
   isEditing,
@@ -30,12 +33,12 @@ export const ServiceCatalogForm = ({
   onChange,
   onSubmit,
   onCancelEdit,
-}: ServiceCatalogFormProps) => {
+}) => {
   const { t } = useTranslation();
 
   const fields = (
-    <div className="form-grid">
-      <label className="field">
+    <div className='form-grid'>
+      <label className='field'>
         <span>{t('common.name')}</span>
         <input
           value={form.name}
@@ -44,7 +47,7 @@ export const ServiceCatalogForm = ({
         />
       </label>
 
-      <label className="field">
+      <label className='field'>
         <span>{t('common.price')}</span>
         <NumberStepper
           min={0}
@@ -56,7 +59,7 @@ export const ServiceCatalogForm = ({
         />
       </label>
 
-      <label className="field field-wide">
+      <label className='field field-wide'>
         <span>{t('common.note')}</span>
         <textarea
           rows={3}
@@ -73,10 +76,10 @@ export const ServiceCatalogForm = ({
   }
 
   return (
-    <section className="panel">
-      <div className="panel-header">
+    <section className='panel'>
+      <div className='panel-header'>
         <div>
-          <p className="section-label">
+          <p className='section-label'>
             {isEditing ? t('common.update') : t('common.create')}
           </p>
           <h2>
@@ -86,13 +89,17 @@ export const ServiceCatalogForm = ({
           </h2>
         </div>
         {isEditing ? (
-          <button className="ghost-button" type="button" onClick={onCancelEdit}>
+          <button
+            className='ghost-button'
+            type='button'
+            onClick={onCancelEdit}
+          >
             {t('common.cancel')}
           </button>
         ) : (
           <button
-            type="button"
-            className="create-order-close"
+            type='button'
+            className='create-order-close'
             onClick={onCancelEdit}
             aria-label={t('catalog.modals.close')}
           >
@@ -104,8 +111,8 @@ export const ServiceCatalogForm = ({
       {fields}
 
       <button
-        className="primary-button"
-        type="button"
+        className='primary-button'
+        type='button'
         onClick={onSubmit}
         disabled={isSaving || hasEmptyRequiredFields(form)}
       >

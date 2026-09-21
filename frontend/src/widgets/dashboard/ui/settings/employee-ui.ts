@@ -1,7 +1,7 @@
 import type {
   EmployeePermission,
   EmployeeRole,
-} from '../../../../entities/employee/model/types';
+} from '../../../../entities/employee';
 import type { StatusBadgeTone } from '../../../../shared/ui/StatusBadge';
 
 export const employeeRoleLabelKey = (role: EmployeeRole) =>

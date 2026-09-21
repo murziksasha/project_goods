@@ -1,13 +1,20 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type React from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { useTranslation } from 'react-i18next';
 import type {
   CatalogProduct,
   CatalogProductFormValues,
-} from '../../../../entities/catalog-product/model/types';
+} from '../../../../entities/catalog-product';
 import type {
   Supplier,
   SupplierFormValues,
-} from '../../../../entities/supplier/model/types';
+} from '../../../../entities/supplier';
 import {
   useCancelSupplierOrderItemMutation,
   useCancelSupplierOrderMutation,
@@ -16,13 +23,13 @@ import {
   useTakeOnChargeSupplierOrderMutation,
   useUpdateSupplierOrderFavoriteMutation,
   useUpdateSupplierOrderMutation,
-} from '../../../../entities/supplier-order/api/supplierOrderApi';
+} from '../../../../entities/supplier-order';
 import type {
   SupplierOrder,
   SupplierOrderFormValues,
   SupplierOrderStatus,
-} from '../../../../entities/supplier-order/model/types';
-import { getWarehouseSettings } from '../../../../entities/warehouse-settings/api/warehouseSettingsApi';
+} from '../../../../entities/supplier-order';
+import { getWarehouseSettings } from '../../../../entities/warehouse-settings';
 import { applySupplierOrderStatusChange } from '../../model/apply-supplier-order-status-change';
 import {
   buildSupplierOrderAnalytics,
@@ -51,10 +58,13 @@ import {
   createSavedFilter as createSavedFilterRequest,
   deleteSavedFilter as deleteSavedFilterRequest,
   listSavedFilters,
-} from '../../../../entities/saved-filter/api/savedFilterApi';
-import type { SavedFilterRecord } from '../../../../entities/saved-filter/model/types';
+} from '../../../../entities/saved-filter';
+import type { SavedFilterRecord } from '../../../../entities/saved-filter';
 import { filterIconOptions } from '../orders/workspace/orders-workspace-shared';
-import { SupplierOrderModal, type SupplierOrderModalSubmitPayload } from '../orders/modals/SupplierOrderModal';
+import {
+  SupplierOrderModal,
+  type SupplierOrderModalSubmitPayload,
+} from '../orders/modals/SupplierOrderModal';
 import { SupplierOrdersActiveFilterChips } from './SupplierOrdersActiveFilterChips';
 import { SupplierOrdersFilterPanel } from './SupplierOrdersFilterPanel';
 import {
@@ -70,7 +80,7 @@ const notifyFinanceUpdated = () => {
   window.dispatchEvent(new Event('project-goods:finance-updated'));
 };
 
-type Props = {
+export interface SupplierOrdersWorkspaceProps {
   activeTab: OrdersTab;
   onActiveTabChange: (tab: OrdersTab) => void;
   onToggleTabVisibility?: (tab: OrdersTab) => void;
@@ -93,9 +103,11 @@ type Props = {
   ) => Promise<boolean>;
   onSuccess: (message: string) => void;
   onError: (message: string) => void;
-};
+}
 
-export const SupplierOrdersWorkspace = ({
+export const SupplierOrdersWorkspace: React.FC<
+  SupplierOrdersWorkspaceProps
+> = ({
   activeTab,
   onActiveTabChange,
   onToggleTabVisibility,
@@ -112,14 +124,19 @@ export const SupplierOrdersWorkspace = ({
   onUpdateCatalogProduct,
   onSuccess,
   onError,
-}: Props) => {
+}) => {
   const { t } = useTranslation();
-  const supplierOrdersQuery = useSupplierOrdersQuery(canViewSupplierOrders);
-  const createSupplierOrderMutation = useCreateSupplierOrderMutation();
-  const updateSupplierOrderMutation = useUpdateSupplierOrderMutation();
+  const supplierOrdersQuery = useSupplierOrdersQuery(
+    canViewSupplierOrders,
+  );
+  const createSupplierOrderMutation =
+    useCreateSupplierOrderMutation();
+  const updateSupplierOrderMutation =
+    useUpdateSupplierOrderMutation();
   const updateSupplierOrderFavoriteMutation =
     useUpdateSupplierOrderFavoriteMutation();
-  const cancelSupplierOrderMutation = useCancelSupplierOrderMutation();
+  const cancelSupplierOrderMutation =
+    useCancelSupplierOrderMutation();
   const cancelSupplierOrderItemMutation =
     useCancelSupplierOrderItemMutation();
   const takeOnChargeSupplierOrderMutation =
@@ -144,21 +161,23 @@ export const SupplierOrdersWorkspace = ({
     useState<SupplierOrdersFilters>(initialFilters);
   const [isFilterBarOpen, setIsFilterBarOpen] = useState(false);
   const [isStatusFilterOpen, setIsStatusFilterOpen] = useState(false);
-  const [isPaymentFilterOpen, setIsPaymentFilterOpen] = useState(false);
+  const [isPaymentFilterOpen, setIsPaymentFilterOpen] =
+    useState(false);
   const [isColumnsMenuOpen, setIsColumnsMenuOpen] = useState(false);
   const [savedFilters, setSavedFilters] = useState<
     SavedFilterRecord<SupplierOrdersFilters>[]
   >([]);
   const [newFilterName, setNewFilterName] = useState('');
-  const [newFilterIcon, setNewFilterIcon] = useState(filterIconOptions[0] ?? '?');
+  const [newFilterIcon, setNewFilterIcon] = useState(
+    filterIconOptions[0] ?? '?',
+  );
   const [openStatusOrder, setOpenStatusOrder] = useState<{
     key: string;
     order: SupplierOrder;
     itemIndex: number | null;
   } | null>(null);
-  const [expandedSupplierOrderIds, setExpandedSupplierOrderIds] = useState<
-    Set<string>
-  >(() => new Set());
+  const [expandedSupplierOrderIds, setExpandedSupplierOrderIds] =
+    useState<Set<string>>(() => new Set());
   const [statusMenuPosition, setStatusMenuPosition] = useState<{
     top: number;
     left: number;
@@ -166,7 +185,8 @@ export const SupplierOrdersWorkspace = ({
     placement: 'below' | 'above';
   } | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingOrder, setEditingOrder] = useState<SupplierOrder | null>(null);
+  const [editingOrder, setEditingOrder] =
+    useState<SupplierOrder | null>(null);
   const [editingOrderSource, setEditingOrderSource] =
     useState<SupplierOrder | null>(null);
   const [editingOrderItemIndex, setEditingOrderItemIndex] = useState<
@@ -175,7 +195,9 @@ export const SupplierOrdersWorkspace = ({
   const statusFilterRef = useRef<HTMLDivElement | null>(null);
   const paymentFilterRef = useRef<HTMLDivElement | null>(null);
   const columnsMenuRef = useRef<HTMLDivElement | null>(null);
-  const supplierOrdersTableWrapRef = useRef<HTMLDivElement | null>(null);
+  const supplierOrdersTableWrapRef = useRef<HTMLDivElement | null>(
+    null,
+  );
   const [visibleColumns, setVisibleColumns] = useState<
     SupplierOrdersColumnKey[]
   >(() =>
@@ -186,8 +208,10 @@ export const SupplierOrdersWorkspace = ({
 
   const [selectedSupplierForEdit, setSelectedSupplierForEdit] =
     useState<Supplier | null>(null);
-  const [selectedCatalogProductForEdit, setSelectedCatalogProductForEdit] =
-    useState<CatalogProduct | null>(null);
+  const [
+    selectedCatalogProductForEdit,
+    setSelectedCatalogProductForEdit,
+  ] = useState<CatalogProduct | null>(null);
   const [supplierEditForm, setSupplierEditForm] = useState({
     name: '',
     phone: '',
@@ -201,8 +225,12 @@ export const SupplierOrdersWorkspace = ({
   });
   const [isSupplierSaving, setIsSupplierSaving] = useState(false);
   const [isProductSaving, setIsProductSaving] = useState(false);
-  const [defaultTakeOnChargeWarehouse, setDefaultTakeOnChargeWarehouse] =
-    useState<{ warehouseId: string; locationId: string } | null>(null);
+  const [
+    defaultTakeOnChargeWarehouse,
+    setDefaultTakeOnChargeWarehouse,
+  ] = useState<{ warehouseId: string; locationId: string } | null>(
+    null,
+  );
 
   useEffect(() => {
     const closeMenusOnOutsideClick = (event: MouseEvent) => {
@@ -244,9 +272,17 @@ export const SupplierOrdersWorkspace = ({
 
     document.addEventListener('mousedown', closeMenusOnOutsideClick);
     return () => {
-      document.removeEventListener('mousedown', closeMenusOnOutsideClick);
+      document.removeEventListener(
+        'mousedown',
+        closeMenusOnOutsideClick,
+      );
     };
-  }, [isColumnsMenuOpen, isPaymentFilterOpen, isStatusFilterOpen, openStatusOrder]);
+  }, [
+    isColumnsMenuOpen,
+    isPaymentFilterOpen,
+    isStatusFilterOpen,
+    openStatusOrder,
+  ]);
 
   useEffect(() => {
     if (!openStatusOrder) {
@@ -255,7 +291,8 @@ export const SupplierOrdersWorkspace = ({
     }
 
     const previousBodyOverflow = document.body.style.overflow;
-    const previousDocumentOverflow = document.documentElement.style.overflow;
+    const previousDocumentOverflow =
+      document.documentElement.style.overflow;
     const tableWrap = supplierOrdersTableWrapRef.current;
     const previousTableWrapOverflow = tableWrap?.style.overflow ?? '';
 
@@ -265,9 +302,12 @@ export const SupplierOrdersWorkspace = ({
       tableWrap.style.overflow = 'hidden';
     }
 
-    const preventBackgroundScroll = (event: WheelEvent | TouchEvent) => {
+    const preventBackgroundScroll = (
+      event: WheelEvent | TouchEvent,
+    ) => {
       const target = event.target as HTMLElement | null;
-      if (target?.closest('.supplier-order-status-menu-portal')) return;
+      if (target?.closest('.supplier-order-status-menu-portal'))
+        return;
       event.preventDefault();
     };
 
@@ -285,12 +325,16 @@ export const SupplierOrdersWorkspace = ({
     window.addEventListener('resize', closeStatusMenu);
     return () => {
       document.body.style.overflow = previousBodyOverflow;
-      document.documentElement.style.overflow = previousDocumentOverflow;
+      document.documentElement.style.overflow =
+        previousDocumentOverflow;
       if (tableWrap) {
         tableWrap.style.overflow = previousTableWrapOverflow;
       }
       document.removeEventListener('wheel', preventBackgroundScroll);
-      document.removeEventListener('touchmove', preventBackgroundScroll);
+      document.removeEventListener(
+        'touchmove',
+        preventBackgroundScroll,
+      );
       window.removeEventListener('resize', closeStatusMenu);
     };
   }, [openStatusOrder]);
@@ -391,7 +435,8 @@ export const SupplierOrdersWorkspace = ({
     );
   }, [visibleColumns]);
 
-  const activeFiltersCount = getActiveSupplierOrdersFiltersCount(appliedFilters);
+  const activeFiltersCount =
+    getActiveSupplierOrdersFiltersCount(appliedFilters);
   const query = appliedFilters.query;
   const favoritesOnly = appliedFilters.favoritesOnly;
   const canManageSavedFilters = Boolean(currentEmployeeId);
@@ -401,10 +446,15 @@ export const SupplierOrdersWorkspace = ({
       const name = order.createdBy.trim();
       if (name) names.add(name);
     }
-    return [...names].sort((first, second) => first.localeCompare(second));
+    return [...names].sort((first, second) =>
+      first.localeCompare(second),
+    );
   }, [orders]);
   const supplierLabelById = useMemo(
-    () => new Map(suppliers.map((supplier) => [supplier.id, supplier.name])),
+    () =>
+      new Map(
+        suppliers.map((supplier) => [supplier.id, supplier.name]),
+      ),
     [suppliers],
   );
   const visibleSavedFilters = useMemo(
@@ -412,27 +462,25 @@ export const SupplierOrdersWorkspace = ({
       savedFilters.filter(
         (item) =>
           item.tab === 'supplierOrders' &&
-          (!currentEmployeeId || item.employeeId === currentEmployeeId),
+          (!currentEmployeeId ||
+            item.employeeId === currentEmployeeId),
       ),
     [currentEmployeeId, savedFilters],
   );
 
-  const commitFilters = useCallback(
-    (next: SupplierOrdersFilters) => {
-      const sanitized: SupplierOrdersFilters = {
-        ...next,
-        query: next.query,
-        orderNumber: next.orderNumber.trim(),
-        product: next.product.trim(),
-        createdBy: next.createdBy.trim(),
-        supplierId: next.supplierId,
-      };
-      setAppliedFilters(sanitized);
-      setDraftFilters(sanitized);
-      setPage(1);
-    },
-    [],
-  );
+  const commitFilters = useCallback((next: SupplierOrdersFilters) => {
+    const sanitized: SupplierOrdersFilters = {
+      ...next,
+      query: next.query,
+      orderNumber: next.orderNumber.trim(),
+      product: next.product.trim(),
+      createdBy: next.createdBy.trim(),
+      supplierId: next.supplierId,
+    };
+    setAppliedFilters(sanitized);
+    setDraftFilters(sanitized);
+    setPage(1);
+  }, []);
 
   const applyFilters = () => {
     commitFilters({
@@ -456,7 +504,9 @@ export const SupplierOrdersWorkspace = ({
     setIsPaymentFilterOpen(false);
   };
 
-  const toggleColumnVisibility = (columnKey: SupplierOrdersColumnKey) => {
+  const toggleColumnVisibility = (
+    columnKey: SupplierOrdersColumnKey,
+  ) => {
     if (supplierOrdersLockedColumns.includes(columnKey)) return;
     setVisibleColumns((current) =>
       current.includes(columnKey)
@@ -479,7 +529,8 @@ export const SupplierOrdersWorkspace = ({
     let cancelled = false;
     void (async () => {
       try {
-        const remote = await listSavedFilters<SupplierOrdersFilters>('orders');
+        const remote =
+          await listSavedFilters<SupplierOrdersFilters>('orders');
         if (!cancelled) {
           setSavedFilters(remote);
         }
@@ -573,17 +624,20 @@ export const SupplierOrdersWorkspace = ({
     setIsModalOpen(true);
   };
 
-  const toggleSupplierOrderExpanded = useCallback((orderId: string) => {
-    setExpandedSupplierOrderIds((current) => {
-      const next = new Set(current);
-      if (next.has(orderId)) {
-        next.delete(orderId);
-      } else {
-        next.add(orderId);
-      }
-      return next;
-    });
-  }, []);
+  const toggleSupplierOrderExpanded = useCallback(
+    (orderId: string) => {
+      setExpandedSupplierOrderIds((current) => {
+        const next = new Set(current);
+        if (next.has(orderId)) {
+          next.delete(orderId);
+        } else {
+          next.add(orderId);
+        }
+        return next;
+      });
+    },
+    [],
+  );
 
   const updateSupplierOrderStatus = async (
     order: SupplierOrder,
@@ -593,7 +647,9 @@ export const SupplierOrdersWorkspace = ({
       order,
       nextStatus,
       // Keep `null` for multi-item parent rows (bulk take-on-charge).
-      itemIndex: openStatusOrder ? openStatusOrder.itemIndex : undefined,
+      itemIndex: openStatusOrder
+        ? openStatusOrder.itemIndex
+        : undefined,
       defaultWarehouse: defaultTakeOnChargeWarehouse,
       takeOnCharge: async ({
         supplierOrderId,
@@ -617,7 +673,11 @@ export const SupplierOrdersWorkspace = ({
             ...(itemIndex === undefined ? {} : { itemIndex }),
           },
         }),
-      updateOrder: async ({ supplierOrderId, order: source, nextStatus: status }) => {
+      updateOrder: async ({
+        supplierOrderId,
+        order: source,
+        nextStatus: status,
+      }) => {
         await updateSupplierOrderMutation.mutateAsync({
           supplierOrderId,
           payload: {
@@ -641,9 +701,13 @@ export const SupplierOrdersWorkspace = ({
     setOpenStatusOrder(null);
   };
 
-  const toggleSupplierOrderFavorite = async (order: SupplierOrder) => {
+  const toggleSupplierOrderFavorite = async (
+    order: SupplierOrder,
+  ) => {
     if (!canManageSupplierOrders) {
-      onError(t('orders.supplier.messages.errors.noManagePermission'));
+      onError(
+        t('orders.supplier.messages.errors.noManagePermission'),
+      );
       return;
     }
 
@@ -706,11 +770,14 @@ export const SupplierOrdersWorkspace = ({
   const saveSelectedCatalogProduct = async () => {
     if (!selectedCatalogProductForEdit) return;
     setIsProductSaving(true);
-    const ok = await onUpdateCatalogProduct(selectedCatalogProductForEdit.id, {
-      name: productEditForm.name.trim(),
-      note: productEditForm.note.trim(),
-      isActive: productEditForm.isActive,
-    });
+    const ok = await onUpdateCatalogProduct(
+      selectedCatalogProductForEdit.id,
+      {
+        name: productEditForm.name.trim(),
+        note: productEditForm.note.trim(),
+        isActive: productEditForm.isActive,
+      },
+    );
     setIsProductSaving(false);
     if (!ok) return;
     onSuccess(t('orders.supplier.messages.success.productUpdated'));
@@ -740,7 +807,9 @@ export const SupplierOrdersWorkspace = ({
         onToggleTabVisibility={onToggleTabVisibility}
         onCreateOrder={() => {
           if (!canManageSupplierOrders) {
-            onError(t('orders.supplier.messages.errors.noManagePermission'));
+            onError(
+              t('orders.supplier.messages.errors.noManagePermission'),
+            );
             return;
           }
           setEditingOrder(null);
@@ -826,11 +895,17 @@ export const SupplierOrdersWorkspace = ({
           }}
           onOpenCatalogProduct={setSelectedCatalogProductForEdit}
           onOpenSupplier={setSelectedSupplierForEdit}
-          onToggleFavorite={(order) => void toggleSupplierOrderFavorite(order)}
+          onToggleFavorite={(order) =>
+            void toggleSupplierOrderFavorite(order)
+          }
           onToggleOrderExpanded={toggleSupplierOrderExpanded}
           onOpenStatusOrder={(key, order, itemIndex, rect) => {
             if (!canManageSupplierOrders) {
-              onError(t('orders.supplier.messages.errors.noManagePermission'));
+              onError(
+                t(
+                  'orders.supplier.messages.errors.noManagePermission',
+                ),
+              );
               return;
             }
             if (openStatusOrder?.key === key) {
@@ -882,33 +957,34 @@ export const SupplierOrdersWorkspace = ({
         }) => {
           if (!canManageSupplierOrders) return;
           if (!editingOrder) return;
-          const orderId =
-            editingOrderSource?.id ?? editingOrder.id;
-          const result = await takeOnChargeSupplierOrderMutation.mutateAsync({
-            supplierOrderId: orderId,
-            payload: {
-              autoGenerateSerialNumbers,
-              serialNumbers,
-              autoGenerateArticles,
-              articleBase: articleBase.trim().toUpperCase(),
-              itemIndex:
-                editingOrderItemIndex === null
-                  ? undefined
-                  : editingOrderItemIndex,
-              warehouseId,
-              locationId,
-            },
-          });
+          const orderId = editingOrderSource?.id ?? editingOrder.id;
+          const result =
+            await takeOnChargeSupplierOrderMutation.mutateAsync({
+              supplierOrderId: orderId,
+              payload: {
+                autoGenerateSerialNumbers,
+                serialNumbers,
+                autoGenerateArticles,
+                articleBase: articleBase.trim().toUpperCase(),
+                itemIndex:
+                  editingOrderItemIndex === null
+                    ? undefined
+                    : editingOrderItemIndex,
+                warehouseId,
+                locationId,
+              },
+            });
           onSuccess(t('orders.supplier.messages.success.stocked'));
           notifyFinanceUpdated();
-          window.dispatchEvent(new Event('project-goods:products-updated'));
+          window.dispatchEvent(
+            new Event('project-goods:products-updated'),
+          );
           return result;
         }}
         onCancelOrder={async () => {
           if (!canManageSupplierOrders) return;
           if (!editingOrder) return;
-          const orderId =
-            editingOrderSource?.id ?? editingOrder.id;
+          const orderId = editingOrderSource?.id ?? editingOrder.id;
           await cancelSupplierOrderMutation.mutateAsync(orderId);
           onSuccess(t('orders.supplier.messages.success.cancelled'));
           notifyFinanceUpdated();
@@ -922,8 +998,7 @@ export const SupplierOrdersWorkspace = ({
               ? (editingOrder.items[0]?.itemIndex ?? 0)
               : null);
           if (itemIndex === null) return;
-          const orderId =
-            editingOrderSource?.id ?? editingOrder.id;
+          const orderId = editingOrderSource?.id ?? editingOrder.id;
           await cancelSupplierOrderItemMutation.mutateAsync({
             supplierOrderId: orderId,
             payload: {
@@ -931,17 +1006,24 @@ export const SupplierOrdersWorkspace = ({
               reason,
             },
           });
-          onSuccess(t('orders.supplier.messages.success.itemCancelled'));
+          onSuccess(
+            t('orders.supplier.messages.success.itemCancelled'),
+          );
           notifyFinanceUpdated();
         }}
         isItemScopedView={
           editingOrderItemIndex !== null &&
-          (editingOrderSource?.items.length ?? editingOrder?.items.length ?? 0) >
-            1
+          (editingOrderSource?.items.length ??
+            editingOrder?.items.length ??
+            0) > 1
         }
-        onSubmit={async (payload: SupplierOrderModalSubmitPayload) => {
+        onSubmit={async (
+          payload: SupplierOrderModalSubmitPayload,
+        ) => {
           if (!canManageSupplierOrders) {
-            onError(t('orders.supplier.messages.errors.noManagePermission'));
+            onError(
+              t('orders.supplier.messages.errors.noManagePermission'),
+            );
             return;
           }
           try {
@@ -960,7 +1042,9 @@ export const SupplierOrdersWorkspace = ({
                 ...basePayload,
                 orderBaseId: `SO-${Date.now()}`,
               });
-              onSuccess(t('orders.supplier.messages.success.created'));
+              onSuccess(
+                t('orders.supplier.messages.success.created'),
+              );
             } else {
               await updateSupplierOrderMutation.mutateAsync({
                 supplierOrderId: editingOrder.id,
@@ -969,7 +1053,9 @@ export const SupplierOrdersWorkspace = ({
                   orderBaseId: editingOrder.orderBaseId,
                 },
               });
-              onSuccess(t('orders.supplier.messages.success.updated'));
+              onSuccess(
+                t('orders.supplier.messages.success.updated'),
+              );
             }
           } catch (error) {
             onError(

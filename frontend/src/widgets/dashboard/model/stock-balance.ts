@@ -1,7 +1,7 @@
-import type { Product } from '../../../entities/product/model/types';
-import type { Sale } from '../../../entities/sale/model/types';
-import { getSaleProductSerialNumber } from '../../../entities/sale/lib/sale-product';
-import type { SupplierOrder } from '../../../entities/supplier-order/model/types';
+import type { Product } from '../../../entities/product';
+import type { Sale } from '../../../entities/sale';
+import { getSaleProductSerialNumber } from '../../../entities/sale';
+import type { SupplierOrder } from '../../../entities/supplier-order';
 import { buildSupplierOrderItemNumber } from './supplier-order-utils';
 
 export type StockSearchMode =

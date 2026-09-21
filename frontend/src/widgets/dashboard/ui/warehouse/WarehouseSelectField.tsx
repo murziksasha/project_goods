@@ -1,8 +1,9 @@
+import type React from 'react';
 import { useTranslation } from 'react-i18next';
-import type { WarehouseItem } from '../../../../entities/warehouse-settings/model/types';
+import type { WarehouseItem } from '../../../../entities/warehouse-settings';
 import { getActiveWarehouseOptions } from '../../model/warehouse-serial-filter';
 
-type WarehouseSelectFieldProps = {
+export interface WarehouseSelectFieldProps {
   warehouses: WarehouseItem[];
   value: string;
   onChange: (warehouseId: string) => void;
@@ -11,14 +12,14 @@ type WarehouseSelectFieldProps = {
   labelKey?: string;
 };
 
-export const WarehouseSelectField = ({
+export const WarehouseSelectField: React.FC<WarehouseSelectFieldProps> = ({
   warehouses,
   value,
   onChange,
   disabled = false,
   className,
   labelKey = 'orders.rapidSale.warehouse',
-}: WarehouseSelectFieldProps) => {
+}) => {
   const { t } = useTranslation();
   const options = getActiveWarehouseOptions(warehouses);
 

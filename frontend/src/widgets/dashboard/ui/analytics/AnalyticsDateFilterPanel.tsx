@@ -1,7 +1,8 @@
+import type React from 'react';
 import { useTranslation } from 'react-i18next';
 import type { AnalyticsDateRange } from '../../model/analytics-date-range';
 
-type AnalyticsDateFilterPanelProps = {
+export interface AnalyticsDateFilterPanelProps {
   draftRange: AnalyticsDateRange;
   isOpen: boolean;
   onDraftRangeChange: (range: AnalyticsDateRange) => void;
@@ -10,14 +11,14 @@ type AnalyticsDateFilterPanelProps = {
   onClose: () => void;
 };
 
-export const AnalyticsDateFilterPanel = ({
+export const AnalyticsDateFilterPanel: React.FC<AnalyticsDateFilterPanelProps> = ({
   draftRange,
   isOpen,
   onDraftRangeChange,
   onApply,
   onClear,
   onClose,
-}: AnalyticsDateFilterPanelProps) => {
+}) => {
   const { t } = useTranslation();
 
   return (

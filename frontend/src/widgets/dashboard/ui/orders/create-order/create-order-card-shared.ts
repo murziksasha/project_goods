@@ -1,9 +1,9 @@
-import type { ClientHistory } from '../../../../../entities/client/model/types';
-import type { ClientDevice } from '../../../../../entities/client-device/model/types';
+import type { ClientHistory } from '../../../../../entities/client';
+import type { ClientDevice } from '../../../../../entities/client-device';
 import {
   getSaleProductName,
   getSaleProductSerialNumber,
-} from '../../../../../entities/sale/lib/sale-product';
+} from '../../../../../entities/sale';
 import type { CreateOrderRequestPayload } from '../../../model/order-request';
 import { createRuntimeId } from '../../../../../shared/lib/runtime-id';
 import { parseDecimal } from '../../../../../shared/lib/decimal';

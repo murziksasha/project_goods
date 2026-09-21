@@ -1,13 +1,14 @@
+import type React from 'react';
 import { useEffect, useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { FinanceCategory } from '../../../../entities/finance/model/types';
+import type { FinanceCategory } from '../../../../entities/finance';
 import {
   getFinanceCategoryLabel,
   getWithdrawDropdownCategories,
   withFallbackWithdrawCategories,
-} from '../../../../entities/finance/model/category-label';
+} from '../../../../entities/finance';
 
-type FinanceCategorySelectProps = {
+export interface FinanceCategorySelectProps {
   categories: FinanceCategory[];
   value: string;
   canAdd?: boolean;
@@ -16,14 +17,14 @@ type FinanceCategorySelectProps = {
   onAdd: () => void;
 };
 
-export const FinanceCategorySelect = ({
+export const FinanceCategorySelect: React.FC<FinanceCategorySelectProps> = ({
   categories,
   value,
   canAdd = false,
   disabled = false,
   onChange,
   onAdd,
-}: FinanceCategorySelectProps) => {
+}) => {
   const { t } = useTranslation();
   const listboxId = useId();
   const rootRef = useRef<HTMLDivElement>(null);

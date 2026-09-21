@@ -1,3 +1,4 @@
+import type React from 'react';
 import {
   useCallback,
   useEffect,
@@ -6,9 +7,9 @@ import {
   useState,
 } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { CatalogProduct } from '../../../../entities/catalog-product/model/types';
-import type { Product } from '../../../../entities/product/model/types';
-import { printSerialNumbers } from '../../../../shared/lib/serialPrint';
+import type { CatalogProduct } from '../../../../entities/catalog-product';
+import type { Product } from '../../../../entities/product';
+import { printSerialNumbers } from '../orders/workspace/orders-workspace-shared';
 import {
   normalizeDecimalInput,
   parseDecimal,
@@ -25,25 +26,25 @@ import {
   useTakeOnChargeSupplierOrderMutation,
   useUpdateSupplierOrderFavoriteMutation,
   useUpdateSupplierOrderMutation,
-} from '../../../../entities/supplier-order/api/supplierOrderApi';
+} from '../../../../entities/supplier-order';
 import {
   SupplierOrderModal,
   type SupplierOrderModalSubmitPayload,
 } from '../orders/modals/SupplierOrderModal';
-import type { Supplier } from '../../../../entities/supplier/model/types';
+import type { Supplier } from '../../../../entities/supplier';
 import type {
   SupplierOrder,
   SupplierOrderFormValues,
-} from '../../../../entities/supplier-order/model/types';
+} from '../../../../entities/supplier-order';
 import {
   useUpdateWarehouseSettingsMutation,
   useWarehouseSettingsQuery,
-} from '../../../../entities/warehouse-settings/api/warehouseSettingsApi';
+} from '../../../../entities/warehouse-settings';
 import {
   createSavedFilter as createSavedFilterRequest,
   deleteSavedFilter as deleteSavedFilterRequest,
   listSavedFilters,
-} from '../../../../entities/saved-filter/api/savedFilterApi';
+} from '../../../../entities/saved-filter';
 import {
   buildSupplierOrderItemNumber,
   getSupplierOrderDisplayNumber,
@@ -113,7 +114,7 @@ import {
   type WarehouseSearchMode,
   type WarehouseTab,
 } from '../../model/warehouse-panel';
-export const WarehousePanel = ({
+export const WarehousePanel: React.FC<WarehousePanelProps> = ({
   printForms,
   products,
   sales,
@@ -138,7 +139,7 @@ export const WarehousePanel = ({
   onSuccess,
   onError,
   onOpenSaleCard,
-}: WarehousePanelProps) => {
+}) => {
   const { t, i18n } = useTranslation();
   const supplierOrdersQuery = useSupplierOrdersQuery(
     canViewSupplierOrders,

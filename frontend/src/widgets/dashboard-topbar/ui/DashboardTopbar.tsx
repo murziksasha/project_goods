@@ -1,3 +1,4 @@
+import type React from 'react';
 import {
   useCallback,
   useEffect,
@@ -10,7 +11,7 @@ import { useTranslation } from 'react-i18next';
 import { LanguageSwitcher } from '../../../shared/ui/LanguageSwitcher';
 import { ThemeSwitcher } from '../../../shared/ui/ThemeSwitcher';
 
-type DashboardTopbarProps = {
+export interface DashboardTopbarProps {
   serviceName: string;
   isSidebarCollapsed: boolean;
   isMobileNavOpen?: boolean;
@@ -23,9 +24,9 @@ type DashboardTopbarProps = {
   onToggleSidebar: () => void;
   onReloadData: () => void;
   onLogout: () => void;
-};
+}
 
-export const DashboardTopbar = ({
+export const DashboardTopbar: React.FC<DashboardTopbarProps> = ({
   serviceName,
   isSidebarCollapsed,
   isMobileNavOpen = false,
@@ -38,13 +39,15 @@ export const DashboardTopbar = ({
   onToggleSidebar,
   onReloadData,
   onLogout,
-}: DashboardTopbarProps) => {
+}) => {
   const { t } = useTranslation();
   const [isMoreOpen, setIsMoreOpen] = useState(false);
   const morePanelId = useId();
   const moreRootRef = useRef<HTMLDivElement | null>(null);
 
-  const menuExpanded = isNarrowLayout ? isMobileNavOpen : !isSidebarCollapsed;
+  const menuExpanded = isNarrowLayout
+    ? isMobileNavOpen
+    : !isSidebarCollapsed;
   const menuAriaLabel = isNarrowLayout
     ? isMobileNavOpen
       ? t('common.collapseMenu')
@@ -60,7 +63,11 @@ export const DashboardTopbar = ({
 
     const onPointerDown = (event: MouseEvent | TouchEvent) => {
       const target = event.target as Node | null;
-      if (moreRootRef.current && target && !moreRootRef.current.contains(target)) {
+      if (
+        moreRootRef.current &&
+        target &&
+        !moreRootRef.current.contains(target)
+      ) {
         closeMore();
       }
     };
@@ -84,39 +91,45 @@ export const DashboardTopbar = ({
     : null;
 
   return (
-    <header className="topbar">
-      <div className="topbar-left">
+    <header className='topbar'>
+      <div className='topbar-left'>
         <button
-          type="button"
-          className="topbar-menu-button"
+          type='button'
+          className='topbar-menu-button'
           aria-label={menuAriaLabel}
           aria-expanded={menuExpanded}
-          aria-controls={isNarrowLayout ? 'dashboard-mobile-sidebar' : undefined}
+          aria-controls={
+            isNarrowLayout ? 'dashboard-mobile-sidebar' : undefined
+          }
           onClick={onToggleSidebar}
         >
           &#9776;
         </button>
-        <p className="topbar-title">{serviceName || t('common.serviceCRM')}</p>
+        <p className='topbar-title'>
+          {serviceName || t('common.serviceCRM')}
+        </p>
         {primaryActions ? (
-          <div className="topbar-primary-actions">{primaryActions}</div>
+          <div className='topbar-primary-actions'>
+            {primaryActions}
+          </div>
         ) : null}
         {onOpenCommandPalette ? (
           <button
-            type="button"
-            className="topbar-command-button topbar-desktop-only"
+            type='button'
+            className='topbar-command-button topbar-desktop-only'
             onClick={onOpenCommandPalette}
             title={t('commandPalette.title')}
             aria-label={t('commandPalette.title')}
           >
-            <span aria-hidden="true">⌘K</span>
+            <span aria-hidden='true'>⌘K</span>
           </button>
         ) : null}
       </div>
 
       {syncLabel ? (
         <button
-          type="button"
-          className="topbar-sync-label topbar-sync-button topbar-desktop-only"
+          type='button'
+          className='topbar-sync-label topbar-sync-button topbar-desktop-only'
           title={t('common.reloadData')}
           onClick={onReloadData}
         >
@@ -124,56 +137,73 @@ export const DashboardTopbar = ({
         </button>
       ) : null}
 
-      <div className="topbar-actions topbar-desktop-only">
+      <div className='topbar-actions topbar-desktop-only'>
         <ThemeSwitcher />
         <LanguageSwitcher />
-        <div className="topbar-current-user" title={currentEmployee.name}>
-          <span className="topbar-current-user-name">{currentEmployee.name}</span>
-          <span className="topbar-current-user-role">{currentEmployee.role}</span>
+        <div
+          className='topbar-current-user'
+          title={currentEmployee.name}
+        >
+          <span className='topbar-current-user-name'>
+            {currentEmployee.name}
+          </span>
+          <span className='topbar-current-user-role'>
+            {currentEmployee.role}
+          </span>
         </div>
-        <button type="button" className="ghost-button" onClick={onLogout}>
+        <button
+          type='button'
+          className='ghost-button'
+          onClick={onLogout}
+        >
           {t('common.logout')}
         </button>
       </div>
 
-      <div className="topbar-more topbar-mobile-only" ref={moreRootRef}>
+      <div
+        className='topbar-more topbar-mobile-only'
+        ref={moreRootRef}
+      >
         <button
-          type="button"
-          className="topbar-more-button"
+          type='button'
+          className='topbar-more-button'
           aria-label={t('common.moreActions')}
-          aria-haspopup="true"
+          aria-haspopup='true'
           aria-expanded={isMoreOpen}
           aria-controls={morePanelId}
           onClick={() => setIsMoreOpen((open) => !open)}
         >
-          <span aria-hidden="true">⋯</span>
+          <span aria-hidden='true'>⋯</span>
         </button>
         {isMoreOpen ? (
           <div
             id={morePanelId}
-            className="topbar-more-panel"
-            role="region"
+            className='topbar-more-panel'
+            role='region'
             aria-label={t('common.moreActions')}
           >
             {onOpenCommandPalette ? (
               <button
-                type="button"
-                className="topbar-more-item"
+                type='button'
+                className='topbar-more-item'
                 onClick={() => {
                   closeMore();
                   onOpenCommandPalette();
                 }}
               >
                 <span>{t('commandPalette.title')}</span>
-                <span className="topbar-more-item-meta" aria-hidden="true">
+                <span
+                  className='topbar-more-item-meta'
+                  aria-hidden='true'
+                >
                   ⌘K
                 </span>
               </button>
             ) : null}
             {syncLabel ? (
               <button
-                type="button"
-                className="topbar-more-item topbar-sync-button"
+                type='button'
+                className='topbar-more-item topbar-sync-button'
                 title={t('common.reloadData')}
                 onClick={() => {
                   closeMore();
@@ -183,17 +213,24 @@ export const DashboardTopbar = ({
                 {syncLabel}
               </button>
             ) : null}
-            <div className="topbar-more-section">
+            <div className='topbar-more-section'>
               <ThemeSwitcher />
               <LanguageSwitcher />
             </div>
-            <div className="topbar-more-user" title={currentEmployee.name}>
-              <span className="topbar-current-user-name">{currentEmployee.name}</span>
-              <span className="topbar-current-user-role">{currentEmployee.role}</span>
+            <div
+              className='topbar-more-user'
+              title={currentEmployee.name}
+            >
+              <span className='topbar-current-user-name'>
+                {currentEmployee.name}
+              </span>
+              <span className='topbar-current-user-role'>
+                {currentEmployee.role}
+              </span>
             </div>
             <button
-              type="button"
-              className="ghost-button topbar-more-logout"
+              type='button'
+              className='ghost-button topbar-more-logout'
               onClick={() => {
                 closeMore();
                 onLogout();

@@ -9,34 +9,38 @@ import {
 } from '@testing-library/react';
 import type { ReactElement } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { CatalogProduct } from '../../../../../entities/catalog-product/model/types';
-import type { Supplier } from '../../../../../entities/supplier/model/types';
-import type { SupplierOrder } from '../../../../../entities/supplier-order/model/types';
+import type { CatalogProduct } from '../../../../../entities/catalog-product';
+import type { Supplier } from '../../../../../entities/supplier';
+import type { SupplierOrder } from '../../../../../entities/supplier-order';
 import { SupplierOrderModal } from './SupplierOrderModal';
 
-const { getWarehouseSettingsMock, getCatalogProductsMock } = vi.hoisted(() => ({
-  getWarehouseSettingsMock: vi.fn(async () => ({
-    warehouses: [
-      {
-        id: 'wh-main',
-        name: 'Main warehouse',
-        isActive: true,
-        serviceCenterId: 'sc-1',
-        receiptAddress: '',
-        receiptPhone: '',
-        locations: [{ id: 'loc-1', name: 'Shelf A' }],
-      },
-    ],
-  })),
-  getCatalogProductsMock: vi.fn(async (): Promise<CatalogProduct[]> => []),
-}));
+const { getWarehouseSettingsMock, getCatalogProductsMock } =
+  vi.hoisted(() => ({
+    getWarehouseSettingsMock: vi.fn(async () => ({
+      warehouses: [
+        {
+          id: 'wh-main',
+          name: 'Main warehouse',
+          isActive: true,
+          serviceCenterId: 'sc-1',
+          receiptAddress: '',
+          receiptPhone: '',
+          locations: [{ id: 'loc-1', name: 'Shelf A' }],
+        },
+      ],
+    })),
+    getCatalogProductsMock: vi.fn(
+      async (): Promise<CatalogProduct[]> => [],
+    ),
+  }));
 
 vi.mock(
-  '../../../../../entities/warehouse-settings/api/warehouseSettingsApi',
+  '../../../../../entities/warehouse-settings',
   async (importOriginal) => {
-    const actual = await importOriginal<
-      typeof import('../../../../../entities/warehouse-settings/api/warehouseSettingsApi')
-    >();
+    const actual =
+      await importOriginal<
+        typeof import('../../../../../entities/warehouse-settings')
+      >();
     return {
       ...actual,
       getWarehouseSettings: getWarehouseSettingsMock,
@@ -45,11 +49,12 @@ vi.mock(
 );
 
 vi.mock(
-  '../../../../../entities/catalog-product/api/catalogProductApi',
+  '../../../../../entities/catalog-product',
   async (importOriginal) => {
-    const actual = await importOriginal<
-      typeof import('../../../../../entities/catalog-product/api/catalogProductApi')
-    >();
+    const actual =
+      await importOriginal<
+        typeof import('../../../../../entities/catalog-product')
+      >();
     return {
       ...actual,
       getCatalogProducts: getCatalogProductsMock,
@@ -91,7 +96,9 @@ const baseProps = () => ({
 const renderModal = (ui: ReactElement) => render(ui);
 
 const getActiveProductRow = (container: HTMLElement) =>
-  container.querySelector('.supplier-order-product-row') as HTMLElement;
+  container.querySelector(
+    '.supplier-order-product-row',
+  ) as HTMLElement;
 
 const getStepperInput = (root: HTMLElement, label: string) =>
   within(root).getByRole('textbox', { name: label });
@@ -113,16 +120,24 @@ describe('SupplierOrderModal price/qty steppers', () => {
   });
 
   it('renders NumberStepper controls for active row price and qty', () => {
-    const { container } = renderModal(<SupplierOrderModal {...baseProps()} />);
+    const { container } = renderModal(
+      <SupplierOrderModal {...baseProps()} />,
+    );
     const productRow = getActiveProductRow(container);
 
-    expect(productRow.querySelectorAll('.number-stepper')).toHaveLength(2);
-    expect(getStepperInput(productRow, 'Price (UAH)')).toBeInTheDocument();
+    expect(
+      productRow.querySelectorAll('.number-stepper'),
+    ).toHaveLength(2);
+    expect(
+      getStepperInput(productRow, 'Price (UAH)'),
+    ).toBeInTheDocument();
     expect(getStepperInput(productRow, 'Qty')).toBeInTheDocument();
   });
 
   it('increments active row qty and price by one unit', () => {
-    const { container } = renderModal(<SupplierOrderModal {...baseProps()} />);
+    const { container } = renderModal(
+      <SupplierOrderModal {...baseProps()} />,
+    );
     const productRow = getActiveProductRow(container);
     const priceInput = getStepperInput(productRow, 'Price (UAH)');
     const qtyInput = getStepperInput(productRow, 'Qty');
@@ -172,9 +187,11 @@ describe('SupplierOrderModal price/qty steppers', () => {
       priceInput.closest('.number-stepper') as HTMLElement
     ).querySelectorAll('.number-stepper-controls button');
     expect(priceButtons).toHaveLength(2);
-    expect(Array.from(priceButtons).every((button) => button.hasAttribute('disabled'))).toBe(
-      true,
-    );
+    expect(
+      Array.from(priceButtons).every((button) =>
+        button.hasAttribute('disabled'),
+      ),
+    ).toBe(true);
   });
 
   it('renders basket row steppers and increments qty by one', () => {
@@ -229,7 +246,9 @@ describe('SupplierOrderModal price/qty steppers', () => {
     expect(basketRows).toHaveLength(2);
 
     const secondBasketRow = basketRows[1] as HTMLElement;
-    expect(secondBasketRow.querySelectorAll('.number-stepper')).toHaveLength(2);
+    expect(
+      secondBasketRow.querySelectorAll('.number-stepper'),
+    ).toHaveLength(2);
 
     const qtyInput = getStepperInput(secondBasketRow, 'Qty');
 
@@ -288,14 +307,20 @@ describe('SupplierOrderModal price/qty steppers', () => {
       />,
     );
 
-    expect(container.querySelectorAll('.supplier-order-basket-row')).toHaveLength(
-      1,
-    );
-    expect(screen.getByDisplayValue('Android TV box')).toBeInTheDocument();
+    expect(
+      container.querySelectorAll('.supplier-order-basket-row'),
+    ).toHaveLength(1);
+    expect(
+      screen.getByDisplayValue('Android TV box'),
+    ).toBeInTheDocument();
 
-    const productInput = screen.getByPlaceholderText('Type to search and add');
+    const productInput = screen.getByPlaceholderText(
+      'Type to search and add',
+    );
     fireEvent.focus(productInput);
-    fireEvent.change(productInput, { target: { value: 'USB Hub 4 ports' } });
+    fireEvent.change(productInput, {
+      target: { value: 'USB Hub 4 ports' },
+    });
 
     await waitFor(() => {
       expect(getCatalogProductsMock).toHaveBeenCalled();
@@ -306,16 +331,22 @@ describe('SupplierOrderModal price/qty steppers', () => {
     fireEvent.click(suggestion.closest('button') ?? suggestion);
 
     fireEvent.click(
-      screen.getByRole('button', { name: 'Add product to order list' }),
+      screen.getByRole('button', {
+        name: 'Add product to order list',
+      }),
     );
 
     await waitFor(() => {
-      expect(container.querySelectorAll('.supplier-order-basket-row')).toHaveLength(
-        2,
-      );
+      expect(
+        container.querySelectorAll('.supplier-order-basket-row'),
+      ).toHaveLength(2);
     });
-    expect(screen.getByDisplayValue('Android TV box')).toBeInTheDocument();
-    expect(screen.getByDisplayValue('USB Hub 4 ports')).toBeInTheDocument();
+    expect(
+      screen.getByDisplayValue('Android TV box'),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByDisplayValue('USB Hub 4 ports'),
+    ).toBeInTheDocument();
   });
 
   it('blocks take-on-charge when items are dirty vs saved order', () => {
@@ -365,7 +396,9 @@ describe('SupplierOrderModal price/qty steppers', () => {
     const qtyInput = getStepperInput(basketRow, 'Qty');
     clickStepperIncrement(qtyInput);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Receive to stock' }));
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Receive to stock' }),
+    );
 
     expect(onError).toHaveBeenCalledWith(
       'Save the order before taking it on charge. Unsaved line items are not stocked.',
@@ -499,7 +532,9 @@ describe('SupplierOrderModal cancel actions', () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole('button', { name: 'Cancel order' }));
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Cancel order' }),
+    );
     expect(onCancelOrder).not.toHaveBeenCalled();
     expect(
       screen.getByText(
@@ -507,7 +542,9 @@ describe('SupplierOrderModal cancel actions', () => {
       ),
     ).toBeInTheDocument();
 
-    fireEvent.click(screen.getAllByRole('button', { name: 'Cancel order' })[1]);
+    fireEvent.click(
+      screen.getAllByRole('button', { name: 'Cancel order' })[1],
+    );
 
     await waitFor(() => {
       expect(onCancelOrder).toHaveBeenCalledTimes(1);
@@ -565,7 +602,10 @@ describe('SupplierOrderModal cancel actions', () => {
     renderModal(
       <SupplierOrderModal
         {...baseProps()}
-        editingOrder={editingOrder({ paymentStatus: 'paid', paid: 100 })}
+        editingOrder={editingOrder({
+          paymentStatus: 'paid',
+          paid: 100,
+        })}
         isItemScopedView
         onCancelOrder={vi.fn()}
         onCancelItem={vi.fn()}

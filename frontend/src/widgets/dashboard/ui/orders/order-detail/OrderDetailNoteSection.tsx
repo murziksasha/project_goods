@@ -1,3 +1,4 @@
+import type React from 'react';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { PencilIcon } from '../modals/PencilIcon';
@@ -6,7 +7,7 @@ const COLLAPSE_ICON_EXPANDED = '\u2303';
 const COLLAPSE_ICON_COLLAPSED = '\u2304';
 const MAX_USER_NOTE_LENGTH = 500;
 
-export type OrderDetailNoteSectionProps = {
+export interface OrderDetailNoteSectionProps {
   saleId: string;
   isSaleCard: boolean;
   systemNote: string;
@@ -18,7 +19,7 @@ export type OrderDetailNoteSectionProps = {
   onSaveUserNote: (userNote: string) => Promise<void>;
 };
 
-export const OrderDetailNoteSection = ({
+export const OrderDetailNoteSection: React.FC<OrderDetailNoteSectionProps> = ({
   saleId,
   isSaleCard,
   systemNote,
@@ -28,7 +29,7 @@ export const OrderDetailNoteSection = ({
   isSaving,
   onToggle,
   onSaveUserNote,
-}: OrderDetailNoteSectionProps) => {
+}) => {
   const { t } = useTranslation();
   const [isEditing, setIsEditing] = useState(false);
   const [draft, setDraft] = useState(userNote);

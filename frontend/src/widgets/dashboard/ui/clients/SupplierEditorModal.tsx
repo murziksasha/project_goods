@@ -1,7 +1,8 @@
+import type React from 'react';
 import { useState, type Dispatch, type SetStateAction } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { Supplier } from '../../../../entities/supplier/model/types';
-import type { SupplierFormState } from '../../../../entities/supplier/model/forms';
+import type { Supplier } from '../../../../entities/supplier';
+import type { SupplierFormState } from '../../../../entities/supplier';
 import { hasDuplicatePhones } from '../../../../shared/lib/phones';
 import { isValidUkrainianPhone } from '../../../../shared/lib/phoneFormatter';
 import { Button } from '../../../../shared/ui/Button';
@@ -9,7 +10,7 @@ import { Modal } from '../../../../shared/ui/Modal';
 import { PhonesField } from '../../../../shared/ui/PhonesField';
 import { StatusBadge } from '../../../../shared/ui/StatusBadge';
 
-type SupplierEditorModalProps = {
+export interface SupplierEditorModalProps {
   duplicateSupplier?: Supplier;
   editingSupplierId: string | null;
   form: SupplierFormState;
@@ -19,7 +20,7 @@ type SupplierEditorModalProps = {
   onSave: () => void;
 };
 
-export const SupplierEditorModal = ({
+export const SupplierEditorModal: React.FC<SupplierEditorModalProps> = ({
   duplicateSupplier,
   editingSupplierId,
   form,
@@ -27,7 +28,7 @@ export const SupplierEditorModal = ({
   onChange,
   onClose,
   onSave,
-}: SupplierEditorModalProps) => {
+}) => {
   const { t } = useTranslation();
   const [phoneError, setPhoneError] = useState<string | null>(null);
   const isEditing = Boolean(editingSupplierId);
