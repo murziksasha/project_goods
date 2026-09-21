@@ -1,4 +1,3 @@
-import { Router } from 'express';
 import { Router, raw } from 'express';
 import { asyncHandler } from '../../shared/lib/http';
 import * as controller from './controller';
@@ -16,9 +15,24 @@ const excelBodyParser = raw({
 
 supplierRouter.get('/suppliers', asyncHandler(controller.list));
 supplierRouter.post('/suppliers', asyncHandler(controller.create));
-supplierRouter.post('/suppliers/import', excelBodyParser, asyncHandler(controller.importSuppliers));
-supplierRouter.get('/suppliers/export', asyncHandler(controller.exportSuppliers));
-supplierRouter.post('/suppliers/merge', asyncHandler(controller.merge));
-supplierRouter.put('/suppliers/:supplierId', asyncHandler(controller.update));
-supplierRouter.delete('/suppliers/:supplierId', asyncHandler(controller.remove));
-
+supplierRouter.post(
+  '/suppliers/import',
+  excelBodyParser,
+  asyncHandler(controller.importSuppliers),
+);
+supplierRouter.get(
+  '/suppliers/export',
+  asyncHandler(controller.exportSuppliers),
+);
+supplierRouter.post(
+  '/suppliers/merge',
+  asyncHandler(controller.merge),
+);
+supplierRouter.put(
+  '/suppliers/:supplierId',
+  asyncHandler(controller.update),
+);
+supplierRouter.delete(
+  '/suppliers/:supplierId',
+  asyncHandler(controller.remove),
+);
