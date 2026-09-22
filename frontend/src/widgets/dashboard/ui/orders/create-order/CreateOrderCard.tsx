@@ -37,6 +37,7 @@ import type { Product } from '../../../../../entities/product';
 import {
   formatRetailSalePrice,
   getRetailSalePrice,
+  reorderProducts,
 } from '../../../../../entities/product';
 import type { Sale } from '../../../../../entities/sale';
 import type { CreateOrderRequestPayload } from '../../../model/order-request';
@@ -48,6 +49,7 @@ import {
 import {
   createServiceCatalogItem,
   getServiceCatalogItems,
+  reorderServiceCatalog,
 } from '../../../../../entities/service-catalog';
 import type { ServiceCatalogItem } from '../../../../../entities/service-catalog';
 import {
@@ -1268,6 +1270,44 @@ export const CreateOrderCard: React.FC<CreateOrderCardProps> = ({
     setIsCreateDeviceModalOpen(true);
   };
 
+  const handleReorderSaleProductSuggestions = async (
+    newSuggestions: OrderDetailProductSuggestion[],
+  ) => {
+    setSaleProductSuggestions(newSuggestions);
+    const reorderItems = newSuggestions.map((suggestion, index) => ({
+      name: suggestion.name,
+      sortOrder: index,
+    }));
+    try {
+      await reorderProducts(reorderItems);
+    } catch (error) {
+      onError(
+        error instanceof Error
+          ? error.message
+          : t('orders.messages.errors.failedReorder'),
+      );
+    }
+  };
+
+  const handleReorderServiceSuggestions = async (
+    newServices: ServiceCatalogItem[],
+  ) => {
+    setServiceSuggestions(newServices);
+    const reorderItems = newServices.map((service, index) => ({
+      id: service.id,
+      sortOrder: index,
+    }));
+    try {
+      await reorderServiceCatalog(reorderItems);
+    } catch (error) {
+      onError(
+        error instanceof Error
+          ? error.message
+          : t('orders.messages.errors.failedReorder'),
+      );
+    }
+  };
+
   const handleSave = async () => {
     const normalizedSaleItems = saleItems
       .filter((item) => item.query.trim().length >= 2)
@@ -1565,6 +1605,7 @@ export const CreateOrderCard: React.FC<CreateOrderCardProps> = ({
                   isSaleProductLookupLoading={
                     isSaleProductLookupLoading
                   }
+                  canManageOrders={canCurrentEmployeeManageOrders}
                   saleItemsTotal={saleOrderTotal}
                   issueFromClient={issueFromClient}
                   onIssueFromClientChange={setIssueFromClient}
@@ -1577,6 +1618,9 @@ export const CreateOrderCard: React.FC<CreateOrderCardProps> = ({
                   onAddSaleItem={addSaleItem}
                   onRemoveSaleItem={removeSaleItem}
                   onApplySaleProduct={applySaleProduct}
+                  onReorderSuggestions={
+                    handleReorderSaleProductSuggestions
+                  }
                 />
                 <CreateOrderSaleServicesSection
                   isOpen={isServicesSectionOpen}
@@ -1596,6 +1640,7 @@ export const CreateOrderCard: React.FC<CreateOrderCardProps> = ({
                   serviceSuggestions={serviceSuggestions}
                   isServiceLookupLoading={isServiceLookupLoading}
                   canCreateMissingService={canCreateMissingService}
+                  canManageOrders={canCurrentEmployeeManageOrders}
                   saleServiceItems={saleServiceItems}
                   onToggle={() =>
                     setIsServicesSectionOpen((current) => !current)
@@ -1617,6 +1662,9 @@ export const CreateOrderCard: React.FC<CreateOrderCardProps> = ({
                     setSaleServiceItems((current) =>
                       current.filter((item) => item.id !== itemId),
                     )
+                  }
+                  onReorderSuggestions={
+                    handleReorderServiceSuggestions
                   }
                 />
               </>

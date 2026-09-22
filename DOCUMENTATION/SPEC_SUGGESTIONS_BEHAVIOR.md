@@ -124,3 +124,58 @@ For `Create order` -> `Repair order` -> `Device #1`:
 3. `Create new` must stay disabled while active catalog matches exist, even if the suggestion list was dismissed without a select.
 4. This prevents accidental overwrite/update flows for existing catalog devices and avoids duplicate-creation confusion.
 5. Repair Save still accepts the typed device name (≥ 2 characters) without selecting a suggestion.
+
+## Reorderable Suggestions Behavior (Drag & Drop, Visual Arrows, Keyboard Navigation)
+
+Unified interaction model for suggestion lists that support reordering, ranking, and rapid keyboard navigation.
+
+### Scope & Supported Entry Points
+
+Applies uniformly across all reorderable suggestion lists in the system:
+
+1. **Create Order -> Sales Order**:
+   - Products search input (`CreateOrderSaleSection`)
+   - Services search input (`CreateOrderSaleServicesSection`)
+2. **Rapid Sale Modal**:
+   - Products search input (`RapidSaleModal`)
+   - Services search input (`RapidSaleModal`)
+3. **Order Detail Card (Repair & Sale Cards)**:
+   - Products add-row input (`OrderDetailLineItemsPanel`)
+   - Services add-row input (`OrderDetailLineItemsPanel`)
+4. **Supplier Order Modal**:
+   - Supplier search input (`SupplierOrderModal`)
+
+### Keyboard Navigation & Shortcuts
+
+When a suggestions dropdown is visible and has active suggestions:
+
+- `ArrowDown`: Moves active highlight down by one suggestion (wraps from last to first item).
+- `ArrowUp`: Moves active highlight up by one suggestion (wraps from first to last item).
+- `Enter`: When a suggestion is active (`activeIndex >= 0`), selects and applies the active suggestion, then dismisses the suggestion list.
+- `Alt + ArrowDown`: Moves the currently highlighted item down one position in the suggestion order, updating its rank.
+- `Alt + ArrowUp`: Moves the currently highlighted item up one position in the suggestion order, updating its rank.
+- Focus is preserved on the search input throughout keyboard interactions.
+
+### Visual Reorder Controls (`ReorderableSuggestionItem`)
+
+Each suggestion item row renders interactive reordering controls when reordering is permitted (`canReorder = true`):
+
+1. **Drag Handle (`suggestion-drag-handle`)**:
+   - Renders with grip icon (`⋮⋮`).
+   - Draggable using HTML5 Drag and Drop API (`onDragStart`, `onDragOver`, `onDrop`, `onDragEnd`).
+   - Moving or dropping an item updates list order immediately and applies visual states (`is-dragging`, `is-drag-over`).
+2. **Shift Buttons (`suggestion-shift-buttons`)**:
+   - **Move Up (`↑`)**: Moves the item one position upward in the suggestion list. Disabled for the first item (`isFirst = true`).
+   - **Move Down (`↓`)**: Moves the item one position downward in the suggestion list. Disabled for the last item (`isLast = true`).
+   - Clicking shift buttons stops propagation and prevents input blur.
+
+### Persistence & Synchronization
+
+When reordering occurs (via drag-and-drop, shift buttons, or `Alt+Arrow` shortcuts):
+
+1. **Local State**: The visible list updates immediately in memory to provide instantaneous feedback.
+2. **Backend Persistence**:
+   - Products: `PATCH /products/reorder` with `{ items: Array<{ name: string, sortOrder: number }> }`.
+   - Services: `PATCH /services/reorder` with `{ items: Array<{ id: string, sortOrder: number }> }`.
+   - Suppliers: `PATCH /suppliers/reorder` with `{ items: Array<{ id: string, sortOrder: number }> }`.
+3. **Cache Invalidation**: On successful API response, the relevant React Query cache is invalidated (`queryKeys.products`, `queryKeys.services`, or `queryKeys.suppliers`) to synchronize all application views.

@@ -9,8 +9,19 @@ import {
   type KeyboardEvent,
 } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { Supplier, SupplierFormValues } from '../../../../../entities/supplier';
-import { createCatalogProduct, getCatalogProducts } from '../../../../../entities/catalog-product';
+import {
+  queryClient,
+  queryKeys,
+} from '../../../../../shared/api/queryClient';
+import type {
+  Supplier,
+  SupplierFormValues,
+} from '../../../../../entities/supplier';
+import { reorderSuppliers } from '../../../../../entities/supplier';
+import {
+  createCatalogProduct,
+  getCatalogProducts,
+} from '../../../../../entities/catalog-product';
 import type { CatalogProduct } from '../../../../../entities/catalog-product';
 import type {
   SupplierOrder,
@@ -21,7 +32,11 @@ import { getWarehouseSettings } from '../../../../../entities/warehouse-settings
 import type { PrintForm } from '../../../../../entities/settings';
 import { defaultPrintForms } from '../../../../../entities/settings';
 import { printSerialNumbers } from '../workspace/orders-workspace-shared';
-import { normalizeDecimalInput, parseDecimal, roundMoney } from '../../../../../shared/lib/decimal';
+import {
+  normalizeDecimalInput,
+  parseDecimal,
+  roundMoney,
+} from '../../../../../shared/lib/decimal';
 import {
   PRICE_STEPPER_PRECISION,
   PRICE_STEPPER_STEP,
@@ -35,6 +50,8 @@ import {
 } from '../../../model/supplier-order-utils';
 import { useModalBackgroundScrollLock } from '../../../../../shared/lib/useModalBackgroundScrollLock';
 import { useDismissibleSuggestions } from '../../../../../shared/lib/useDismissibleSuggestions';
+import { useReorderableSuggestions } from '../../../../../shared/lib/useReorderableSuggestions';
+import { ReorderableSuggestionItem } from '../../../../../shared/ui/ReorderableSuggestionItem';
 import { SupplierChooseModal } from './SupplierChooseModal';
 import { shouldAdvanceAfterSerialBulkInput } from './serial-input-auto-advance';
 
@@ -62,7 +79,9 @@ export interface SupplierOrderModalProps {
   forceReadOnly?: boolean;
   onClose: () => void;
   onCreateSupplier: (payload: SupplierFormValues) => Promise<boolean>;
-  onSubmit: (payload: SupplierOrderModalSubmitPayload) => Promise<void> | void;
+  onSubmit: (
+    payload: SupplierOrderModalSubmitPayload,
+  ) => Promise<void> | void;
   onTakeOnCharge?: (payload: {
     autoGenerateSerialNumbers: boolean;
     serialNumbers: string[];
@@ -70,7 +89,10 @@ export interface SupplierOrderModalProps {
     articleBase: string;
     warehouseId: string;
     locationId: string;
-  }) => Promise<TakeOnChargeResult | void> | TakeOnChargeResult | void;
+  }) =>
+    | Promise<TakeOnChargeResult | void>
+    | TakeOnChargeResult
+    | void;
   onCancelOrder?: () => Promise<void> | void;
   onCancelItem?: (reason?: string) => Promise<void> | void;
   isItemScopedView?: boolean;
@@ -81,7 +103,8 @@ export interface SupplierOrderModalProps {
     name: string;
     locations: Array<{ id: string; name: string }>;
   }>;
-};
+  onReorderSuppliers?: (items: Supplier[]) => Promise<void>;
+}
 
 type DraftItem = {
   catalogProductId?: string;
@@ -120,7 +143,9 @@ const areSupplierOrderDraftItemsEqual = (
   });
 };
 
-export const SupplierOrderModal: React.FC<SupplierOrderModalProps> = ({
+export const SupplierOrderModal: React.FC<
+  SupplierOrderModalProps
+> = ({
   isOpen,
   printForms = defaultPrintForms,
   suppliers,
@@ -138,6 +163,7 @@ export const SupplierOrderModal: React.FC<SupplierOrderModalProps> = ({
   onSuccess,
   onError,
   warehouseOptions,
+  onReorderSuppliers,
 }) => {
   const { t } = useTranslation();
   const [fallbackWarehouseOptions, setFallbackWarehouseOptions] =
@@ -147,41 +173,72 @@ export const SupplierOrderModal: React.FC<SupplierOrderModalProps> = ({
       ? warehouseOptions
       : fallbackWarehouseOptions;
   const [supplierSearch, setSupplierSearch] = useState('');
-  const [debouncedSupplierSearch, setDebouncedSupplierSearch] = useState('');
-  const [showSupplierSuggestions, setShowSupplierSuggestions] = useState(false);
+  const [debouncedSupplierSearch, setDebouncedSupplierSearch] =
+    useState('');
+  const [showSupplierSuggestions, setShowSupplierSuggestions] =
+    useState(false);
   const [supplierTouched, setSupplierTouched] = useState(false);
 
-  const [isSupplierChooseModalOpen, setIsSupplierChooseModalOpen] = useState(false);
-  const [isCreateSupplierModalOpen, setIsCreateSupplierModalOpen] = useState(false);
-  const [createSupplierForm, setCreateSupplierForm] = useState({ name: '', phone: '+380', note: '' });
+  const [isSupplierChooseModalOpen, setIsSupplierChooseModalOpen] =
+    useState(false);
+  const [isCreateSupplierModalOpen, setIsCreateSupplierModalOpen] =
+    useState(false);
+  const [createSupplierForm, setCreateSupplierForm] = useState({
+    name: '',
+    phone: '+380',
+    note: '',
+  });
   const [isSupplierCreating, setIsSupplierCreating] = useState(false);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isActionSubmitting, setIsActionSubmitting] = useState(false);
-  const [isCancelItemDialogOpen, setIsCancelItemDialogOpen] = useState(false);
-  const [isCancelOrderDialogOpen, setIsCancelOrderDialogOpen] = useState(false);
+  const [isCancelItemDialogOpen, setIsCancelItemDialogOpen] =
+    useState(false);
+  const [isCancelOrderDialogOpen, setIsCancelOrderDialogOpen] =
+    useState(false);
   const [cancelItemReason, setCancelItemReason] = useState('');
   const [isSerialModalOpen, setIsSerialModalOpen] = useState(false);
-  const [isAutoSerialEnabled, setIsAutoSerialEnabled] = useState(true);
-  const [manualSerialNumbers, setManualSerialNumbers] = useState<string[]>([]);
+  const [isAutoSerialEnabled, setIsAutoSerialEnabled] =
+    useState(true);
+  const [manualSerialNumbers, setManualSerialNumbers] = useState<
+    string[]
+  >([]);
   const serialInputRefs = useRef<Array<HTMLInputElement | null>>([]);
-  const [isAutoArticleEnabled, setIsAutoArticleEnabled] = useState(false);
+  const [isAutoArticleEnabled, setIsAutoArticleEnabled] =
+    useState(false);
   const [shouldPrintSerials, setShouldPrintSerials] = useState(true);
   const [manualArticleBase, setManualArticleBase] = useState('');
-  const [takeOnChargeWarehouseId, setTakeOnChargeWarehouseId] = useState('');
-  const [takeOnChargeLocationId, setTakeOnChargeLocationId] = useState('');
+  const [takeOnChargeWarehouseId, setTakeOnChargeWarehouseId] =
+    useState('');
+  const [takeOnChargeLocationId, setTakeOnChargeLocationId] =
+    useState('');
 
-  const [productSearch, setProductSearch] = useState(initialProductName);
-  const [debouncedProductSearch, setDebouncedProductSearch] = useState(initialProductName);
-  const [showProductSuggestions, setShowProductSuggestions] = useState(false);
-  const [productSuggestions, setProductSuggestions] = useState<CatalogProduct[]>([]);
-  const [isProductLookupLoading, setIsProductLookupLoading] = useState(false);
+  const [productSearch, setProductSearch] = useState(
+    initialProductName,
+  );
+  const [debouncedProductSearch, setDebouncedProductSearch] =
+    useState(initialProductName);
+  const [showProductSuggestions, setShowProductSuggestions] =
+    useState(false);
+  const [productSuggestions, setProductSuggestions] = useState<
+    CatalogProduct[]
+  >([]);
+  const [isProductLookupLoading, setIsProductLookupLoading] =
+    useState(false);
   const [productTouched, setProductTouched] = useState(false);
-  const [selectedCatalogProductId, setSelectedCatalogProductId] = useState<string>('');
+  const [selectedCatalogProductId, setSelectedCatalogProductId] =
+    useState<string>('');
 
-  const [isCreateCatalogProductModalOpen, setIsCreateCatalogProductModalOpen] = useState(false);
-  const [isCreateCatalogProductSaving, setIsCreateCatalogProductSaving] = useState(false);
-  const [createCatalogProductForm, setCreateCatalogProductForm] = useState({ name: '', note: '' });
+  const [
+    isCreateCatalogProductModalOpen,
+    setIsCreateCatalogProductModalOpen,
+  ] = useState(false);
+  const [
+    isCreateCatalogProductSaving,
+    setIsCreateCatalogProductSaving,
+  ] = useState(false);
+  const [createCatalogProductForm, setCreateCatalogProductForm] =
+    useState({ name: '', note: '' });
 
   const [basketItems, setBasketItems] = useState<DraftItem[]>([]);
   const [form, setForm] = useState({
@@ -194,7 +251,8 @@ export const SupplierOrderModal: React.FC<SupplierOrderModalProps> = ({
   });
 
   const isEditing = Boolean(editingOrder);
-  const selectedItemReceiptStatus = editingOrder?.items[0]?.receiptStatus;
+  const selectedItemReceiptStatus =
+    editingOrder?.items[0]?.receiptStatus;
   const { isContentLocked, isTakeOnChargeLocked, isCancelLocked } =
     resolveSupplierOrderModalLocks(editingOrder, {
       itemReceiptStatus: selectedItemReceiptStatus,
@@ -295,7 +353,9 @@ export const SupplierOrderModal: React.FC<SupplierOrderModalProps> = ({
     setForm({
       deliveryDate: (editingOrder?.deliveryDate ?? '').slice(0, 10),
       supplyType: editingOrder?.supplyType ?? 'Локально',
-      number: editingOrder ? getSupplierOrderDisplayNumber(editingOrder) : '',
+      number: editingOrder
+        ? getSupplierOrderDisplayNumber(editingOrder)
+        : '',
       quantity: String(Math.max(1, Math.floor(initialQuantity))),
       price: '0',
       note: editingOrder?.note ?? '',
@@ -310,7 +370,9 @@ export const SupplierOrderModal: React.FC<SupplierOrderModalProps> = ({
     setManualArticleBase('');
     const defaultWarehouse = resolvedWarehouseOptions[0];
     setTakeOnChargeWarehouseId(defaultWarehouse?.id ?? '');
-    setTakeOnChargeLocationId(defaultWarehouse?.locations[0]?.id ?? '');
+    setTakeOnChargeLocationId(
+      defaultWarehouse?.locations[0]?.id ?? '',
+    );
   }, [
     editingOrder,
     initialProductName,
@@ -320,12 +382,18 @@ export const SupplierOrderModal: React.FC<SupplierOrderModalProps> = ({
   ]);
 
   useEffect(() => {
-    const timeoutId = window.setTimeout(() => setDebouncedSupplierSearch(supplierSearch), 300);
+    const timeoutId = window.setTimeout(
+      () => setDebouncedSupplierSearch(supplierSearch),
+      300,
+    );
     return () => window.clearTimeout(timeoutId);
   }, [supplierSearch]);
 
   useEffect(() => {
-    const timeoutId = window.setTimeout(() => setDebouncedProductSearch(productSearch), 250);
+    const timeoutId = window.setTimeout(
+      () => setDebouncedProductSearch(productSearch),
+      250,
+    );
     return () => window.clearTimeout(timeoutId);
   }, [productSearch]);
 
@@ -357,18 +425,59 @@ export const SupplierOrderModal: React.FC<SupplierOrderModalProps> = ({
     };
   }, [debouncedProductSearch]);
 
-  const supplierOptions = useMemo(() => {
-    return getSupplierSuggestions(
-      suppliers,
-      debouncedSupplierSearch,
-    );
+  const baseSupplierOptions = useMemo(() => {
+    return getSupplierSuggestions(suppliers, debouncedSupplierSearch);
   }, [debouncedSupplierSearch, suppliers]);
+  const [localSupplierOptions, setLocalSupplierOptions] = useState<
+    Supplier[]
+  >([]);
+
+  useEffect(() => {
+    setLocalSupplierOptions(baseSupplierOptions);
+  }, [baseSupplierOptions]);
+
+  const supplierOptions = localSupplierOptions;
+
   const {
     rootRef: supplierSuggestionsRootRef,
     isVisible: isSupplierSuggestionsVisible,
   } = useDismissibleSuggestions({
     query: supplierSearch,
     isActive: showSupplierSuggestions && supplierOptions.length > 0,
+  });
+
+  const supplierReorder = useReorderableSuggestions<Supplier>({
+    items: supplierOptions,
+    onSelect: (supplier) => {
+      setSupplierSearch(supplier.name);
+      setSupplierTouched(true);
+      setShowSupplierSuggestions(false);
+    },
+    onReorder: async (newSuppliers) => {
+      setLocalSupplierOptions(newSuppliers);
+      if (onReorderSuppliers) {
+        await onReorderSuppliers(newSuppliers);
+        return;
+      }
+      const reorderItems = newSuppliers.map((supplier, index) => ({
+        id: supplier.id,
+        sortOrder: index,
+      }));
+      try {
+        await reorderSuppliers(reorderItems);
+        await queryClient.invalidateQueries({
+          queryKey: queryKeys.suppliers,
+        });
+      } catch (error) {
+        onError(
+          error instanceof Error
+            ? error.message
+            : t('orders.messages.errors.failedReorder'),
+        );
+      }
+    },
+    canReorder: !isFormDisabled,
+    isVisible: isSupplierSuggestionsVisible,
   });
   const {
     rootRef: productSuggestionsRootRef,
@@ -385,7 +494,9 @@ export const SupplierOrderModal: React.FC<SupplierOrderModalProps> = ({
     const normalized = supplierSearch.trim().toLowerCase();
     return (
       suppliers.find((supplier) =>
-        [supplier.name, supplier.phone].some((value) => value.trim().toLowerCase() === normalized),
+        [supplier.name, supplier.phone].some(
+          (value) => value.trim().toLowerCase() === normalized,
+        ),
       ) ?? null
     );
   }, [supplierSearch, suppliers]);
@@ -393,8 +504,14 @@ export const SupplierOrderModal: React.FC<SupplierOrderModalProps> = ({
   const currentQuantity = Math.max(1, Number(form.quantity) || 1);
   const currentPrice = Math.max(0, parseDecimal(form.price) || 0);
   const currentProductMatched = Boolean(selectedCatalogProductId);
-  const supplierInvalid = supplierTouched && supplierSearch.trim().length > 0 && !selectedSupplier;
-  const productInvalid = productTouched && productSearch.trim().length > 0 && !currentProductMatched;
+  const supplierInvalid =
+    supplierTouched &&
+    supplierSearch.trim().length > 0 &&
+    !selectedSupplier;
+  const productInvalid =
+    productTouched &&
+    productSearch.trim().length > 0 &&
+    !currentProductMatched;
   const currentDraftItem = productSearch.trim()
     ? {
         catalogProductId: selectedCatalogProductId || undefined,
@@ -404,25 +521,31 @@ export const SupplierOrderModal: React.FC<SupplierOrderModalProps> = ({
       }
     : null;
 
-  const canAddBasketItem = Boolean(productSearch.trim()) && currentQuantity > 0 && currentProductMatched;
+  const canAddBasketItem =
+    Boolean(productSearch.trim()) &&
+    currentQuantity > 0 &&
+    currentProductMatched;
   // Basket holds committed lines; matched draft is optional extra line on save.
   const submitItems: DraftItem[] = [
     ...basketItems,
-    ...(currentDraftItem && currentProductMatched ? [currentDraftItem] : []),
+    ...(currentDraftItem && currentProductMatched
+      ? [currentDraftItem]
+      : []),
   ];
   const basketSummaryItems = basketItems;
   const hasDuplicateSubmitItems =
     new Set(
-      submitItems.map((item) =>
-        item.catalogProductId || normalizeProductName(item.productName),
+      submitItems.map(
+        (item) =>
+          item.catalogProductId ||
+          normalizeProductName(item.productName),
       ),
-    )
-      .size !== submitItems.length;
+    ).size !== submitItems.length;
 
   const isItemsDirtyVsSavedOrder = Boolean(
     isEditing &&
-      editingOrder &&
-      !areSupplierOrderDraftItemsEqual(submitItems, editingOrder.items),
+    editingOrder &&
+    !areSupplierOrderDraftItemsEqual(submitItems, editingOrder.items),
   );
 
   const totalAmount = roundMoney(
@@ -458,20 +581,25 @@ export const SupplierOrderModal: React.FC<SupplierOrderModalProps> = ({
     },
     [focusSerialInput],
   );
-  const updateManualSerialNumber = useCallback((index: number, nextValue: string) => {
-    setManualSerialNumbers((current) =>
-      current.map((item, itemIndex) =>
-        itemIndex === index ? nextValue : item,
-      ),
-    );
-  }, []);
+  const updateManualSerialNumber = useCallback(
+    (index: number, nextValue: string) => {
+      setManualSerialNumbers((current) =>
+        current.map((item, itemIndex) =>
+          itemIndex === index ? nextValue : item,
+        ),
+      );
+    },
+    [],
+  );
   const handleManualSerialChange = useCallback(
     (index: number, event: ChangeEvent<HTMLInputElement>) => {
       const previousValue = manualSerialNumbers[index] ?? '';
       const nextValue = event.target.value;
       updateManualSerialNumber(index, nextValue);
 
-      if (shouldAdvanceAfterSerialBulkInput(previousValue, nextValue)) {
+      if (
+        shouldAdvanceAfterSerialBulkInput(previousValue, nextValue)
+      ) {
         focusNextSerialInput(index);
       }
     },
@@ -484,7 +612,8 @@ export const SupplierOrderModal: React.FC<SupplierOrderModalProps> = ({
   const handleManualSerialPaste = useCallback(
     (index: number) => {
       window.setTimeout(() => {
-        const value = serialInputRefs.current[index]?.value.trim() ?? '';
+        const value =
+          serialInputRefs.current[index]?.value.trim() ?? '';
         if (value) {
           focusNextSerialInput(index);
         }
@@ -533,7 +662,9 @@ export const SupplierOrderModal: React.FC<SupplierOrderModalProps> = ({
     const normalizedPrice = normalizeDecimalInput(priceValue);
     setBasketItems((current) =>
       current.map((item, index) =>
-        index === itemIndex ? { ...item, price: normalizedPrice } : item,
+        index === itemIndex
+          ? { ...item, price: normalizedPrice }
+          : item,
       ),
     );
   };
@@ -568,15 +699,24 @@ export const SupplierOrderModal: React.FC<SupplierOrderModalProps> = ({
       (location) => location.id === takeOnChargeLocationId,
     );
     if (!isLocationExists) {
-      setTakeOnChargeLocationId(selectedTakeOnChargeLocations[0]?.id ?? '');
+      setTakeOnChargeLocationId(
+        selectedTakeOnChargeLocations[0]?.id ?? '',
+      );
     }
   }, [selectedTakeOnChargeLocations, takeOnChargeLocationId]);
 
   if (!isOpen) return null;
 
   return (
-    <div className='modal-backdrop modal-backdrop-scroll-locked' role='presentation'>
-      <section className='catalog-edit-modal supplier-order-modal' role='dialog' aria-modal='true'>
+    <div
+      className='modal-backdrop modal-backdrop-scroll-locked'
+      role='presentation'
+    >
+      <section
+        className='catalog-edit-modal supplier-order-modal'
+        role='dialog'
+        aria-modal='true'
+      >
         <header className='catalog-edit-header'>
           <div className='catalog-edit-title'>
             <h2>{t('orders.supplier.modal.title')}</h2>
@@ -606,7 +746,12 @@ export const SupplierOrderModal: React.FC<SupplierOrderModalProps> = ({
               {t('orders.supplier.modal.cancelOrder')}
             </button>
           ) : null}
-          <button type='button' className='create-order-close' onClick={onClose} aria-label={t('common.close')}>
+          <button
+            type='button'
+            className='create-order-close'
+            onClick={onClose}
+            aria-label={t('common.close')}
+          >
             &times;
           </button>
         </header>
@@ -619,11 +764,31 @@ export const SupplierOrderModal: React.FC<SupplierOrderModalProps> = ({
               <span>{t('common.supplier')}</span>
               <span className='supplier-search-input-wrap supplier-search-input-wrap-with-actions'>
                 <input
-                  className={supplierInvalid ? 'supplier-order-invalid-input' : ''}
+                  className={
+                    supplierInvalid
+                      ? 'supplier-order-invalid-input'
+                      : ''
+                  }
                   value={supplierSearch}
                   disabled={isFormDisabled}
                   onBlur={() => {
                     setSupplierTouched(true);
+                  }}
+                  onKeyDown={(event) => {
+                    if (
+                      isSupplierSuggestionsVisible &&
+                      supplierOptions.length > 0
+                    ) {
+                      if (
+                        event.key === 'ArrowDown' ||
+                        event.key === 'ArrowUp' ||
+                        (event.key === 'Enter' &&
+                          supplierReorder.activeIndex >= 0)
+                      ) {
+                        supplierReorder.handleKeyDown(event);
+                        return;
+                      }
+                    }
                   }}
                   onChange={(event) => {
                     setSupplierSearch(event.target.value);
@@ -646,11 +811,17 @@ export const SupplierOrderModal: React.FC<SupplierOrderModalProps> = ({
                 <button
                   type='button'
                   className='toolbar-square-button supplier-search-add-button'
-                  aria-label={t('orders.supplier.modal.createSupplier')}
+                  aria-label={t(
+                    'orders.supplier.modal.createSupplier',
+                  )}
                   disabled={isFormDisabled}
                   onMouseDown={(event) => event.preventDefault()}
                   onClick={() => {
-                    setCreateSupplierForm({ name: supplierSearch.trim(), phone: '+380', note: '' });
+                    setCreateSupplierForm({
+                      name: supplierSearch.trim(),
+                      phone: '+380',
+                      note: '',
+                    });
                     setIsCreateSupplierModalOpen(true);
                   }}
                 >
@@ -660,21 +831,47 @@ export const SupplierOrderModal: React.FC<SupplierOrderModalProps> = ({
             </label>
             {isSupplierSuggestionsVisible ? (
               <div className='create-suggestions field-wide'>
-                {supplierOptions.map((supplier) => (
-                  <button
+                {supplierOptions.map((supplier, index) => (
+                  <ReorderableSuggestionItem
                     key={supplier.id}
-                    type='button'
-                    className='create-suggestion-item'
-                    onMouseDown={(event) => event.preventDefault()}
-                    onClick={() => {
+                    id={supplier.id}
+                    isActive={supplierReorder.activeIndex === index}
+                    disabled={isFormDisabled}
+                    canReorder={!isFormDisabled}
+                    isFirst={index === 0}
+                    isLast={index === supplierOptions.length - 1}
+                    onSelect={() => {
                       setSupplierSearch(supplier.name);
                       setSupplierTouched(true);
                       setShowSupplierSuggestions(false);
                     }}
+                    onMoveUp={() =>
+                      supplierReorder.moveItem(index, 'up')
+                    }
+                    onMoveDown={() =>
+                      supplierReorder.moveItem(index, 'down')
+                    }
+                    onDragStart={(e) =>
+                      supplierReorder.handleDragStart(e, index)
+                    }
+                    onDragOver={(e) =>
+                      supplierReorder.handleDragOver(e, index)
+                    }
+                    onDrop={(e) =>
+                      supplierReorder.handleDrop(e, index)
+                    }
+                    onDragEnd={supplierReorder.handleDragEnd}
+                    isDragging={
+                      supplierReorder.draggedIndex === index
+                    }
+                    isDragOver={
+                      supplierReorder.dragOverIndex === index
+                    }
+                    ariaLabel={supplier.name}
                   >
                     <strong>{supplier.name}</strong>
                     <span>{supplier.phone}</span>
-                  </button>
+                  </ReorderableSuggestionItem>
                 ))}
               </div>
             ) : null}
@@ -682,29 +879,73 @@ export const SupplierOrderModal: React.FC<SupplierOrderModalProps> = ({
 
           <label className='field'>
             <span>{t('orders.supplier.modal.deliveryDate')}</span>
-            <input type='date' value={form.deliveryDate} disabled={isFormDisabled} onChange={(event) => setForm((current) => ({ ...current, deliveryDate: event.target.value }))} />
+            <input
+              type='date'
+              value={form.deliveryDate}
+              disabled={isFormDisabled}
+              onChange={(event) =>
+                setForm((current) => ({
+                  ...current,
+                  deliveryDate: event.target.value,
+                }))
+              }
+            />
           </label>
 
           <label className='field supplier-order-supply-type-field'>
             <span>{t('orders.supplier.modal.supplyType')}</span>
-            <select value={form.supplyType} disabled={isFormDisabled} onChange={(event) => setForm((current) => ({ ...current, supplyType: event.target.value }))}>
-              <option value="Локально">{t('orders.supplier.modal.supplyLocal')}</option>
-              <option value="Закордон">{t('orders.supplier.modal.supplyForeign')}</option>
+            <select
+              value={form.supplyType}
+              disabled={isFormDisabled}
+              onChange={(event) =>
+                setForm((current) => ({
+                  ...current,
+                  supplyType: event.target.value,
+                }))
+              }
+            >
+              <option value='Локально'>
+                {t('orders.supplier.modal.supplyLocal')}
+              </option>
+              <option value='Закордон'>
+                {t('orders.supplier.modal.supplyForeign')}
+              </option>
             </select>
           </label>
 
           <label className='field'>
             <span>{t('orders.supplier.modal.number')}</span>
-            <input value={form.number} disabled={isFormDisabled} onChange={(event) => setForm((current) => ({ ...current, number: event.target.value }))} />
+            <input
+              value={form.number}
+              disabled={isFormDisabled}
+              onChange={(event) =>
+                setForm((current) => ({
+                  ...current,
+                  number: event.target.value,
+                }))
+              }
+            />
           </label>
 
           <label className='field field-wide'>
             <span>{t('orders.supplier.modal.note')}</span>
-            <textarea rows={2} value={form.note} disabled={isFormDisabled} onChange={(event) => setForm((current) => ({ ...current, note: event.target.value }))} />
+            <textarea
+              rows={2}
+              value={form.note}
+              disabled={isFormDisabled}
+              onChange={(event) =>
+                setForm((current) => ({
+                  ...current,
+                  note: event.target.value,
+                }))
+              }
+            />
           </label>
 
           <div className='supplier-order-product-row field-wide'>
-            <div className='supplier-order-product-index'>{basketItems.length + 1}</div>
+            <div className='supplier-order-product-index'>
+              {basketItems.length + 1}
+            </div>
             <label
               ref={productSuggestionsRootRef}
               className='field supplier-order-product-name modal-suggestions-anchor'
@@ -712,7 +953,11 @@ export const SupplierOrderModal: React.FC<SupplierOrderModalProps> = ({
               <span>{t('orders.supplier.modal.product')}</span>
               <span className='supplier-search-input-wrap'>
                 <input
-                  className={productInvalid ? 'supplier-order-invalid-input' : ''}
+                  className={
+                    productInvalid
+                      ? 'supplier-order-invalid-input'
+                      : ''
+                  }
                   value={productSearch}
                   disabled={isFormDisabled}
                   onBlur={() => {
@@ -723,16 +968,23 @@ export const SupplierOrderModal: React.FC<SupplierOrderModalProps> = ({
                     setSelectedCatalogProductId('');
                     setShowProductSuggestions(true);
                   }}
-                  placeholder={t('orders.supplier.modal.productPlaceholder')}
+                  placeholder={t(
+                    'orders.supplier.modal.productPlaceholder',
+                  )}
                 />
                 <button
                   type='button'
                   className='toolbar-square-button supplier-search-add-button'
-                  aria-label={t('orders.supplier.modal.createCatalogProduct')}
+                  aria-label={t(
+                    'orders.supplier.modal.createCatalogProduct',
+                  )}
                   disabled={isFormDisabled}
                   onMouseDown={(event) => event.preventDefault()}
                   onClick={() => {
-                    setCreateCatalogProductForm({ name: productSearch.trim(), note: '' });
+                    setCreateCatalogProductForm({
+                      name: productSearch.trim(),
+                      note: '',
+                    });
                     setIsCreateCatalogProductModalOpen(true);
                   }}
                 >
@@ -741,7 +993,11 @@ export const SupplierOrderModal: React.FC<SupplierOrderModalProps> = ({
               </span>
               {isProductSuggestionsVisible ? (
                 <div className='create-suggestions field-wide'>
-                  {isProductLookupLoading ? <p>{t('orders.supplier.modal.searchingProducts')}</p> : null}
+                  {isProductLookupLoading ? (
+                    <p>
+                      {t('orders.supplier.modal.searchingProducts')}
+                    </p>
+                  ) : null}
                   {productSuggestions.map((product) => (
                     <button
                       key={product.id}
@@ -756,7 +1012,12 @@ export const SupplierOrderModal: React.FC<SupplierOrderModalProps> = ({
                       }}
                     >
                       <strong>{product.name}</strong>
-                      <span>{product.note || t('orders.supplier.modal.productFromCatalog')}</span>
+                      <span>
+                        {product.note ||
+                          t(
+                            'orders.supplier.modal.productFromCatalog',
+                          )}
+                      </span>
                     </button>
                   ))}
                 </div>
@@ -785,64 +1046,89 @@ export const SupplierOrderModal: React.FC<SupplierOrderModalProps> = ({
                 value={form.quantity}
                 disabled={isFormDisabled}
                 onChange={(value) =>
-                  setForm((current) => ({ ...current, quantity: value }))
+                  setForm((current) => ({
+                    ...current,
+                    quantity: value,
+                  }))
                 }
                 ariaLabel={t('orders.supplier.modal.qty')}
               />
             </label>
             <label className='field supplier-order-product-compact'>
               <span>{t('orders.supplier.modal.amount')}</span>
-              <input value={String(roundMoney(currentQuantity * currentPrice))} readOnly />
+              <input
+                value={String(
+                  roundMoney(currentQuantity * currentPrice),
+                )}
+                readOnly
+              />
             </label>
-              <button
-                type='button'
-                className='toolbar-square-button supplier-order-product-add'
-                aria-label={t('orders.supplier.modal.addProduct')}
-                disabled={!canAddBasketItem || isFormDisabled}
-                onClick={() => {
-                  if (!canAddBasketItem) {
-                    setProductTouched(true);
-                    return;
-                  }
-                  const nextName = normalizeProductName(productSearch);
-                  const duplicateExists = basketItems.some(
-                    (item) =>
-                      (selectedCatalogProductId &&
-                        item.catalogProductId === selectedCatalogProductId) ||
-                      normalizeProductName(item.productName) === nextName,
+            <button
+              type='button'
+              className='toolbar-square-button supplier-order-product-add'
+              aria-label={t('orders.supplier.modal.addProduct')}
+              disabled={!canAddBasketItem || isFormDisabled}
+              onClick={() => {
+                if (!canAddBasketItem) {
+                  setProductTouched(true);
+                  return;
+                }
+                const nextName = normalizeProductName(productSearch);
+                const duplicateExists = basketItems.some(
+                  (item) =>
+                    (selectedCatalogProductId &&
+                      item.catalogProductId ===
+                        selectedCatalogProductId) ||
+                    normalizeProductName(item.productName) ===
+                      nextName,
+                );
+                if (duplicateExists) {
+                  onError(
+                    t(
+                      'orders.supplier.messages.errors.duplicateProductInOrder',
+                    ),
                   );
-                  if (duplicateExists) {
-                    onError(t('orders.supplier.messages.errors.duplicateProductInOrder'));
-                    return;
-                  }
-                  setBasketItems((current) => [
-                    ...current,
-                    {
-                      catalogProductId:
-                        selectedCatalogProductId || undefined,
-                      productName: productSearch.trim(),
-                      quantity: currentQuantity,
-                      price: form.price,
-                    },
-                  ]);
-                  setProductSearch('');
-                  setSelectedCatalogProductId('');
-                  setShowProductSuggestions(false);
-                  setProductTouched(false);
-                  setForm((current) => ({ ...current, quantity: '1', price: '0' }));
-                }}
-              >
-                +
-              </button>
+                  return;
+                }
+                setBasketItems((current) => [
+                  ...current,
+                  {
+                    catalogProductId:
+                      selectedCatalogProductId || undefined,
+                    productName: productSearch.trim(),
+                    quantity: currentQuantity,
+                    price: form.price,
+                  },
+                ]);
+                setProductSearch('');
+                setSelectedCatalogProductId('');
+                setShowProductSuggestions(false);
+                setProductTouched(false);
+                setForm((current) => ({
+                  ...current,
+                  quantity: '1',
+                  price: '0',
+                }));
+              }}
+            >
+              +
+            </button>
           </div>
 
           {basketSummaryItems.length > 0 ? (
             <div className='supplier-order-basket-summary'>
               <div className='supplier-order-basket-table'>
                 {basketSummaryItems.map((item, index) => (
-                  <div key={`${item.productName}-${index}`} className='supplier-order-product-row supplier-order-basket-row'>
-                    <div className='supplier-order-product-index'>{index + 1}</div>
-                    <div className='field supplier-order-product-name'><input value={item.productName} readOnly /></div>
+                  <div
+                    key={`${item.productName}-${index}`}
+                    className='supplier-order-product-row supplier-order-basket-row'
+                  >
+                    <div className='supplier-order-product-index'>
+                      {index + 1}
+                    </div>
+                    <div className='field supplier-order-product-name'>
+                      <input value={item.productName} readOnly />
+                    </div>
                     <div className='field supplier-order-product-compact'>
                       <NumberStepper
                         className='line-item-inline-input'
@@ -851,8 +1137,12 @@ export const SupplierOrderModal: React.FC<SupplierOrderModalProps> = ({
                         precision={PRICE_STEPPER_PRECISION}
                         value={String(item.price)}
                         disabled={isFormDisabled}
-                        onChange={(value) => updateBasketItemPrice(index, value)}
-                        ariaLabel={t('orders.supplier.modal.priceUah')}
+                        onChange={(value) =>
+                          updateBasketItemPrice(index, value)
+                        }
+                        ariaLabel={t(
+                          'orders.supplier.modal.priceUah',
+                        )}
                       />
                     </div>
                     <div className='field supplier-order-product-compact'>
@@ -867,11 +1157,23 @@ export const SupplierOrderModal: React.FC<SupplierOrderModalProps> = ({
                         ariaLabel={t('orders.supplier.modal.qty')}
                       />
                     </div>
-                    <div className='field supplier-order-product-compact'><input value={String(roundMoney(item.quantity * (parseDecimal(item.price) || 0)))} readOnly /></div>
+                    <div className='field supplier-order-product-compact'>
+                      <input
+                        value={String(
+                          roundMoney(
+                            item.quantity *
+                              (parseDecimal(item.price) || 0),
+                          ),
+                        )}
+                        readOnly
+                      />
+                    </div>
                     <button
                       type='button'
                       className='toolbar-square-button supplier-order-product-add'
-                      aria-label={t('orders.supplier.modal.removeProduct')}
+                      aria-label={t(
+                        'orders.supplier.modal.removeProduct',
+                      )}
                       disabled={isFormDisabled}
                       onClick={() => removeBasketItem(index)}
                     >
@@ -890,7 +1192,10 @@ export const SupplierOrderModal: React.FC<SupplierOrderModalProps> = ({
         </div>
 
         <footer className='catalog-edit-footer'>
-          {isEditing && onTakeOnCharge && !forceReadOnly && !isTakeOnChargeLocked ? (
+          {isEditing &&
+          onTakeOnCharge &&
+          !forceReadOnly &&
+          !isTakeOnChargeLocked ? (
             <button
               type='button'
               className='primary-button'
@@ -904,8 +1209,11 @@ export const SupplierOrderModal: React.FC<SupplierOrderModalProps> = ({
                   );
                   return;
                 }
-                const chargeUnits = (editingOrder?.items ?? []).reduce(
-                  (sum, item) => sum + Math.max(0, Math.floor(item.quantity)),
+                const chargeUnits = (
+                  editingOrder?.items ?? []
+                ).reduce(
+                  (sum, item) =>
+                    sum + Math.max(0, Math.floor(item.quantity)),
                   0,
                 );
                 setIsSerialModalOpen(true);
@@ -922,21 +1230,36 @@ export const SupplierOrderModal: React.FC<SupplierOrderModalProps> = ({
             </button>
           ) : null}
           {forceReadOnly || isContentLocked ? (
-            <button type='button' className='secondary-button' onClick={onClose}>
+            <button
+              type='button'
+              className='secondary-button'
+              onClick={onClose}
+            >
               {t('common.close')}
             </button>
           ) : (
             <button
               type='button'
               className='primary-button'
-              disabled={isSubmitting || isActionSubmitting || !selectedSupplier || !form.deliveryDate || submitItems.length === 0 || submitItems.some((item) => item.quantity <= 0)}
+              disabled={
+                isSubmitting ||
+                isActionSubmitting ||
+                !selectedSupplier ||
+                !form.deliveryDate ||
+                submitItems.length === 0 ||
+                submitItems.some((item) => item.quantity <= 0)
+              }
               onClick={async () => {
                 if (!selectedSupplier) {
                   setSupplierTouched(true);
                   return;
                 }
                 if (hasDuplicateSubmitItems) {
-                  onError(t('orders.supplier.messages.errors.duplicateProductsInOrder'));
+                  onError(
+                    t(
+                      'orders.supplier.messages.errors.duplicateProductsInOrder',
+                    ),
+                  );
                   return;
                 }
                 setIsSubmitting(true);
@@ -953,7 +1276,9 @@ export const SupplierOrderModal: React.FC<SupplierOrderModalProps> = ({
                       catalogProductId: item.catalogProductId,
                       productName: item.productName,
                       quantity: item.quantity,
-                      price: roundMoney(parseDecimal(item.price) || 0),
+                      price: roundMoney(
+                        parseDecimal(item.price) || 0,
+                      ),
                     })),
                   });
                   onClose();
@@ -973,45 +1298,10 @@ export const SupplierOrderModal: React.FC<SupplierOrderModalProps> = ({
       </section>
 
       {isCreateCatalogProductModalOpen ? (
-        <div className='supplier-order-inline-backdrop' role='presentation'>
-          <section className='catalog-edit-modal clients-modal supplier-order-create-supplier-modal' role='dialog' aria-modal='true'>
-            <header className='catalog-edit-header'><div className='catalog-edit-title'><h2>{t('orders.supplier.editModal.product')}</h2></div><button type='button' className='create-order-close' onClick={() => setIsCreateCatalogProductModalOpen(false)} aria-label={t('common.close')}>&times;</button></header>
-            <div className='catalog-edit-body clients-modal-body'>
-              <label className='field field-wide'><span>{t('orders.supplier.editModal.productName')}</span><input value={createCatalogProductForm.name} onChange={(event) => setCreateCatalogProductForm((current) => ({ ...current, name: event.target.value }))} /></label>
-              <label className='field field-wide'><span>{t('orders.supplier.editModal.note')}</span><textarea rows={3} value={createCatalogProductForm.note} onChange={(event) => setCreateCatalogProductForm((current) => ({ ...current, note: event.target.value }))} /></label>
-            </div>
-            <footer className='catalog-edit-footer'>
-              <button type='button' className='secondary-button' onClick={() => setIsCreateCatalogProductModalOpen(false)} disabled={isCreateCatalogProductSaving}>{t('common.cancel')}</button>
-              <button
-                type='button'
-                className='primary-button'
-                disabled={isCreateCatalogProductSaving || createCatalogProductForm.name.trim().length < 2}
-                onClick={async () => {
-                  setIsCreateCatalogProductSaving(true);
-                  try {
-                    const created = await createCatalogProduct({ name: createCatalogProductForm.name.trim(), note: createCatalogProductForm.note.trim(), isActive: true });
-                    setProductSearch(created.name);
-                    setSelectedCatalogProductId(created.id);
-                    setProductTouched(true);
-                    setShowProductSuggestions(false);
-                    setCreateCatalogProductForm({ name: '', note: '' });
-                    setIsCreateCatalogProductModalOpen(false);
-                    onSuccess(t('orders.supplier.messages.success.productCreated'));
-                  } catch (error) {
-                    onError(error instanceof Error ? error.message : t('orders.supplier.messages.errors.failedCreateProduct'));
-                  } finally {
-                    setIsCreateCatalogProductSaving(false);
-                  }
-                }}
-              >
-                {isCreateCatalogProductSaving ? t('orders.supplier.editModal.saving') : t('common.save')}
-              </button>
-            </footer>
-          </section>
-        </div>
-      ) : null}
-      {isSerialModalOpen ? (
-        <div className='supplier-order-inline-backdrop' role='presentation'>
+        <div
+          className='supplier-order-inline-backdrop'
+          role='presentation'
+        >
           <section
             className='catalog-edit-modal clients-modal supplier-order-create-supplier-modal'
             role='dialog'
@@ -1019,7 +1309,124 @@ export const SupplierOrderModal: React.FC<SupplierOrderModalProps> = ({
           >
             <header className='catalog-edit-header'>
               <div className='catalog-edit-title'>
-                <h2>{t('orders.supplier.modal.stockReceiptTitle')}</h2>
+                <h2>{t('orders.supplier.editModal.product')}</h2>
+              </div>
+              <button
+                type='button'
+                className='create-order-close'
+                onClick={() =>
+                  setIsCreateCatalogProductModalOpen(false)
+                }
+                aria-label={t('common.close')}
+              >
+                &times;
+              </button>
+            </header>
+            <div className='catalog-edit-body clients-modal-body'>
+              <label className='field field-wide'>
+                <span>
+                  {t('orders.supplier.editModal.productName')}
+                </span>
+                <input
+                  value={createCatalogProductForm.name}
+                  onChange={(event) =>
+                    setCreateCatalogProductForm((current) => ({
+                      ...current,
+                      name: event.target.value,
+                    }))
+                  }
+                />
+              </label>
+              <label className='field field-wide'>
+                <span>{t('orders.supplier.editModal.note')}</span>
+                <textarea
+                  rows={3}
+                  value={createCatalogProductForm.note}
+                  onChange={(event) =>
+                    setCreateCatalogProductForm((current) => ({
+                      ...current,
+                      note: event.target.value,
+                    }))
+                  }
+                />
+              </label>
+            </div>
+            <footer className='catalog-edit-footer'>
+              <button
+                type='button'
+                className='secondary-button'
+                onClick={() =>
+                  setIsCreateCatalogProductModalOpen(false)
+                }
+                disabled={isCreateCatalogProductSaving}
+              >
+                {t('common.cancel')}
+              </button>
+              <button
+                type='button'
+                className='primary-button'
+                disabled={
+                  isCreateCatalogProductSaving ||
+                  createCatalogProductForm.name.trim().length < 2
+                }
+                onClick={async () => {
+                  setIsCreateCatalogProductSaving(true);
+                  try {
+                    const created = await createCatalogProduct({
+                      name: createCatalogProductForm.name.trim(),
+                      note: createCatalogProductForm.note.trim(),
+                      isActive: true,
+                    });
+                    setProductSearch(created.name);
+                    setSelectedCatalogProductId(created.id);
+                    setProductTouched(true);
+                    setShowProductSuggestions(false);
+                    setCreateCatalogProductForm({
+                      name: '',
+                      note: '',
+                    });
+                    setIsCreateCatalogProductModalOpen(false);
+                    onSuccess(
+                      t(
+                        'orders.supplier.messages.success.productCreated',
+                      ),
+                    );
+                  } catch (error) {
+                    onError(
+                      error instanceof Error
+                        ? error.message
+                        : t(
+                            'orders.supplier.messages.errors.failedCreateProduct',
+                          ),
+                    );
+                  } finally {
+                    setIsCreateCatalogProductSaving(false);
+                  }
+                }}
+              >
+                {isCreateCatalogProductSaving
+                  ? t('orders.supplier.editModal.saving')
+                  : t('common.save')}
+              </button>
+            </footer>
+          </section>
+        </div>
+      ) : null}
+      {isSerialModalOpen ? (
+        <div
+          className='supplier-order-inline-backdrop'
+          role='presentation'
+        >
+          <section
+            className='catalog-edit-modal clients-modal supplier-order-create-supplier-modal'
+            role='dialog'
+            aria-modal='true'
+          >
+            <header className='catalog-edit-header'>
+              <div className='catalog-edit-title'>
+                <h2>
+                  {t('orders.supplier.modal.stockReceiptTitle')}
+                </h2>
               </div>
               <button
                 type='button'
@@ -1039,7 +1446,9 @@ export const SupplierOrderModal: React.FC<SupplierOrderModalProps> = ({
                     setIsAutoSerialEnabled(event.target.checked)
                   }
                 />
-                <span>{t('orders.supplier.modal.autoSerialNumbers')}</span>
+                <span>
+                  {t('orders.supplier.modal.autoSerialNumbers')}
+                </span>
               </label>
               {!isAutoSerialEnabled ? (
                 <div className='warehouse-receipt-modal-grid'>
@@ -1066,7 +1475,9 @@ export const SupplierOrderModal: React.FC<SupplierOrderModalProps> = ({
                         onKeyDown={(event) =>
                           handleManualSerialKeyDown(index, event)
                         }
-                        placeholder={t('orders.supplier.modal.serialNumberPlaceholder')}
+                        placeholder={t(
+                          'orders.supplier.modal.serialNumberPlaceholder',
+                        )}
                       />
                     </label>
                   ))}
@@ -1090,17 +1501,27 @@ export const SupplierOrderModal: React.FC<SupplierOrderModalProps> = ({
                     setShouldPrintSerials(event.target.checked)
                   }
                 />
-                <span>{t('orders.supplier.modal.printSerialsAfterReceipt')}</span>
+                <span>
+                  {t(
+                    'orders.supplier.modal.printSerialsAfterReceipt',
+                  )}
+                </span>
               </label>
               {!isAutoArticleEnabled ? (
                 <label className='field field-wide'>
-                  <span>{t('orders.supplier.modal.articleForQuantity')}</span>
+                  <span>
+                    {t('orders.supplier.modal.articleForQuantity')}
+                  </span>
                   <input
                     value={manualArticleBase}
                     onChange={(event) =>
-                      setManualArticleBase(event.target.value.toUpperCase())
+                      setManualArticleBase(
+                        event.target.value.toUpperCase(),
+                      )
                     }
-                    placeholder={t('orders.supplier.modal.articleExamplePlaceholder')}
+                    placeholder={t(
+                      'orders.supplier.modal.articleExamplePlaceholder',
+                    )}
                   />
                 </label>
               ) : null}
@@ -1118,7 +1539,9 @@ export const SupplierOrderModal: React.FC<SupplierOrderModalProps> = ({
                   }
                 >
                   {resolvedWarehouseOptions.length === 0 ? (
-                    <option value=''>{t('orders.supplier.modal.noWarehouses')}</option>
+                    <option value=''>
+                      {t('orders.supplier.modal.noWarehouses')}
+                    </option>
                   ) : null}
                   {resolvedWarehouseOptions.map((warehouse) => (
                     <option key={warehouse.id} value={warehouse.id}>
@@ -1139,10 +1562,14 @@ export const SupplierOrderModal: React.FC<SupplierOrderModalProps> = ({
                   onChange={(event) =>
                     setTakeOnChargeLocationId(event.target.value)
                   }
-                  disabled={selectedTakeOnChargeLocations.length === 0}
+                  disabled={
+                    selectedTakeOnChargeLocations.length === 0
+                  }
                 >
                   {selectedTakeOnChargeLocations.length === 0 ? (
-                    <option value=''>{t('orders.supplier.modal.noLocations')}</option>
+                    <option value=''>
+                      {t('orders.supplier.modal.noLocations')}
+                    </option>
                   ) : null}
                   {selectedTakeOnChargeLocations.map((location) => (
                     <option key={location.id} value={location.id}>
@@ -1192,7 +1619,10 @@ export const SupplierOrderModal: React.FC<SupplierOrderModalProps> = ({
                       warehouseId: takeOnChargeWarehouseId,
                       locationId: takeOnChargeLocationId,
                     });
-                    if (shouldPrintSerials && result?.stockedProducts?.length) {
+                    if (
+                      shouldPrintSerials &&
+                      result?.stockedProducts?.length
+                    ) {
                       printSerialNumbers(
                         result.stockedProducts.map((product) => ({
                           name: product.name,
@@ -1200,7 +1630,9 @@ export const SupplierOrderModal: React.FC<SupplierOrderModalProps> = ({
                           serialNumber: product.serialNumber,
                         })),
                         printForms,
-                        t('orders.supplier.modal.receivedSerialNumbers'),
+                        t(
+                          'orders.supplier.modal.receivedSerialNumbers',
+                        ),
                       );
                     }
                     setIsSerialModalOpen(false);
@@ -1218,7 +1650,9 @@ export const SupplierOrderModal: React.FC<SupplierOrderModalProps> = ({
                   }
                 }}
               >
-                {isActionSubmitting ? t('orders.supplier.editModal.saving') : t('orders.supplier.modal.takeOnCharge')}
+                {isActionSubmitting
+                  ? t('orders.supplier.editModal.saving')
+                  : t('orders.supplier.modal.takeOnCharge')}
               </button>
             </footer>
           </section>
@@ -1237,34 +1671,109 @@ export const SupplierOrderModal: React.FC<SupplierOrderModalProps> = ({
       />
 
       {isCreateSupplierModalOpen ? (
-        <div className='supplier-order-inline-backdrop' role='presentation'>
-          <section className='catalog-edit-modal clients-modal supplier-order-create-supplier-modal' role='dialog' aria-modal='true'>
-            <header className='catalog-edit-header'><div className='catalog-edit-title'><h2>{t('orders.supplier.modal.createSupplierTitle')}</h2></div><button type='button' className='create-order-close' onClick={() => setIsCreateSupplierModalOpen(false)} aria-label={t('common.close')}>&times;</button></header>
+        <div
+          className='supplier-order-inline-backdrop'
+          role='presentation'
+        >
+          <section
+            className='catalog-edit-modal clients-modal supplier-order-create-supplier-modal'
+            role='dialog'
+            aria-modal='true'
+          >
+            <header className='catalog-edit-header'>
+              <div className='catalog-edit-title'>
+                <h2>
+                  {t('orders.supplier.modal.createSupplierTitle')}
+                </h2>
+              </div>
+              <button
+                type='button'
+                className='create-order-close'
+                onClick={() => setIsCreateSupplierModalOpen(false)}
+                aria-label={t('common.close')}
+              >
+                &times;
+              </button>
+            </header>
             <div className='catalog-edit-body clients-modal-body'>
-              <label className='field field-wide'><span>{t('common.name')}</span><input value={createSupplierForm.name} onChange={(event) => setCreateSupplierForm((current) => ({ ...current, name: event.target.value }))} /></label>
-              <label className='field field-wide'><span>{t('orders.supplier.editModal.phone')}</span><input value={createSupplierForm.phone} onChange={(event) => setCreateSupplierForm((current) => ({ ...current, phone: event.target.value }))} /></label>
-              <label className='field field-wide'><span>{t('orders.supplier.editModal.note')}</span><textarea rows={4} value={createSupplierForm.note} onChange={(event) => setCreateSupplierForm((current) => ({ ...current, note: event.target.value }))} /></label>
+              <label className='field field-wide'>
+                <span>{t('common.name')}</span>
+                <input
+                  value={createSupplierForm.name}
+                  onChange={(event) =>
+                    setCreateSupplierForm((current) => ({
+                      ...current,
+                      name: event.target.value,
+                    }))
+                  }
+                />
+              </label>
+              <label className='field field-wide'>
+                <span>{t('orders.supplier.editModal.phone')}</span>
+                <input
+                  value={createSupplierForm.phone}
+                  onChange={(event) =>
+                    setCreateSupplierForm((current) => ({
+                      ...current,
+                      phone: event.target.value,
+                    }))
+                  }
+                />
+              </label>
+              <label className='field field-wide'>
+                <span>{t('orders.supplier.editModal.note')}</span>
+                <textarea
+                  rows={4}
+                  value={createSupplierForm.note}
+                  onChange={(event) =>
+                    setCreateSupplierForm((current) => ({
+                      ...current,
+                      note: event.target.value,
+                    }))
+                  }
+                />
+              </label>
             </div>
             <footer className='catalog-edit-footer'>
               <button
                 type='button'
                 className='primary-button'
-                disabled={isSupplierCreating || !createSupplierForm.name.trim() || !createSupplierForm.phone.trim()}
+                disabled={
+                  isSupplierCreating ||
+                  !createSupplierForm.name.trim() ||
+                  !createSupplierForm.phone.trim()
+                }
                 onClick={async () => {
                   setIsSupplierCreating(true);
-                  const created = await onCreateSupplier({ name: createSupplierForm.name.trim(), phone: createSupplierForm.phone.trim(), note: createSupplierForm.note.trim(), supplierOrder: '', isActive: true });
+                  const created = await onCreateSupplier({
+                    name: createSupplierForm.name.trim(),
+                    phone: createSupplierForm.phone.trim(),
+                    note: createSupplierForm.note.trim(),
+                    supplierOrder: '',
+                    isActive: true,
+                  });
                   if (created) {
-                    onSuccess(t('orders.supplier.messages.success.supplierCreated'));
+                    onSuccess(
+                      t(
+                        'orders.supplier.messages.success.supplierCreated',
+                      ),
+                    );
                     setSupplierSearch(createSupplierForm.name.trim());
                     setSupplierTouched(true);
                     setIsCreateSupplierModalOpen(false);
                   } else {
-                    onError(t('orders.supplier.messages.errors.failedCreateSupplier'));
+                    onError(
+                      t(
+                        'orders.supplier.messages.errors.failedCreateSupplier',
+                      ),
+                    );
                   }
                   setIsSupplierCreating(false);
                 }}
               >
-                {isSupplierCreating ? t('orders.supplier.editModal.saving') : t('common.create')}
+                {isSupplierCreating
+                  ? t('orders.supplier.editModal.saving')
+                  : t('common.create')}
               </button>
             </footer>
           </section>
@@ -1272,7 +1781,10 @@ export const SupplierOrderModal: React.FC<SupplierOrderModalProps> = ({
       ) : null}
 
       {isCancelItemDialogOpen ? (
-        <div className='supplier-order-inline-backdrop' role='presentation'>
+        <div
+          className='supplier-order-inline-backdrop'
+          role='presentation'
+        >
           <section
             className='catalog-edit-modal supplier-order-cancel-item-modal'
             role='dialog'
@@ -1297,11 +1809,15 @@ export const SupplierOrderModal: React.FC<SupplierOrderModalProps> = ({
             <div className='catalog-edit-body'>
               <p>{t('orders.supplier.modal.cancelItemConfirm')}</p>
               <label className='field field-wide'>
-                <span>{t('orders.supplier.modal.cancelItemReason')}</span>
+                <span>
+                  {t('orders.supplier.modal.cancelItemReason')}
+                </span>
                 <textarea
                   rows={3}
                   value={cancelItemReason}
-                  onChange={(event) => setCancelItemReason(event.target.value)}
+                  onChange={(event) =>
+                    setCancelItemReason(event.target.value)
+                  }
                 />
               </label>
             </div>
@@ -1324,7 +1840,9 @@ export const SupplierOrderModal: React.FC<SupplierOrderModalProps> = ({
                 onClick={async () => {
                   setIsActionSubmitting(true);
                   try {
-                    await onCancelItem?.(cancelItemReason.trim() || undefined);
+                    await onCancelItem?.(
+                      cancelItemReason.trim() || undefined,
+                    );
                     setIsCancelItemDialogOpen(false);
                     setCancelItemReason('');
                     onClose();
@@ -1343,7 +1861,9 @@ export const SupplierOrderModal: React.FC<SupplierOrderModalProps> = ({
               >
                 {isActionSubmitting
                   ? t('orders.supplier.editModal.saving')
-                  : t('orders.supplier.modal.cancelItemConfirmAction')}
+                  : t(
+                      'orders.supplier.modal.cancelItemConfirmAction',
+                    )}
               </button>
             </footer>
           </section>
@@ -1351,7 +1871,10 @@ export const SupplierOrderModal: React.FC<SupplierOrderModalProps> = ({
       ) : null}
 
       {isCancelOrderDialogOpen ? (
-        <div className='supplier-order-inline-backdrop' role='presentation'>
+        <div
+          className='supplier-order-inline-backdrop'
+          role='presentation'
+        >
           <section
             className='catalog-edit-modal supplier-order-cancel-order-modal'
             role='dialog'
@@ -1407,7 +1930,9 @@ export const SupplierOrderModal: React.FC<SupplierOrderModalProps> = ({
               >
                 {isActionSubmitting
                   ? t('orders.supplier.editModal.saving')
-                  : t('orders.supplier.modal.cancelOrderConfirmAction')}
+                  : t(
+                      'orders.supplier.modal.cancelOrderConfirmAction',
+                    )}
               </button>
             </footer>
           </section>
@@ -1416,4 +1941,3 @@ export const SupplierOrderModal: React.FC<SupplierOrderModalProps> = ({
     </div>
   );
 };
-

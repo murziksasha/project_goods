@@ -28,6 +28,10 @@ supplierRouter.post(
   '/suppliers/merge',
   asyncHandler(controller.merge),
 );
+supplierRouter.patch(
+  '/suppliers/reorder',
+  asyncHandler(controller.reorder),
+);
 supplierRouter.put(
   '/suppliers/:supplierId',
   asyncHandler(controller.update),

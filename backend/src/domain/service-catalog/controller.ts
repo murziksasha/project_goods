@@ -5,6 +5,7 @@ import {
   deleteServiceCatalogItem,
   listServiceCatalogItems,
   mergeServices,
+  reorderServiceCatalogItems,
   updateServiceCatalogItem,
 } from './service';
 import type {
@@ -64,5 +65,11 @@ export const remove = async (req: Request, res: Response): Promise<void> => {
 export const archive = async (req: Request, res: Response): Promise<void> => {
   await requirePermission(req, 'inventory.manage');
   res.json(await archiveServiceCatalogItem(routeParam(req, 'serviceId')));
+};
+
+export const reorder = async (req: Request, res: Response): Promise<void> => {
+  await requireAnyPermission(req, ['inventory.manage', 'orders.manage']);
+  const payload = req.body as { items: Array<{ id: string; sortOrder: number }> };
+  res.json(await reorderServiceCatalogItems(payload?.items));
 };
 

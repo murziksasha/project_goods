@@ -23,12 +23,16 @@ export type SupplierOrderModalLockOptions = {
   itemReceiptStatus?: SupplierReceiptStatus;
 };
 
-const isSupplierOrderFinalClosed = (order: SupplierOrderModalLockInput) =>
+const isSupplierOrderFinalClosed = (
+  order: SupplierOrderModalLockInput,
+) =>
   order.status === 'cancelled' ||
   order.status === 'unavailable' ||
   order.paymentStatus === 'cancelled';
 
-const isSupplierOrderFullyReceived = (order: SupplierOrderModalLockInput) =>
+const isSupplierOrderFullyReceived = (
+  order: SupplierOrderModalLockInput,
+) =>
   (order.items.length > 0 &&
     order.items.every((item) => item.receiptStatus === 'received')) ||
   order.status === 'stocked' ||
@@ -68,13 +72,14 @@ export const resolveSupplierOrderModalLocks = (
   return { isContentLocked, isTakeOnChargeLocked, isCancelLocked };
 };
 
-export const SUPPLIER_ORDER_PAYABLE_STATUSES: readonly SupplierOrderStatus[] = [
-  'approved',
-  'overdue',
-  'partially_stocked',
-  'partially_completed',
-  'stocked',
-];
+export const SUPPLIER_ORDER_PAYABLE_STATUSES: readonly SupplierOrderStatus[] =
+  [
+    'approved',
+    'overdue',
+    'partially_stocked',
+    'partially_completed',
+    'stocked',
+  ];
 
 export const isSupplierOrderPayable = (
   order: Pick<SupplierOrder, 'status' | 'paymentStatus' | 'total'>,
@@ -108,7 +113,8 @@ const supplierOrderBackendErrorMap: Record<string, string> = {
     'orders.supplier.messages.errors.itemReceivedNotCancellable',
   'Supplier order item is already cancelled.':
     'orders.supplier.messages.errors.itemAlreadyCancelled',
-  'Замовлення вже сплачено.': 'orders.supplier.messages.errors.alreadyPaid',
+  'Замовлення вже сплачено.':
+    'orders.supplier.messages.errors.alreadyPaid',
   'Замовлення вже видано без оплати.':
     'orders.supplier.messages.errors.alreadyIssuedWithoutPayment',
   'Оплата доступна тільки для замовлень зі статусом approved або stocked.':
@@ -243,12 +249,8 @@ export const supplierOrderAnalyticsStatuses: SupplierOrderStatus[] = [
   'unavailable',
 ];
 
-export const supplierOrderAnalyticsPayments: SupplierPaymentStatus[] = [
-  'pending',
-  'paid',
-  'without_payment',
-  'cancelled',
-];
+export const supplierOrderAnalyticsPayments: SupplierPaymentStatus[] =
+  ['pending', 'paid', 'without_payment', 'cancelled'];
 
 export type SupplierOrderAnalyticsOptions = {
   previousOrders?: SupplierOrder[];
@@ -283,7 +285,10 @@ export const getPreviousDeliveryDateRange = (
 
   const startDate = new Date(`${start}T12:00:00`);
   const endDate = new Date(`${end}T12:00:00`);
-  if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) {
+  if (
+    Number.isNaN(startDate.getTime()) ||
+    Number.isNaN(endDate.getTime())
+  ) {
     return null;
   }
   const first = startDate <= endDate ? startDate : endDate;
@@ -302,7 +307,10 @@ export const getPreviousDeliveryDateRange = (
   };
 };
 
-const supplierMatchesSearch = (supplier: Supplier, normalized: string) =>
+const supplierMatchesSearch = (
+  supplier: Supplier,
+  normalized: string,
+) =>
   [
     supplier.name,
     supplier.phone,
@@ -317,7 +325,15 @@ export const filterActiveSuppliers = (
   searchValue: string,
 ) => {
   const normalized = searchValue.trim().toLowerCase();
-  return suppliers.filter((supplier) => {
+  const sorted = [...suppliers].sort((a, b) => {
+    const aOrder = a.sortOrder ?? 0;
+    const bOrder = b.sortOrder ?? 0;
+    if (aOrder !== bOrder) {
+      return aOrder - bOrder;
+    }
+    return (b.createdAt || '').localeCompare(a.createdAt || '');
+  });
+  return sorted.filter((supplier) => {
     if (!supplier.isActive) return false;
     if (!normalized) return true;
     return supplierMatchesSearch(supplier, normalized);
@@ -370,7 +386,9 @@ export const mergeSupplierOrderItemUpdate = ({
 const roundMoney = (value: number) => Math.round(value * 100) / 100;
 
 const percentDelta = (current: number, previous: number) =>
-  previous > 0 ? roundMoney(((current - previous) / previous) * 100) : null;
+  previous > 0
+    ? roundMoney(((current - previous) / previous) * 100)
+    : null;
 
 const normalizeProductName = (value: string) =>
   value.trim().toLowerCase().replace(/\s+/g, ' ');
@@ -570,16 +588,16 @@ export const buildSupplierOrderAnalytics = (
     const orderPaid = Math.min(Math.max(order.paid, 0), orderTotal);
     const outstanding = Math.max(orderTotal - orderPaid, 0);
     const supplierKey = order.supplierId || order.supplierName;
-    const supplierEntry =
-      supplierStats.get(supplierKey) ?? {
-        supplierId: order.supplierId,
-        supplierName:
-          order.supplierName || i18n.t('orders.supplier.fallbacks.unknownSupplier'),
-        orderCount: 0,
-        total: 0,
-        paid: 0,
-        outstanding: 0,
-      };
+    const supplierEntry = supplierStats.get(supplierKey) ?? {
+      supplierId: order.supplierId,
+      supplierName:
+        order.supplierName ||
+        i18n.t('orders.supplier.fallbacks.unknownSupplier'),
+      orderCount: 0,
+      total: 0,
+      paid: 0,
+      outstanding: 0,
+    };
 
     totalValue += orderTotal;
     paidAmount += orderPaid;
@@ -605,7 +623,10 @@ export const buildSupplierOrderAnalytics = (
     paymentEntry.amount += orderTotal;
     paymentTotals.set(order.paymentStatus, paymentEntry);
 
-    if (order.status === 'cancelled' || order.status === 'unavailable') {
+    if (
+      order.status === 'cancelled' ||
+      order.status === 'unavailable'
+    ) {
       cancelledUnavailableCount += 1;
     }
 
@@ -641,7 +662,9 @@ export const buildSupplierOrderAnalytics = (
       order.status !== 'overdue' &&
       order.receiptStatus !== 'received';
     const isOverdueByDate =
-      isOpenOrder && deliveryTime !== null && deliveryTime < currentDateTime;
+      isOpenOrder &&
+      deliveryTime !== null &&
+      deliveryTime < currentDateTime;
     if (order.status === 'overdue' || isOverdueByDate) {
       overdueOutstanding += outstanding;
     }
@@ -656,20 +679,21 @@ export const buildSupplierOrderAnalytics = (
     order.items.forEach((item: SupplierOrderItem) => {
       const itemTotal = item.quantity * item.price;
       const productKey =
-        item.catalogProductId || normalizeProductName(item.productName);
-      const entry =
-        productStats.get(productKey) ?? {
-          productName:
-            item.productName || i18n.t('orders.supplier.fallbacks.unnamedProduct'),
-          quantity: 0,
-          total: 0,
-          lineCount: 0,
-          orderCount: 0,
-          minPrice: item.price,
-          maxPrice: item.price,
-          averagePrice: 0,
-          orderIds: new Set<string>(),
-        };
+        item.catalogProductId ||
+        normalizeProductName(item.productName);
+      const entry = productStats.get(productKey) ?? {
+        productName:
+          item.productName ||
+          i18n.t('orders.supplier.fallbacks.unnamedProduct'),
+        quantity: 0,
+        total: 0,
+        lineCount: 0,
+        orderCount: 0,
+        minPrice: item.price,
+        maxPrice: item.price,
+        averagePrice: 0,
+        orderIds: new Set<string>(),
+      };
 
       entry.quantity += item.quantity;
       entry.total += itemTotal;
@@ -683,7 +707,10 @@ export const buildSupplierOrderAnalytics = (
 
       const pricePosition = {
         orderId: order.id,
-        orderNumber: buildSupplierOrderItemNumber(order, item.itemIndex),
+        orderNumber: buildSupplierOrderItemNumber(
+          order,
+          item.itemIndex,
+        ),
         supplierName: order.supplierName,
         productName: item.productName,
         price: item.price,
@@ -716,16 +743,16 @@ export const buildSupplierOrderAnalytics = (
     minPrice: item.minPrice,
     maxPrice: item.maxPrice,
     averagePrice:
-      item.quantity > 0
-        ? roundMoney(item.total / item.quantity)
-        : 0,
+      item.quantity > 0 ? roundMoney(item.total / item.quantity) : 0,
   }));
-  const suppliers = Array.from(supplierStats.values()).map((item) => ({
-    ...item,
-    total: roundMoney(item.total),
-    paid: roundMoney(item.paid),
-    outstanding: roundMoney(item.outstanding),
-  }));
+  const suppliers = Array.from(supplierStats.values()).map(
+    (item) => ({
+      ...item,
+      total: roundMoney(item.total),
+      paid: roundMoney(item.paid),
+      outstanding: roundMoney(item.outstanding),
+    }),
+  );
   const sortByQuantity = [...products].sort(
     (a, b) => b.quantity - a.quantity || b.total - a.total,
   );
@@ -752,18 +779,26 @@ export const buildSupplierOrderAnalytics = (
     orderCount: orders.length,
     totalValue: roundedTotalValue,
     paidAmount: roundedPaidAmount,
-    outstandingAmount: roundMoney(Math.max(totalValue - paidAmount, 0)),
+    outstandingAmount: roundMoney(
+      Math.max(totalValue - paidAmount, 0),
+    ),
     totalQuantity,
     averageOrderValue:
       orders.length > 0 ? roundMoney(totalValue / orders.length) : 0,
     paymentCoveragePercent:
-      totalValue > 0 ? roundMoney((paidAmount / totalValue) * 100) : 0,
+      totalValue > 0
+        ? roundMoney((paidAmount / totalValue) * 100)
+        : 0,
     cancelledUnavailableRate:
       orders.length > 0
-        ? roundMoney((cancelledUnavailableCount / orders.length) * 100)
+        ? roundMoney(
+            (cancelledUnavailableCount / orders.length) * 100,
+          )
         : 0,
     stockedRate:
-      orders.length > 0 ? roundMoney((stockedCount / orders.length) * 100) : 0,
+      orders.length > 0
+        ? roundMoney((stockedCount / orders.length) * 100)
+        : 0,
     overdueCount,
     lateRiskCount,
     overdueOutstanding: roundMoney(overdueOutstanding),
@@ -773,7 +808,9 @@ export const buildSupplierOrderAnalytics = (
       leadSamples > 0 ? roundMoney(leadDaysSum / leadSamples) : null,
     supplierConcentrationPercent:
       roundedTotalValue > 0 && topSuppliersBySpend[0]
-        ? roundMoney((topSuppliersBySpend[0].total / roundedTotalValue) * 100)
+        ? roundMoney(
+            (topSuppliersBySpend[0].total / roundedTotalValue) * 100,
+          )
         : 0,
     statusBreakdown: supplierOrderAnalyticsStatuses.map((status) => {
       const entry = statusTotals.get(status);
@@ -816,7 +853,9 @@ export const buildSupplierOrderAnalytics = (
     topProductsByFrequency: sortByFrequency.slice(0, 5),
     productPriceRanges: [...products]
       .filter((item) => item.minPrice !== item.maxPrice)
-      .sort((a, b) => b.maxPrice - b.minPrice - (a.maxPrice - a.minPrice))
+      .sort(
+        (a, b) => b.maxPrice - b.minPrice - (a.maxPrice - a.minPrice),
+      )
       .slice(0, 5),
     topSuppliersBySpend: topSuppliersBySpend.slice(0, 5),
     topSuppliersByPending: [...suppliers]
@@ -826,4 +865,3 @@ export const buildSupplierOrderAnalytics = (
     highestPricePosition,
   };
 };
-

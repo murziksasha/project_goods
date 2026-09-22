@@ -34,6 +34,11 @@ export const catalogProductSchema = new mongoose.Schema(
       default: Date.now,
       index: true,
     },
+    sortOrder: {
+      type: Number,
+      default: 0,
+      index: true,
+    },
   },
   {
     timestamps: true,

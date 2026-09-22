@@ -147,6 +147,7 @@ export const OrderDetailCard: React.FC<OrderDetailCardProps> = ({
   canAcceptPayment,
   canRefundPayment: canRefundPaymentPermission,
   canCreateOrders,
+  canManageOrders = false,
   canManageSupplierOrders = false,
   canPaySupplierOrders = false,
   canIssueSupplierOrdersWithoutPayment = false,
@@ -1574,6 +1575,7 @@ export const OrderDetailCard: React.FC<OrderDetailCardProps> = ({
               onError={onError}
               onSuccess={onSuccess}
               onSupplierOrderCreated={onSupplierOrderCreated}
+              canManageOrders={canManageOrders}
               isReadOnly={isContentLocked}
             />
           ) : null}
@@ -1643,6 +1645,7 @@ export const OrderDetailCard: React.FC<OrderDetailCardProps> = ({
               onError={onError}
               onSuccess={onSuccess}
               onSupplierOrderCreated={onSupplierOrderCreated}
+              canManageOrders={canManageOrders}
               isReadOnly={isContentLocked}
             />
           ) : null}

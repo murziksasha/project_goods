@@ -4,6 +4,7 @@ import {
   deleteSupplier,
   listSuppliers,
   mergeSuppliers,
+  reorderSuppliers,
   updateSupplier,
 } from './service';
 import {
@@ -27,17 +28,28 @@ export const supplierReadPermissions = [
   'supplierOrders.manage',
 ] as const;
 
-export const list = async (req: Request, res: Response): Promise<void> => {
+export const list = async (
+  req: Request,
+  res: Response,
+): Promise<void> => {
   await requireAnyPermission(req, supplierReadPermissions);
   res.json(await listSuppliers(req.query.query));
 };
 
-export const create = async (req: Request, res: Response): Promise<void> => {
+export const create = async (
+  req: Request,
+  res: Response,
+): Promise<void> => {
   await requirePermission(req, 'clients.manage');
-  res.status(201).json(await createSupplier(req.body as SupplierPayload));
+  res
+    .status(201)
+    .json(await createSupplier(req.body as SupplierPayload));
 };
 
-export const importSuppliers = async (req: Request, res: Response): Promise<void> => {
+export const importSuppliers = async (
+  req: Request,
+  res: Response,
+): Promise<void> => {
   await requirePermission(req, 'clients.manage');
   if (!Buffer.isBuffer(req.body) || req.body.length === 0) {
     throw new HttpError(400, 'Excel file is required.');
@@ -45,15 +57,24 @@ export const importSuppliers = async (req: Request, res: Response): Promise<void
   res.status(201).json(await importSuppliersWorkbook(req.body));
 };
 
-export const exportSuppliers = async (req: Request, res: Response): Promise<void> => {
+export const exportSuppliers = async (
+  req: Request,
+  res: Response,
+): Promise<void> => {
   await requirePermission(req, 'clients.manage');
   const buffer = await exportSuppliersWorkbook();
-  res.setHeader('Content-Disposition', 'attachment; filename="suppliers.xls"');
+  res.setHeader(
+    'Content-Disposition',
+    'attachment; filename="suppliers.xls"',
+  );
   res.setHeader('Content-Type', 'application/vnd.ms-excel');
   res.send(buffer);
 };
 
-export const merge = async (req: Request, res: Response): Promise<void> => {
+export const merge = async (
+  req: Request,
+  res: Response,
+): Promise<void> => {
   await requirePermission(req, 'clients.manage');
   const payload = req.body as MergeSuppliersPayload;
   res.json(
@@ -65,7 +86,10 @@ export const merge = async (req: Request, res: Response): Promise<void> => {
   );
 };
 
-export const update = async (req: Request, res: Response): Promise<void> => {
+export const update = async (
+  req: Request,
+  res: Response,
+): Promise<void> => {
   await requirePermission(req, 'clients.manage');
   res.json(
     await updateSupplier(
@@ -75,8 +99,25 @@ export const update = async (req: Request, res: Response): Promise<void> => {
   );
 };
 
-export const remove = async (req: Request, res: Response): Promise<void> => {
+export const remove = async (
+  req: Request,
+  res: Response,
+): Promise<void> => {
   await requirePermission(req, 'clients.manage');
   res.json(await deleteSupplier(routeParam(req, 'supplierId')));
 };
 
+export const reorder = async (
+  req: Request,
+  res: Response,
+): Promise<void> => {
+  await requireAnyPermission(req, [
+    'clients.manage',
+    'supplierOrders.manage',
+    'orders.manage',
+  ]);
+  const payload = req.body as {
+    items: Array<{ id: string; sortOrder: number }>;
+  };
+  res.json(await reorderSuppliers(payload?.items));
+};

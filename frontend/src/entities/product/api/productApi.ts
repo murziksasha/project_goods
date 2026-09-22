@@ -121,3 +121,18 @@ export const exportProducts = async () => {
     throw new Error(getApiErrorMessage(error));
   }
 };
+
+export const reorderProducts = async (
+  items: Array<{ name: string; sortOrder: number }>,
+) => {
+  try {
+    const response = await apiClient.patch<{
+      success: boolean;
+      updatedCount: number;
+    }>('/products/reorder', { items });
+
+    return response.data;
+  } catch (error) {
+    throw new Error(getApiErrorMessage(error));
+  }
+};

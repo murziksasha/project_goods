@@ -620,3 +620,156 @@ describe('SupplierOrderModal cancel actions', () => {
     ).not.toBeInTheDocument();
   });
 });
+
+describe('SupplierOrderModal supplier suggestions reorder and navigation', () => {
+  const suppliersList: Supplier[] = [
+    {
+      id: 'supp-1',
+      name: 'Supplier Alpha',
+      phone: '+380501111111',
+      phones: ['+380501111111'],
+      note: '',
+      supplierOrder: '',
+      isActive: true,
+      sortOrder: 0,
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    },
+    {
+      id: 'supp-2',
+      name: 'Supplier Beta',
+      phone: '+380502222222',
+      phones: ['+380502222222'],
+      note: '',
+      supplierOrder: '',
+      isActive: true,
+      sortOrder: 1,
+      createdAt: '2026-01-02T00:00:00.000Z',
+      updatedAt: '2026-01-02T00:00:00.000Z',
+    },
+  ];
+
+  it('navigates suggestions with ArrowDown and selects with Enter', async () => {
+    vi.useFakeTimers();
+    renderModal(
+      <SupplierOrderModal
+        {...baseProps()}
+        suppliers={suppliersList}
+      />,
+    );
+
+    const supplierInput = screen.getByPlaceholderText('Search');
+    fireEvent.change(supplierInput, {
+      target: { value: 'Supplier' },
+    });
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(350);
+    });
+
+    expect(
+      screen.getByRole('button', { name: 'Supplier Alpha' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Supplier Beta' }),
+    ).toBeInTheDocument();
+
+    // Navigate to first suggestion
+    fireEvent.keyDown(supplierInput, { key: 'ArrowDown' });
+    // Navigate to second suggestion
+    fireEvent.keyDown(supplierInput, { key: 'ArrowDown' });
+    // Select second suggestion
+    fireEvent.keyDown(supplierInput, { key: 'Enter' });
+
+    expect(supplierInput).toHaveValue('Supplier Beta');
+    expect(
+      screen.queryByRole('button', { name: 'Supplier Alpha' }),
+    ).not.toBeInTheDocument();
+
+    vi.useRealTimers();
+  });
+
+  it('reorders suggestions with shift button and calls onReorderSuppliers', async () => {
+    vi.useFakeTimers();
+    const onReorderSuppliers = vi.fn(async () => {});
+    renderModal(
+      <SupplierOrderModal
+        {...baseProps()}
+        suppliers={suppliersList}
+        onReorderSuppliers={onReorderSuppliers}
+      />,
+    );
+
+    const supplierInput = screen.getByPlaceholderText('Search');
+    fireEvent.change(supplierInput, {
+      target: { value: 'Supplier' },
+    });
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(350);
+    });
+
+    const moveDownButtons = screen.getAllByRole('button', {
+      name: 'Move down',
+    });
+    expect(moveDownButtons).toHaveLength(2);
+    fireEvent.click(moveDownButtons[0]!);
+
+    expect(onReorderSuppliers).toHaveBeenCalledTimes(1);
+    expect(onReorderSuppliers).toHaveBeenCalledWith([
+      suppliersList[1],
+      suppliersList[0],
+    ]);
+
+    vi.useRealTimers();
+  });
+
+  it('reorders suggestions with drag and drop', async () => {
+    vi.useFakeTimers();
+    const onReorderSuppliers = vi.fn(async () => {});
+    renderModal(
+      <SupplierOrderModal
+        {...baseProps()}
+        suppliers={suppliersList}
+        onReorderSuppliers={onReorderSuppliers}
+      />,
+    );
+
+    const supplierInput = screen.getByPlaceholderText('Search');
+    fireEvent.change(supplierInput, {
+      target: { value: 'Supplier' },
+    });
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(350);
+    });
+
+    const dragHandles = screen.getAllByRole('button', {
+      name: 'Drag to reorder',
+    });
+    expect(dragHandles).toHaveLength(2);
+
+    const dataTransfer = {
+      effectAllowed: '',
+      setData: vi.fn(),
+      dropEffect: '',
+    };
+
+    fireEvent.dragStart(dragHandles[0]!, { dataTransfer });
+    const suggestionItems = document.querySelectorAll(
+      '.reorderable-suggestion-item',
+    );
+    expect(suggestionItems).toHaveLength(2);
+    fireEvent.dragOver(suggestionItems[1]!, { dataTransfer });
+    fireEvent.drop(suggestionItems[1]!, { dataTransfer });
+    fireEvent.dragEnd(dragHandles[0]!);
+
+    expect(onReorderSuppliers).toHaveBeenCalledTimes(1);
+    expect(onReorderSuppliers).toHaveBeenCalledWith([
+      suppliersList[1],
+      suppliersList[0],
+    ]);
+
+    vi.useRealTimers();
+  });
+});

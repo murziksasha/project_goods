@@ -8,10 +8,12 @@ import {
 } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Product } from '../../../../../entities/product';
+import { reorderProducts } from '../../../../../entities/product';
 import type { Sale } from '../../../../../entities/sale';
 import {
   createServiceCatalogItem,
   getServiceCatalogItems,
+  reorderServiceCatalog,
 } from '../../../../../entities/service-catalog';
 import type { ServiceCatalogItem } from '../../../../../entities/service-catalog';
 import {
@@ -31,6 +33,8 @@ import { Modal } from '../../../../../shared/ui/Modal';
 import { Button } from '../../../../../shared/ui/Button';
 import { createRuntimeId } from '../../../../../shared/lib/runtime-id';
 import { useDismissibleSuggestions } from '../../../../../shared/lib/useDismissibleSuggestions';
+import { useReorderableSuggestions } from '../../../../../shared/lib/useReorderableSuggestions';
+import { ReorderableSuggestionItem } from '../../../../../shared/ui/ReorderableSuggestionItem';
 import {
   buildMissingServicePayload,
   findExactServiceSuggestion,
@@ -61,6 +65,7 @@ export interface RapidSaleModalProps {
   onClose: () => void;
   onSubmit: (items: RapidSaleDraftItem[]) => Promise<void>;
   onError: (message: string) => void;
+  canManageOrders?: boolean;
 }
 
 export const RapidSaleModal: React.FC<RapidSaleModalProps> = ({
@@ -70,6 +75,7 @@ export const RapidSaleModal: React.FC<RapidSaleModalProps> = ({
   onClose,
   onSubmit,
   onError,
+  canManageOrders = true,
 }) => {
   const { t } = useTranslation();
   const warrantyOptions = getWarrantyOptions();
@@ -370,6 +376,52 @@ export const RapidSaleModal: React.FC<RapidSaleModalProps> = ({
     setServiceSuggestions([]);
   };
 
+  const productReorder = useReorderableSuggestions<CreateOrderProductSuggestion>({
+    items: displayedProductSuggestions,
+    onSelect: applyProductSuggestion,
+    onReorder: async (newSuggestions) => {
+      setProductSuggestions(newSuggestions);
+      const reorderItems = newSuggestions.map((suggestion, index) => ({
+        name: suggestion.name,
+        sortOrder: index,
+      }));
+      try {
+        await reorderProducts(reorderItems);
+      } catch (error) {
+        onError(
+          error instanceof Error
+            ? error.message
+            : t('orders.messages.errors.failedReorder'),
+        );
+      }
+    },
+    canReorder: canManageOrders && !isSaving,
+    isVisible: isProductSuggestionsVisible,
+  });
+
+  const serviceReorder = useReorderableSuggestions<ServiceCatalogItem>({
+    items: displayedServiceSuggestions,
+    onSelect: applyServiceSuggestion,
+    onReorder: async (newServices) => {
+      setServiceSuggestions(newServices);
+      const reorderItems = newServices.map((service, index) => ({
+        id: service.id,
+        sortOrder: index,
+      }));
+      try {
+        await reorderServiceCatalog(reorderItems);
+      } catch (error) {
+        onError(
+          error instanceof Error
+            ? error.message
+            : t('orders.messages.errors.failedReorder'),
+        );
+      }
+    },
+    canReorder: canManageOrders && !isSaving,
+    isVisible: isServiceSuggestionsVisible,
+  });
+
   const handleAddService = async () => {
     const normalizedName = serviceQuery.trim();
     if (normalizedName.length < 2) {
@@ -634,6 +686,19 @@ export const RapidSaleModal: React.FC<RapidSaleModalProps> = ({
                 setSelectedSerialNumbers([]);
               }}
               onKeyDown={(event) => {
+                if (
+                  isProductSuggestionsVisible &&
+                  displayedProductSuggestions.length > 0
+                ) {
+                  if (
+                    event.key === 'ArrowDown' ||
+                    event.key === 'ArrowUp' ||
+                    (event.key === 'Enter' && productReorder.activeIndex >= 0)
+                  ) {
+                    productReorder.handleKeyDown(event);
+                    return;
+                  }
+                }
                 if (event.key !== 'Enter') return;
                 event.preventDefault();
                 if (selectedProductId) {
@@ -716,25 +781,36 @@ export const RapidSaleModal: React.FC<RapidSaleModalProps> = ({
             {isProductLookupLoading ? (
               <p>{t('orders.create.searchingProducts')}</p>
             ) : null}
-            {displayedProductSuggestions.map((suggestion) => (
-              <button
+            {displayedProductSuggestions.map((suggestion, index) => (
+              <ReorderableSuggestionItem
                 key={suggestion.id}
-                type='button'
-                className='create-suggestion-item'
-                aria-label={suggestion.name}
+                id={suggestion.id}
+                isActive={productReorder.activeIndex === index}
                 disabled={!suggestion.selectable}
+                canReorder={canManageOrders && !isSaving}
+                isFirst={index === 0}
+                isLast={index === displayedProductSuggestions.length - 1}
+                onSelect={() => applyProductSuggestion(suggestion)}
+                onMoveUp={() => productReorder.moveItem(index, 'up')}
+                onMoveDown={() => productReorder.moveItem(index, 'down')}
+                onDragStart={(e) => productReorder.handleDragStart(e, index)}
+                onDragOver={(e) => productReorder.handleDragOver(e, index)}
+                onDrop={(e) => productReorder.handleDrop(e, index)}
+                onDragEnd={productReorder.handleDragEnd}
+                isDragging={productReorder.draggedIndex === index}
+                isDragOver={productReorder.dragOverIndex === index}
+                ariaLabel={suggestion.name}
                 title={
                   suggestion.selectable
                     ? undefined
                     : suggestion.availabilityLabel
                 }
-                onClick={() => applyProductSuggestion(suggestion)}
               >
                 <strong>{suggestion.name}</strong>
                 <span>
                   {`${suggestion.article || '-'} / ${suggestion.serialNumber || '-'} / ${suggestion.availabilityLabel}`}
                 </span>
-              </button>
+              </ReorderableSuggestionItem>
             ))}
           </div>
         ) : null}
@@ -758,6 +834,19 @@ export const RapidSaleModal: React.FC<RapidSaleModalProps> = ({
                 setServicePriceTier(null);
               }}
               onKeyDown={(event) => {
+                if (
+                  isServiceSuggestionsVisible &&
+                  displayedServiceSuggestions.length > 0
+                ) {
+                  if (
+                    event.key === 'ArrowDown' ||
+                    event.key === 'ArrowUp' ||
+                    (event.key === 'Enter' && serviceReorder.activeIndex >= 0)
+                  ) {
+                    serviceReorder.handleKeyDown(event);
+                    return;
+                  }
+                }
                 if (event.key !== 'Enter') return;
                 event.preventDefault();
                 if (
@@ -841,16 +930,28 @@ export const RapidSaleModal: React.FC<RapidSaleModalProps> = ({
             {isServiceLookupLoading ? (
               <p>{t('orders.rapidSale.searchingServices')}</p>
             ) : null}
-            {displayedServiceSuggestions.map((service) => (
-              <button
+            {displayedServiceSuggestions.map((service, index) => (
+              <ReorderableSuggestionItem
                 key={service.id}
-                type='button'
-                className='create-suggestion-item'
-                onClick={() => applyServiceSuggestion(service)}
+                id={service.id}
+                isActive={serviceReorder.activeIndex === index}
+                canReorder={canManageOrders && !isSaving}
+                isFirst={index === 0}
+                isLast={index === displayedServiceSuggestions.length - 1}
+                onSelect={() => applyServiceSuggestion(service)}
+                onMoveUp={() => serviceReorder.moveItem(index, 'up')}
+                onMoveDown={() => serviceReorder.moveItem(index, 'down')}
+                onDragStart={(e) => serviceReorder.handleDragStart(e, index)}
+                onDragOver={(e) => serviceReorder.handleDragOver(e, index)}
+                onDrop={(e) => serviceReorder.handleDrop(e, index)}
+                onDragEnd={serviceReorder.handleDragEnd}
+                isDragging={serviceReorder.draggedIndex === index}
+                isDragOver={serviceReorder.dragOverIndex === index}
+                ariaLabel={service.name}
               >
                 <strong>{service.name}</strong>
                 <span>{service.price}</span>
-              </button>
+              </ReorderableSuggestionItem>
             ))}
           </div>
         ) : null}

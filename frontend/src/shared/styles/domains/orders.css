@@ -3324,3 +3324,104 @@ button.orders-kanban-count:focus-visible {
   width: 100%;
   min-height: 36px;
 }
+
+.reorderable-suggestion-item {
+  display: flex !important;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px !important;
+  position: relative;
+  transition: background 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
+}
+
+.reorderable-suggestion-item.is-active {
+  background: var(--color-primary-soft, #e8f0fe) !important;
+  border-color: var(--color-primary, #1976d2) !important;
+}
+
+.reorderable-suggestion-item.is-dragging {
+  opacity: 0.4;
+}
+
+.reorderable-suggestion-item.is-drag-over {
+  border-color: var(--color-primary, #1976d2) !important;
+  box-shadow: 0 0 0 2px rgba(25, 118, 210, 0.25);
+}
+
+.suggestion-reorder-controls {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+  user-select: none;
+}
+
+.suggestion-drag-handle {
+  background: transparent;
+  border: none;
+  cursor: grab;
+  color: var(--text-soft, #7b8da3);
+  font-size: 14px;
+  letter-spacing: -2px;
+  padding: 4px 2px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.suggestion-drag-handle:active {
+  cursor: grabbing;
+}
+
+.suggestion-shift-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.suggestion-shift-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  color: var(--text-soft, #7b8da3);
+  cursor: pointer;
+  font-size: 10px;
+  line-height: 1;
+  padding: 1px 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.1s ease;
+}
+
+.suggestion-shift-btn:hover:not(:disabled) {
+  background: var(--bg-soft-primary, #f0f4f8);
+  border-color: var(--color-line-panel, #cbd5e1);
+  color: var(--color-text-body-strong, #1e293b);
+}
+
+.suggestion-shift-btn:disabled {
+  opacity: 0.25;
+  cursor: default;
+}
+
+.suggestion-content-button {
+  display: grid;
+  gap: 2px;
+  text-align: left;
+  background: transparent;
+  border: none;
+  color: inherit;
+  font: inherit;
+  padding: 6px 4px;
+  width: 100%;
+  cursor: pointer;
+  min-width: 0;
+}
+
+.suggestion-content-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}

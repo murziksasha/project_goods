@@ -27,6 +27,7 @@ export type CreateOrderProductSuggestion = {
   warrantyPeriod: number;
   availabilityLabel: string;
   selectable: boolean;
+  sortOrder?: number;
 };
 
 export type OrderDetailProductSuggestion = CreateOrderProductSuggestion & {
@@ -149,6 +150,7 @@ export const buildCreateOrderProductSuggestions = ({
         warrantyPeriod: product.warrantyPeriod,
         availabilityLabel: i18n.t(availability.labelKey),
         selectable: availability.selectable,
+        sortOrder: product.sortOrder ?? 0,
         rank: getStockProductRank(product, normalizedQuery),
       };
     });
@@ -161,6 +163,8 @@ export const buildCreateOrderProductSuggestions = ({
   const stockMatches = matchedStockSuggestions
     .filter((product) => product.selectable)
     .sort((first, second) => {
+      const sortDiff = (first.sortOrder ?? 0) - (second.sortOrder ?? 0);
+      if (sortDiff !== 0) return sortDiff;
       if (first.rank !== second.rank) return first.rank - second.rank;
       return first.name.localeCompare(second.name);
     });
@@ -194,9 +198,17 @@ export const buildCreateOrderProductSuggestions = ({
       warrantyPeriod: 0,
       availabilityLabel: i18n.t('orders.create.catalogSource'),
       selectable: true,
+      sortOrder: product.sortOrder ?? 0,
     }));
 
   return [...stockMatches, ...catalogMatches].slice(0, limit);
+  return [...stockMatches, ...catalogMatches]
+    .sort((first, second) => {
+      const sortDiff = (first.sortOrder ?? 0) - (second.sortOrder ?? 0);
+      if (sortDiff !== 0) return sortDiff;
+      return first.name.localeCompare(second.name);
+    })
+    .slice(0, limit);
 };
 
 const getOrderDetailStockProductRank = (product: Product, query: string) => {
@@ -277,6 +289,7 @@ export const buildOrderDetailProductSuggestions = ({
           warrantyPeriod: product.warrantyPeriod,
           availabilityLabel: i18n.t(availability.labelKey),
           selectable: availability.selectable,
+          sortOrder: product.sortOrder ?? 0,
           warehouseName:
             warehouseMetaByProductId[product.id]?.warehouseName ?? '-',
           rank: getOrderDetailStockProductRank(product, normalizedQuery),
@@ -284,6 +297,8 @@ export const buildOrderDetailProductSuggestions = ({
       })
       .filter((product) => product.selectable)
       .sort((first, second) => {
+        const sortDiff = (first.sortOrder ?? 0) - (second.sortOrder ?? 0);
+        if (sortDiff !== 0) return sortDiff;
         if (first.rank !== second.rank) return first.rank - second.rank;
         return first.name.localeCompare(second.name);
       })
@@ -310,7 +325,14 @@ export const buildOrderDetailProductSuggestions = ({
       warrantyPeriod: 0,
       availabilityLabel: i18n.t('orders.create.catalogSource'),
       selectable: true,
-    }));
+      sortOrder: product.sortOrder ?? 0,
+    }))
+    .sort((first, second) => {
+      const sortDiff = (first.sortOrder ?? 0) - (second.sortOrder ?? 0);
+      if (sortDiff !== 0) return sortDiff;
+      return first.name.localeCompare(second.name);
+    })
+    .slice(0, limit);
 };
 
 export const buildCreateOrderSaleLineItems = (
