@@ -35,6 +35,7 @@ export type Product = {
   purchaseDate: string | null;
   warrantyPeriod: number;
   isActive: boolean;
+  sortOrder?: number;
   createdAt: string;
   updatedAt: string;
 };

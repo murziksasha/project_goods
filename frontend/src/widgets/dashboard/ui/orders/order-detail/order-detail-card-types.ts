@@ -38,6 +38,7 @@ export type OrderDetailCardProps = {
   canAcceptPayment: boolean;
   canRefundPayment: boolean;
   canCreateOrders: boolean;
+  canManageOrders?: boolean;
   canManageSupplierOrders?: boolean;
   canPaySupplierOrders?: boolean;
   canIssueSupplierOrdersWithoutPayment?: boolean;

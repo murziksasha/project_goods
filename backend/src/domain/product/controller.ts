@@ -6,6 +6,7 @@ import {
   exportProductsWorkbook,
   getNextProductSerialNumber,
   listProducts,
+  reorderProducts,
   updateProduct,
   updateProductModelByName,
 } from './service';
@@ -47,6 +48,12 @@ export const updateModelByName = async (req: Request, res: Response): Promise<vo
   res.json(
     await updateProductModelByName(req.body as ProductModelUpdatePayload),
   );
+};
+
+export const reorder = async (req: Request, res: Response): Promise<void> => {
+  await requireAnyPermission(req, ['inventory.manage', 'orders.manage']);
+  const payload = req.body as { items: Array<{ name: string; sortOrder: number }> };
+  res.json(await reorderProducts(payload?.items));
 };
 
 export const update = async (req: Request, res: Response): Promise<void> => {

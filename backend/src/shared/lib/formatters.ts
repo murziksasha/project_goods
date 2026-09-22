@@ -43,6 +43,7 @@ export const formatProduct = (product: ProductDocument) => {
       : null,
     warrantyPeriod: product.warrantyPeriod,
     isActive: product.isActive ?? true,
+    sortOrder: product.sortOrder ?? 0,
     createdAt: product.createdAt.toISOString(),
     updatedAt: product.updatedAt.toISOString(),
   };
@@ -96,6 +97,7 @@ export const formatCatalogProduct = (
   usageCount,
   canRemove: usageCount === 0,
   sourceTags: item.sourceTags ?? [],
+  sortOrder: item.sortOrder ?? 0,
   lastSeenAt: item.lastSeenAt
     ? item.lastSeenAt.toISOString()
     : item.updatedAt.toISOString(),

@@ -3158,6 +3158,10 @@ export const OrdersWorkspace: React.FC<OrdersWorkspaceProps> = ({
             canAcceptPayment={canAcceptFinanceDeposit}
             canRefundPayment={canCreateFinanceWithdraw}
             canCreateOrders={canCreateOrders}
+            canManageOrders={hasAnyEmployeePermission(
+              currentEmployee,
+              ['orders.manage', 'inventory.manage'],
+            )}
             canManageSupplierOrders={hasEmployeePermission(
               currentEmployee,
               'supplierOrders.manage',

@@ -5,6 +5,7 @@ export type ServiceCatalogItem = {
   salePriceOptions: number[];
   note: string;
   isActive: boolean;
+  sortOrder?: number;
   createdAt: string;
   updatedAt: string;
 };

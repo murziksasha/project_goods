@@ -2,6 +2,8 @@ import type React from 'react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useDismissibleSuggestions } from '../../../../../shared/lib/useDismissibleSuggestions';
+import { useReorderableSuggestions } from '../../../../../shared/lib/useReorderableSuggestions';
+import { ReorderableSuggestionItem } from '../../../../../shared/ui/ReorderableSuggestionItem';
 import type { Product } from '../../../../../entities/product';
 import type { ProductSalePriceTier } from '../../../../../entities/product';
 import { NumberStepper } from '../../../../../shared/ui/NumberStepper';
@@ -17,6 +19,7 @@ export interface CreateOrderSaleSectionProps {
   focusedSaleItem: SaleOrderItem | null;
   visibleSaleProductSuggestions: OrderDetailProductSuggestion[];
   isSaleProductLookupLoading: boolean;
+  canManageOrders?: boolean;
   saleItemsTotal: number;
   issueFromClient: string;
   onIssueFromClientChange: (value: string) => void;
@@ -33,6 +36,9 @@ export interface CreateOrderSaleSectionProps {
     itemId: string,
     suggestion: OrderDetailProductSuggestion,
   ) => void;
+  onReorderSuggestions?: (
+    items: OrderDetailProductSuggestion[],
+  ) => Promise<void>;
 };
 
 export const CreateOrderSaleSection: React.FC<CreateOrderSaleSectionProps> = ({
@@ -41,6 +47,7 @@ export const CreateOrderSaleSection: React.FC<CreateOrderSaleSectionProps> = ({
   focusedSaleItem,
   visibleSaleProductSuggestions,
   isSaleProductLookupLoading,
+  canManageOrders = false,
   saleItemsTotal,
   issueFromClient,
   onIssueFromClientChange,
@@ -51,6 +58,7 @@ export const CreateOrderSaleSection: React.FC<CreateOrderSaleSectionProps> = ({
   onAddSaleItem,
   onRemoveSaleItem,
   onApplySaleProduct,
+  onReorderSuggestions,
 }) => {
   const { t } = useTranslation();
   const warrantyOptions = getWarrantyOptions();
@@ -61,6 +69,17 @@ export const CreateOrderSaleSection: React.FC<CreateOrderSaleSectionProps> = ({
     query: focusedSaleItem?.query ?? '',
     isActive:
       visibleSaleProductSuggestions.length > 0 || isSaleProductLookupLoading,
+  });
+  const productReorder = useReorderableSuggestions<OrderDetailProductSuggestion>({
+    items: visibleSaleProductSuggestions,
+    onSelect: (product) => {
+      if (focusedSaleItem) {
+        onApplySaleProduct(focusedSaleItem.id, product);
+      }
+    },
+    onReorder: onReorderSuggestions,
+    canReorder: Boolean(canManageOrders),
+    isVisible: isSaleProductSuggestionsVisible,
   });
   const productsById = useMemo(
     () => Object.fromEntries(products.map((product) => [product.id, product])),
@@ -118,6 +137,22 @@ export const CreateOrderSaleSection: React.FC<CreateOrderSaleSectionProps> = ({
                     serialNumber: '',
                   });
                 }}
+                onKeyDown={(event) => {
+                  if (
+                    item.id === focusedSaleItem?.id &&
+                    isSaleProductSuggestionsVisible &&
+                    visibleSaleProductSuggestions.length > 0
+                  ) {
+                    if (
+                      event.key === 'ArrowDown' ||
+                      event.key === 'ArrowUp' ||
+                      (event.key === 'Enter' && productReorder.activeIndex >= 0)
+                    ) {
+                      productReorder.handleKeyDown(event);
+                      return;
+                    }
+                  }
+                }}
                 placeholder={t('orders.create.productSearchPlaceholder')}
               />
               {item.id === focusedSaleItem?.id &&
@@ -126,18 +161,30 @@ export const CreateOrderSaleSection: React.FC<CreateOrderSaleSectionProps> = ({
                   {isSaleProductLookupLoading ? (
                     <p>{t('orders.create.searchingProducts')}</p>
                   ) : null}
-                  {visibleSaleProductSuggestions.map((product) => (
-                    <button
+                  {visibleSaleProductSuggestions.map((product, pIndex) => (
+                    <ReorderableSuggestionItem
                       key={product.id}
-                      type="button"
-                      className="create-suggestion-item"
+                      id={product.id}
+                      isActive={productReorder.activeIndex === pIndex}
                       disabled={!product.selectable}
-                      title={
-                        product.selectable ? undefined : product.availabilityLabel
-                      }
-                      onClick={() =>
+                      canReorder={Boolean(canManageOrders)}
+                      isFirst={pIndex === 0}
+                      isLast={pIndex === visibleSaleProductSuggestions.length - 1}
+                      onSelect={() =>
                         focusedSaleItem &&
                         onApplySaleProduct(focusedSaleItem.id, product)
+                      }
+                      onMoveUp={() => productReorder.moveItem(pIndex, 'up')}
+                      onMoveDown={() => productReorder.moveItem(pIndex, 'down')}
+                      onDragStart={(e) => productReorder.handleDragStart(e, pIndex)}
+                      onDragOver={(e) => productReorder.handleDragOver(e, pIndex)}
+                      onDrop={(e) => productReorder.handleDrop(e, pIndex)}
+                      onDragEnd={productReorder.handleDragEnd}
+                      isDragging={productReorder.draggedIndex === pIndex}
+                      isDragOver={productReorder.dragOverIndex === pIndex}
+                      ariaLabel={product.name}
+                      title={
+                        product.selectable ? undefined : product.availabilityLabel
                       }
                     >
                       <strong>{product.name}</strong>
@@ -163,7 +210,7 @@ export const CreateOrderSaleSection: React.FC<CreateOrderSaleSectionProps> = ({
                           </>
                         )}
                       </span>
-                    </button>
+                    </ReorderableSuggestionItem>
                   ))}
                 </div>
               ) : null}

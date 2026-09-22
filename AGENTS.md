@@ -32,7 +32,7 @@
 - **Scoped Verification:** Run targeted checks on modified packages only (`--prefix frontend` or `--prefix backend`), not root sweeps, during iterations.
 - **Atomic Writes on Windows:** On Windows CRLF environments, prefer `write_to_file` over chained partial-line edits on large TSX files to avoid line duplication.
 - Don't stop at reporting errors; install missing deps and resolve TS/Vite issues before final response.
-- After code changes, run scoped typecheck and lint (`--prefix <pkg>`). Fix all issues before responding.
+- **Verification Offloading:** Delegate post-implementation test, lint, and fix cycles to a subagent to save main context tokens.
 
 ## Architecture: Feature-Sliced Design (Frontend)
 
@@ -88,3 +88,12 @@ domain/{module}/
 - Write **Vitest** tests for all new logic.
 - Co-locate test files as `*.test.ts(x)` next to source.
 - Backend coverage target: **100%**.
+- **Post-Feature Verification Subagent:**
+  - After implementing a feature, invoke a single subagent to run scoped tests, typechecks, and linting.
+  - Subagent fixes any failures directly in its own context to preserve main conversation tokens.
+
+## Subagent Delegation
+
+- **Test & Lint Fixes:** Delegate all post-implementation test/lint runs and iterative error resolution to a subagent.
+- **Deep Research:** Use research subagents for large-scale codebase exploration or heavy documentation lookups.
+- **Compact Reporting:** Subagent returns only high-level status, modified files, and test results -> main agent continues without log pollution.

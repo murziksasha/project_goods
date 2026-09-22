@@ -12,13 +12,17 @@ import {
   createServiceCatalogItem,
   getServiceCatalogItems,
   updateServiceCatalogItem,
+  reorderServiceCatalog,
 } from '../../../../../entities/service-catalog';
 import type { ServiceCatalogItem } from '../../../../../entities/service-catalog';
 import {
   initialServiceCatalogForm,
   toServiceCatalogForm,
 } from '../../../../../entities/service-catalog';
-import { getProducts } from '../../../../../entities/product';
+import {
+  getProducts,
+  reorderProducts,
+} from '../../../../../entities/product';
 import { getOccupiedSerialNumbers } from '../../../../../entities/sale';
 import {
   createSupplier,
@@ -67,6 +71,8 @@ import { ServiceSalePriceTierToggle } from '../../../../../entities/service-cata
 import { parseDecimal } from '../../../../../shared/lib/decimal';
 import { formatCurrency } from '../../../../../shared/lib/format';
 import { useDismissibleSuggestions } from '../../../../../shared/lib/useDismissibleSuggestions';
+import { useReorderableSuggestions } from '../../../../../shared/lib/useReorderableSuggestions';
+import { ReorderableSuggestionItem } from '../../../../../shared/ui/ReorderableSuggestionItem';
 import type { PrintForm } from '../../../../../entities/settings';
 import {
   SupplierOrderModal,
@@ -166,7 +172,8 @@ export interface OrderDetailLineItemsPanelProps {
   ) => Promise<boolean>;
   onError: (message: string) => void;
   onSuccess: (message: string) => void;
-};
+  canManageOrders?: boolean;
+}
 
 type ProductEntrySuggestion =
   | {
@@ -180,7 +187,9 @@ type ProductEntrySuggestion =
 const COLLAPSE_ICON_EXPANDED = '\u2303';
 const COLLAPSE_ICON_COLLAPSED = '\u2304';
 
-export const OrderDetailLineItemsPanel: React.FC<OrderDetailLineItemsPanelProps> = ({
+export const OrderDetailLineItemsPanel: React.FC<
+  OrderDetailLineItemsPanelProps
+> = ({
   kind,
   sales,
   currentSaleId,
@@ -206,6 +215,7 @@ export const OrderDetailLineItemsPanel: React.FC<OrderDetailLineItemsPanelProps>
   onUpdateProductModel,
   onError,
   onSuccess,
+  canManageOrders = true,
 }) => {
   const { t } = useTranslation();
   const warrantyOptions = getWarrantyOptions();
@@ -1197,6 +1207,59 @@ export const OrderDetailLineItemsPanel: React.FC<OrderDetailLineItemsPanelProps>
     setProductSuggestions([]);
   };
 
+  const productReorder =
+    useReorderableSuggestions<ProductEntrySuggestion>({
+      items: productSuggestions,
+      onSelect: applyProductSuggestion,
+      onReorder: async (newSuggestions) => {
+        setProductSuggestions(newSuggestions);
+        const reorderItems = newSuggestions.map(
+          (suggestion, index) => ({
+            name:
+              suggestion.type === 'catalog'
+                ? suggestion.catalogProduct.name
+                : suggestion.product.name,
+            sortOrder: index,
+          }),
+        );
+        try {
+          await reorderProducts(reorderItems);
+        } catch (error) {
+          onError(
+            error instanceof Error
+              ? error.message
+              : t('orders.messages.errors.failedReorder'),
+          );
+        }
+      },
+      canReorder: canManageOrders && !isReadOnly,
+      isVisible: isLineItemSuggestionsVisible && isProductKind,
+    });
+
+  const serviceReorder =
+    useReorderableSuggestions<ServiceCatalogItem>({
+      items: serviceSuggestions,
+      onSelect: applyServiceSuggestion,
+      onReorder: async (newServices) => {
+        setServiceSuggestions(newServices);
+        const reorderItems = newServices.map((service, index) => ({
+          id: service.id,
+          sortOrder: index,
+        }));
+        try {
+          await reorderServiceCatalog(reorderItems);
+        } catch (error) {
+          onError(
+            error instanceof Error
+              ? error.message
+              : t('orders.messages.errors.failedReorder'),
+          );
+        }
+      },
+      canReorder: canManageOrders && !isReadOnly,
+      isVisible: isLineItemSuggestionsVisible && !isProductKind,
+    });
+
   const openCreateServiceModal = () => {
     setCreateServiceForm({
       ...initialServiceCatalogForm,
@@ -2155,6 +2218,13 @@ export const OrderDetailLineItemsPanel: React.FC<OrderDetailLineItemsPanelProps>
                         'orders.detail.lineItems.addServicePlaceholder',
                       )
                 }
+                onKeyDown={(event) => {
+                  if (isProductKind) {
+                    productReorder.handleKeyDown(event);
+                  } else {
+                    serviceReorder.handleKeyDown(event);
+                  }
+                }}
                 disabled={isReadOnly}
               />
             </div>
@@ -2258,7 +2328,7 @@ export const OrderDetailLineItemsPanel: React.FC<OrderDetailLineItemsPanelProps>
             {isProductLookupLoading ? (
               <p>{t('orders.detail.lineItems.searchingProducts')}</p>
             ) : null}
-            {productSuggestions.map((suggestion) => {
+            {productSuggestions.map((suggestion, index) => {
               const isStockSuggestion = suggestion.type === 'stock';
               const product = isStockSuggestion
                 ? suggestion.product
@@ -2283,15 +2353,32 @@ export const OrderDetailLineItemsPanel: React.FC<OrderDetailLineItemsPanelProps>
                   : suggestion.price,
               );
               return (
-                <button
+                <ReorderableSuggestionItem
                   key={suggestionKey}
-                  type='button'
-                  className='create-suggestion-item'
-                  onMouseDown={(event) => {
-                    event.preventDefault();
-                  }}
-                  onClick={() => applyProductSuggestion(suggestion)}
+                  id={suggestionKey}
+                  isActive={productReorder.activeIndex === index}
                   disabled={isReadOnly || !state.selectable}
+                  canReorder={canManageOrders && !isReadOnly}
+                  isFirst={index === 0}
+                  isLast={index === productSuggestions.length - 1}
+                  onSelect={() => applyProductSuggestion(suggestion)}
+                  onMoveUp={() =>
+                    productReorder.moveItem(index, 'up')
+                  }
+                  onMoveDown={() =>
+                    productReorder.moveItem(index, 'down')
+                  }
+                  onDragStart={(e) =>
+                    productReorder.handleDragStart(e, index)
+                  }
+                  onDragOver={(e) =>
+                    productReorder.handleDragOver(e, index)
+                  }
+                  onDrop={(e) => productReorder.handleDrop(e, index)}
+                  onDragEnd={productReorder.handleDragEnd}
+                  isDragging={productReorder.draggedIndex === index}
+                  isDragOver={productReorder.dragOverIndex === index}
+                  ariaLabel={suggestionName}
                   title={
                     state.selectable ? undefined : t(state.labelKey)
                   }
@@ -2313,7 +2400,7 @@ export const OrderDetailLineItemsPanel: React.FC<OrderDetailLineItemsPanelProps>
                       </>
                     )}
                   </span>
-                </button>
+                </ReorderableSuggestionItem>
               );
             })}
           </div>
@@ -2326,17 +2413,35 @@ export const OrderDetailLineItemsPanel: React.FC<OrderDetailLineItemsPanelProps>
             {isServiceLookupLoading ? (
               <p>{t('orders.detail.lineItems.searchingServices')}</p>
             ) : null}
-            {serviceSuggestions.map((service) => (
-              <button
+            {serviceSuggestions.map((service, index) => (
+              <ReorderableSuggestionItem
                 key={service.id}
-                type='button'
-                className='create-suggestion-item'
-                onClick={() => applyServiceSuggestion(service)}
+                id={service.id}
+                isActive={serviceReorder.activeIndex === index}
                 disabled={isReadOnly}
+                canReorder={canManageOrders && !isReadOnly}
+                isFirst={index === 0}
+                isLast={index === serviceSuggestions.length - 1}
+                onSelect={() => applyServiceSuggestion(service)}
+                onMoveUp={() => serviceReorder.moveItem(index, 'up')}
+                onMoveDown={() =>
+                  serviceReorder.moveItem(index, 'down')
+                }
+                onDragStart={(e) =>
+                  serviceReorder.handleDragStart(e, index)
+                }
+                onDragOver={(e) =>
+                  serviceReorder.handleDragOver(e, index)
+                }
+                onDrop={(e) => serviceReorder.handleDrop(e, index)}
+                onDragEnd={serviceReorder.handleDragEnd}
+                isDragging={serviceReorder.draggedIndex === index}
+                isDragOver={serviceReorder.dragOverIndex === index}
+                ariaLabel={service.name}
               >
                 <strong>{service.name}</strong>
                 <span>{`${formatCurrency(service.price)}${service.note ? ` / ${service.note}` : ''}`}</span>
-              </button>
+              </ReorderableSuggestionItem>
             ))}
           </div>
         ) : null}

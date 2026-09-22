@@ -6,6 +6,7 @@ export type CatalogProduct = {
   usageCount?: number;
   canRemove?: boolean;
   sourceTags: string[];
+  sortOrder?: number;
   lastSeenAt: string;
   createdAt: string;
   updatedAt: string;
