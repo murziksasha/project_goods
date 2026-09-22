@@ -6,6 +6,7 @@ export type Supplier = {
   note: string;
   supplierOrder: string;
   isActive: boolean;
+  sortOrder?: number;
   createdAt: string;
   updatedAt: string;
 };

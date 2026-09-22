@@ -56,6 +56,20 @@ export const updateSupplier = async (
   }
 };
 
+export const reorderSuppliers = async (
+  items: Array<{ id: string; sortOrder: number }>,
+) => {
+  try {
+    const response = await apiClient.patch<{
+      success: boolean;
+      updatedCount: number;
+    }>('/suppliers/reorder', { items });
+    return response.data;
+  } catch (error) {
+    throw new Error(getApiErrorMessage(error));
+  }
+};
+
 export const mergeSuppliers = async (
   targetSupplierId: string,
   sourceSupplierId: string,

@@ -82,6 +82,7 @@ export const formatSupplier = (supplier: SupplierDocument) => ({
   note: supplier.note,
   supplierOrder: supplier.supplierOrder ?? '',
   isActive: supplier.isActive,
+  sortOrder: supplier.sortOrder ?? 0,
   createdAt: supplier.createdAt.toISOString(),
   updatedAt: supplier.updatedAt.toISOString(),
 });
