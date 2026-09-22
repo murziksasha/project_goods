@@ -49,61 +49,10 @@ const {
   getServiceCatalogItemsMock,
   getWarehouseSettingsMock,
   updateClientDeviceMock,
-} = vi.hoisted(() => ({
-  createClientMock: vi.fn(),
-  getClientsMock: vi.fn<(query?: string) => Promise<Client[]>>(
-    async () => [],
-  ),
-  getClientHistoryMock: vi.fn<
-    (clientId: string) => Promise<ClientHistory>
-  >(async () => ({
-    client: {
-      id: 'client-1',
-      name: 'Client',
-      phone: '+380000000000',
-      phones: ['+380000000000'],
-      email: '',
-      address: '',
-      registrationId: '',
-      iban: '',
-      note: '',
-      status: 'new',
-      createdAt: '2026-01-01T00:00:00.000Z',
-      updatedAt: '2026-01-01T00:00:00.000Z',
-    },
-    sales: [],
-    stats: { totalSales: 0, totalRevenue: 0, totalItemsSold: 0 },
-  })),
-  getClientDevicesMock: vi.fn<
-    (query?: string) => Promise<ClientDevice[]>
-  >(async () => []),
-  updateClientDeviceMock: vi.fn<
-    (
-      deviceId: string,
-      payload: ClientDeviceFormValues,
-    ) => Promise<ClientDevice>
-  >(async (deviceId, payload) => ({
-    id: deviceId,
-    clientId: payload.clientId,
-    clientName: payload.clientName,
-    clientPhone: payload.clientPhone,
-    name: payload.name,
-    serialNumber: payload.serialNumber,
-    note: payload.note,
-    source: payload.source ?? 'repairOrder',
-    isActive: payload.isActive ?? true,
-    createdAt: '2026-01-01T00:00:00.000Z',
-    updatedAt: '2026-01-01T00:00:00.000Z',
-  })),
-  deleteClientDeviceMock: vi.fn<
-    (deviceId: string) => Promise<{ id: string }>
-  >(async (deviceId) => ({
-    id: deviceId,
-  })),
-  getServiceCatalogItemsMock: vi.fn<
-    (query?: string) => Promise<ServiceCatalogItem[]>
-  >(async () => []),
-  getWarehouseSettingsMock: vi.fn(async () => ({
+  warehouseSettingsFixture,
+  warehouseSettingsQueryResult,
+} = vi.hoisted(() => {
+  const fixture = {
     id: 'warehouse-settings-test',
     serviceCenters: [],
     warehouses: [
@@ -120,8 +69,69 @@ const {
     administrators: [],
     createdAt: '2026-01-01T00:00:00.000Z',
     updatedAt: '2026-01-01T00:00:00.000Z',
-  })),
-}));
+  };
+  return {
+    createClientMock: vi.fn(),
+    getClientsMock: vi.fn<(query?: string) => Promise<Client[]>>(
+      async () => [],
+    ),
+    getClientHistoryMock: vi.fn<
+      (clientId: string) => Promise<ClientHistory>
+    >(async () => ({
+      client: {
+        id: 'client-1',
+        name: 'Client',
+        phone: '+380000000000',
+        phones: ['+380000000000'],
+        email: '',
+        address: '',
+        registrationId: '',
+        iban: '',
+        note: '',
+        status: 'new',
+        createdAt: '2026-01-01T00:00:00.000Z',
+        updatedAt: '2026-01-01T00:00:00.000Z',
+      },
+      sales: [],
+      stats: { totalSales: 0, totalRevenue: 0, totalItemsSold: 0 },
+    })),
+    getClientDevicesMock: vi.fn<
+      (query?: string) => Promise<ClientDevice[]>
+    >(async () => []),
+    updateClientDeviceMock: vi.fn<
+      (
+        deviceId: string,
+        payload: ClientDeviceFormValues,
+      ) => Promise<ClientDevice>
+    >(async (deviceId, payload) => ({
+      id: deviceId,
+      clientId: payload.clientId,
+      clientName: payload.clientName,
+      clientPhone: payload.clientPhone,
+      name: payload.name,
+      serialNumber: payload.serialNumber,
+      note: payload.note,
+      source: payload.source ?? 'repairOrder',
+      isActive: payload.isActive ?? true,
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    })),
+    deleteClientDeviceMock: vi.fn<
+      (deviceId: string) => Promise<{ id: string }>
+    >(async (deviceId) => ({
+      id: deviceId,
+    })),
+    getServiceCatalogItemsMock: vi.fn<
+      (query?: string) => Promise<ServiceCatalogItem[]>
+    >(async () => []),
+    getWarehouseSettingsMock: vi.fn(async () => fixture),
+    warehouseSettingsFixture: fixture,
+    warehouseSettingsQueryResult: {
+      data: fixture,
+      isLoading: false,
+    },
+  };
+});
 
 vi.mock('../../../../../entities/client', async (importOriginal) => {
   const actual =
@@ -176,27 +186,7 @@ vi.mock(
     return {
       ...actual,
       getWarehouseSettings: getWarehouseSettingsMock,
-      useWarehouseSettingsQuery: () => ({
-        data: {
-          id: 'warehouse-settings-test',
-          serviceCenters: [],
-          warehouses: [
-            {
-              id: 'wh-main',
-              name: 'Main warehouse',
-              isActive: true,
-              serviceCenterId: 'sc-1',
-              receiptAddress: '',
-              receiptPhone: '',
-              locations: [{ id: 'loc-1', name: 'Shelf A' }],
-            },
-          ],
-          administrators: [],
-          createdAt: '2026-01-01T00:00:00.000Z',
-          updatedAt: '2026-01-01T00:00:00.000Z',
-        },
-        isLoading: false,
-      }),
+      useWarehouseSettingsQuery: () => warehouseSettingsQueryResult,
       useUpdateWarehouseSettingsMutation: vi.fn(),
     };
   },
@@ -371,25 +361,6 @@ const renderWithQueryClient = (ui: ReactElement) => {
       {ui}
     </QueryClientProvider>,
   );
-};
-
-const warehouseSettingsFixture = {
-  id: 'warehouse-settings-test',
-  serviceCenters: [],
-  warehouses: [
-    {
-      id: 'wh-main',
-      name: 'Main warehouse',
-      isActive: true,
-      serviceCenterId: 'sc-1',
-      receiptAddress: '',
-      receiptPhone: '',
-      locations: [{ id: 'loc-1', name: 'Shelf A' }],
-    },
-  ],
-  administrators: [],
-  createdAt: '2026-01-01T00:00:00.000Z',
-  updatedAt: '2026-01-01T00:00:00.000Z',
 };
 
 const defaultClientHistory = emptyClientHistory({

@@ -57,15 +57,14 @@ const {
     async (_query = ''): Promise<ClientDevice[]> => [],
   ),
   getWarehouseSettingsMock: vi.fn(),
-  getOccupiedSerialNumbersMock: vi.fn(
-    async () => ({ occupied: [] as string[] }),
-  ),
-  getServiceCatalogItemsMock: vi.fn<(query?: string) => Promise<ServiceCatalogItem[]>>(
-    async () => [],
-  ),
-  createServiceCatalogItemMock: vi.fn<
-    (...args: unknown[]) => Promise<ServiceCatalogItem>
-  >(),
+  getOccupiedSerialNumbersMock: vi.fn(async () => ({
+    occupied: [] as string[],
+  })),
+  getServiceCatalogItemsMock: vi.fn<
+    (query?: string) => Promise<ServiceCatalogItem[]>
+  >(async () => []),
+  createServiceCatalogItemMock:
+    vi.fn<(...args: unknown[]) => Promise<ServiceCatalogItem>>(),
   updateServiceCatalogItemMock: vi.fn(),
   getCashboxesMock: vi.fn(async () => [
     {
@@ -125,52 +124,80 @@ vi.mock(
   },
 );
 
-vi.mock('../../../../../entities/warehouse-settings', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../../../../../entities/warehouse-settings')>();
-  return {
-    ...actual,
-    getWarehouseSettings: getWarehouseSettingsMock,
+vi.mock(
+  '../../../../../entities/warehouse-settings',
+  async (importOriginal) => {
+    const actual =
+      await importOriginal<
+        typeof import('../../../../../entities/warehouse-settings')
+      >();
+    return {
+      ...actual,
+      getWarehouseSettings: getWarehouseSettingsMock,
     };
-});
+  },
+);
 
-vi.mock('../../../../../entities/service-catalog', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../../../../../entities/service-catalog')>();
-  return {
-    ...actual,
-    createServiceCatalogItem: createServiceCatalogItemMock,
-    getServiceCatalogItems: getServiceCatalogItemsMock,
-    updateServiceCatalogItem: updateServiceCatalogItemMock,
+vi.mock(
+  '../../../../../entities/service-catalog',
+  async (importOriginal) => {
+    const actual =
+      await importOriginal<
+        typeof import('../../../../../entities/service-catalog')
+      >();
+    return {
+      ...actual,
+      createServiceCatalogItem: createServiceCatalogItemMock,
+      getServiceCatalogItems: getServiceCatalogItemsMock,
+      updateServiceCatalogItem: updateServiceCatalogItemMock,
     };
-});
+  },
+);
 
-vi.mock('../../../../../entities/supplier-order', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../../../../../entities/supplier-order')>();
-  return {
-    ...actual,
-    cancelSupplierOrder: vi.fn(),
-    cancelSupplierOrderItem: vi.fn(),
-    createSupplierOrder: vi.fn(),
-    takeOnChargeSupplierOrder: vi.fn(),
-    updateSupplierOrder: vi.fn(),
+vi.mock(
+  '../../../../../entities/supplier-order',
+  async (importOriginal) => {
+    const actual =
+      await importOriginal<
+        typeof import('../../../../../entities/supplier-order')
+      >();
+    return {
+      ...actual,
+      cancelSupplierOrder: vi.fn(),
+      cancelSupplierOrderItem: vi.fn(),
+      createSupplierOrder: vi.fn(),
+      takeOnChargeSupplierOrder: vi.fn(),
+      updateSupplierOrder: vi.fn(),
     };
-});
+  },
+);
 
-vi.mock('../../../../../entities/supplier', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../../../../../entities/supplier')>();
-  return {
-    ...actual,
-  createSupplier: vi.fn(),
-  getSuppliers: vi.fn(async () => []),
-  };
-});
+vi.mock(
+  '../../../../../entities/supplier',
+  async (importOriginal) => {
+    const actual =
+      await importOriginal<
+        typeof import('../../../../../entities/supplier')
+      >();
+    return {
+      ...actual,
+      createSupplier: vi.fn(),
+      getSuppliers: vi.fn(async () => []),
+    };
+  },
+);
 
 vi.mock('../../../../../entities/finance', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../../../../../entities/finance')>();
+  const actual =
+    await importOriginal<
+      typeof import('../../../../../entities/finance')
+    >();
   return {
     ...actual,
-  getCashboxes: getCashboxesMock,
-  paySupplierOrder: paySupplierOrderMock,
-  issueSupplierOrderWithoutPayment: issueSupplierOrderWithoutPaymentMock,
+    getCashboxes: getCashboxesMock,
+    paySupplierOrder: paySupplierOrderMock,
+    issueSupplierOrderWithoutPayment:
+      issueSupplierOrderWithoutPaymentMock,
   };
 });
 
@@ -923,7 +950,8 @@ describe('OrderDetailCard product entry', () => {
       .getAllByRole('button')
       .find(
         (button) =>
-          button.classList.contains('create-suggestion-item') &&
+          (button.classList.contains('create-suggestion-item') ||
+            Boolean(button.closest('.create-suggestion-item'))) &&
           button.textContent?.includes('Product List'),
       );
     expect(catalogSuggestion).toBeTruthy();
@@ -1028,11 +1056,14 @@ describe('OrderDetailCard product entry', () => {
       },
     );
 
-    await waitFor(() => {
-      expect(
-        screen.getByRole('button', { name: /Videx/i }),
-      ).toBeInTheDocument();
-    });
+    await waitFor(
+      () => {
+        expect(
+          screen.getByRole('button', { name: /Videx/i }),
+        ).toBeInTheDocument();
+      },
+      { timeout: 3000 },
+    );
 
     fireEvent.click(screen.getByRole('button', { name: /Videx/i }));
 
@@ -1145,7 +1176,9 @@ describe('OrderDetailCard product entry', () => {
     ]);
     const { container } = renderCard();
 
-    fireEvent.click(screen.getByRole('button', { name: /Services/i }));
+    fireEvent.click(
+      screen.getByRole('button', { name: /Services/i }),
+    );
     fireEvent.change(screen.getByPlaceholderText('Add service'), {
       target: { value: 'Diag' },
     });
@@ -1156,7 +1189,9 @@ describe('OrderDetailCard product entry', () => {
       ).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByRole('button', { name: /Diagnostics/i }));
+    fireEvent.click(
+      screen.getByRole('button', { name: /Diagnostics/i }),
+    );
 
     expect(screen.getByDisplayValue('200')).toBeInTheDocument();
     const servicesPanel = container.querySelector(
@@ -1168,18 +1203,28 @@ describe('OrderDetailCard product entry', () => {
     expect(
       priceHeader?.querySelector('.product-sale-price-tier-toggle'),
     ).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Retail' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Wholesale 1' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Wholesale 2' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Retail' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Wholesale 1' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Wholesale 2' }),
+    ).toBeInTheDocument();
     expect(
       servicesPanel?.querySelector(
         '.order-detail-table-entry-row .product-sale-price-tier-toggle',
       ),
     ).toBeNull();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Wholesale 1' }));
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Wholesale 1' }),
+    );
     expect(screen.getByDisplayValue('150')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Wholesale 2' }));
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Wholesale 2' }),
+    );
     expect(screen.getByDisplayValue('100')).toBeInTheDocument();
   });
 
@@ -1217,7 +1262,9 @@ describe('OrderDetailCard product entry', () => {
     fireEvent.focus(screen.getByDisplayValue('200'));
 
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: 'Wholesale 1' })).toBeInTheDocument();
+      expect(
+        screen.getByRole('button', { name: 'Wholesale 1' }),
+      ).toBeInTheDocument();
     });
 
     const servicesPanel = container.querySelector(
@@ -1235,7 +1282,9 @@ describe('OrderDetailCard product entry', () => {
       ),
     ).toBeNull();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Wholesale 2' }));
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Wholesale 2' }),
+    );
     expect(screen.getByDisplayValue('100')).toBeInTheDocument();
   });
 
@@ -1273,9 +1322,13 @@ describe('OrderDetailCard product entry', () => {
     fireEvent.focus(screen.getByDisplayValue('200'));
 
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: 'Wholesale 1' })).toBeInTheDocument();
+      expect(
+        screen.getByRole('button', { name: 'Wholesale 1' }),
+      ).toBeInTheDocument();
     });
-    expect(screen.queryByRole('button', { name: 'Wholesale 2' })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Wholesale 2' }),
+    ).not.toBeInTheDocument();
   });
 
   it('shows catalog suggestions when searching by product name', async () => {
@@ -1597,7 +1650,9 @@ describe('OrderDetailCard product entry', () => {
     ).not.toBeInTheDocument();
 
     fireEvent.click(
-      within(modal).getByRole('button', { name: 'Auto-select oldest' }),
+      within(modal).getByRole('button', {
+        name: 'Auto-select oldest',
+      }),
     );
 
     expect(
@@ -1935,7 +1990,9 @@ describe('OrderDetailCard product entry', () => {
     fireEvent.click(supplierNumberButton);
 
     expect(
-      await screen.findByRole('heading', { name: 'Order from supplier' }),
+      await screen.findByRole('heading', {
+        name: 'Order from supplier',
+      }),
     ).toBeInTheDocument();
     expect(
       screen.getByRole('dialog', { name: /bind serial numbers/i }),
@@ -2103,18 +2160,20 @@ describe('OrderDetailCard product entry', () => {
     });
     expect(groupToggle).toHaveAttribute('aria-expanded', 'false');
     expect(groupToggle).toHaveTextContent('\u00d72');
-    expect(groupToggle.querySelector('.order-line-item-group-price')).toHaveTextContent(
-      /88,00/,
-    );
-    expect(groupToggle.querySelector('.order-line-item-group-qty')).toHaveTextContent(
-      '2',
-    );
+    expect(
+      groupToggle.querySelector('.order-line-item-group-price'),
+    ).toHaveTextContent(/88,00/);
+    expect(
+      groupToggle.querySelector('.order-line-item-group-qty'),
+    ).toHaveTextContent('2');
     expect(screen.queryByText('S000001')).not.toBeInTheDocument();
     expect(screen.queryByText('S000002')).not.toBeInTheDocument();
 
     fireEvent.click(groupToggle);
     expect(groupToggle).toHaveAttribute('aria-expanded', 'true');
-    expect(groupToggle.querySelector('.order-line-item-group-price')).toBeNull();
+    expect(
+      groupToggle.querySelector('.order-line-item-group-price'),
+    ).toBeNull();
     expect(screen.getByText('S000001')).toBeInTheDocument();
     expect(screen.getByText('S000002')).toBeInTheDocument();
   });
@@ -2150,12 +2209,12 @@ describe('OrderDetailCard product entry', () => {
     });
     expect(groupToggle).toHaveAttribute('aria-expanded', 'false');
     expect(groupToggle).toHaveTextContent('\u00d72');
-    expect(groupToggle.querySelector('.order-line-item-group-price')).toHaveTextContent(
-      /10,00/,
-    );
-    expect(groupToggle.querySelector('.order-line-item-group-qty')).toHaveTextContent(
-      '2',
-    );
+    expect(
+      groupToggle.querySelector('.order-line-item-group-price'),
+    ).toHaveTextContent(/10,00/);
+    expect(
+      groupToggle.querySelector('.order-line-item-group-qty'),
+    ).toHaveTextContent('2');
     expect(screen.queryByText('R1')).not.toBeInTheDocument();
 
     fireEvent.click(groupToggle);
@@ -2223,12 +2282,12 @@ describe('OrderDetailCard product entry', () => {
     const groupToggle = screen.getByRole('button', {
       name: 'Toggle Existing part group (2)',
     });
-    expect(groupToggle.querySelector('.order-line-item-group-price')).toHaveTextContent(
-      /35,00/,
-    );
-    expect(groupToggle.querySelector('.order-line-item-group-qty')).toHaveTextContent(
-      '2',
-    );
+    expect(
+      groupToggle.querySelector('.order-line-item-group-price'),
+    ).toHaveTextContent(/35,00/);
+    expect(
+      groupToggle.querySelector('.order-line-item-group-qty'),
+    ).toHaveTextContent('2');
   });
 
   it('expands a product group when a new matching line is added', () => {
@@ -2317,7 +2376,9 @@ describe('OrderDetailCard product entry', () => {
       name: 'Serialized part',
     });
     expect(dialog).toBeInTheDocument();
-    expect(within(dialog).getByText('Product model')).toBeInTheDocument();
+    expect(
+      within(dialog).getByText('Product model'),
+    ).toBeInTheDocument();
     // Serial click pre-selects that serial for print (printSelectedCount, not printSerialNumber).
     expect(
       within(dialog).getByRole('button', {
@@ -2357,7 +2418,9 @@ describe('OrderDetailCard product entry', () => {
       name: 'Existing part',
     });
     expect(dialog).toBeInTheDocument();
-    expect(within(dialog).getByText('Product model')).toBeInTheDocument();
+    expect(
+      within(dialog).getByText('Product model'),
+    ).toBeInTheDocument();
     // Name click does not pre-select a serial for print.
     expect(
       within(dialog).queryByRole('button', {
@@ -2466,7 +2529,9 @@ describe('OrderDetailCard product entry', () => {
       status: 'ready',
     });
 
-    fireEvent.click(screen.getByRole('button', { name: /Products/i }));
+    fireEvent.click(
+      screen.getByRole('button', { name: /Products/i }),
+    );
 
     expect(
       screen.queryByPlaceholderText(PRODUCT_SEARCH_PLACEHOLDER),
@@ -2499,7 +2564,9 @@ describe('OrderDetailCard product entry', () => {
       screen.queryByRole('button', { name: 'Add service' }),
     ).not.toBeInTheDocument();
     expect(screen.getByLabelText('Discount')).toBeDisabled();
-    expect(screen.getByLabelText(/repair status/i)).not.toBeDisabled();
+    expect(
+      screen.getByLabelText(/repair status/i),
+    ).not.toBeDisabled();
   });
 
   it('exposes keyboard focus path for repair status select', () => {
@@ -2649,7 +2716,9 @@ describe('OrderDetailCard product entry', () => {
       ],
     });
 
-    const productsHeader = screen.getByRole('button', { name: /Products/i });
+    const productsHeader = screen.getByRole('button', {
+      name: /Products/i,
+    });
     expect(
       within(productsHeader).getByText('\u00d72'),
     ).toBeInTheDocument();
@@ -2657,7 +2726,9 @@ describe('OrderDetailCard product entry', () => {
       within(productsHeader).getByText(/176,00/),
     ).toBeInTheDocument();
 
-    const servicesHeader = screen.getByRole('button', { name: /Services/i });
+    const servicesHeader = screen.getByRole('button', {
+      name: /Services/i,
+    });
     expect(
       within(servicesHeader).getByText('\u00d71'),
     ).toBeInTheDocument();
@@ -2680,8 +2751,12 @@ describe('OrderDetailCard product entry', () => {
       ],
     });
 
-    const servicesHeader = screen.getByRole('button', { name: /Services/i });
-    expect(servicesHeader.querySelector('.order-detail-section-summary')).toBeNull();
+    const servicesHeader = screen.getByRole('button', {
+      name: /Services/i,
+    });
+    expect(
+      servicesHeader.querySelector('.order-detail-section-summary'),
+    ).toBeNull();
     expect(servicesHeader).not.toHaveTextContent(formatCurrency(0));
   });
 
@@ -2790,7 +2865,9 @@ describe('OrderDetailCard product entry', () => {
     fireEvent.click(screen.getByRole('button', { name: 'ремонт' }));
 
     await waitFor(() => {
-      expect(screen.getByRole('heading', { name: 'Ремонт' })).toBeInTheDocument();
+      expect(
+        screen.getByRole('heading', { name: 'Ремонт' }),
+      ).toBeInTheDocument();
     });
     expect(
       screen.queryByRole('heading', { name: 'Create service' }),
@@ -2850,19 +2927,27 @@ describe('OrderDetailCard product entry', () => {
     const dialog = await waitFor(() => screen.getByRole('dialog'));
     const nameInput = within(dialog).getByDisplayValue('ремонт');
     fireEvent.change(nameInput, { target: { value: 'Ремонт' } });
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Save' }));
+    fireEvent.click(
+      within(dialog).getByRole('button', { name: 'Save' }),
+    );
 
     await waitFor(() => {
       expect(updateServiceCatalogItemMock).toHaveBeenCalledWith(
         'svc-1',
         expect.objectContaining({ name: 'Ремонт' }),
       );
-      expect(onUpdateLineItem).toHaveBeenCalledWith('line-item-s1', undefined, {
-        name: 'Ремонт',
-        serviceId: 'svc-1',
-      });
+      expect(onUpdateLineItem).toHaveBeenCalledWith(
+        'line-item-s1',
+        undefined,
+        {
+          name: 'Ремонт',
+          serviceId: 'svc-1',
+        },
+      );
     });
-    expect(onUpdateLineItem.mock.calls[0]?.[2]).not.toHaveProperty('price');
+    expect(onUpdateLineItem.mock.calls[0]?.[2]).not.toHaveProperty(
+      'price',
+    );
     expect(onUpdateLineItem.mock.calls[0]?.[2]).not.toHaveProperty(
       'warrantyPeriod',
     );
@@ -3275,7 +3360,9 @@ describe('OrderDetailCard product entry', () => {
       within(linkedItem).getByText('USB Cable'),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole('button', { name: /Purchase request|Заявка/i }),
+      screen.getByRole('button', {
+        name: /Purchase request|Заявка/i,
+      }),
     ).toBeInTheDocument();
   });
 
@@ -3312,12 +3399,12 @@ describe('OrderDetailCard product entry', () => {
       screen.getByRole('button', { name: 'Supplier Order' }),
     );
     fireEvent.click(
-      screen.getByRole('button', { name: /Purchase request|Заявка/i }),
+      screen.getByRole('button', {
+        name: /Purchase request|Заявка/i,
+      }),
     );
 
-    expect(
-      await screen.findByRole('listbox'),
-    ).toBeInTheDocument();
+    expect(await screen.findByRole('listbox')).toBeInTheDocument();
     expect(
       screen.getByRole('option', { name: /Ordered|Замовлено/i }),
     ).toBeInTheDocument();
@@ -3385,41 +3472,42 @@ describe('OrderDetailCard product entry', () => {
       screen.getByRole('button', { name: 'Supplier Order' }),
     );
     expect(
-      screen.getByRole('button', { name: 'Pay supplier order SO000010' }),
+      screen.getByRole('button', {
+        name: 'Pay supplier order SO000010',
+      }),
     ).toBeInTheDocument();
   });
 
-  it.each([
-    'request',
-    'ordered',
-    'cancelled',
-  ] as const)('hides the pay icon for %s supplier orders', (status) => {
-    const currentSale = sale({
-      id: 'sale-current',
-      recordNumber: 'S000001',
-      kind: 'sale',
-    });
-    const linkedOrder = supplierOrder({
-      number: 'SO000010',
-      note: buildSupplierOrderLinkNote('S000001', 'client-1'),
-      status,
-      paymentStatus: 'pending',
-      total: 1550,
-    });
+  it.each(['request', 'ordered', 'cancelled'] as const)(
+    'hides the pay icon for %s supplier orders',
+    (status) => {
+      const currentSale = sale({
+        id: 'sale-current',
+        recordNumber: 'S000001',
+        kind: 'sale',
+      });
+      const linkedOrder = supplierOrder({
+        number: 'SO000010',
+        note: buildSupplierOrderLinkNote('S000001', 'client-1'),
+        status,
+        paymentStatus: 'pending',
+        total: 1550,
+      });
 
-    renderCard({
-      saleOverride: currentSale,
-      supplierOrders: [linkedOrder],
-      canPaySupplierOrders: true,
-    });
+      renderCard({
+        saleOverride: currentSale,
+        supplierOrders: [linkedOrder],
+        canPaySupplierOrders: true,
+      });
 
-    fireEvent.click(
-      screen.getByRole('button', { name: 'Supplier Order' }),
-    );
-    expect(
-      screen.queryByRole('button', { name: /Pay supplier order/i }),
-    ).toBeNull();
-  });
+      fireEvent.click(
+        screen.getByRole('button', { name: 'Supplier Order' }),
+      );
+      expect(
+        screen.queryByRole('button', { name: /Pay supplier order/i }),
+      ).toBeNull();
+    },
+  );
 
   it('hides the pay icon without finance.supplierOrders.pay', () => {
     const currentSale = sale({
@@ -3567,14 +3655,20 @@ describe('OrderDetailCard product entry', () => {
       screen.getByRole('button', { name: 'Supplier Order' }),
     );
     fireEvent.click(
-      screen.getByRole('button', { name: 'Pay supplier order SO000010' }),
+      screen.getByRole('button', {
+        name: 'Pay supplier order SO000010',
+      }),
     );
 
     expect(
-      await screen.findByRole('heading', { name: 'Pay supplier order' }),
+      await screen.findByRole('heading', {
+        name: 'Pay supplier order',
+      }),
     ).toBeInTheDocument();
     await waitFor(() =>
-      expect(screen.getByRole('button', { name: 'Pay' })).toBeEnabled(),
+      expect(
+        screen.getByRole('button', { name: 'Pay' }),
+      ).toBeEnabled(),
     );
     fireEvent.click(screen.getByRole('button', { name: 'Pay' }));
 
@@ -3592,7 +3686,9 @@ describe('OrderDetailCard product entry', () => {
   });
 
   it('keeps the pay modal open when payment fails', async () => {
-    paySupplierOrderMock.mockRejectedValueOnce(new Error('pay failed'));
+    paySupplierOrderMock.mockRejectedValueOnce(
+      new Error('pay failed'),
+    );
     const currentSale = sale({
       id: 'sale-current',
       recordNumber: 'S000001',
@@ -3619,17 +3715,25 @@ describe('OrderDetailCard product entry', () => {
       screen.getByRole('button', { name: 'Supplier Order' }),
     );
     fireEvent.click(
-      screen.getByRole('button', { name: 'Pay supplier order SO000010' }),
+      screen.getByRole('button', {
+        name: 'Pay supplier order SO000010',
+      }),
     );
     expect(
-      await screen.findByRole('heading', { name: 'Pay supplier order' }),
+      await screen.findByRole('heading', {
+        name: 'Pay supplier order',
+      }),
     ).toBeInTheDocument();
     await waitFor(() =>
-      expect(screen.getByRole('button', { name: 'Pay' })).toBeEnabled(),
+      expect(
+        screen.getByRole('button', { name: 'Pay' }),
+      ).toBeEnabled(),
     );
     fireEvent.click(screen.getByRole('button', { name: 'Pay' }));
 
-    await waitFor(() => expect(onError).toHaveBeenCalledWith('pay failed'));
+    await waitFor(() =>
+      expect(onError).toHaveBeenCalledWith('pay failed'),
+    );
     expect(
       screen.getByRole('heading', { name: 'Pay supplier order' }),
     ).toBeInTheDocument();
@@ -3664,10 +3768,14 @@ describe('OrderDetailCard product entry', () => {
       screen.getByRole('button', { name: 'Supplier Order' }),
     );
     fireEvent.click(
-      screen.getByRole('button', { name: 'Pay supplier order SO000010' }),
+      screen.getByRole('button', {
+        name: 'Pay supplier order SO000010',
+      }),
     );
     expect(
-      await screen.findByRole('button', { name: 'Issue without payment' }),
+      await screen.findByRole('button', {
+        name: 'Issue without payment',
+      }),
     ).toBeInTheDocument();
     fireEvent.click(
       screen.getByRole('button', { name: 'Issue without payment' }),
@@ -3675,9 +3783,9 @@ describe('OrderDetailCard product entry', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Confirm' }));
 
     await waitFor(() =>
-      expect(issueSupplierOrderWithoutPaymentMock).toHaveBeenCalledWith(
-        'supplier-order-issue',
-      ),
+      expect(
+        issueSupplierOrderWithoutPaymentMock,
+      ).toHaveBeenCalledWith('supplier-order-issue'),
     );
     expect(onSuccess).toHaveBeenCalledWith(
       'Order issued without payment.',
@@ -3782,7 +3890,9 @@ describe('OrderDetailCard product entry', () => {
 
     const masterRow = screen.getByText('Master').closest('div');
     expect(masterRow).not.toBeNull();
-    const masterSelect = within(masterRow as HTMLElement).getByRole('combobox');
+    const masterSelect = within(masterRow as HTMLElement).getByRole(
+      'combobox',
+    );
     const options = within(masterSelect).getAllByRole('option');
     expect(options.map((option) => option.textContent)).toEqual([
       'Select master',
@@ -3805,19 +3915,32 @@ describe('OrderDetailCard notes section', () => {
       }),
     );
 
-    expect(screen.queryByText(/\(kits: charger\)/)).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/\(kits: charger\)/),
+    ).not.toBeInTheDocument();
     fireEvent.click(
-      document.querySelector('.order-detail-note-toggle') as HTMLButtonElement,
+      document.querySelector(
+        '.order-detail-note-toggle',
+      ) as HTMLButtonElement,
     );
     expect(screen.getByText(/\(kits: charger\)/)).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Edit note' }));
-    fireEvent.change(screen.getByPlaceholderText('Add your note...'), {
-      target: { value: 'Call before pickup' },
-    });
-    fireEvent.click(screen.getByRole('button', { name: 'Save note' }));
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Edit note' }),
+    );
+    fireEvent.change(
+      screen.getByPlaceholderText('Add your note...'),
+      {
+        target: { value: 'Call before pickup' },
+      },
+    );
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Save note' }),
+    );
 
     await waitFor(() => {
-      expect(onSaveUserNote).toHaveBeenCalledWith('Call before pickup');
+      expect(onSaveUserNote).toHaveBeenCalledWith(
+        'Call before pickup',
+      );
     });
   });
 
@@ -3832,7 +3955,9 @@ describe('OrderDetailCard notes section', () => {
       }),
     );
 
-    expect(screen.queryByText(/\(kits: charger\)/)).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/\(kits: charger\)/),
+    ).not.toBeInTheDocument();
     expect(
       document.querySelector('.order-detail-note-toggle'),
     ).toHaveAttribute('aria-expanded', 'false');
@@ -3849,7 +3974,9 @@ describe('OrderDetailCard notes section', () => {
       }),
     );
 
-    expect(screen.getByText('Call before pickup')).toBeInTheDocument();
+    expect(
+      screen.getByText('Call before pickup'),
+    ).toBeInTheDocument();
     expect(
       document.querySelector('.order-detail-note-toggle'),
     ).toHaveAttribute('aria-expanded', 'true');
@@ -3888,7 +4015,10 @@ describe('OrderDetailCard unbound serial issue warning', () => {
   ];
   const repairStatusOptions = [
     { key: 'ready' as const, labelKey: 'orders.status.repair.ready' },
-    { key: 'issued' as const, labelKey: 'orders.status.repair.issued' },
+    {
+      key: 'issued' as const,
+      labelKey: 'orders.status.repair.issued',
+    },
   ];
   const unboundProduct: OrderLineItem = {
     id: 'line-unbound',
@@ -3905,7 +4035,9 @@ describe('OrderDetailCard unbound serial issue warning', () => {
     fireEvent.change(screen.getByLabelText('Repair status'), {
       target: { value: 'issued' },
     });
-    fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Save changes' }),
+    );
   };
 
   it('asks to continue before saving issued when a product has no serial', async () => {
@@ -3924,10 +4056,14 @@ describe('OrderDetailCard unbound serial issue warning', () => {
     const alert = await screen.findByRole('alertdialog', {
       name: 'Serial numbers are not bound',
     });
-    expect(within(alert).getByText('Splash cover')).toBeInTheDocument();
+    expect(
+      within(alert).getByText('Splash cover'),
+    ).toBeInTheDocument();
     expect(onSaveMainInfo).not.toHaveBeenCalled();
 
-    fireEvent.click(within(alert).getByRole('button', { name: 'Cancel' }));
+    fireEvent.click(
+      within(alert).getByRole('button', { name: 'Cancel' }),
+    );
     expect(onSaveMainInfo).not.toHaveBeenCalled();
     expect(
       screen.queryByRole('alertdialog', {

@@ -10,6 +10,7 @@
     "lint": "eslint . --cache",
     "preview": "vite preview",
     "test": "vitest run",
+    "tests": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test",

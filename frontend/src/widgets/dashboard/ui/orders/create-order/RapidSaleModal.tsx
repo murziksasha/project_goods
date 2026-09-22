@@ -198,7 +198,9 @@ export const RapidSaleModal: React.FC<RapidSaleModalProps> = ({
 
   useEffect(() => {
     if (productQuery.trim().length < 2 || selectedProductId) {
-      setProductSuggestions([]);
+      setProductSuggestions((current) =>
+        current.length === 0 ? current : [],
+      );
       return;
     }
 
@@ -247,7 +249,9 @@ export const RapidSaleModal: React.FC<RapidSaleModalProps> = ({
 
   useEffect(() => {
     if (serviceQuery.trim().length < 2 || selectedServiceId) {
-      setServiceSuggestions([]);
+      setServiceSuggestions((current) =>
+        current.length === 0 ? current : [],
+      );
       return;
     }
 
