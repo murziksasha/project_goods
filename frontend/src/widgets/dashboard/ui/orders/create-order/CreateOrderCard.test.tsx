@@ -186,27 +186,6 @@ vi.mock(
     return {
       ...actual,
       getWarehouseSettings: getWarehouseSettingsMock,
-      useWarehouseSettingsQuery: () => ({
-        data: {
-          id: 'warehouse-settings-test',
-          serviceCenters: [],
-          warehouses: [
-            {
-              id: 'wh-main',
-              name: 'Main warehouse',
-              isActive: true,
-              serviceCenterId: 'sc-1',
-              receiptAddress: '',
-              receiptPhone: '',
-              locations: [{ id: 'loc-1', name: 'Shelf A' }],
-            },
-          ],
-          administrators: [],
-          createdAt: '2026-01-01T00:00:00.000Z',
-          updatedAt: '2026-01-01T00:00:00.000Z',
-        },
-        isLoading: false,
-      }),
       useWarehouseSettingsQuery: () => warehouseSettingsQueryResult,
       useUpdateWarehouseSettingsMutation: vi.fn(),
     };
@@ -383,7 +362,6 @@ const renderWithQueryClient = (ui: ReactElement) => {
     </QueryClientProvider>,
   );
 };
-
 
 const defaultClientHistory = emptyClientHistory({
   id: 'client-1',
