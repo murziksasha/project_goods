@@ -40,16 +40,6 @@ export default defineConfig({
         'src/**/*.test.tsx',
         'src/test/**',
       ],
-      exclude: [
-        'src/**/*.test.ts',
-        'src/**/*.test.tsx',
-        'src/test/**',
-      ],
-      exclude: [
-        'src/**/*.test.ts',
-        'src/**/*.test.tsx',
-        'src/test/**',
-      ],
       lines: 100,
       functions: 100,
       branches: 100,
