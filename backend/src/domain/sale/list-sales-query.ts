@@ -6,10 +6,9 @@ export const SALES_LIST_MAX_LIMIT = 5000;
 
 /**
  * Fields omitted from list responses when `compact=1`.
- * Full card/history loads those arrays via GET /sales/:id. Dashboard list uses compact=1.
+ * Full card/history loads timeline via GET /sales/:id. Dashboard list keeps paymentHistory for payment method styling.
  */
-export const SALES_LIST_COMPACT_EXCLUDE =
-  '-timeline -paymentHistory' as const;
+export const SALES_LIST_COMPACT_EXCLUDE = '-timeline' as const;
 
 export const saleKinds = ['sale', 'repair'] as const;
 export type SaleKind = (typeof saleKinds)[number];
@@ -58,14 +57,19 @@ const parseDateKey = (value: unknown) => {
 };
 
 const parseKind = (value: unknown): SaleKind | undefined => {
-  const normalized = String(value ?? '').trim().toLowerCase();
+  const normalized = String(value ?? '')
+    .trim()
+    .toLowerCase();
   return saleKinds.includes(normalized as SaleKind)
     ? (normalized as SaleKind)
     : undefined;
 };
 
-const parseOptionalBoolean = (value: unknown): boolean | undefined => {
-  if (value === undefined || value === null || value === '') return undefined;
+const parseOptionalBoolean = (
+  value: unknown,
+): boolean | undefined => {
+  if (value === undefined || value === null || value === '')
+    return undefined;
   if (typeof value === 'boolean') return value;
   const normalized = String(value).trim().toLowerCase();
   if (['1', 'true', 'yes'].includes(normalized)) return true;
@@ -75,18 +79,22 @@ const parseOptionalBoolean = (value: unknown): boolean | undefined => {
 
 const parseObjectId = (value: unknown) => {
   const normalized = String(value ?? '').trim();
-  return mongoose.isValidObjectId(normalized) ? normalized : undefined;
+  return mongoose.isValidObjectId(normalized)
+    ? normalized
+    : undefined;
 };
 
 const parseLimit = (value: unknown): number | undefined => {
-  if (value === undefined || value === null || value === '') return undefined;
+  if (value === undefined || value === null || value === '')
+    return undefined;
   const parsed = Number.parseInt(String(value), 10);
   if (!Number.isFinite(parsed) || parsed <= 0) return undefined;
   return Math.min(parsed, SALES_LIST_MAX_LIMIT);
 };
 
 const parsePositiveInt = (value: unknown): number | undefined => {
-  if (value === undefined || value === null || value === '') return undefined;
+  if (value === undefined || value === null || value === '')
+    return undefined;
   const parsed = Number.parseInt(String(value), 10);
   if (!Number.isFinite(parsed) || parsed <= 0) return undefined;
   return parsed;
@@ -102,16 +110,26 @@ const parseStringList = (value: unknown): string[] | undefined => {
   return raw.length > 0 ? raw : undefined;
 };
 
-const parseRepairType = (value: unknown): SaleRepairTypeFilter | undefined => {
-  const normalized = String(value ?? '').trim().toLowerCase();
-  return normalized === 'paid' || normalized === 'warranty' ? normalized : undefined;
+const parseRepairType = (
+  value: unknown,
+): SaleRepairTypeFilter | undefined => {
+  const normalized = String(value ?? '')
+    .trim()
+    .toLowerCase();
+  return normalized === 'paid' || normalized === 'warranty'
+    ? normalized
+    : undefined;
 };
 
 const parsePaymentMethod = (
   value: unknown,
 ): SalePaymentMethodFilter | undefined => {
-  const normalized = String(value ?? '').trim().toLowerCase();
-  return normalized === 'cash' || normalized === 'non-cash' ? normalized : undefined;
+  const normalized = String(value ?? '')
+    .trim()
+    .toLowerCase();
+  return normalized === 'cash' || normalized === 'non-cash'
+    ? normalized
+    : undefined;
 };
 
 export const parseListSalesQuery = (
@@ -134,7 +152,8 @@ export const parseListSalesQuery = (
     clientId: parseObjectId(query.clientId),
     assigneeId: parseObjectId(query.assigneeId),
     masterId: parseObjectId(query.masterId),
-    recordNumber: String(query.recordNumber ?? '').trim() || undefined,
+    recordNumber:
+      String(query.recordNumber ?? '').trim() || undefined,
     client: String(query.client ?? '').trim() || undefined,
     product: String(query.product ?? '').trim() || undefined,
     service: String(query.service ?? '').trim() || undefined,
@@ -144,9 +163,13 @@ export const parseListSalesQuery = (
     limit: parseLimit(query.limit),
     page,
     pageSize: page
-      ? Math.min(pageSize ?? SALES_LIST_DEFAULT_PAGE_SIZE, SALES_LIST_MAX_PAGE_SIZE)
+      ? Math.min(
+          pageSize ?? SALES_LIST_DEFAULT_PAGE_SIZE,
+          SALES_LIST_MAX_PAGE_SIZE,
+        )
       : undefined,
-    compact: parseOptionalBoolean(query.compact) === true ? true : undefined,
+    compact:
+      parseOptionalBoolean(query.compact) === true ? true : undefined,
   };
 };
 
@@ -160,13 +183,20 @@ const textOr = (pattern: string) => [
   { 'clientSnapshot.phone': { $regex: pattern, $options: 'i' } },
   { 'clientSnapshot.phones': { $regex: pattern, $options: 'i' } },
   { 'productSnapshot.name': { $regex: pattern, $options: 'i' } },
-  { 'productSnapshot.serialNumber': { $regex: pattern, $options: 'i' } },
+  {
+    'productSnapshot.serialNumber': {
+      $regex: pattern,
+      $options: 'i',
+    },
+  },
   { 'productSnapshot.article': { $regex: pattern, $options: 'i' } },
   { 'lineItems.name': { $regex: pattern, $options: 'i' } },
   { 'lineItems.serialNumbers': { $regex: pattern, $options: 'i' } },
 ];
 
-export const buildSalesFilter = (options: ListSalesOptions): SalesMongoFilter => {
+export const buildSalesFilter = (
+  options: ListSalesOptions,
+): SalesMongoFilter => {
   const filter: SalesMongoFilter = {};
   const and: SalesMongoFilter[] = [];
 
@@ -178,7 +208,10 @@ export const buildSalesFilter = (options: ListSalesOptions): SalesMongoFilter =>
     filter.status = { $in: options.statuses };
   } else if (options.status) {
     filter.status = options.status;
-  } else if (options.excludeStatuses && options.excludeStatuses.length > 0) {
+  } else if (
+    options.excludeStatuses &&
+    options.excludeStatuses.length > 0
+  ) {
     filter.status = { $nin: options.excludeStatuses };
   }
 
@@ -198,7 +231,10 @@ export const buildSalesFilter = (options: ListSalesOptions): SalesMongoFilter =>
     filter.master = options.masterId;
   } else if (options.assigneeId) {
     and.push({
-      $or: [{ master: options.assigneeId }, { manager: options.assigneeId }],
+      $or: [
+        { master: options.assigneeId },
+        { manager: options.assigneeId },
+      ],
     });
   }
 
@@ -226,13 +262,18 @@ export const buildSalesFilter = (options: ListSalesOptions): SalesMongoFilter =>
     };
   } else if (options.repairType === 'paid') {
     filter.lineItems = {
-      $not: { $elemMatch: { kind: 'service', warrantyPeriod: { $gt: 0 } } },
+      $not: {
+        $elemMatch: { kind: 'service', warrantyPeriod: { $gt: 0 } },
+      },
     };
   }
 
   if (options.paymentMethod) {
     filter.paymentHistory = {
-      $elemMatch: { type: 'deposit', paymentMethod: options.paymentMethod },
+      $elemMatch: {
+        type: 'deposit',
+        paymentMethod: options.paymentMethod,
+      },
     };
   }
 
@@ -245,8 +286,12 @@ export const buildSalesFilter = (options: ListSalesOptions): SalesMongoFilter =>
     and.push({
       $or: [
         { 'clientSnapshot.name': { $regex: pattern, $options: 'i' } },
-        { 'clientSnapshot.phone': { $regex: pattern, $options: 'i' } },
-        { 'clientSnapshot.phones': { $regex: pattern, $options: 'i' } },
+        {
+          'clientSnapshot.phone': { $regex: pattern, $options: 'i' },
+        },
+        {
+          'clientSnapshot.phones': { $regex: pattern, $options: 'i' },
+        },
         { recordNumber: { $regex: pattern, $options: 'i' } },
       ],
     });
@@ -256,10 +301,15 @@ export const buildSalesFilter = (options: ListSalesOptions): SalesMongoFilter =>
     const pattern = escapeRegExp(options.product);
     and.push({
       $or: [
-        { 'productSnapshot.name': { $regex: pattern, $options: 'i' } },
+        {
+          'productSnapshot.name': { $regex: pattern, $options: 'i' },
+        },
         {
           lineItems: {
-            $elemMatch: { kind: 'product', name: { $regex: pattern, $options: 'i' } },
+            $elemMatch: {
+              kind: 'product',
+              name: { $regex: pattern, $options: 'i' },
+            },
           },
         },
       ],
@@ -270,7 +320,10 @@ export const buildSalesFilter = (options: ListSalesOptions): SalesMongoFilter =>
     const pattern = escapeRegExp(options.service);
     and.push({
       lineItems: {
-        $elemMatch: { kind: 'service', name: { $regex: pattern, $options: 'i' } },
+        $elemMatch: {
+          kind: 'service',
+          name: { $regex: pattern, $options: 'i' },
+        },
       },
     });
   }
@@ -287,23 +340,23 @@ export const buildSalesFilter = (options: ListSalesOptions): SalesMongoFilter =>
 export const hasSalesListFilters = (options: ListSalesOptions) =>
   Boolean(
     options.kind ||
-      options.status ||
-      options.statuses?.length ||
-      options.excludeStatuses?.length ||
-      options.dateFrom ||
-      options.dateTo ||
-      options.isFavorite !== undefined ||
-      options.isRapidSale !== undefined ||
-      options.clientId ||
-      options.assigneeId ||
-      options.masterId ||
-      options.recordNumber ||
-      options.client ||
-      options.product ||
-      options.service ||
-      options.repairType ||
-      options.paymentMethod ||
-      options.q ||
-      options.limit !== undefined ||
-      options.page !== undefined,
+    options.status ||
+    options.statuses?.length ||
+    options.excludeStatuses?.length ||
+    options.dateFrom ||
+    options.dateTo ||
+    options.isFavorite !== undefined ||
+    options.isRapidSale !== undefined ||
+    options.clientId ||
+    options.assigneeId ||
+    options.masterId ||
+    options.recordNumber ||
+    options.client ||
+    options.product ||
+    options.service ||
+    options.repairType ||
+    options.paymentMethod ||
+    options.q ||
+    options.limit !== undefined ||
+    options.page !== undefined,
   );

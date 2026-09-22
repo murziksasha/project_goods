@@ -9,15 +9,24 @@ import {
   getSaleProductName,
   getSaleProductSerialNumber,
 } from '../../../../../entities/sale';
-import { formatCurrency, formatDateTime } from '../../../../../shared/lib/format';
+import {
+  formatCurrency,
+  formatDateTime,
+} from '../../../../../shared/lib/format';
 import { sanitizePrintHtml } from '../../../../../shared/lib/sanitizeHtml';
 import i18n from '../../../../../shared/i18n/config';
 import { getSaleClientDisplayName } from '../../../model/sale-client-display';
 import { groupPrintProductLineItems } from '../../../model/order-line-item-groups';
 import type { SupplierOrder } from '../../../../../entities/supplier-order';
-import type { Product, ProductModelUpdatePayload } from '../../../../../entities/product';
+import type {
+  Product,
+  ProductModelUpdatePayload,
+} from '../../../../../entities/product';
 import type { CatalogProduct } from '../../../../../entities/catalog-product';
-import type { ClientDevice, ClientDeviceFormValues } from '../../../../../entities/client-device';
+import type {
+  ClientDevice,
+  ClientDeviceFormValues,
+} from '../../../../../entities/client-device';
 import type { PrintForm } from '../../../../../entities/settings';
 import {
   getOrientedLabelSize,
@@ -60,13 +69,17 @@ export type OrdersWorkspaceProps = {
   catalogProducts: CatalogProduct[];
   printForms: PrintForm[];
   printCompanySettings: PrintCompanySettings;
-  onCreateClientDevice: (payload: ClientDeviceFormValues) => Promise<boolean>;
+  onCreateClientDevice: (
+    payload: ClientDeviceFormValues,
+  ) => Promise<boolean>;
   onUpdateClientDevice: (
     deviceId: string,
     payload: ClientDeviceFormValues,
   ) => Promise<boolean>;
   onDeleteClientDevice: (deviceId: string) => Promise<boolean>;
-  onUpdateProductModel: (payload: ProductModelUpdatePayload) => Promise<boolean>;
+  onUpdateProductModel: (
+    payload: ProductModelUpdatePayload,
+  ) => Promise<boolean>;
   pendingPaymentSale?: Sale | null;
   onPendingPaymentSaleHandled?: () => void;
 };
@@ -108,7 +121,10 @@ export type OrdersColumnKey =
   | 'received'
   | 'createdAt'
   | 'readyDate';
-export type OrdersColumnVisibility = Record<OrdersTab, OrdersColumnKey[]>;
+export type OrdersColumnVisibility = Record<
+  OrdersTab,
+  OrdersColumnKey[]
+>;
 export const isPlainLeftClick = (
   event: ReactMouseEvent<HTMLAnchorElement>,
 ) =>
@@ -216,7 +232,10 @@ export const orderTabs: OrderTabDefinition[] = [
   { key: 'kanban', labelKey: 'orders.tabs.kanban' },
   { key: 'sales', labelKey: 'orders.tabs.sales' },
   { key: 'supplierOrders', labelKey: 'orders.tabs.supplierOrders' },
-  { key: 'supplierInformation', labelKey: 'orders.tabs.supplierInformation' },
+  {
+    key: 'supplierInformation',
+    labelKey: 'orders.tabs.supplierInformation',
+  },
 ];
 
 export const isRepairOrdersTab = (tab: OrdersTab) =>
@@ -240,7 +259,10 @@ export const withSupplierOrderLinkNote = (
   saleReference: string,
   clientId: string,
 ) => {
-  const linkNote = buildSupplierOrderLinkNote(saleReference, clientId);
+  const linkNote = buildSupplierOrderLinkNote(
+    saleReference,
+    clientId,
+  );
   const normalizedNote = note.trim();
   const withoutExistingMarkers = normalizedNote
     .replace(/\[LINKED_SALE_ID:[^\]]+\]/gi, '')
@@ -262,8 +284,13 @@ export const extractLinkedValueFromNote = (
   return note.match(pattern)?.[1]?.trim() ?? '';
 };
 
-export const extractLinkedSaleIdFromSupplierOrder = (order: SupplierOrder) =>
-  extractLinkedValueFromNote(order.note ?? '', supplierOrderSaleLinkPrefix);
+export const extractLinkedSaleIdFromSupplierOrder = (
+  order: SupplierOrder,
+) =>
+  extractLinkedValueFromNote(
+    order.note ?? '',
+    supplierOrderSaleLinkPrefix,
+  );
 
 export const extractLinkedClientIdFromSupplierOrder = (
   order: SupplierOrder,
@@ -282,11 +309,14 @@ export const isSupplierOrderLinkedToSale = (
     .toLowerCase();
   if (!linkedSaleRef) return false;
 
-  const saleRecordNumber = (sale.recordNumber ?? '').trim().toLowerCase();
+  const saleRecordNumber = (sale.recordNumber ?? '')
+    .trim()
+    .toLowerCase();
   const saleId = sale.id.trim().toLowerCase();
 
   return (
-    (saleRecordNumber.length > 0 && linkedSaleRef === saleRecordNumber) ||
+    (saleRecordNumber.length > 0 &&
+      linkedSaleRef === saleRecordNumber) ||
     (saleId.length > 0 && linkedSaleRef === saleId)
   );
 };
@@ -304,17 +334,18 @@ export type StoredOrderDetailSections = Record<
   StoredOrderDetailSectionState
 >;
 
-export const readOrderDetailSectionsState = (): StoredOrderDetailSections => {
-  try {
-    const raw = JSON.parse(
-      window.localStorage.getItem(orderDetailSectionsStorageKey) ??
-        '{}',
-    ) as StoredOrderDetailSections;
-    return raw && typeof raw === 'object' ? raw : {};
-  } catch {
-    return {};
-  }
-};
+export const readOrderDetailSectionsState =
+  (): StoredOrderDetailSections => {
+    try {
+      const raw = JSON.parse(
+        window.localStorage.getItem(orderDetailSectionsStorageKey) ??
+          '{}',
+      ) as StoredOrderDetailSections;
+      return raw && typeof raw === 'object' ? raw : {};
+    } catch {
+      return {};
+    }
+  };
 
 export const writeOrderDetailSectionsState = (
   value: StoredOrderDetailSections,
@@ -367,7 +398,8 @@ export const getSupplierOrderStatusLabel = (
 export const ordersColumnsStorageKey = 'project-goods.orders-columns';
 export const savedOrdersFiltersStorageKey =
   'project-goods.saved-orders-filters';
-export const activeOrdersFiltersStorageKey = 'project-goods.orders-active-filters';
+export const activeOrdersFiltersStorageKey =
+  'project-goods.orders-active-filters';
 export const filterIconOptions = [
   '\u2753',
   '\u2702\ufe0f',
@@ -459,14 +491,20 @@ export const defaultVisibleColumns: OrdersColumnVisibility = {
   supplierOrders: allOrdersColumnKeys,
   supplierInformation: allOrdersColumnKeys,
 };
-export const availableColumnsByTab: Record<OrdersTab, OrdersColumnKey[]> = {
+export const availableColumnsByTab: Record<
+  OrdersTab,
+  OrdersColumnKey[]
+> = {
   orders: allOrdersColumnKeys,
   kanban: allOrdersColumnKeys,
   sales: [...defaultVisibleColumns.sales, 'received'],
   supplierOrders: allOrdersColumnKeys,
   supplierInformation: allOrdersColumnKeys,
 };
-export const lockedColumnsByTab: Record<OrdersTab, OrdersColumnKey[]> = {
+export const lockedColumnsByTab: Record<
+  OrdersTab,
+  OrdersColumnKey[]
+> = {
   orders: ['orderNumber'],
   kanban: ['orderNumber'],
   sales: ['orderNumber'],
@@ -474,22 +512,46 @@ export const lockedColumnsByTab: Record<OrdersTab, OrdersColumnKey[]> = {
   supplierInformation: ['orderNumber'],
 };
 
-export const repairStatuses: Array<{ key: RepairStatus; labelKey: string }> = [
+export const repairStatuses: Array<{
+  key: RepairStatus;
+  labelKey: string;
+}> = [
   { key: 'ready', labelKey: 'orders.status.repair.ready' },
   { key: 'issued', labelKey: 'orders.status.repair.issued' },
   { key: 'paid', labelKey: 'orders.status.repair.paid' },
   { key: 'new', labelKey: 'orders.status.repair.new' },
-  { key: 'diagnostics', labelKey: 'orders.status.repair.diagnostics' },
+  {
+    key: 'diagnostics',
+    labelKey: 'orders.status.repair.diagnostics',
+  },
   { key: 'inRepair', labelKey: 'orders.status.repair.inRepair' },
   { key: 'refinement', labelKey: 'orders.status.repair.refinement' },
-  { key: 'waitingParts', labelKey: 'orders.status.repair.waitingParts' },
-  { key: 'clientApproved', labelKey: 'orders.status.repair.clientApproved' },
-  { key: 'clientRejected', labelKey: 'orders.status.repair.clientRejected' },
-  { key: 'issuedWithoutRepair', labelKey: 'orders.status.repair.issuedWithoutRepair' },
-  { key: 'notPickedUp', labelKey: 'orders.status.repair.notPickedUp' },
+  {
+    key: 'waitingParts',
+    labelKey: 'orders.status.repair.waitingParts',
+  },
+  {
+    key: 'clientApproved',
+    labelKey: 'orders.status.repair.clientApproved',
+  },
+  {
+    key: 'clientRejected',
+    labelKey: 'orders.status.repair.clientRejected',
+  },
+  {
+    key: 'issuedWithoutRepair',
+    labelKey: 'orders.status.repair.issuedWithoutRepair',
+  },
+  {
+    key: 'notPickedUp',
+    labelKey: 'orders.status.repair.notPickedUp',
+  },
   { key: 'away', labelKey: 'orders.status.repair.away' },
 ];
-export const saleStatuses: Array<{ key: SaleStatus; labelKey: string }> = [
+export const saleStatuses: Array<{
+  key: SaleStatus;
+  labelKey: string;
+}> = [
   { key: 'new', labelKey: 'orders.status.sale.new' },
   { key: 'reserved', labelKey: 'orders.status.sale.reserved' },
   { key: 'paid', labelKey: 'orders.status.sale.paid' },
@@ -553,7 +615,9 @@ export const emptyOrdersFilters: OrdersFilters = {
 };
 
 /** Kanban toolbar is master + dates + favorites only (columns are the status filter). */
-export const toKanbanFilters = (filters: OrdersFilters): OrdersFilters => ({
+export const toKanbanFilters = (
+  filters: OrdersFilters,
+): OrdersFilters => ({
   ...emptyOrdersFilters,
   assigneeId: filters.assigneeId,
   dateFrom: filters.dateFrom,
@@ -564,7 +628,8 @@ export const toKanbanFilters = (filters: OrdersFilters): OrdersFilters => ({
 export const readActiveOrderFilters = () => {
   try {
     const raw = JSON.parse(
-      window.localStorage.getItem(activeOrdersFiltersStorageKey) ?? '{}',
+      window.localStorage.getItem(activeOrdersFiltersStorageKey) ??
+        '{}',
     ) as Partial<Record<OrdersTab, OrdersFilters>>;
 
     const normalizeOne = (
@@ -698,14 +763,20 @@ export const buildAddedItemTimelineMessage = (
   name: string,
 ) => i18n.t('orders.timeline.addedItem', { author, kind, name });
 
-export const buildRemovedProductTimelineMessage = (author: string, name: string) =>
-  i18n.t('orders.timeline.removedProduct', { author, name });
+export const buildRemovedProductTimelineMessage = (
+  author: string,
+  name: string,
+) => i18n.t('orders.timeline.removedProduct', { author, name });
 
-export const buildRemovedServiceTimelineMessage = (author: string, name: string) =>
-  i18n.t('orders.timeline.removedService', { author, name });
+export const buildRemovedServiceTimelineMessage = (
+  author: string,
+  name: string,
+) => i18n.t('orders.timeline.removedService', { author, name });
 
-export const buildBoundSerialsTimelineMessage = (author: string, name: string) =>
-  i18n.t('orders.timeline.boundSerials', { author, name });
+export const buildBoundSerialsTimelineMessage = (
+  author: string,
+  name: string,
+) => i18n.t('orders.timeline.boundSerials', { author, name });
 
 export const buildUpdatedMainInfoTimelineMessage = (author: string) =>
   i18n.t('orders.timeline.updatedMainInfo', { author });
@@ -764,22 +835,19 @@ export const getWarrantyOptions = () => [
 ];
 
 export const getDefaultLineItems = (sale: Sale) =>
-  isRepairOrder(sale)
-    ? []
-    : [createOrderLineItem(sale, 'product')];
+  isRepairOrder(sale) ? [] : [createOrderLineItem(sale, 'product')];
 
-export const getDiscount = (sale: Sale) => ({
-  mode: sale.discount?.mode === 'amount' ? 'amount' : 'percent',
-  value:
-    Number.isFinite(sale.discount?.value) && (sale.discount?.value ?? 0) > 0
-      ? Number(sale.discount?.value)
-      : 0,
-} as const);
+export const getDiscount = (sale: Sale) =>
+  ({
+    mode: sale.discount?.mode === 'amount' ? 'amount' : 'percent',
+    value:
+      Number.isFinite(sale.discount?.value) &&
+      (sale.discount?.value ?? 0) > 0
+        ? Number(sale.discount?.value)
+        : 0,
+  }) as const;
 
-export const getDiscountAmount = (
-  sale: Sale,
-  total: number,
-) => {
+export const getDiscountAmount = (sale: Sale, total: number) => {
   const discount = getDiscount(sale);
   if (discount.value <= 0 || total <= 0) return 0;
   if (discount.mode === 'percent') {
@@ -836,16 +904,14 @@ export const getLineItemRefundableAmount = (
     : getDefaultLineItems(sale),
 ) => {
   const baseTotal = getOrderBaseTotal(sale, lineItems);
-  const itemTotal = Math.round(lineItem.price * lineItem.quantity * 100) / 100;
+  const itemTotal =
+    Math.round(lineItem.price * lineItem.quantity * 100) / 100;
   if (baseTotal <= 0 || itemTotal <= 0) return 0;
   const orderTotal = getOrderTotal(sale, lineItems);
   const ratio = itemTotal / baseTotal;
   const discountedItemTotal =
     Math.round(orderTotal * ratio * 100) / 100;
-  return Math.max(
-    Math.min(discountedItemTotal, itemTotal),
-    0,
-  );
+  return Math.max(Math.min(discountedItemTotal, itemTotal), 0);
 };
 export const normalizeProductLookupValue = (value: string) =>
   value.trim().toLowerCase().replace(/\s+/g, ' ');
@@ -869,8 +935,10 @@ export const isRepairDevicePlaceholderLineItem = (
   if (!normalizedItemName || !normalizedDeviceName) return false;
   if (normalizedItemName !== normalizedDeviceName) return false;
 
-  const hasLegacyPrice = Math.abs((item.price ?? 0) - sale.salePrice) < 0.01;
-  const hasLegacyQuantity = Number(item.quantity ?? 0) === Number(sale.quantity ?? 0);
+  const hasLegacyPrice =
+    Math.abs((item.price ?? 0) - sale.salePrice) < 0.01;
+  const hasLegacyQuantity =
+    Number(item.quantity ?? 0) === Number(sale.quantity ?? 0);
 
   return hasLegacyPrice && hasLegacyQuantity;
 };
@@ -953,11 +1021,21 @@ export const isIssueWithoutPaymentBlockedForSale = (
 export const getLatestDepositPaymentMethod = (
   sale: Sale,
 ): PaymentMethod | null => {
-  const entry = (sale.paymentHistory ?? []).find(
+  const deposits = (sale.paymentHistory ?? []).filter(
     (item) => item.type === 'deposit',
   );
-  if (!entry) return null;
-  return entry.paymentMethod === 'non-cash' ? 'non-cash' : 'cash';
+  if (deposits.length === 0) return null;
+  if (deposits.length === 1) {
+    return deposits[0].paymentMethod === 'non-cash'
+      ? 'non-cash'
+      : 'cash';
+  }
+  const sorted = [...deposits].sort((a, b) => {
+    const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+    const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+    return timeB - timeA;
+  });
+  return sorted[0].paymentMethod === 'non-cash' ? 'non-cash' : 'cash';
 };
 
 export const hasNonCashPayment = (sale: Sale) =>
@@ -969,7 +1047,10 @@ export const isClosingStatus = (sale: Sale, status: OrderStatus) =>
     ? status === 'issued' || status === 'issuedWithoutRepair'
     : status === 'paid';
 
-export const shouldCaptureReceivedBy = (sale: Sale, status: OrderStatus) =>
+export const shouldCaptureReceivedBy = (
+  sale: Sale,
+  status: OrderStatus,
+) =>
   isRepairOrder(sale)
     ? handoffRepairStatuses.includes(status as RepairStatus)
     : status === 'reserved' ||
@@ -983,7 +1064,9 @@ export const getRepairCompletionDate = (sale: Sale) => {
   if (timeline.length === 0) return sale.saleDate;
 
   const completionLabels = new Set(
-    handoffRepairStatuses.map((status) => getStatusLabel(sale, status).toLowerCase()),
+    handoffRepairStatuses.map((status) =>
+      getStatusLabel(sale, status).toLowerCase(),
+    ),
   );
   const completionEntry = timeline.find((entry) => {
     const text = entry.message.toLowerCase();
@@ -993,7 +1076,9 @@ export const getRepairCompletionDate = (sale: Sale) => {
     ) {
       return false;
     }
-    return Array.from(completionLabels).some((label) => text.includes(`"${label}"`));
+    return Array.from(completionLabels).some((label) =>
+      text.includes(`"${label}"`),
+    );
   });
 
   return completionEntry?.createdAt ?? sale.saleDate;
@@ -1008,7 +1093,10 @@ export const shouldOpenPaymentModalForStatusChange = (
 ) =>
   remainingPayment > 0 &&
   (nextStatus === 'issued' || nextStatus === 'paid');
-export const canRefundFromStatus = (sale: Sale, status: OrderStatus) =>
+export const canRefundFromStatus = (
+  sale: Sale,
+  status: OrderStatus,
+) =>
   isRepairOrder(sale)
     ? status !== 'issued' &&
       status !== 'clientRejected' &&
@@ -1097,10 +1185,16 @@ export const computeAnchoredMenuPosition = (
   let top = openBelow
     ? anchorRect.bottom + gap
     : anchorRect.top - gap - maxHeight;
-  top = Math.max(pad, Math.min(top, viewport.height - pad - maxHeight));
+  top = Math.max(
+    pad,
+    Math.min(top, viewport.height - pad - maxHeight),
+  );
 
   let left = anchorRect.left;
-  left = Math.max(pad, Math.min(left, viewport.width - menuWidth - pad));
+  left = Math.max(
+    pad,
+    Math.min(left, viewport.width - menuWidth - pad),
+  );
 
   return {
     top,
@@ -1117,7 +1211,11 @@ export const computeOrderStatusMenuPosition = (
     height: window.innerHeight,
   },
 ): OrderStatusMenuPosition =>
-  computeAnchoredMenuPosition(anchorRect, viewport, ORDER_STATUS_MENU_WIDTH);
+  computeAnchoredMenuPosition(
+    anchorRect,
+    viewport,
+    ORDER_STATUS_MENU_WIDTH,
+  );
 
 export const computeOrderExtraLinesMenuPosition = (
   anchorRect: Pick<DOMRect, 'top' | 'bottom' | 'left' | 'width'>,
@@ -1164,7 +1262,8 @@ export const getReopenedSaleStatusForLineItems = (
   if (isRepairOrder(sale)) return undefined;
   const status = normalizeOrderStatus(sale.status);
   if (status !== 'paid') return undefined;
-  if (!nextLineItems.some((item) => item.kind === 'product')) return undefined;
+  if (!nextLineItems.some((item) => item.kind === 'product'))
+    return undefined;
 
   const total = getOrderTotal(
     {
@@ -1224,10 +1323,13 @@ export const renderLineItemsTable = (
 };
 
 export const formatInvoiceAmount = (value: number) =>
-  new Intl.NumberFormat(i18n.language.startsWith('uk') ? 'uk-UA' : 'en-US', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(value);
+  new Intl.NumberFormat(
+    i18n.language.startsWith('uk') ? 'uk-UA' : 'en-US',
+    {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    },
+  ).format(value);
 
 type AmountPluralForms = {
   one: string;
@@ -1277,7 +1379,10 @@ export const pluralizeUk = (
   return many;
 };
 
-const pluralizeAmountWord = (value: number, forms: AmountPluralForms) => {
+const pluralizeAmountWord = (
+  value: number,
+  forms: AmountPluralForms,
+) => {
   if (i18n.language.startsWith('uk')) {
     return pluralizeUk(value, forms.one, forms.few, forms.many);
   }
@@ -1285,8 +1390,15 @@ const pluralizeAmountWord = (value: number, forms: AmountPluralForms) => {
 };
 
 export const numberToUkrainianWords = (value: number) => {
-  const { zero, units, femaleUnits, teens, tens, hundreds, thousand } =
-    getAmountWordArrays();
+  const {
+    zero,
+    units,
+    femaleUnits,
+    teens,
+    tens,
+    hundreds,
+    thousand,
+  } = getAmountWordArrays();
   if (value === 0) return zero;
 
   const chunkToWords = (chunk: number, female = false) => {
@@ -1336,7 +1448,9 @@ export const formatAmountInWords = (value: number) => {
 
 export const renderInvoiceItemsTable = (sale: Sale) => {
   const sourceItems = (
-    sale.lineItems?.length ? sale.lineItems : getDefaultLineItems(sale)
+    sale.lineItems?.length
+      ? sale.lineItems
+      : getDefaultLineItems(sale)
   ).filter((item) => item.quantity > 0);
   const items = groupPrintProductLineItems(sourceItems).map(
     (group, index) => {
@@ -1410,7 +1524,9 @@ const getLabelProductData = (
         (item.serialNumbers ?? []).some((serial) => serial.trim()),
     ) ?? lineItems.find((item) => item.kind === 'product');
   const serialNumber =
-    productItem?.serialNumbers?.find((serial) => serial.trim())?.trim() ?? '';
+    productItem?.serialNumbers
+      ?.find((serial) => serial.trim())
+      ?.trim() ?? '';
 
   return {
     labelCode: serialNumber || orderNumber,
@@ -1436,7 +1552,8 @@ export const getPrintTemplateData = (
   );
   const createdAt = formatDateTime(sale.createdAt);
   const isRepair = isRepairOrder(sale);
-  const isRepairLabel = isRepair || orderNumber.trim().toLowerCase().startsWith('r');
+  const isRepairLabel =
+    isRepair || orderNumber.trim().toLowerCase().startsWith('r');
   const repairLabelData = {
     labelCode: orderNumber,
     labelTitle: getSaleProductName(sale),
@@ -1458,7 +1575,9 @@ export const getPrintTemplateData = (
     comment: sale.note || '-',
     total: formatCurrency(total),
     paid: formatCurrency(paidAmount),
-    toPay: formatCurrency(getRemainingPayment(sale, paidAmount, lineItems)),
+    toPay: formatCurrency(
+      getRemainingPayment(sale, paidAmount, lineItems),
+    ),
     currency: 'UAH',
     discount:
       getDiscount(sale).value > 0
@@ -1467,7 +1586,8 @@ export const getPrintTemplateData = (
     note: sale.note || '-',
     managerName: sale.manager?.name ?? '-',
     masterName: sale.master?.name ?? '-',
-    company: companySettings.serviceName || companySettings.company || '-',
+    company:
+      companySettings.serviceName || companySettings.company || '-',
     company_address: companySettings.companyAddress || '-',
     company_id: companySettings.companyId || '-',
     company_iban: companySettings.companyIban || '-',
@@ -1495,7 +1615,10 @@ export const getPrintTemplateData = (
       serviceItems,
       i18n.t('orders.print.invoice.noServices'),
     ),
-    invoice_items_table: renderInvoiceItemsTable({ ...sale, lineItems }),
+    invoice_items_table: renderInvoiceItemsTable({
+      ...sale,
+      lineItems,
+    }),
     barcode: labelData.labelCode,
     labelCode: labelData.labelCode,
     labelTitle: labelData.labelTitle,
@@ -1514,7 +1637,9 @@ export const formatReadyDate = (value: string) => {
   }
 
   const language = i18n.resolvedLanguage || i18n.language || 'uk';
-  const locale = language.toLowerCase().startsWith('en') ? 'en-GB' : 'uk-UA';
+  const locale = language.toLowerCase().startsWith('en')
+    ? 'en-GB'
+    : 'uk-UA';
   return new Intl.DateTimeFormat(locale, {
     day: 'numeric',
     month: 'short',
@@ -1538,7 +1663,9 @@ export const printWarehouseSerialLabels = async (
   printForms: PrintForm[],
   title: string,
 ) => {
-  const printableItems = items.filter((item) => item.serialNumber.trim());
+  const printableItems = items.filter((item) =>
+    item.serialNumber.trim(),
+  );
   if (printableItems.length === 0) return;
 
   const barcodeForm = getWarehouseBarcodePrintForm(printForms);
@@ -1585,25 +1712,31 @@ export const renderOrderPrintCodes = async (
   root: HTMLElement | Document,
   fallbackValue: string,
 ) => {
-  root.querySelectorAll<SVGSVGElement>('svg[data-barcode-value]').forEach((node) => {
-    if (node.ownerDocument.defaultView?.navigator.userAgent.includes('jsdom')) {
-      return;
-    }
-    const value = node.dataset.barcodeValue || fallbackValue;
-    const isLabelBarcode = Boolean(node.closest('.print-label'));
-    try {
-      JsBarcode(node, value, {
-        format: 'CODE128',
-        displayValue: !isLabelBarcode,
-        fontSize: isLabelBarcode ? 18 : 12,
-        textMargin: isLabelBarcode ? 1 : 2,
-        height: isLabelBarcode ? 52 : 44,
-        margin: 0,
-      });
-    } catch {
-      node.replaceWith(node.ownerDocument.createTextNode(value));
-    }
-  });
+  root
+    .querySelectorAll<SVGSVGElement>('svg[data-barcode-value]')
+    .forEach((node) => {
+      if (
+        node.ownerDocument.defaultView?.navigator.userAgent.includes(
+          'jsdom',
+        )
+      ) {
+        return;
+      }
+      const value = node.dataset.barcodeValue || fallbackValue;
+      const isLabelBarcode = Boolean(node.closest('.print-label'));
+      try {
+        JsBarcode(node, value, {
+          format: 'CODE128',
+          displayValue: !isLabelBarcode,
+          fontSize: isLabelBarcode ? 18 : 12,
+          textMargin: isLabelBarcode ? 1 : 2,
+          height: isLabelBarcode ? 52 : 44,
+          margin: 0,
+        });
+      } catch {
+        node.replaceWith(node.ownerDocument.createTextNode(value));
+      }
+    });
 };
 
 export const buildOrderPrintBody = (
@@ -1616,32 +1749,30 @@ export const buildOrderPrintBody = (
 ) =>
   Array.from({ length: Math.max(1, copies) })
     .flatMap(() => forms)
-    .map(
-      (form) => {
-        const isLabel = pageSize === 'label' || form.pageSize === 'label';
-        const labelSize = getOrientedLabelSize(
-          pageSize === 'label'
-            ? activeLabelSize
-            : normalizeLabelSize(form.labelSize),
-          pageSize === 'label' ? orientation : form.orientation,
-        );
-        const contentMargins = normalizeContentMargins(
-          form.contentMargins,
-          form.pageSize ?? pageSize,
-        );
-        const marginVars = getPrintContentMarginVars(contentMargins);
-        const labelStyle =
-          isLabel
-            ? ` style="--label-width: ${labelSize.widthMm}mm; --label-height: ${labelSize.heightMm}mm; ${marginVars};"`
-            : ` style="${marginVars};"`;
+    .map((form) => {
+      const isLabel =
+        pageSize === 'label' || form.pageSize === 'label';
+      const labelSize = getOrientedLabelSize(
+        pageSize === 'label'
+          ? activeLabelSize
+          : normalizeLabelSize(form.labelSize),
+        pageSize === 'label' ? orientation : form.orientation,
+      );
+      const contentMargins = normalizeContentMargins(
+        form.contentMargins,
+        form.pageSize ?? pageSize,
+      );
+      const marginVars = getPrintContentMarginVars(contentMargins);
+      const labelStyle = isLabel
+        ? ` style="--label-width: ${labelSize.widthMm}mm; --label-height: ${labelSize.heightMm}mm; ${marginVars};"`
+        : ` style="${marginVars};"`;
 
-        return `
+      return `
         <section class="print-form ${isLabel ? 'print-form-label' : ''}"${labelStyle}>
           ${renderSettingsPrintTemplate(form.content, templateData, form.contentFormat)}
         </section>
       `;
-      },
-    )
+    })
     .join('');
 
 export const buildOrderPrintHtml = ({
@@ -1661,7 +1792,10 @@ export const buildOrderPrintHtml = ({
   screenPreview?: boolean;
   batchLabels?: boolean;
 }) => {
-  const orientedLabelSize = getOrientedLabelSize(labelSize, orientation);
+  const orientedLabelSize = getOrientedLabelSize(
+    labelSize,
+    orientation,
+  );
   const isLabel = pageSize === 'label';
   const pageRule = isLabel
     ? `@page { size: ${orientedLabelSize.widthMm}mm ${orientedLabelSize.heightMm}mm; margin: 0; }`
@@ -1679,8 +1813,12 @@ export const buildOrderPrintHtml = ({
     isLabel && batchLabels ? 'print-body-label-batch' : '',
     screenPreview ? 'print-screen-preview' : '',
   ].filter(Boolean);
-  const htmlClass = htmlClasses.length ? ` class="${htmlClasses.join(' ')}"` : '';
-  const bodyClass = bodyClasses.length ? ` class="${bodyClasses.join(' ')}"` : '';
+  const htmlClass = htmlClasses.length
+    ? ` class="${htmlClasses.join(' ')}"`
+    : '';
+  const bodyClass = bodyClasses.length
+    ? ` class="${bodyClasses.join(' ')}"`
+    : '';
 
   return `
     <!doctype html>
@@ -1719,7 +1857,11 @@ export const openOrderPrintWindow = async ({
   autoClose: boolean;
   batchLabels?: boolean;
 }) => {
-  const printWindow = window.open('', '_blank', 'width=980,height=760');
+  const printWindow = window.open(
+    '',
+    '_blank',
+    'width=980,height=760',
+  );
   if (!printWindow) return;
 
   printWindow.document.write(
@@ -1738,14 +1880,20 @@ export const openOrderPrintWindow = async ({
   printWindow.focus();
   if (shouldPrint) {
     if (autoClose) {
-      printWindow.addEventListener('afterprint', () => printWindow.close(), {
-        once: true,
-      });
+      printWindow.addEventListener(
+        'afterprint',
+        () => printWindow.close(),
+        {
+          once: true,
+        },
+      );
     }
     const triggerPrint = () => printWindow.print();
     if (pageSize === 'label') {
       // wait a frame (or two) to ensure layout and JsBarcode SVG are ready for label physical size
-      requestAnimationFrame(() => requestAnimationFrame(triggerPrint));
+      requestAnimationFrame(() =>
+        requestAnimationFrame(triggerPrint),
+      );
     } else {
       triggerPrint();
     }
@@ -1816,7 +1964,10 @@ export const truncateOrdersCellText = (
   return `${normalizedValue.slice(0, maxLength)}...`;
 };
 
-export const ORDERS_COLUMN_MIN_WIDTH: Record<OrdersColumnKey, number> = {
+export const ORDERS_COLUMN_MIN_WIDTH: Record<
+  OrdersColumnKey,
+  number
+> = {
   orderNumber: 140,
   client: 200,
   status: 160,
@@ -1832,16 +1983,21 @@ export const ORDERS_COLUMN_MIN_WIDTH: Record<OrdersColumnKey, number> = {
   readyDate: 120,
 };
 
-export const getOrdersTableMinWidth = (columnKeys: OrdersColumnKey[]) =>
+export const getOrdersTableMinWidth = (
+  columnKeys: OrdersColumnKey[],
+) =>
   Math.max(
     720,
     columnKeys.reduce(
-      (total, columnKey) => total + ORDERS_COLUMN_MIN_WIDTH[columnKey],
+      (total, columnKey) =>
+        total + ORDERS_COLUMN_MIN_WIDTH[columnKey],
       0,
     ),
   );
 
-export const getOrdersColumnClassName = (columnKey: OrdersColumnKey) => {
+export const getOrdersColumnClassName = (
+  columnKey: OrdersColumnKey,
+) => {
   switch (columnKey) {
     case 'orderNumber':
       return 'orders-col-order-number';
@@ -1903,11 +2059,15 @@ export const getPrimaryItemColumnLabel = (activeTab: OrdersTab) =>
     : i18n.t('orders.columns.product');
 
 export const getDeviceLineItem = (sale: Sale) =>
-  (sale.lineItems ?? []).find((item) => item.kind === 'product') ?? null;
+  (sale.lineItems ?? []).find((item) => item.kind === 'product') ??
+  null;
 
 export const getPrimaryDeviceName = (sale: Sale) => {
   const snapshotName = sale.product?.name?.trim();
-  if (snapshotName && snapshotName.toUpperCase() !== 'REPAIR PLACEHOLDER') {
+  if (
+    snapshotName &&
+    snapshotName.toUpperCase() !== 'REPAIR PLACEHOLDER'
+  ) {
     return snapshotName;
   }
   const deviceItem = getDeviceLineItem(sale);
@@ -1941,7 +2101,10 @@ export type SaleListDropdownItem = {
 };
 
 export const getSaleListDropdownItemSerial = (
-  item: Pick<OrderLineItem, 'kind' | 'name' | 'productId' | 'serialNumbers'>,
+  item: Pick<
+    OrderLineItem,
+    'kind' | 'name' | 'productId' | 'serialNumbers'
+  >,
   sale: Pick<Sale, 'product'>,
 ) => {
   const fromLine = (item.serialNumbers ?? [])
@@ -1965,7 +2128,9 @@ export const getSaleListDropdownItemSerial = (
   return matchesSnapshot ? snapshotSerial : EMPTY_LINE_ITEM_SERIAL;
 };
 
-export const getSaleListDropdownItems = (sale: Sale): SaleListDropdownItem[] =>
+export const getSaleListDropdownItems = (
+  sale: Sale,
+): SaleListDropdownItem[] =>
   (sale.lineItems ?? []).map((item, index) => ({
     id: item.id || `line-${index}`,
     name: item.name?.trim() || '',

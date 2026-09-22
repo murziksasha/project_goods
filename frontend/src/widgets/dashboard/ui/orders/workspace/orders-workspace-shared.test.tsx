@@ -20,6 +20,8 @@ import {
   getPrimaryItemColumnLabel,
   getPrimaryItemExtraLineCount,
   getDiscount,
+  getLatestDepositPaymentMethod,
+  hasNonCashPayment,
   getLineItemsQuantity,
   getLineItemsTotal,
   getOrdersColumnClassName,
@@ -307,7 +309,9 @@ describe('getReopenedSaleStatusForLineItems', () => {
         warrantyPeriod: 0,
       },
     ];
-    expect(getReopenedSaleStatusForLineItems(sale, nextItems)).toBe('new');
+    expect(getReopenedSaleStatusForLineItems(sale, nextItems)).toBe(
+      'new',
+    );
   });
 
   it('keeps paid when product total is fully covered', () => {
@@ -322,7 +326,9 @@ describe('getReopenedSaleStatusForLineItems', () => {
         warrantyPeriod: 0,
       },
     ];
-    expect(getReopenedSaleStatusForLineItems(sale, nextItems)).toBeUndefined();
+    expect(
+      getReopenedSaleStatusForLineItems(sale, nextItems),
+    ).toBeUndefined();
   });
 
   it('does not reopen issued sales', () => {
@@ -337,7 +343,9 @@ describe('getReopenedSaleStatusForLineItems', () => {
         warrantyPeriod: 0,
       },
     ];
-    expect(getReopenedSaleStatusForLineItems(sale, nextItems)).toBeUndefined();
+    expect(
+      getReopenedSaleStatusForLineItems(sale, nextItems),
+    ).toBeUndefined();
   });
 });
 
@@ -460,9 +468,9 @@ describe('order print labels', () => {
       printCompanySettings,
     );
 
-    expect(data.products_table?.match(/TerraE 30E INR18650 3000mAh/g)).toEqual([
-      'TerraE 30E INR18650 3000mAh',
-    ]);
+    expect(
+      data.products_table?.match(/TerraE 30E INR18650 3000mAh/g),
+    ).toEqual(['TerraE 30E INR18650 3000mAh']);
     expect(data.products_table).toContain('>3<');
     expect(
       data.invoice_items_table
@@ -503,7 +511,9 @@ describe('order print labels', () => {
       printCompanySettings,
     );
 
-    expect(data.products_table?.match(/TerraE 30E INR18650 3000mAh/g)).toEqual([
+    expect(
+      data.products_table?.match(/TerraE 30E INR18650 3000mAh/g),
+    ).toEqual([
       'TerraE 30E INR18650 3000mAh',
       'TerraE 30E INR18650 3000mAh',
     ]);
@@ -541,7 +551,10 @@ describe('order print labels', () => {
       printCompanySettings,
     );
 
-    expect(data.services_table?.match(/Repair/g)).toEqual(['Repair', 'Repair']);
+    expect(data.services_table?.match(/Repair/g)).toEqual([
+      'Repair',
+      'Repair',
+    ]);
   });
 
   it('prints label pages in the selected orientation', () => {
@@ -560,10 +573,16 @@ describe('order print labels', () => {
       orientation: 'portrait',
     });
 
-    expect(landscape).toContain('@page { size: 40mm 25mm; margin: 0; }');
+    expect(landscape).toContain(
+      '@page { size: 40mm 25mm; margin: 0; }',
+    );
     expect(landscape).toContain('class="print-html-label"');
-    expect(landscape).toContain('--label-width: 40mm; --label-height: 25mm;');
-    expect(portrait).toContain('@page { size: 25mm 40mm; margin: 0; }');
+    expect(landscape).toContain(
+      '--label-width: 40mm; --label-height: 25mm;',
+    );
+    expect(portrait).toContain(
+      '@page { size: 25mm 40mm; margin: 0; }',
+    );
   });
 
   it('uses a scaled screen mode only for preview windows', () => {
@@ -576,9 +595,15 @@ describe('order print labels', () => {
       screenPreview: true,
     });
 
-    expect(preview).toContain('class="print-html-label print-screen-preview"');
-    expect(preview).toContain('class="print-body-label print-screen-preview"');
-    expect(preview).toContain('@page { size: 40mm 25mm; margin: 0; }');
+    expect(preview).toContain(
+      'class="print-html-label print-screen-preview"',
+    );
+    expect(preview).toContain(
+      'class="print-body-label print-screen-preview"',
+    );
+    expect(preview).toContain(
+      '@page { size: 40mm 25mm; margin: 0; }',
+    );
   });
 
   it('label print HTML contains label @page, label classes/vars, no A4 @page', () => {
@@ -594,7 +619,9 @@ describe('order print labels', () => {
     expect(html).not.toContain('A4');
     expect(html).toContain('class="print-html-label"');
     expect(html).toContain('class="print-body-label"');
-    expect(html).toContain('--label-width: 40mm; --label-height: 25mm;');
+    expect(html).toContain(
+      '--label-width: 40mm; --label-height: 25mm;',
+    );
     expect(html).toContain('print-form-label');
     expect(html).toContain('class="print-label"');
   });
@@ -644,9 +671,15 @@ describe('order print labels', () => {
       batchLabels: true,
     });
 
-    expect(html).toContain('class="print-html-label print-html-label-batch"');
-    expect(html).toContain('class="print-body-label print-body-label-batch"');
-    expect(html).not.toContain('class="print-html-label print-html-label-batch print-screen-preview"');
+    expect(html).toContain(
+      'class="print-html-label print-html-label-batch"',
+    );
+    expect(html).toContain(
+      'class="print-body-label print-body-label-batch"',
+    );
+    expect(html).not.toContain(
+      'class="print-html-label print-html-label-batch print-screen-preview"',
+    );
   });
 
   it('printWarehouseSerialLabels writes one label section per selected product', async () => {
@@ -665,7 +698,10 @@ describe('order print labels', () => {
       close: vi.fn(),
     };
 
-    vi.stubGlobal('open', vi.fn(() => printWindow));
+    vi.stubGlobal(
+      'open',
+      vi.fn(() => printWindow),
+    );
 
     await printWarehouseSerialLabels(
       [
@@ -677,7 +713,13 @@ describe('order print labels', () => {
       'Warehouse serial numbers',
     );
 
-    expect((writtenHtml.match(/<section class="print-form print-form-label"/g) ?? []).length).toBe(3);
+    expect(
+      (
+        writtenHtml.match(
+          /<section class="print-form print-form-label"/g,
+        ) ?? []
+      ).length,
+    ).toBe(3);
     expect(writtenHtml).toContain('data-barcode-value="SN-A"');
     expect(writtenHtml).toContain('data-barcode-value="SN-B"');
     expect(writtenHtml).toContain('data-barcode-value="SN-C"');
@@ -685,7 +727,9 @@ describe('order print labels', () => {
     expect(writtenHtml).toContain('print-body-label-batch');
   });
 
-  const supplierOrder = (overrides: Partial<SupplierOrder> = {}): SupplierOrder => ({
+  const supplierOrder = (
+    overrides: Partial<SupplierOrder> = {},
+  ): SupplierOrder => ({
     id: 'supplier-order-1',
     orderBaseId: 'SO-1',
     supplierId: 'supplier-1',
@@ -748,7 +792,9 @@ describe('order print labels', () => {
       note: buildSupplierOrderLinkNote('S000001', 'client-1'),
     });
 
-    expect(isSupplierOrderLinkedToSale(order, linkedSale())).toBe(true);
+    expect(isSupplierOrderLinkedToSale(order, linkedSale())).toBe(
+      true,
+    );
   });
 
   it('matches supplier orders linked by sale id', () => {
@@ -756,7 +802,9 @@ describe('order print labels', () => {
       note: buildSupplierOrderLinkNote('sale-1', 'client-1'),
     });
 
-    expect(isSupplierOrderLinkedToSale(order, linkedSale())).toBe(true);
+    expect(isSupplierOrderLinkedToSale(order, linkedSale())).toBe(
+      true,
+    );
   });
 
   it('does not match supplier orders linked to another sale card', () => {
@@ -764,7 +812,9 @@ describe('order print labels', () => {
       note: buildSupplierOrderLinkNote('S000002', 'client-1'),
     });
 
-    expect(isSupplierOrderLinkedToSale(order, linkedSale())).toBe(false);
+    expect(isSupplierOrderLinkedToSale(order, linkedSale())).toBe(
+      false,
+    );
   });
 
   it('does not match supplier orders without explicit sale link markers', () => {
@@ -772,7 +822,9 @@ describe('order print labels', () => {
       note: 'USB Cable for client',
     });
 
-    expect(isSupplierOrderLinkedToSale(order, linkedSale())).toBe(false);
+    expect(isSupplierOrderLinkedToSale(order, linkedSale())).toBe(
+      false,
+    );
   });
 
   it('A4 print HTML contains A4 @page with 12mm margin, no label-only classes', () => {
@@ -784,7 +836,9 @@ describe('order print labels', () => {
       orientation: 'portrait',
     });
 
-    expect(html).toContain('@page { size: A4 portrait; margin: 12mm; }');
+    expect(html).toContain(
+      '@page { size: A4 portrait; margin: 12mm; }',
+    );
     expect(html).not.toContain('print-html-label');
     expect(html).not.toContain('print-body-label');
     expect(html).not.toContain('--label-width');
@@ -805,14 +859,20 @@ describe('away status', () => {
   });
 
   it('does not open the payment modal', () => {
-    expect(shouldOpenPaymentModalForStatusChange('away', 100)).toBe(false);
+    expect(shouldOpenPaymentModalForStatusChange('away', 100)).toBe(
+      false,
+    );
   });
 
   it('is an editable parking status on both repair and sale', () => {
     expect(repairEditableStatuses.has('away')).toBe(true);
     expect(saleEditableStatuses.has('away')).toBe(true);
-    expect(repairStatuses.some((item) => item.key === 'away')).toBe(true);
-    expect(saleStatuses.some((item) => item.key === 'away')).toBe(true);
+    expect(repairStatuses.some((item) => item.key === 'away')).toBe(
+      true,
+    );
+    expect(saleStatuses.some((item) => item.key === 'away')).toBe(
+      true,
+    );
   });
 });
 
@@ -1033,19 +1093,29 @@ describe('orders list dates and columns', () => {
   });
 
   it('maps every orders column to a width class', () => {
-    expect(getOrdersColumnClassName('createdAt')).toBe('orders-col-created-at');
+    expect(getOrdersColumnClassName('createdAt')).toBe(
+      'orders-col-created-at',
+    );
     expect(getOrdersColumnClassName('term')).toBe('orders-col-term');
-    expect(getOrdersTableMinWidth(['orderNumber', 'client', 'status'])).toBe(720);
-    expect(getOrdersTableMinWidth(allOrdersColumnKeys)).toBeGreaterThan(720);
+    expect(
+      getOrdersTableMinWidth(['orderNumber', 'client', 'status']),
+    ).toBe(720);
+    expect(
+      getOrdersTableMinWidth(allOrdersColumnKeys),
+    ).toBeGreaterThan(720);
   });
 
   it('migrates the legacy full column set to the lean default', () => {
-    expect(isLegacyFullOrdersColumnSet(allOrdersColumnKeys)).toBe(true);
+    expect(isLegacyFullOrdersColumnSet(allOrdersColumnKeys)).toBe(
+      true,
+    );
     window.localStorage.setItem(
       ordersColumnsStorageKey,
       JSON.stringify({ orders: allOrdersColumnKeys }),
     );
-    expect(readVisibleColumns().orders).toEqual(defaultVisibleColumns.orders);
+    expect(readVisibleColumns().orders).toEqual(
+      defaultVisibleColumns.orders,
+    );
   });
 
   it('uses product columns on the sales tab and migrates the old lean set', () => {
@@ -1063,12 +1133,16 @@ describe('orders list dates and columns', () => {
       ...defaultVisibleColumns.sales,
       'received',
     ]);
-    expect(isLegacySalesColumnSet(legacySalesDefaultColumnKeys)).toBe(true);
+    expect(isLegacySalesColumnSet(legacySalesDefaultColumnKeys)).toBe(
+      true,
+    );
     window.localStorage.setItem(
       ordersColumnsStorageKey,
       JSON.stringify({ sales: legacySalesDefaultColumnKeys }),
     );
-    expect(readVisibleColumns().sales).toEqual(defaultVisibleColumns.sales);
+    expect(readVisibleColumns().sales).toEqual(
+      defaultVisibleColumns.sales,
+    );
   });
 
   it('labels primary item as Device on orders and Product on sales', () => {
@@ -1098,10 +1172,18 @@ describe('orders list dates and columns', () => {
 
 describe('shouldOpenPaymentModalForStatusChange', () => {
   it('opens the payment modal for issued or paid while remaining is due', () => {
-    expect(shouldOpenPaymentModalForStatusChange('issued', 100)).toBe(true);
-    expect(shouldOpenPaymentModalForStatusChange('paid', 1)).toBe(true);
-    expect(shouldOpenPaymentModalForStatusChange('issued', 0)).toBe(false);
-    expect(shouldOpenPaymentModalForStatusChange('ready', 50)).toBe(false);
+    expect(shouldOpenPaymentModalForStatusChange('issued', 100)).toBe(
+      true,
+    );
+    expect(shouldOpenPaymentModalForStatusChange('paid', 1)).toBe(
+      true,
+    );
+    expect(shouldOpenPaymentModalForStatusChange('issued', 0)).toBe(
+      false,
+    );
+    expect(shouldOpenPaymentModalForStatusChange('ready', 50)).toBe(
+      false,
+    );
   });
 });
 
@@ -1134,5 +1216,103 @@ describe('getDiscount', () => {
       mode: 'amount',
       value: 20,
     });
+  });
+});
+
+describe('getLatestDepositPaymentMethod and hasNonCashPayment', () => {
+  it('returns null when there are no deposit entries', () => {
+    const sale = repairSale({ paymentHistory: [] });
+    expect(getLatestDepositPaymentMethod(sale)).toBeNull();
+    expect(hasNonCashPayment(sale)).toBe(false);
+  });
+
+  it('returns non-cash when single deposit is non-cash and paidAmount > 0', () => {
+    const sale = repairSale({
+      paidAmount: 250,
+      paymentHistory: [
+        {
+          id: 'p-1',
+          type: 'deposit',
+          paymentMethod: 'non-cash',
+          amount: 250,
+          cashboxId: 'cb-1',
+          cashboxName: 'Bank',
+          author: 'Admin',
+          createdAt: '2026-09-20T10:00:00.000Z',
+        },
+      ],
+    });
+    expect(getLatestDepositPaymentMethod(sale)).toBe('non-cash');
+    expect(hasNonCashPayment(sale)).toBe(true);
+  });
+
+  it('returns cash when single deposit is cash', () => {
+    const sale = repairSale({
+      paidAmount: 250,
+      paymentHistory: [
+        {
+          id: 'p-1',
+          type: 'deposit',
+          paymentMethod: 'cash',
+          amount: 250,
+          cashboxId: 'cb-1',
+          cashboxName: 'Cash',
+          author: 'Admin',
+          createdAt: '2026-09-20T10:00:00.000Z',
+        },
+      ],
+    });
+    expect(getLatestDepositPaymentMethod(sale)).toBe('cash');
+    expect(hasNonCashPayment(sale)).toBe(false);
+  });
+
+  it('identifies the latest deposit by createdAt when multiple deposits exist', () => {
+    const sale = repairSale({
+      paidAmount: 300,
+      paymentHistory: [
+        {
+          id: 'p-1',
+          type: 'deposit',
+          paymentMethod: 'cash',
+          amount: 100,
+          cashboxId: 'cb-1',
+          cashboxName: 'Cash',
+          author: 'Admin',
+          createdAt: '2026-09-18T10:00:00.000Z',
+        },
+        {
+          id: 'p-2',
+          type: 'deposit',
+          paymentMethod: 'non-cash',
+          amount: 200,
+          cashboxId: 'cb-2',
+          cashboxName: 'Bank',
+          author: 'Admin',
+          createdAt: '2026-09-21T10:00:00.000Z',
+        },
+      ],
+    });
+    expect(getLatestDepositPaymentMethod(sale)).toBe('non-cash');
+    expect(hasNonCashPayment(sale)).toBe(true);
+  });
+
+  it('returns false for hasNonCashPayment if paidAmount is 0', () => {
+    const sale = repairSale({
+      paidAmount: 0,
+      paymentHistory: [
+        {
+          id: 'p-1',
+          type: 'deposit',
+          paymentMethod: 'non-cash',
+          amount: 0,
+          cashboxId: 'cb-1',
+          cashboxName: 'Bank',
+          author: 'Admin',
+          createdAt: '2026-09-21T10:00:00.000Z',
+        },
+      ],
+    });
+    expect(getLatestDepositPaymentMethod(sale)).toBe('non-cash');
+    expect(hasNonCashPayment(sale)).toBe(false);
   });
 });
