@@ -5477,6 +5477,13 @@ button.payment-summary-discount-badge:hover:not(:disabled) {
   white-space: nowrap;
 }
 
+.supplier-article-hint {
+  font-size: 0.75rem;
+  color: var(--color-text-secondary, #6b7280);
+  margin-top: 2px;
+  display: block;
+}
+
 .supplier-order-basket-summary {
   grid-column: 1 / -1;
   color: var(--color-text-label);

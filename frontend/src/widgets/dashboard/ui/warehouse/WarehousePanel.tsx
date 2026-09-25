@@ -2561,6 +2561,7 @@ export const WarehousePanel: React.FC<WarehousePanelProps> = ({
           serialNumbers,
           autoGenerateArticles,
           articleBase,
+          groupArticles,
           warehouseId,
           locationId,
         }) => {
@@ -2576,6 +2577,7 @@ export const WarehousePanel: React.FC<WarehousePanelProps> = ({
                 serialNumbers,
                 autoGenerateArticles,
                 articleBase: articleBase.trim().toUpperCase(),
+                groupArticles,
                 itemIndex:
                   editingSupplierOrderItemIndex === null
                     ? undefined

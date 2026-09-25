@@ -87,6 +87,7 @@ export interface SupplierOrderModalProps {
     serialNumbers: string[];
     autoGenerateArticles: boolean;
     articleBase: string;
+    groupArticles?: string[];
     warehouseId: string;
     locationId: string;
   }) =>
@@ -207,7 +208,7 @@ export const SupplierOrderModal: React.FC<
   const [isAutoArticleEnabled, setIsAutoArticleEnabled] =
     useState(false);
   const [shouldPrintSerials, setShouldPrintSerials] = useState(true);
-  const [manualArticleBase, setManualArticleBase] = useState('');
+  const [groupArticleInputs, setGroupArticleInputs] = useState<string[]>([]);
   const [takeOnChargeWarehouseId, setTakeOnChargeWarehouseId] =
     useState('');
   const [takeOnChargeLocationId, setTakeOnChargeLocationId] =
@@ -367,7 +368,7 @@ export const SupplierOrderModal: React.FC<
     setIsAutoSerialEnabled(true);
     setManualSerialNumbers([]);
     setIsAutoArticleEnabled(false);
-    setManualArticleBase('');
+    setGroupArticleInputs([]);
     const defaultWarehouse = resolvedWarehouseOptions[0];
     setTakeOnChargeWarehouseId(defaultWarehouse?.id ?? '');
     setTakeOnChargeLocationId(
@@ -1222,7 +1223,9 @@ export const SupplierOrderModal: React.FC<
                   Array.from({ length: chargeUnits }, () => ''),
                 );
                 setIsAutoArticleEnabled(false);
-                setManualArticleBase('');
+                setGroupArticleInputs(
+                  Array.from({ length: submitItems.length }, () => ''),
+                );
               }}
               style={{ background: '#16a34a' }}
             >
@@ -1508,22 +1511,55 @@ export const SupplierOrderModal: React.FC<
                 </span>
               </label>
               {!isAutoArticleEnabled ? (
-                <label className='field field-wide'>
-                  <span>
-                    {t('orders.supplier.modal.articleForQuantity')}
-                  </span>
-                  <input
-                    value={manualArticleBase}
-                    onChange={(event) =>
-                      setManualArticleBase(
-                        event.target.value.toUpperCase(),
-                      )
-                    }
-                    placeholder={t(
-                      'orders.supplier.modal.articleExamplePlaceholder',
-                    )}
-                  />
-                </label>
+                submitItems.length > 1 ? (
+                  // Multi-item: per-group article inputs
+                  <div className='warehouse-receipt-modal-grid'>
+                    {submitItems.map((item, index) => (
+                      <label key={`article-group-${index}`} className='field'>
+                        <span className='supplier-serial-label'>
+                          <span className='supplier-serial-index'>{`#${index + 1}`}</span>
+                          <span
+                            className='supplier-serial-product'
+                            title={`${item.productName} ×${Math.max(0, Math.floor(item.quantity))}`}
+                          >
+                            {`${item.productName} ×${Math.max(0, Math.floor(item.quantity))}`}
+                          </span>
+                        </span>
+                        <input
+                          value={groupArticleInputs[index] ?? ''}
+                          onChange={(event) => {
+                            const val = event.target.value.toUpperCase();
+                            setGroupArticleInputs((current) =>
+                              current.map((v, i) => (i === index ? val : v)),
+                            );
+                          }}
+                          placeholder={t(
+                            'orders.supplier.modal.articleExamplePlaceholder',
+                          )}
+                        />
+                        {!groupArticleInputs[index]?.trim() ? (
+                          <span className='supplier-article-hint'>
+                            {t('orders.supplier.modal.articleGroupHint')}
+                          </span>
+                        ) : null}
+                      </label>
+                    ))}
+                  </div>
+                ) : (
+                  // Single-item: existing single input (writes to groupArticleInputs[0])
+                  <label className='field field-wide'>
+                    <span>{t('orders.supplier.modal.articleForQuantity')}</span>
+                    <input
+                      value={groupArticleInputs[0] ?? ''}
+                      onChange={(event) =>
+                        setGroupArticleInputs([event.target.value.toUpperCase()])
+                      }
+                      placeholder={t(
+                        'orders.supplier.modal.articleExamplePlaceholder',
+                      )}
+                    />
+                  </label>
+                )
               ) : null}
               <label className='field field-wide'>
                 <span>{t('orders.supplier.modal.warehouse')}</span>
@@ -1600,9 +1636,6 @@ export const SupplierOrderModal: React.FC<
                 }
                 onClick={async () => {
                   if (!onTakeOnCharge) return;
-                  const normalizedArticleBase = manualArticleBase
-                    .trim()
-                    .toUpperCase();
                   setIsActionSubmitting(true);
                   try {
                     const result = await onTakeOnCharge({
@@ -1613,9 +1646,10 @@ export const SupplierOrderModal: React.FC<
                             item.trim(),
                           ),
                       autoGenerateArticles: isAutoArticleEnabled,
-                      articleBase: isAutoArticleEnabled
-                        ? ''
-                        : normalizedArticleBase,
+                      articleBase: '',
+                      groupArticles: isAutoArticleEnabled
+                        ? []
+                        : groupArticleInputs.map((v) => v.trim().toUpperCase()),
                       warehouseId: takeOnChargeWarehouseId,
                       locationId: takeOnChargeLocationId,
                     });

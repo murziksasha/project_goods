@@ -2055,6 +2055,7 @@ export const OrderDetailCard: React.FC<OrderDetailCardProps> = ({
           serialNumbers,
           autoGenerateArticles,
           articleBase,
+          groupArticles,
           warehouseId,
           locationId,
         }) => {
@@ -2071,6 +2072,7 @@ export const OrderDetailCard: React.FC<OrderDetailCardProps> = ({
               serialNumbers,
               autoGenerateArticles,
               articleBase: articleBase.trim().toUpperCase(),
+              groupArticles,
               itemIndex: relatedSupplierOrderItemIndex,
               warehouseId,
               locationId,

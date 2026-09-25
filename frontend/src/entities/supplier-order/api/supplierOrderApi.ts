@@ -99,6 +99,7 @@ export type TakeOnChargePayload = {
   serialNumbers?: string[];
   autoGenerateArticles?: boolean;
   articleBase?: string;
+  groupArticles?: string[];
   itemIndex?: number;
   warehouseId?: string;
   locationId?: string;

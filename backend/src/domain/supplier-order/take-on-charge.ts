@@ -96,6 +96,9 @@ export const takeOnChargeSupplierOrder = async (
         .filter(Boolean)
     : [];
   const manualArticleBase = toNonEmptyString(payload?.articleBase).toUpperCase();
+  const rawGroupArticles = Array.isArray(payload?.groupArticles)
+    ? (payload.groupArticles as unknown[]).map((v) => toNonEmptyString(v).toUpperCase())
+    : [];
   const useManualArticle = !autoGenerateArticles;
 
   if (
@@ -165,6 +168,7 @@ export const takeOnChargeSupplierOrder = async (
   // Product creates + order status update must be atomic when RS is available.
   const stockedProducts = await withOptionalMongoSession(async (session) => {
     let serialCursor = 0;
+    let itemCursor = 0;
     const created: StockedProductSummary[] = [];
 
     for (const item of targetItems) {
@@ -179,9 +183,11 @@ export const takeOnChargeSupplierOrder = async (
         : undefined;
       const normalizedName = toNonEmptyString(catalogName || item.productName);
       if (!normalizedName) continue;
-      const articleForItem = useManualArticle
-        ? manualArticleBase
-        : await reserveNextProductArticle();
+      const groupArticle = rawGroupArticles[itemCursor] ?? '';
+      const articleForItem = autoGenerateArticles
+        ? await reserveNextProductArticle()
+        : (groupArticle || manualArticleBase || await reserveNextProductArticle());
+      itemCursor += 1;
 
       const quantity = Math.max(0, Math.floor(item.quantity));
       for (let unitIndex = 0; unitIndex < quantity; unitIndex += 1) {
