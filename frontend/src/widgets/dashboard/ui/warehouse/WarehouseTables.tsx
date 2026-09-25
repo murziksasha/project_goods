@@ -235,19 +235,21 @@ export const ReceiptsTable: React.FC<ReceiptsTableProps> = ({
     }
     if (columnKey === 'product') {
       return (
-        <button
-          type='button'
-          className={`catalog-name-button warehouse-cell-truncate${
-            receipt.status === 'cancelled'
-              ? ' supplier-order-item-cancelled'
-              : ''
-          }`}
-          onClick={() => onOpenProduct(receipt)}
-        >
-          <TruncatedCell text={receipt.productName}>
-            {receipt.productName}
-          </TruncatedCell>
-        </button>
+        <CopyableValue value={receipt.productName}>
+          <button
+            type='button'
+            className={`catalog-name-button warehouse-cell-truncate${
+              receipt.status === 'cancelled'
+                ? ' supplier-order-item-cancelled'
+                : ''
+            }`}
+            onClick={() => onOpenProduct(receipt)}
+          >
+            <TruncatedCell text={receipt.productName}>
+              {receipt.productName}
+            </TruncatedCell>
+          </button>
+        </CopyableValue>
       );
     }
     if (columnKey === 'quantity') {
@@ -260,15 +262,17 @@ export const ReceiptsTable: React.FC<ReceiptsTableProps> = ({
     if (columnKey === 'paid') return formatCurrency(receipt.paid);
     if (columnKey === 'supplier') {
       return (
-        <button
-          type='button'
-          className='catalog-name-button warehouse-cell-truncate'
-          onClick={() => onOpenSupplier(receipt)}
-        >
-          <TruncatedCell text={receipt.supplierName}>
-            {receipt.supplierName}
-          </TruncatedCell>
-        </button>
+        <CopyableValue value={receipt.supplierName}>
+          <button
+            type='button'
+            className='catalog-name-button warehouse-cell-truncate'
+            onClick={() => onOpenSupplier(receipt)}
+          >
+            <TruncatedCell text={receipt.supplierName}>
+              {receipt.supplierName}
+            </TruncatedCell>
+          </button>
+        </CopyableValue>
       );
     }
     if (columnKey === 'receiptDate')
@@ -439,26 +443,28 @@ export const ReceiptsTable: React.FC<ReceiptsTableProps> = ({
     if (column === 'product') {
       const target = isChild ? receipt : first;
       return (
-        <button
-          type='button'
-          className={`catalog-name-button warehouse-cell-truncate${
-            target.status === 'cancelled'
-              ? ' supplier-order-item-cancelled'
-              : ''
-          }`}
-          onClick={() => onOpenProduct(target)}
-        >
-          <TruncatedCell text={target.productName}>
-            {target.productName}
-          </TruncatedCell>
-          {!isChild && extraProducts > 0 ? (
-            <span className='warehouse-more-count'>
-              {t('warehouse.tables.receipts.moreProducts', {
-                count: extraProducts,
-              })}
-            </span>
-          ) : null}
-        </button>
+        <CopyableValue value={target.productName}>
+          <button
+            type='button'
+            className={`catalog-name-button warehouse-cell-truncate${
+              target.status === 'cancelled'
+                ? ' supplier-order-item-cancelled'
+                : ''
+            }`}
+            onClick={() => onOpenProduct(target)}
+          >
+            <TruncatedCell text={target.productName}>
+              {target.productName}
+            </TruncatedCell>
+            {!isChild && extraProducts > 0 ? (
+              <span className='warehouse-more-count'>
+                {t('warehouse.tables.receipts.moreProducts', {
+                  count: extraProducts,
+                })}
+              </span>
+            ) : null}
+          </button>
+        </CopyableValue>
       );
     }
     if (column === 'quantity') {
@@ -481,15 +487,17 @@ export const ReceiptsTable: React.FC<ReceiptsTableProps> = ({
     if (column === 'supplier') {
       if (isChild) return null;
       return (
-        <button
-          type='button'
-          className='catalog-name-button warehouse-cell-truncate'
-          onClick={() => onOpenSupplier(first)}
-        >
-          <TruncatedCell text={first.supplierName}>
-            {first.supplierName}
-          </TruncatedCell>
-        </button>
+        <CopyableValue value={first.supplierName}>
+          <button
+            type='button'
+            className='catalog-name-button warehouse-cell-truncate'
+            onClick={() => onOpenSupplier(first)}
+          >
+            <TruncatedCell text={first.supplierName}>
+              {first.supplierName}
+            </TruncatedCell>
+          </button>
+        </CopyableValue>
       );
     }
     if (column === 'receiptDate') {

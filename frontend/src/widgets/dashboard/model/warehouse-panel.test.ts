@@ -4,11 +4,14 @@ import {
   filterReceiptRows,
   getReceiptGroupStatus,
   getReceiptGroupTotals,
+  getWarehouseFiltersStorageKey,
   getWarehouseStockTableMinWidth,
   groupReceiptRowsByOrder,
   initialWarehouseFilters,
   normalizeReceiptStatuses,
+  readStoredWarehouseFilters,
   readWarehouseStockNameWidth,
+  warehouseFiltersStorageKey,
   warehouseStockColumnWidths,
   warehouseStockNameWidthDefault,
   warehouseStockNameWidthMax,
@@ -294,3 +297,64 @@ describe('stock name column width', () => {
     );
   });
 });
+
+describe('warehouse filters storage key and persistence', () => {
+  it('scopes storage key by employee ID when provided', () => {
+    expect(getWarehouseFiltersStorageKey('emp-123')).toBe(
+      `${warehouseFiltersStorageKey}.emp-123`,
+    );
+    expect(getWarehouseFiltersStorageKey('  emp-456  ')).toBe(
+      `${warehouseFiltersStorageKey}.emp-456`,
+    );
+    expect(getWarehouseFiltersStorageKey(undefined)).toBe(
+      warehouseFiltersStorageKey,
+    );
+    expect(getWarehouseFiltersStorageKey('')).toBe(
+      warehouseFiltersStorageKey,
+    );
+  });
+
+  it('reads stored warehouse filters scoped to employee with fallback', () => {
+    window.localStorage.setItem(
+      warehouseFiltersStorageKey,
+      JSON.stringify({
+        receiptStatus: 'new',
+        receiptStatuses: ['new'],
+      }),
+    );
+
+    // When employee has no specific saved filter, falls back to common key
+    expect(readStoredWarehouseFilters('emp-1')).toEqual({
+      receiptStatus: 'new',
+      receiptStatuses: ['new'],
+    });
+
+    // When employee has specific saved filter, uses it
+    window.localStorage.setItem(
+      `${warehouseFiltersStorageKey}.emp-1`,
+      JSON.stringify({
+        receiptStatus: 'approved',
+        receiptStatuses: ['approved'],
+      }),
+    );
+
+    expect(readStoredWarehouseFilters('emp-1')).toEqual({
+      receiptStatus: 'approved',
+      receiptStatuses: ['approved'],
+    });
+
+    // Another employee without personal record falls back to common key
+    expect(readStoredWarehouseFilters('emp-2')).toEqual({
+      receiptStatus: 'new',
+      receiptStatuses: ['new'],
+    });
+
+    // Handles invalid JSON gracefully
+    window.localStorage.setItem(
+      `${warehouseFiltersStorageKey}.emp-invalid`,
+      '{invalid-json',
+    );
+    expect(readStoredWarehouseFilters('emp-invalid')).toEqual({});
+  });
+});
+

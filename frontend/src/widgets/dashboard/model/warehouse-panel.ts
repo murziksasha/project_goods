@@ -295,6 +295,45 @@ export const emptySupplierOrders: SupplierOrder[] = [];
 export const transferPageSize = 8;
 export const warehouseFiltersStorageKey =
   'project-goods.warehouse-filters';
+
+export const getWarehouseFiltersStorageKey = (
+  employeeId?: string,
+): string =>
+  employeeId?.trim()
+    ? `${warehouseFiltersStorageKey}.${employeeId.trim()}`
+    : warehouseFiltersStorageKey;
+
+export interface StoredWarehouseFilters {
+  activeTab?: WarehouseTab;
+  query?: string;
+  searchMode?: WarehouseSearchMode;
+  settingsTab?: SettingsTab;
+  currentPage?: number;
+  pageSize?: number;
+  stockView?: StockViewMode;
+  receiptsView?: ReceiptsViewMode;
+  receiptStatus?: ReceiptStatus | 'all';
+  receiptStatuses?: ReceiptStatus[];
+  statuses?: ReceiptStatus[];
+  favoritesOnly?: boolean;
+}
+
+export const readStoredWarehouseFilters = (
+  employeeId?: string,
+): StoredWarehouseFilters => {
+  if (typeof window === 'undefined' || !window.localStorage) return {};
+  try {
+    const userKey = getWarehouseFiltersStorageKey(employeeId);
+    const raw =
+      window.localStorage.getItem(userKey) ||
+      (userKey !== warehouseFiltersStorageKey
+        ? window.localStorage.getItem(warehouseFiltersStorageKey)
+        : null);
+    return raw ? (JSON.parse(raw) as StoredWarehouseFilters) : {};
+  } catch {
+    return {};
+  }
+};
 export const warehouseColumnsStorageKey =
   'project-goods.warehouse-columns';
 export const warehouseStockNameWidthStorageKey =
