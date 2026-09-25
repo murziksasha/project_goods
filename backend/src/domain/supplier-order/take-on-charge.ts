@@ -13,10 +13,7 @@ import {
   getNextProductArticleValue,
   getNextProductSerialNumberValue,
 } from '../sequence/service';
-import {
-  SupplierOrder,
-  type SupplierOrderDocument,
-} from './model';
+import { SupplierOrder, type SupplierOrderDocument } from './model';
 import {
   type StockedProductSummary,
   type SupplierOrderTakeOnChargePayload,
@@ -27,7 +24,9 @@ import {
   withSupplierName,
 } from './internal';
 
-const reserveNextUniqueProductSerialNumber = async (session?: ClientSession) => {
+const reserveNextUniqueProductSerialNumber = async (
+  session?: ClientSession,
+) => {
   for (let attempts = 0; attempts < 2000; attempts += 1) {
     const candidate = formatProductSerialNumber(
       await getNextProductSerialNumberValue(),
@@ -40,7 +39,10 @@ const reserveNextUniqueProductSerialNumber = async (session?: ClientSession) => 
     if (!exists) return candidate;
   }
 
-  throw new HttpError(500, 'Failed to generate unique product serial number.');
+  throw new HttpError(
+    500,
+    'Failed to generate unique product serial number.',
+  );
 };
 
 const reserveNextProductArticle = async () =>
@@ -52,40 +54,60 @@ export const takeOnChargeSupplierOrder = async (
 ) => {
   isValidObjectIdOrThrow(supplierOrderId, 'supplierOrderId');
   const existing = await SupplierOrder.findById(supplierOrderId);
-  if (!existing) throw new HttpError(404, 'Supplier order not found.');
-  if (existing.status === 'cancelled' || existing.status === 'unavailable') {
-    throw new HttpError(400, 'Closed supplier order cannot be taken on charge.');
+  if (!existing)
+    throw new HttpError(404, 'Supplier order not found.');
+  if (
+    existing.status === 'cancelled' ||
+    existing.status === 'unavailable'
+  ) {
+    throw new HttpError(
+      400,
+      'Closed supplier order cannot be taken on charge.',
+    );
   }
 
   const requestedItemIndexRaw = toNumber(payload?.itemIndex);
-  const hasRequestedItemIndex = Number.isFinite(requestedItemIndexRaw);
+  const hasRequestedItemIndex = Number.isFinite(
+    requestedItemIndexRaw,
+  );
   const requestedItemIndex = hasRequestedItemIndex
     ? Math.max(0, Math.floor(requestedItemIndexRaw))
     : undefined;
   const targetItems =
     requestedItemIndex === undefined
-      ? existing.items ?? []
+      ? (existing.items ?? [])
       : (existing.items ?? []).filter(
           (item) => item.itemIndex === requestedItemIndex,
         );
   if (targetItems.length === 0) {
-    throw new HttpError(404, 'Selected supplier order item not found.');
+    throw new HttpError(
+      404,
+      'Selected supplier order item not found.',
+    );
   }
 
   const blockedItem = targetItems.find(
     (item) =>
-      item.receiptStatus === 'received' || item.receiptStatus === 'cancelled',
+      item.receiptStatus === 'received' ||
+      item.receiptStatus === 'cancelled',
   );
   if (blockedItem) {
     if (blockedItem.receiptStatus === 'received') {
-      throw new HttpError(409, 'Supplier order item is already received.');
+      throw new HttpError(
+        409,
+        'Supplier order item is already received.',
+      );
     }
-    throw new HttpError(400, 'Cancelled supplier order item cannot be taken on charge.');
+    throw new HttpError(
+      400,
+      'Cancelled supplier order item cannot be taken on charge.',
+    );
   }
 
   const autoGenerateSerialNumbers =
     payload?.autoGenerateSerialNumbers !== false;
-  const autoGenerateArticles = payload?.autoGenerateArticles !== false;
+  const autoGenerateArticles =
+    payload?.autoGenerateArticles !== false;
   const totalUnits = targetItems.reduce(
     (sum, item) => sum + Math.max(0, Math.floor(item.quantity)),
     0,
@@ -95,19 +117,29 @@ export const takeOnChargeSupplierOrder = async (
         .map((value) => toNonEmptyString(value).toUpperCase())
         .filter(Boolean)
     : [];
-  const manualArticleBase = toNonEmptyString(payload?.articleBase).toUpperCase();
-  const useManualArticle = !autoGenerateArticles;
+  const manualArticleBase = toNonEmptyString(
+    payload?.articleBase,
+  ).toUpperCase();
+  const rawGroupArticles = Array.isArray(payload?.groupArticles)
+    ? (payload.groupArticles as unknown[]).map((v) =>
+        toNonEmptyString(v).toUpperCase(),
+      )
+    : [];
 
   if (
     !autoGenerateSerialNumbers &&
     manualSerialNumbers.length !== totalUnits
   ) {
-    throw new HttpError(400, 'Serial numbers count must match total units.');
+    throw new HttpError(
+      400,
+      'Serial numbers count must match total units.',
+    );
   }
 
   if (!autoGenerateSerialNumbers) {
     const hasDuplicateManualSerial = manualSerialNumbers.some(
-      (serial, index) => manualSerialNumbers.indexOf(serial) !== index,
+      (serial, index) =>
+        manualSerialNumbers.indexOf(serial) !== index,
     );
     if (hasDuplicateManualSerial) {
       throw new HttpError(400, 'Serial numbers must be unique.');
@@ -145,7 +177,10 @@ export const takeOnChargeSupplierOrder = async (
   }
   const matchedWarehouse = requestedWarehouse ?? defaultWarehouse;
   if (!matchedWarehouse) {
-    throw new HttpError(400, 'No active warehouse is available for take on charge.');
+    throw new HttpError(
+      400,
+      'No active warehouse is available for take on charge.',
+    );
   }
   const requestedLocationId = toNonEmptyString(payload?.locationId);
   const requestedLocation = requestedLocationId
@@ -154,7 +189,10 @@ export const takeOnChargeSupplierOrder = async (
       )
     : undefined;
   if (requestedLocationId && !requestedLocation) {
-    throw new HttpError(404, 'Selected warehouse location was not found.');
+    throw new HttpError(
+      404,
+      'Selected warehouse location was not found.',
+    );
   }
   const matchedLocation =
     requestedLocation ?? matchedWarehouse.locations?.[0];
@@ -163,80 +201,99 @@ export const takeOnChargeSupplierOrder = async (
   }
 
   // Product creates + order status update must be atomic when RS is available.
-  const stockedProducts = await withOptionalMongoSession(async (session) => {
-    let serialCursor = 0;
-    const created: StockedProductSummary[] = [];
+  const stockedProducts = await withOptionalMongoSession(
+    async (session) => {
+      let serialCursor = 0;
+      let itemCursor = 0;
+      const created: StockedProductSummary[] = [];
 
-    for (const item of targetItems) {
-      const catalogQuery = item.catalogProductId
-        ? CatalogProduct.findById(item.catalogProductId).select({ name: 1 })
-        : null;
-      if (catalogQuery && session) {
-        catalogQuery.session(session);
+      for (const item of targetItems) {
+        const catalogQuery = item.catalogProductId
+          ? CatalogProduct.findById(item.catalogProductId).select({
+              name: 1,
+            })
+          : null;
+        if (catalogQuery && session) {
+          catalogQuery.session(session);
+        }
+        const catalogName = catalogQuery
+          ? (await catalogQuery.lean<{ name?: string } | null>())
+              ?.name
+          : undefined;
+        const normalizedName = toNonEmptyString(
+          catalogName || item.productName,
+        );
+        if (!normalizedName) continue;
+        const groupArticle = rawGroupArticles[itemCursor] ?? '';
+        const articleForItem = autoGenerateArticles
+          ? await reserveNextProductArticle()
+          : groupArticle ||
+            manualArticleBase ||
+            (await reserveNextProductArticle());
+        itemCursor += 1;
+
+        const quantity = Math.max(0, Math.floor(item.quantity));
+        for (
+          let unitIndex = 0;
+          unitIndex < quantity;
+          unitIndex += 1
+        ) {
+          const serialNumber = autoGenerateSerialNumbers
+            ? await reserveNextUniqueProductSerialNumber(session)
+            : (manualSerialNumbers[serialCursor] ?? '');
+          serialCursor += 1;
+
+          const newProduct = new Product({
+            name: normalizedName,
+            article: articleForItem,
+            serialNumber,
+            price: item.price,
+            salePriceOptions: [],
+            note: existing.note ?? '',
+            quantity: 1,
+            reservedQuantity: 0,
+            purchasePlace:
+              matchedWarehouse?.name ?? supplier?.name ?? '',
+            warehouseId: matchedWarehouse?.id ?? '',
+            locationId: matchedLocation?.id ?? '',
+            supplierOrderId: supplierOrderId,
+            supplierOrderItemIndex: item.itemIndex,
+            purchaseDate: new Date(),
+            warrantyPeriod: 0,
+            isActive: true,
+          });
+          await newProduct.validate();
+          await newProduct.save(session ? { session } : undefined);
+          created.push({
+            id: String(newProduct._id),
+            name: newProduct.name ?? '',
+            article: newProduct.article ?? '',
+            serialNumber: newProduct.serialNumber ?? '',
+          });
+        }
+        item.receiptStatus = 'received';
       }
-      const catalogName = catalogQuery
-        ? (await catalogQuery.lean<{ name?: string } | null>())?.name
-        : undefined;
-      const normalizedName = toNonEmptyString(catalogName || item.productName);
-      if (!normalizedName) continue;
-      const articleForItem = useManualArticle
-        ? manualArticleBase
-        : await reserveNextProductArticle();
 
-      const quantity = Math.max(0, Math.floor(item.quantity));
-      for (let unitIndex = 0; unitIndex < quantity; unitIndex += 1) {
-        const serialNumber = autoGenerateSerialNumbers
-          ? await reserveNextUniqueProductSerialNumber(session)
-          : manualSerialNumbers[serialCursor] ?? '';
-        serialCursor += 1;
-
-        const newProduct = new Product({
-          name: normalizedName,
-          article: articleForItem,
-          serialNumber,
-          price: item.price,
-          salePriceOptions: [],
-          note: existing.note ?? '',
-          quantity: 1,
-          reservedQuantity: 0,
-          purchasePlace: matchedWarehouse?.name ?? supplier?.name ?? '',
-          warehouseId: matchedWarehouse?.id ?? '',
-          locationId: matchedLocation?.id ?? '',
-          supplierOrderId: supplierOrderId,
-          supplierOrderItemIndex: item.itemIndex,
-          purchaseDate: new Date(),
-          warrantyPeriod: 0,
-          isActive: true,
-        });
-        await newProduct.validate();
-        await newProduct.save(session ? { session } : undefined);
-        created.push({
-          id: String(newProduct._id),
-          name: newProduct.name ?? '',
-          article: newProduct.article ?? '',
-          serialNumber: newProduct.serialNumber ?? '',
-        });
+      applyResolvedStatusFromItems(existing);
+      if (existing.total <= 0) {
+        existing.paymentStatus = 'without_payment';
+      } else if (
+        existing.paymentStatus !== 'paid' &&
+        existing.paymentStatus !== 'without_payment'
+      ) {
+        existing.paymentStatus = 'pending';
       }
-      item.receiptStatus = 'received';
-    }
-
-    applyResolvedStatusFromItems(existing);
-    if (existing.total <= 0) {
-      existing.paymentStatus = 'without_payment';
-    } else if (
-      existing.paymentStatus !== 'paid' &&
-      existing.paymentStatus !== 'without_payment'
-    ) {
-      existing.paymentStatus = 'pending';
-    }
-    await existing.validate();
-    await existing.save(session ? { session } : undefined);
-    return created;
-  });
+      await existing.validate();
+      await existing.save(session ? { session } : undefined);
+      return created;
+    },
+  );
 
   await autoMarkZeroTotalOrdersWithoutPayment();
   return {
-    ...(await withSupplierName(existing.toObject<SupplierOrderDocument>())),
+    ...(await withSupplierName(
+      existing.toObject<SupplierOrderDocument>(),
+    )),
     stockedProducts,
   };
 };

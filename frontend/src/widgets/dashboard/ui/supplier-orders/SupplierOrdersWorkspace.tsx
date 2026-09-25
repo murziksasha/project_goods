@@ -952,6 +952,7 @@ export const SupplierOrdersWorkspace: React.FC<
           serialNumbers,
           autoGenerateArticles,
           articleBase,
+          groupArticles,
           warehouseId,
           locationId,
         }) => {
@@ -966,6 +967,7 @@ export const SupplierOrdersWorkspace: React.FC<
                 serialNumbers,
                 autoGenerateArticles,
                 articleBase: articleBase.trim().toUpperCase(),
+                groupArticles,
                 itemIndex:
                   editingOrderItemIndex === null
                     ? undefined

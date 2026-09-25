@@ -150,7 +150,7 @@ describe('ReceiptsTable favorites', () => {
       <ReceiptsTable
         receipts={[receipt]}
         view='lines'
-        visibleColumns={['number', 'product']}
+        visibleColumns={['number']}
         canManageSupplierOrders={true}
         onToggleFavorite={vi.fn()}
         onOpenOrder={onOpenOrder}
@@ -164,6 +164,91 @@ describe('ReceiptsTable favorites', () => {
       expect(copySpy).toHaveBeenCalledWith('SO-1');
     });
     expect(onOpenOrder).not.toHaveBeenCalled();
+  });
+
+  it('copies the receipt product name without opening the product', async () => {
+    const onOpenProduct = vi.fn();
+    const copySpy = vi
+      .spyOn(clipboard, 'copyTextToClipboard')
+      .mockResolvedValue(true);
+
+    render(
+      <ReceiptsTable
+        receipts={[receipt]}
+        view='lines'
+        visibleColumns={['product']}
+        canManageSupplierOrders={true}
+        onToggleFavorite={vi.fn()}
+        onOpenOrder={vi.fn()}
+        onOpenProduct={onOpenProduct}
+        onOpenSupplier={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Copy' }));
+    await waitFor(() => {
+      expect(copySpy).toHaveBeenCalledWith('USB hub');
+    });
+    expect(onOpenProduct).not.toHaveBeenCalled();
+  });
+
+  it('copies the receipt supplier name without opening the supplier', async () => {
+    const onOpenSupplier = vi.fn();
+    const copySpy = vi
+      .spyOn(clipboard, 'copyTextToClipboard')
+      .mockResolvedValue(true);
+
+    render(
+      <ReceiptsTable
+        receipts={[receipt]}
+        view='lines'
+        visibleColumns={['supplier']}
+        canManageSupplierOrders={true}
+        onToggleFavorite={vi.fn()}
+        onOpenOrder={vi.fn()}
+        onOpenProduct={vi.fn()}
+        onOpenSupplier={onOpenSupplier}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Copy' }));
+    await waitFor(() => {
+      expect(copySpy).toHaveBeenCalledWith('Parts Hub');
+    });
+    expect(onOpenSupplier).not.toHaveBeenCalled();
+  });
+
+  it('copies product name in grouped orders view without opening product', async () => {
+    const onOpenProduct = vi.fn();
+    const copySpy = vi
+      .spyOn(clipboard, 'copyTextToClipboard')
+      .mockResolvedValue(true);
+
+    render(
+      <ReceiptsTable
+        receipts={[receipt]}
+        groups={[
+          {
+            id: 'g-1',
+            number: 'SO-1',
+            receipts: [receipt],
+          },
+        ]}
+        view='orders'
+        visibleColumns={['product']}
+        canManageSupplierOrders={true}
+        onToggleFavorite={vi.fn()}
+        onOpenOrder={vi.fn()}
+        onOpenProduct={onOpenProduct}
+        onOpenSupplier={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Copy' }));
+    await waitFor(() => {
+      expect(copySpy).toHaveBeenCalledWith('USB hub');
+    });
+    expect(onOpenProduct).not.toHaveBeenCalled();
   });
 });
 

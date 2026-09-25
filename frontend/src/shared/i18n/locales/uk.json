@@ -1250,6 +1250,8 @@
         "printSerialsAfterReceipt": "Друкувати серійні номера після оприбуткування",
         "articleForQuantity": "Артикул для всієї кількості",
         "articleExamplePlaceholder": "Наприклад: SSD-KINGSTON",
+        "articleForGroup": "Артикул для групи",
+        "articleGroupHint": "Залиште порожнім для авто-генерації",
         "warehouse": "Склад",
         "location": "Локація",
         "noWarehouses": "Немає складів",

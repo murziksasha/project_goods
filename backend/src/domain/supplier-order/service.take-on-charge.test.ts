@@ -289,4 +289,102 @@ describe('takeOnChargeSupplierOrder', () => {
       }),
     ]);
   });
+
+  it('uses groupArticles[i] per item when autoGenerateArticles=false', async () => {
+    state.supplierOrder = {
+      ...buildSupplierOrder(),
+      items: [
+        {
+          lineId: 'line-1',
+          itemIndex: 0,
+          productName: 'Cable A',
+          quantity: 1,
+          price: 100,
+          receiptStatus: 'approved',
+        },
+        {
+          lineId: 'line-2',
+          itemIndex: 1,
+          productName: 'Cable B',
+          quantity: 1,
+          price: 50,
+          receiptStatus: 'approved',
+        },
+      ],
+    };
+
+    await takeOnChargeSupplierOrder('507f1f77bcf86cd799439011', {
+      warehouseId: 'w-1',
+      locationId: 'l-1',
+      autoGenerateArticles: false,
+      groupArticles: ['ART-A', 'ART-B'],
+    });
+
+    expect(state.createdProducts).toHaveLength(2);
+    expect(state.createdProducts[0]).toMatchObject({ article: 'ART-A' });
+    expect(state.createdProducts[1]).toMatchObject({ article: 'ART-B' });
+  });
+
+  it('falls back to articleBase when groupArticles[i] is empty', async () => {
+    state.supplierOrder = {
+      ...buildSupplierOrder(),
+      items: [
+        {
+          lineId: 'line-1',
+          itemIndex: 0,
+          productName: 'Cable A',
+          quantity: 1,
+          price: 100,
+          receiptStatus: 'approved',
+        },
+        {
+          lineId: 'line-2',
+          itemIndex: 1,
+          productName: 'Cable B',
+          quantity: 1,
+          price: 50,
+          receiptStatus: 'approved',
+        },
+      ],
+    };
+
+    await takeOnChargeSupplierOrder('507f1f77bcf86cd799439011', {
+      warehouseId: 'w-1',
+      locationId: 'l-1',
+      autoGenerateArticles: false,
+      articleBase: 'BASE-ART',
+      groupArticles: ['', 'ART-B'],
+    });
+
+    expect(state.createdProducts).toHaveLength(2);
+    expect(state.createdProducts[0]).toMatchObject({ article: 'BASE-ART' });
+    expect(state.createdProducts[1]).toMatchObject({ article: 'ART-B' });
+  });
+
+  it('falls back to auto-generate when both groupArticles[i] and articleBase are empty', async () => {
+    state.supplierOrder = {
+      ...buildSupplierOrder(),
+      items: [
+        {
+          lineId: 'line-1',
+          itemIndex: 0,
+          productName: 'Cable A',
+          quantity: 1,
+          price: 100,
+          receiptStatus: 'approved',
+        },
+      ],
+    };
+
+    await takeOnChargeSupplierOrder('507f1f77bcf86cd799439011', {
+      warehouseId: 'w-1',
+      locationId: 'l-1',
+      autoGenerateArticles: false,
+      groupArticles: [''],
+    });
+
+    expect(state.createdProducts).toHaveLength(1);
+    // article should be a non-empty auto-generated string (not blank)
+    expect(state.createdProducts[0]?.article).toBeTruthy();
+  });
 });

@@ -1250,6 +1250,8 @@
         "printSerialsAfterReceipt": "Print serial numbers after receipt",
         "articleForQuantity": "Article for all quantity",
         "articleExamplePlaceholder": "Example: SSD-KINGSTON",
+        "articleForGroup": "Article for group",
+        "articleGroupHint": "Leave blank to auto-generate",
         "warehouse": "Warehouse",
         "location": "Location",
         "noWarehouses": "No warehouses",
