@@ -44,6 +44,7 @@ const receipt: ReceiptRow = {
   approvedBy: 'Owner',
   acceptedAt: '2026-06-01T09:00:00.000Z',
   status: 'new',
+  orderStatus: 'request',
   paymentStatus: 'pending',
   supplierOrderIsFavorite: false,
   note: '',
@@ -692,5 +693,29 @@ describe('ReceiptsTable orders view', () => {
     // Click child row item number opens item-scoped supplier order
     fireEvent.click(screen.getByText('SO-1-2'));
     expect(onOpenOrder).toHaveBeenCalledWith(second);
+  });
+
+  it('renders supplier order status badge and shows payment status even when item status is new', () => {
+    const row: ReceiptRow = {
+      ...receipt,
+      status: 'new',
+      orderStatus: 'stocked',
+      paymentStatus: 'pending',
+    };
+    render(
+      <ReceiptsTable
+        receipts={[row]}
+        view='lines'
+        visibleColumns={['number', 'status', 'payment']}
+        canManageSupplierOrders={true}
+        onToggleFavorite={vi.fn()}
+        onOpenOrder={vi.fn()}
+        onOpenProduct={vi.fn()}
+        onOpenSupplier={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText('Stocked')).toBeInTheDocument();
+    expect(screen.getByText('Awaiting payment')).toBeInTheDocument();
   });
 });

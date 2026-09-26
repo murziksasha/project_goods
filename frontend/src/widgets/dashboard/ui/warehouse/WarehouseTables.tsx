@@ -12,6 +12,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import type { Product } from '../../../../entities/product';
 import type { Sale } from '../../../../entities/sale';
+import type { SupplierOrderStatus } from '../../../../entities/supplier-order';
 import { getOrderLink } from '../../../../shared/config/routing';
 import {
   formatCurrency,
@@ -26,11 +27,13 @@ import {
   type StockModelGroup,
 } from '../../model/stock-balance';
 import {
+  getSupplierOrderStatusClass,
+  getSupplierOrderStatusLabel,
+} from '../../model/supplier-orders-workspace';
+import {
   clampWarehouseStockNameWidth,
-  getReceiptGroupStatus,
   getReceiptGroupTotals,
   getReceiptPaymentStatusClass,
-  getReceiptStatusClassName,
   getWarehouseBadgeAccentStyle,
   getWarehouseStockTableMinWidth,
   readWarehouseStockNameWidth,
@@ -39,7 +42,6 @@ import {
   type ReceiptRow,
   type ReceiptsColumnKey,
   type ReceiptsViewMode,
-  type ReceiptStatus,
   type ServiceCenter,
   type StockColumnKey,
   type StockViewMode,
@@ -75,20 +77,18 @@ const TruncatedCell = ({
 const ReceiptStatusBadge = ({
   status,
 }: {
-  status: ReceiptStatus;
+  status: SupplierOrderStatus;
 }) => {
-  const { t } = useTranslation();
   return (
-    <span className={getReceiptStatusClassName(status)}>
-      {t(`warehouse.tables.receipts.status.${status}`)}
+    <span className={getSupplierOrderStatusClass(status)}>
+      {getSupplierOrderStatusLabel(status)}
     </span>
   );
 };
 
 const ReceiptPaymentCell = ({ receipt }: { receipt: ReceiptRow }) => {
   const { t } = useTranslation();
-  if (receipt.status === 'new' || !receipt.paymentStatus)
-    return <EmptyValue />;
+  if (!receipt.paymentStatus) return <EmptyValue />;
   const label = t(
     `warehouse.tables.receipts.paymentStatus.${receipt.paymentStatus}`,
   );
@@ -300,7 +300,7 @@ export const ReceiptsTable: React.FC<ReceiptsTableProps> = ({
       );
     }
     if (columnKey === 'status') {
-      return <ReceiptStatusBadge status={receipt.status} />;
+      return <ReceiptStatusBadge status={receipt.orderStatus} />;
     }
     return <ReceiptPaymentCell receipt={receipt} />;
   };
@@ -521,11 +521,7 @@ export const ReceiptsTable: React.FC<ReceiptsTableProps> = ({
     if (column === 'status') {
       return (
         <ReceiptStatusBadge
-          status={
-            isChild
-              ? receipt.status
-              : getReceiptGroupStatus(groupReceipts)
-          }
+          status={receipt.orderStatus}
         />
       );
     }

@@ -478,6 +478,7 @@ export const WarehousePanel: React.FC<WarehousePanelProps> = ({
             order.paymentStatus === 'cancelled'
               ? 'cancelled'
               : (item.receiptStatus ?? 'new'),
+          orderStatus: order.status,
           paymentStatus: order.paymentStatus,
           note: order.note || '',
         })),
@@ -1382,6 +1383,7 @@ export const WarehousePanel: React.FC<WarehousePanelProps> = ({
         approvedBy: '-',
         acceptedAt: now,
         status: 'new',
+        orderStatus: 'request',
         paymentStatus: 'pending',
         note: receiptForm.note.trim() || 'L',
       },
