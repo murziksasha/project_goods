@@ -772,4 +772,125 @@ describe('SupplierOrderModal supplier suggestions reorder and navigation', () =>
 
     vi.useRealTimers();
   });
+
+  it('initializes stock receipt article checkboxes based on quantity > 1 vs = 1 and forwards payload', async () => {
+    const onTakeOnCharge = vi.fn().mockResolvedValue(undefined);
+    renderModal(
+      <SupplierOrderModal
+        {...baseProps()}
+        onTakeOnCharge={onTakeOnCharge}
+        editingOrder={{
+          id: 'order-1',
+          orderBaseId: 'SO-1',
+          number: 'SO-1',
+          supplierId: 'supplier-1',
+          supplierName: 'Aliexpress',
+          deliveryDate: '2026-11-19',
+          supplyType: 'Локально',
+          createdBy: 'employee-1',
+          status: 'approved',
+          paymentStatus: 'pending',
+          receiptStatus: 'new',
+          note: '',
+          total: 300,
+          paid: 0,
+          isFavorite: false,
+          items: [
+            line(0, { productName: 'Single Item', quantity: 1, price: 100 }),
+            line(1, { productName: 'Multi Item', quantity: 2, price: 100 }),
+          ],
+          createdAt: '2026-01-01T00:00:00.000Z',
+          updatedAt: '2026-01-01T00:00:00.000Z',
+        }}
+      />,
+    );
+
+    // Open stock receipt modal
+    fireEvent.click(screen.getByRole('button', { name: 'Receive to stock' }));
+
+    // Stock receipt modal should be visible
+    expect(screen.getByText('Stock receipt')).toBeInTheDocument();
+
+    // Verify hints:
+    // Item 1 (qty 1) -> unchecked -> "Leave blank for no article"
+    // Item 2 (qty 2) -> checked -> "Leave blank to auto-generate"
+    expect(screen.getByText('Leave blank for no article')).toBeInTheDocument();
+    expect(screen.getByText('Leave blank to auto-generate')).toBeInTheDocument();
+
+    // Submitting stock receipt
+    const submitButtons = screen.getAllByRole('button', {
+      name: 'Receive to stock',
+    });
+    fireEvent.click(submitButtons[1]!);
+
+    await waitFor(() => {
+      expect(onTakeOnCharge).toHaveBeenCalledTimes(1);
+    });
+
+    expect(onTakeOnCharge).toHaveBeenCalledWith(
+      expect.objectContaining({
+        groupAutoGenerateArticles: [false, true],
+        groupArticles: ['', ''],
+      }),
+    );
+  });
+
+  it('toggles all items when master auto-articles checkbox is clicked', async () => {
+    const onTakeOnCharge = vi.fn().mockResolvedValue(undefined);
+    renderModal(
+      <SupplierOrderModal
+        {...baseProps()}
+        onTakeOnCharge={onTakeOnCharge}
+        editingOrder={{
+          id: 'order-1',
+          orderBaseId: 'SO-1',
+          number: 'SO-1',
+          supplierId: 'supplier-1',
+          supplierName: 'Aliexpress',
+          deliveryDate: '2026-11-19',
+          supplyType: 'Локально',
+          createdBy: 'employee-1',
+          status: 'approved',
+          paymentStatus: 'pending',
+          receiptStatus: 'new',
+          note: '',
+          total: 200,
+          paid: 0,
+          isFavorite: false,
+          items: [
+            line(0, { productName: 'Item A', quantity: 1, price: 100 }),
+            line(1, { productName: 'Item B', quantity: 1, price: 100 }),
+          ],
+          createdAt: '2026-01-01T00:00:00.000Z',
+          updatedAt: '2026-01-01T00:00:00.000Z',
+        }}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Receive to stock' }));
+
+    // Both are qty 1, so both hints are initially "Leave blank for no article"
+    expect(screen.getAllByText('Leave blank for no article')).toHaveLength(2);
+
+    // Toggle master "Auto-generate articles" checkbox on
+    const masterCheckbox = screen.getByLabelText('Auto-generate articles');
+    fireEvent.click(masterCheckbox);
+
+    // Now both hints should be "Leave blank to auto-generate"
+    expect(screen.getAllByText('Leave blank to auto-generate')).toHaveLength(2);
+
+    // Submit
+    const modalSubmitButtons = screen.getAllByRole('button', {
+      name: 'Receive to stock',
+    });
+    fireEvent.click(modalSubmitButtons[1]!);
+
+    await waitFor(() => {
+      expect(onTakeOnCharge).toHaveBeenCalledWith(
+        expect.objectContaining({
+          groupAutoGenerateArticles: [true, true],
+        }),
+      );
+    });
+  });
 });

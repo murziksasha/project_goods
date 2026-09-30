@@ -88,6 +88,7 @@ export interface SupplierOrderModalProps {
     autoGenerateArticles: boolean;
     articleBase: string;
     groupArticles?: string[];
+    groupAutoGenerateArticles?: boolean[];
     warehouseId: string;
     locationId: string;
   }) =>
@@ -209,6 +210,7 @@ export const SupplierOrderModal: React.FC<
     useState(false);
   const [shouldPrintSerials, setShouldPrintSerials] = useState(true);
   const [groupArticleInputs, setGroupArticleInputs] = useState<string[]>([]);
+  const [groupAutoArticles, setGroupAutoArticles] = useState<boolean[]>([]);
   const [takeOnChargeWarehouseId, setTakeOnChargeWarehouseId] =
     useState('');
   const [takeOnChargeLocationId, setTakeOnChargeLocationId] =
@@ -369,6 +371,7 @@ export const SupplierOrderModal: React.FC<
     setManualSerialNumbers([]);
     setIsAutoArticleEnabled(false);
     setGroupArticleInputs([]);
+    setGroupAutoArticles([]);
     const defaultWarehouse = resolvedWarehouseOptions[0];
     setTakeOnChargeWarehouseId(defaultWarehouse?.id ?? '');
     setTakeOnChargeLocationId(
@@ -1222,7 +1225,14 @@ export const SupplierOrderModal: React.FC<
                 setManualSerialNumbers(
                   Array.from({ length: chargeUnits }, () => ''),
                 );
-                setIsAutoArticleEnabled(false);
+                const defaultAutoArticles = submitItems.map(
+                  (item) => Math.max(0, Math.floor(item.quantity)) > 1,
+                );
+                setGroupAutoArticles(defaultAutoArticles);
+                setIsAutoArticleEnabled(
+                  defaultAutoArticles.length > 0 &&
+                    defaultAutoArticles.every(Boolean),
+                );
                 setGroupArticleInputs(
                   Array.from({ length: submitItems.length }, () => ''),
                 );
@@ -1490,9 +1500,13 @@ export const SupplierOrderModal: React.FC<
                 <input
                   type='checkbox'
                   checked={isAutoArticleEnabled}
-                  onChange={(event) =>
-                    setIsAutoArticleEnabled(event.target.checked)
-                  }
+                  onChange={(event) => {
+                    const checked = event.target.checked;
+                    setIsAutoArticleEnabled(checked);
+                    setGroupAutoArticles((current) =>
+                      current.map(() => checked),
+                    );
+                  }}
                 />
                 <span>{t('orders.supplier.modal.autoArticles')}</span>
               </label>
@@ -1510,57 +1524,97 @@ export const SupplierOrderModal: React.FC<
                   )}
                 </span>
               </label>
-              {!isAutoArticleEnabled ? (
-                submitItems.length > 1 ? (
-                  // Multi-item: per-group article inputs
-                  <div className='warehouse-receipt-modal-grid'>
-                    {submitItems.map((item, index) => (
-                      <label key={`article-group-${index}`} className='field'>
-                        <span className='supplier-serial-label'>
-                          <span className='supplier-serial-index'>{`#${index + 1}`}</span>
-                          <span
-                            className='supplier-serial-product'
-                            title={`${item.productName} ×${Math.max(0, Math.floor(item.quantity))}`}
-                          >
-                            {`${item.productName} ×${Math.max(0, Math.floor(item.quantity))}`}
-                          </span>
+              {submitItems.length > 1 ? (
+                // Multi-item: per-group article inputs with per-item toggle
+                <div className='warehouse-receipt-modal-grid'>
+                  {submitItems.map((item, index) => (
+                    <label key={`article-group-${index}`} className='field'>
+                      <span className='supplier-serial-label'>
+                        <span className='supplier-serial-index'>{`#${index + 1}`}</span>
+                        <span
+                          className='supplier-serial-product'
+                          title={`${item.productName} ×${Math.max(0, Math.floor(item.quantity))}`}
+                        >
+                          {`${item.productName} ×${Math.max(0, Math.floor(item.quantity))}`}
                         </span>
-                        <input
-                          value={groupArticleInputs[index] ?? ''}
-                          onChange={(event) => {
-                            const val = event.target.value.toUpperCase();
-                            setGroupArticleInputs((current) =>
-                              current.map((v, i) => (i === index ? val : v)),
-                            );
-                          }}
-                          placeholder={t(
-                            'orders.supplier.modal.articleExamplePlaceholder',
-                          )}
-                        />
-                        {!groupArticleInputs[index]?.trim() ? (
-                          <span className='supplier-article-hint'>
-                            {t('orders.supplier.modal.articleGroupHint')}
-                          </span>
-                        ) : null}
-                      </label>
-                    ))}
-                  </div>
-                ) : (
-                  // Single-item: existing single input (writes to groupArticleInputs[0])
-                  <label className='field field-wide'>
+                        <span
+                          className='supplier-item-article-toggle'
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <input
+                            type='checkbox'
+                            checked={groupAutoArticles[index] ?? false}
+                            onChange={(event) => {
+                              const checked = event.target.checked;
+                              const next = groupAutoArticles.map((v, i) =>
+                                i === index ? checked : v,
+                              );
+                              setGroupAutoArticles(next);
+                              setIsAutoArticleEnabled(
+                                next.length > 0 && next.every(Boolean),
+                              );
+                            }}
+                          />
+                          <span>{t('orders.supplier.modal.autoArticle')}</span>
+                        </span>
+                      </span>
+                      <input
+                        value={groupArticleInputs[index] ?? ''}
+                        onChange={(event) => {
+                          const val = event.target.value.toUpperCase();
+                          setGroupArticleInputs((current) =>
+                            current.map((v, i) => (i === index ? val : v)),
+                          );
+                        }}
+                        placeholder={t(
+                          'orders.supplier.modal.articleExamplePlaceholder',
+                        )}
+                      />
+                      <span className='supplier-article-hint'>
+                        {groupAutoArticles[index]
+                          ? t('orders.supplier.modal.articleGroupHint')
+                          : t('orders.supplier.modal.articleGroupNoneHint')}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              ) : (
+                // Single-item: single input with toggle
+                <label className='field field-wide'>
+                  <span className='supplier-serial-label'>
                     <span>{t('orders.supplier.modal.articleForQuantity')}</span>
-                    <input
-                      value={groupArticleInputs[0] ?? ''}
-                      onChange={(event) =>
-                        setGroupArticleInputs([event.target.value.toUpperCase()])
-                      }
-                      placeholder={t(
-                        'orders.supplier.modal.articleExamplePlaceholder',
-                      )}
-                    />
-                  </label>
-                )
-              ) : null}
+                    <span
+                      className='supplier-item-article-toggle'
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <input
+                        type='checkbox'
+                        checked={groupAutoArticles[0] ?? false}
+                        onChange={(event) => {
+                          const checked = event.target.checked;
+                          setGroupAutoArticles([checked]);
+                          setIsAutoArticleEnabled(checked);
+                        }}
+                      />
+                      <span>{t('orders.supplier.modal.autoArticle')}</span>
+                    </span>
+                  </span>
+                  <input
+                    value={groupArticleInputs[0] ?? ''}
+                    onChange={(event) =>
+                      setGroupArticleInputs([event.target.value.toUpperCase()])
+                    }
+                    placeholder={t(
+                      'orders.supplier.modal.articleExamplePlaceholder',
+                    )}
+                  />
+                  <span className='supplier-article-hint'>
+                    {groupAutoArticles[0]
+                      ? t('orders.supplier.modal.articleGroupHint')
+                      : t('orders.supplier.modal.articleGroupNoneHint')}
+                  </span>
+                </label>
+              )}
               <label className='field field-wide'>
                 <span>{t('orders.supplier.modal.warehouse')}</span>
                 <select
@@ -1647,9 +1701,10 @@ export const SupplierOrderModal: React.FC<
                           ),
                       autoGenerateArticles: isAutoArticleEnabled,
                       articleBase: '',
-                      groupArticles: isAutoArticleEnabled
-                        ? []
-                        : groupArticleInputs.map((v) => v.trim().toUpperCase()),
+                      groupArticles: groupArticleInputs.map((v) =>
+                        v.trim().toUpperCase(),
+                      ),
+                      groupAutoGenerateArticles: groupAutoArticles,
                       warehouseId: takeOnChargeWarehouseId,
                       locationId: takeOnChargeLocationId,
                     });

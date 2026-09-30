@@ -125,6 +125,13 @@ export const takeOnChargeSupplierOrder = async (
         toNonEmptyString(v).toUpperCase(),
       )
     : [];
+  const rawGroupAutoGenerateArticles = Array.isArray(
+    payload?.groupAutoGenerateArticles,
+  )
+    ? (payload.groupAutoGenerateArticles as unknown[]).map((v) =>
+        Boolean(v),
+      )
+    : undefined;
 
   if (
     !autoGenerateSerialNumbers &&
@@ -224,15 +231,27 @@ export const takeOnChargeSupplierOrder = async (
           catalogName || item.productName,
         );
         if (!normalizedName) continue;
-        const groupArticle = rawGroupArticles[itemCursor] ?? '';
-        const articleForItem = autoGenerateArticles
-          ? await reserveNextProductArticle()
-          : groupArticle ||
-            manualArticleBase ||
-            (await reserveNextProductArticle());
-        itemCursor += 1;
-
         const quantity = Math.max(0, Math.floor(item.quantity));
+        const groupArticle = rawGroupArticles[itemCursor] ?? '';
+        const itemHasManualArticle = Boolean(
+          groupArticle || manualArticleBase,
+        );
+
+        let articleForItem = '';
+        if (itemHasManualArticle) {
+          articleForItem = groupArticle || manualArticleBase;
+        } else {
+          const shouldAutoGenerate =
+            rawGroupAutoGenerateArticles !== undefined
+              ? Boolean(rawGroupAutoGenerateArticles[itemCursor])
+              : autoGenerateArticles &&
+                quantity > 1;
+
+          if (shouldAutoGenerate) {
+            articleForItem = await reserveNextProductArticle();
+          }
+        }
+        itemCursor += 1;
         for (
           let unitIndex = 0;
           unitIndex < quantity;

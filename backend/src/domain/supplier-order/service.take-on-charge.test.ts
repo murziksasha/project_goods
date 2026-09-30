@@ -73,7 +73,7 @@ const installSpies = () => {
   });
 
   vi.spyOn(SupplierOrder, 'findById').mockImplementation(
-    async () => state.supplierOrder as never,
+    (() => state.supplierOrder) as never,
   );
   vi.spyOn(SupplierOrder, 'updateMany').mockResolvedValue({
     modifiedCount: 0,
@@ -361,7 +361,7 @@ describe('takeOnChargeSupplierOrder', () => {
     expect(state.createdProducts[1]).toMatchObject({ article: 'ART-B' });
   });
 
-  it('falls back to auto-generate when both groupArticles[i] and articleBase are empty', async () => {
+  it('leaves article empty when autoGenerateArticles=false and inputs are empty for quantity=1', async () => {
     state.supplierOrder = {
       ...buildSupplierOrder(),
       items: [
@@ -384,7 +384,107 @@ describe('takeOnChargeSupplierOrder', () => {
     });
 
     expect(state.createdProducts).toHaveLength(1);
-    // article should be a non-empty auto-generated string (not blank)
+    expect(state.createdProducts[0]?.article).toBe('');
+  });
+
+  it('auto-generates article only for quantity > 1 by default, leaving quantity = 1 empty', async () => {
+    state.supplierOrder = {
+      ...buildSupplierOrder(),
+      items: [
+        {
+          lineId: 'line-1',
+          itemIndex: 0,
+          productName: 'Single Item',
+          quantity: 1,
+          price: 100,
+          receiptStatus: 'approved',
+        },
+        {
+          lineId: 'line-2',
+          itemIndex: 1,
+          productName: 'Batch Item',
+          quantity: 2,
+          price: 50,
+          receiptStatus: 'approved',
+        },
+      ],
+    };
+
+    await takeOnChargeSupplierOrder('507f1f77bcf86cd799439011', {
+      warehouseId: 'w-1',
+      locationId: 'l-1',
+    });
+
+    expect(state.createdProducts).toHaveLength(3);
+    // Single item has no article
+    expect(state.createdProducts[0]).toMatchObject({ name: 'Single Item', article: '' });
+    // Batch items share the auto-generated article
+    expect(state.createdProducts[1]?.article).toBeTruthy();
+    expect(state.createdProducts[1]?.article).toBe(state.createdProducts[2]?.article);
+  });
+
+  it('respects per-item groupAutoGenerateArticles overrides', async () => {
+    state.supplierOrder = {
+      ...buildSupplierOrder(),
+      items: [
+        {
+          lineId: 'line-1',
+          itemIndex: 0,
+          productName: 'Laptop',
+          quantity: 1,
+          price: 1500,
+          receiptStatus: 'approved',
+        },
+        {
+          lineId: 'line-2',
+          itemIndex: 1,
+          productName: 'Screws',
+          quantity: 5,
+          price: 10,
+          receiptStatus: 'approved',
+        },
+      ],
+    };
+
+    await takeOnChargeSupplierOrder('507f1f77bcf86cd799439011', {
+      warehouseId: 'w-1',
+      locationId: 'l-1',
+      groupAutoGenerateArticles: [true, false],
+      groupArticles: ['', ''],
+    });
+
+    expect(state.createdProducts).toHaveLength(6);
+    // Laptop (qty 1) was explicitly set to auto-generate
     expect(state.createdProducts[0]?.article).toBeTruthy();
+    // Screws (qty 5) were explicitly set to false (no article)
+    for (let i = 1; i <= 5; i++) {
+      expect(state.createdProducts[i]?.article).toBe('');
+    }
+  });
+
+  it('uses custom groupArticle even if groupAutoGenerateArticles is false', async () => {
+    state.supplierOrder = {
+      ...buildSupplierOrder(),
+      items: [
+        {
+          lineId: 'line-1',
+          itemIndex: 0,
+          productName: 'Phone',
+          quantity: 1,
+          price: 800,
+          receiptStatus: 'approved',
+        },
+      ],
+    };
+
+    await takeOnChargeSupplierOrder('507f1f77bcf86cd799439011', {
+      warehouseId: 'w-1',
+      locationId: 'l-1',
+      groupAutoGenerateArticles: [false],
+      groupArticles: ['CUSTOM-PHONE'],
+    });
+
+    expect(state.createdProducts).toHaveLength(1);
+    expect(state.createdProducts[0]?.article).toBe('CUSTOM-PHONE');
   });
 });

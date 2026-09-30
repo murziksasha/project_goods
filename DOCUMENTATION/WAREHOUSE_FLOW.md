@@ -511,12 +511,16 @@ Implementation references:
 
 ### 11.1) Article Behavior In Take-On-Charge Modal
 
-- In `Оприходование` modal, checkbox `Автогенерация артикулов` is disabled by default.
-- When enabled: backend generates one article for the selected item (suborder) in sequence `A000001`, `A000002`, ... and applies this single article to all units of that item quantity.
-- When disabled: UI shows one manual `article` input; entered value is applied as-is to all units of that item quantity.
-- When disabled and input is empty: take-on-charge is still allowed, and products are stored with empty `article`.
-- Article is not required to be globally unique.
-- `SO-*` pattern is not used for article generation anymore (legacy branch removed).
+- In `Оприбуткування` (`Stock receipt`) modal:
+  - Each item line (`#1`, `#2`...) has an independent auto-generate article checkbox and manual article input field.
+  - **Quantity-based default**: Checkbox defaults to **checked** if that item line's `quantity > 1`, and defaults to **unchecked** if `quantity = 1` (single units are tracked by serial number and do not require article numbers).
+  - **Master toggle**: A top master checkbox `Auto-generate articles` allows toggling all item checkboxes simultaneously.
+  - **When enabled for an item**: Backend generates one article for the item in sequence `A000001`, `A000002`, ... and applies this single article to all units of that item line. Helper hint displays `Leave blank to auto-generate`.
+  - **When disabled for an item**: If manual input is empty, products are stored with empty article (`article: ''`). Helper hint displays `Leave blank for no article`.
+  - **Manual override**: The manual input field is always accessible for every item; if a custom article is typed, it is applied as-is regardless of checkbox state.
+  - Article is not required to be globally unique.
+  - `SO-*` pattern is not used for article generation anymore (legacy branch removed).
+  - **One-click status change**: Direct status transition to `stocked` (`Оприбутковано`) in the table row follows the same quantity-based rule: lines with `quantity > 1` receive auto-generated articles, lines with `quantity = 1` receive empty article (`''`).
 
 ### 11.2) Manual Status Change To `Оприбутковано` In `Warehouse -> Supplier Order`
 

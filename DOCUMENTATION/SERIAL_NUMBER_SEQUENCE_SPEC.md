@@ -31,8 +31,8 @@ This spec defines when product serial numbers are assigned and when items are al
 4. Uniqueness in stock identity is guaranteed by `serialNumber` (and existing unique constraints for serial/article where applicable).
 
 ## Warehouse Identity Defaults
-1. In Warehouse receipt flow, `article` default value must be empty (`''`).
-2. Warehouse flow auto-generates only `serialNumber`; `article` must not be auto-generated.
+1. In Warehouse receipt flow, `article` default value is empty (`''`) for single-quantity items (`quantity = 1`).
+2. Warehouse flow auto-generates article in `A000001` sequence by default only for batch items (`quantity > 1`), or when explicitly toggled on in the stock receipt modal.
 
 ## API Contract Notes
 - `POST /api/products/serial-number/next` is reserved for warehouse receipt flow.

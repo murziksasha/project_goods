@@ -1,4 +1,7 @@
-export type { SupplierOrderPayload } from './normalizers';
+export type {
+  SupplierOrderPayload,
+  SupplierOrderTakeOnChargePayload,
+} from './normalizers';
 
 export {
   reconcileSupplierOrderStatuses,

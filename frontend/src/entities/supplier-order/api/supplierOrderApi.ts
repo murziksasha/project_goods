@@ -100,6 +100,7 @@ export type TakeOnChargePayload = {
   autoGenerateArticles?: boolean;
   articleBase?: string;
   groupArticles?: string[];
+  groupAutoGenerateArticles?: boolean[];
   itemIndex?: number;
   warehouseId?: string;
   locationId?: string;
