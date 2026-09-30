@@ -15,7 +15,10 @@ import type {
   Supplier,
   SupplierFormValues,
 } from '../../../entities/supplier';
-import type { SupplierOrder } from '../../../entities/supplier-order';
+import type {
+  SupplierOrder,
+  SupplierOrderStatus,
+} from '../../../entities/supplier-order';
 import type { Sale } from '../../../entities/sale';
 import type { PrintForm } from '../../../entities/settings';
 import type {
@@ -80,6 +83,15 @@ export const receiptStatusFilterOptions: ReceiptStatus[] = [
   'received',
   'cancelled',
 ];
+export const receiptChipToOrderStatuses: Record<
+  ReceiptStatus,
+  SupplierOrderStatus[]
+> = {
+  new: ['request', 'ordered'],
+  approved: ['approved'],
+  received: ['stocked', 'partially_stocked', 'partially_completed', 'overdue'],
+  cancelled: ['cancelled', 'unavailable'],
+};
 export type WarehouseFilters = {
   name: string;
   serial: string;
@@ -133,6 +145,7 @@ export type ReceiptRow = {
   approvedBy: string;
   acceptedAt: string;
   status: ReceiptStatus;
+  orderStatus: SupplierOrderStatus;
   paymentStatus?:
     | 'pending'
     | 'paid'
@@ -635,7 +648,9 @@ export const filterReceiptRows = ({
 
     if (
       filters.statuses.length > 0 &&
-      !filters.statuses.includes(receipt.status)
+      !filters.statuses.some((chip) =>
+        receiptChipToOrderStatuses[chip].includes(receipt.orderStatus),
+      )
     ) {
       return false;
     }
@@ -673,23 +688,6 @@ export const groupReceiptRowsByOrder = (
 
   return order.map((id) => groups.get(id)!);
 };
-
-const receiptStatusRank: Record<ReceiptStatus, number> = {
-  received: 1,
-  approved: 2,
-  new: 3,
-  cancelled: 4,
-};
-
-export const getReceiptGroupStatus = (
-  receipts: ReceiptRow[],
-): ReceiptStatus =>
-  receipts.reduce<ReceiptStatus>((worst, receipt) => {
-    return receiptStatusRank[receipt.status] >
-      receiptStatusRank[worst]
-      ? receipt.status
-      : worst;
-  }, receipts[0]?.status ?? 'new');
 
 export const getReceiptGroupTotals = (receipts: ReceiptRow[]) => {
   const quantity = receipts.reduce(

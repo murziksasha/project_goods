@@ -2,7 +2,6 @@ import { afterEach, describe, expect, it } from 'vitest';
 import {
   clampWarehouseStockNameWidth,
   filterReceiptRows,
-  getReceiptGroupStatus,
   getReceiptGroupTotals,
   getWarehouseFiltersStorageKey,
   getWarehouseStockTableMinWidth,
@@ -44,6 +43,7 @@ const makeReceipt = (
   approvedBy: 'Owner',
   acceptedAt: '2026-06-01T09:00:00.000Z',
   status: 'new',
+  orderStatus: 'request',
   paymentStatus: 'pending',
   supplierOrderIsFavorite: false,
   note: '',
@@ -79,9 +79,9 @@ describe('warehouse-panel receipts filtering', () => {
 
   it('filters receipts by a single selected status', () => {
     const receipts = [
-      makeReceipt({ id: 'receipt-new', status: 'new' }),
-      makeReceipt({ id: 'receipt-received', status: 'received' }),
-      makeReceipt({ id: 'receipt-cancelled', status: 'cancelled' }),
+      makeReceipt({ id: 'receipt-new', orderStatus: 'request' }),
+      makeReceipt({ id: 'receipt-received', orderStatus: 'stocked' }),
+      makeReceipt({ id: 'receipt-cancelled', orderStatus: 'cancelled' }),
     ];
 
     expect(
@@ -110,10 +110,10 @@ describe('warehouse-panel receipts filtering', () => {
 
   it('filters receipts by multiple selected statuses', () => {
     const receipts = [
-      makeReceipt({ id: 'receipt-new', status: 'new' }),
-      makeReceipt({ id: 'receipt-approved', status: 'approved' }),
-      makeReceipt({ id: 'receipt-received', status: 'received' }),
-      makeReceipt({ id: 'receipt-cancelled', status: 'cancelled' }),
+      makeReceipt({ id: 'receipt-new', orderStatus: 'request' }),
+      makeReceipt({ id: 'receipt-approved', orderStatus: 'approved' }),
+      makeReceipt({ id: 'receipt-received', orderStatus: 'stocked' }),
+      makeReceipt({ id: 'receipt-cancelled', orderStatus: 'cancelled' }),
     ];
 
     expect(
@@ -128,21 +128,53 @@ describe('warehouse-panel receipts filtering', () => {
     ).toEqual(['receipt-new', 'receipt-approved']);
   });
 
+  it('filters receipts using mapped order statuses for chips', () => {
+    const receipts = [
+      makeReceipt({ id: 'r-ordered', orderStatus: 'ordered' }),
+      makeReceipt({ id: 'r-partially-stocked', orderStatus: 'partially_stocked' }),
+      makeReceipt({ id: 'r-unavailable', orderStatus: 'unavailable' }),
+    ];
+
+    expect(
+      filterReceiptRows({
+        receipts,
+        query: '',
+        filters: { ...initialWarehouseFilters, statuses: ['new'] },
+      }).map((r) => r.id),
+    ).toEqual(['r-ordered']);
+
+    expect(
+      filterReceiptRows({
+        receipts,
+        query: '',
+        filters: { ...initialWarehouseFilters, statuses: ['received'] },
+      }).map((r) => r.id),
+    ).toEqual(['r-partially-stocked']);
+
+    expect(
+      filterReceiptRows({
+        receipts,
+        query: '',
+        filters: { ...initialWarehouseFilters, statuses: ['cancelled'] },
+      }).map((r) => r.id),
+    ).toEqual(['r-unavailable']);
+  });
+
   it('combines status and favorites filters', () => {
     const receipts = [
       makeReceipt({
         id: 'receipt-starred-received',
-        status: 'received',
+        orderStatus: 'stocked',
         supplierOrderIsFavorite: true,
       }),
       makeReceipt({
         id: 'receipt-starred-new',
-        status: 'new',
+        orderStatus: 'request',
         supplierOrderIsFavorite: true,
       }),
       makeReceipt({
         id: 'receipt-received',
-        status: 'received',
+        orderStatus: 'stocked',
         supplierOrderIsFavorite: false,
       }),
     ];
@@ -223,7 +255,7 @@ describe('receipt grouping', () => {
     ]);
     expect(groups[0]?.receipts[0]?.number).toBe('SO-1-1');
     expect(groups[0]?.receipts[1]?.number).toBe('SO-1-2');
-    expect(getReceiptGroupStatus(groups[0]!.receipts)).toBe('new');
+    expect(groups[0]?.receipts[0]?.orderStatus).toBe('request');
     expect(getReceiptGroupTotals(groups[0]!.receipts)).toEqual({
       quantity: 5,
       amount: 500,
