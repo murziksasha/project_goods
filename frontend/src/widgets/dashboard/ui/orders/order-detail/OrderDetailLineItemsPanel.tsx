@@ -186,6 +186,7 @@ type ProductEntrySuggestion =
 
 const COLLAPSE_ICON_EXPANDED = '\u2303';
 const COLLAPSE_ICON_COLLAPSED = '\u2304';
+const EM_DASH = '\u2014';
 
 export const OrderDetailLineItemsPanel: React.FC<
   OrderDetailLineItemsPanelProps
@@ -1857,13 +1858,13 @@ export const OrderDetailLineItemsPanel: React.FC<
             const groupPriceSummary = isGrouped
               ? getGroupedLinePriceSummary(group.items)
               : null;
+            const groupTotal = groupPriceSummary?.totalAmount ?? 0;
             const collapsedGroupPrice =
               groupPriceSummary == null
                 ? ''
-                : formatCurrency(
-                    groupPriceSummary.unitPrice ??
-                      groupPriceSummary.totalAmount,
-                  );
+                : groupPriceSummary.unitPrice !== null
+                  ? formatCurrency(groupPriceSummary.unitPrice)
+                  : EM_DASH;
             const header = isGrouped ? (
               <button
                 key={`group-${group.key}`}
@@ -1908,16 +1909,36 @@ export const OrderDetailLineItemsPanel: React.FC<
                       className='order-line-item-group-warranty'
                       aria-hidden='true'
                     />
+                    <span className='order-line-item-group-action'>
+                      <span className='order-line-item-group-total'>
+                        {formatCurrency(groupTotal)}
+                      </span>
+                      <span
+                        className='order-detail-collapse-icon'
+                        aria-hidden='true'
+                      >
+                        {COLLAPSE_ICON_COLLAPSED}
+                      </span>
+                    </span>
                   </>
-                ) : null}
-                <span
-                  className='order-detail-collapse-icon'
-                  aria-hidden='true'
-                >
-                  {isExpanded
-                    ? COLLAPSE_ICON_EXPANDED
-                    : COLLAPSE_ICON_COLLAPSED}
-                </span>
+                ) : (
+                  <span className='order-detail-collapse-meta'>
+                    <span className='order-detail-section-summary'>
+                      <span>
+                        {t('orders.detail.lineItems.groupedCount', {
+                          quantity: group.totalQuantity,
+                        })}
+                      </span>
+                      <span>{formatCurrency(groupTotal)}</span>
+                    </span>
+                    <span
+                      className='order-detail-collapse-icon'
+                      aria-hidden='true'
+                    >
+                      {COLLAPSE_ICON_EXPANDED}
+                    </span>
+                  </span>
+                )}
               </button>
             ) : null;
             const rows = isExpanded
