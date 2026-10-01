@@ -95,8 +95,16 @@ Related: [ORDER_FLOW.md](./ORDER_FLOW.md) · [SALE_CARD.md](./SALE_CARD.md) · [
 - **Identical product grouping (repair and sale cards):**
   - Persistence stays atomic: 2+ of the same product remain separate `lineItems[]` rows (especially one serial per row).
   - UI groups rows that share `catalogProductId`, or the same normalized name when catalog id is missing (`groupProductLineItems`).
-  - Groups of 2+ start **collapsed**. Header shows the product name, collapsed quantity (`×N` = sum of row `quantity`), and `⌃` / `⌄`.
-  - Collapsed group still fills **Price** and **Qty** (read-only, aligned to table columns). Qty duplicates `×N`. Price is the common unit price when all rows share it; if unit prices differ, Price shows `sum(price × qty)`. Serial / warranty / per-row actions stay hidden. Expand to edit/bind/remove each line.
+  - Groups of 2+ start **collapsed**.
+  - **Expanded state**: Group header displays product name on the left and a summary meta on the right mirroring section headers (`.order-detail-collapse-meta` with `.order-detail-section-summary`): `×N` quantity count, formatted group total amount (`sum(price × qty)`), and expand icon `⌃`.
+  - **Collapsed state**: Table row displays:
+    - Name column: Product name + `×N`.
+    - Serial column: Empty spacer.
+    - Price column: Shared unit price when all items have identical unit prices; em dash `—` when unit prices differ.
+    - Qty column: Total quantity (`totalQuantity`).
+    - Warranty column: Empty spacer.
+    - Action column: Group total amount formatted alongside the collapse icon `⌄` (`.order-line-item-group-total` + chevron).
+  - Serial / warranty / per-row actions stay hidden while collapsed. Expand to edit/bind/remove each line.
   - Singles stay as flat rows (no group header).
   - Adding a new matching line to an already-open card auto-expands that group. Switching to another card resets groups to collapsed.
   - Services are not grouped.

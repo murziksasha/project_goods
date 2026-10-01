@@ -2572,6 +2572,7 @@ export const WarehousePanel: React.FC<WarehousePanelProps> = ({
           autoGenerateArticles,
           articleBase,
           groupArticles,
+          groupAutoGenerateArticles,
           warehouseId,
           locationId,
         }) => {
@@ -2588,6 +2589,7 @@ export const WarehousePanel: React.FC<WarehousePanelProps> = ({
                 autoGenerateArticles,
                 articleBase: articleBase.trim().toUpperCase(),
                 groupArticles,
+                groupAutoGenerateArticles,
                 itemIndex:
                   editingSupplierOrderItemIndex === null
                     ? undefined

@@ -953,6 +953,7 @@ export const SupplierOrdersWorkspace: React.FC<
           autoGenerateArticles,
           articleBase,
           groupArticles,
+          groupAutoGenerateArticles,
           warehouseId,
           locationId,
         }) => {
@@ -968,6 +969,7 @@ export const SupplierOrdersWorkspace: React.FC<
                 autoGenerateArticles,
                 articleBase: articleBase.trim().toUpperCase(),
                 groupArticles,
+                groupAutoGenerateArticles,
                 itemIndex:
                   editingOrderItemIndex === null
                     ? undefined

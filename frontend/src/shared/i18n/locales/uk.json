@@ -1252,6 +1252,8 @@
         "articleExamplePlaceholder": "Наприклад: SSD-KINGSTON",
         "articleForGroup": "Артикул для групи",
         "articleGroupHint": "Залиште порожнім для авто-генерації",
+        "articleGroupNoneHint": "Залиште порожнім, щоб не створювати артикул",
+        "autoArticle": "Автогенерація артикулу",
         "warehouse": "Склад",
         "location": "Локація",
         "noWarehouses": "Немає складів",

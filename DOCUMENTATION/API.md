@@ -403,9 +403,16 @@ Client status localization rule: keep client status values in original English (
     - `serialNumbers?: string[]`
     - `autoGenerateArticles?: boolean`
     - `articleBase?: string`
+    - `groupArticles?: string[]` (manual articles per item line)
+    - `groupAutoGenerateArticles?: boolean[]` (per-item auto-generate flags)
     - `itemIndex?: number` (receive one line item; omit to receive all unreceived items)
     - `warehouseId?: string`
     - `locationId?: string`
+  - Article resolution rules:
+    - If `groupArticles[i]` or `articleBase` is non-empty, custom value is used as-is.
+    - Else if `groupAutoGenerateArticles` is passed, item generates article `A...` if `groupAutoGenerateArticles[i]` is true, else empty string `''`.
+    - Else if `autoGenerateArticles` is false, item gets empty string `''`.
+    - Else (default / one-click status change): item generates article `A...` if item `quantity > 1`, and receives empty string `''` if `quantity = 1`.
   - Guards:
     - rejects items already `received` or `cancelled`
     - rejects closed orders (`cancelled`, `unavailable`)
