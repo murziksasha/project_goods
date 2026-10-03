@@ -5,7 +5,7 @@ import {
   buildCommandPaletteItems,
   filterCommandPaletteItems,
 } from './command-palette-items';
-import type { Sale } from '../../../../entities/sale/model/types';
+import type { Sale } from '../../../../entities/sale';
 
 const sale = (patch: Partial<Sale> = {}): Sale =>
   ({

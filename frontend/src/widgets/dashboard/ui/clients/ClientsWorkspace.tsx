@@ -1,4 +1,5 @@
-﻿import {
+import type React from 'react';
+import {
   useCallback,
   useEffect,
   useMemo,
@@ -8,20 +9,20 @@
   type SetStateAction,
 } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { Employee } from '../../../../entities/employee/model/types';
+import type { Employee } from '../../../../entities/employee';
 import type {
   Client,
   ClientFormValues,
   ClientHistory,
   ClientStatus,
-} from '../../../../entities/client/model/types';
-import { clientMatchesPhoneQuery } from '../../../../entities/client/lib/phone-match';
-import { clientStatusOptions } from '../../../../entities/client/model/constants';
-import type { Sale } from '../../../../entities/sale/model/types';
+} from '../../../../entities/client';
+import { clientMatchesPhoneQuery } from '../../../../entities/client';
+import { clientStatusOptions } from '../../../../entities/client';
+import type { Sale } from '../../../../entities/sale';
 import type {
   ClientDevice,
   ClientDeviceFormValues,
-} from '../../../../entities/client-device/model/types';
+} from '../../../../entities/client-device';
 import {
   isValidUkrainianPhone,
   normalizePhone,
@@ -29,7 +30,8 @@ import {
 import { PaginationPanel } from '../../../../shared/ui/PaginationPanel';
 import { ClientCardModal } from './ClientCardModal';
 import { ClientCreateModal } from './ClientCreateModal';
-import { ClientMergeModal, type ClientMergeField } from './ClientMergeModal';
+import { CatalogRecordMergeModal } from '../../../../features/catalog-duplicate-merge';
+import { formatClientPhonesLabel } from '../../../../entities/client';
 import { ClientsFilterPanel } from './ClientsFilterPanel';
 import { ClientsTable } from './ClientsTable';
 import { ClientsToolbar } from './ClientsToolbar';
@@ -42,7 +44,6 @@ import {
   getActiveClientFiltersCount,
   getClientSaleIncome,
   getClientStatsMap,
-  getClientSubtitle,
   getFilteredClients,
   getStoredClientCardTab,
   isOptionalAddressValid,
@@ -60,13 +61,13 @@ import {
   createSavedFilter as createSavedFilterRequest,
   deleteSavedFilter as deleteSavedFilterRequest,
   listSavedFilters,
-} from '../../../../entities/saved-filter/api/savedFilterApi';
+} from '../../../../entities/saved-filter';
 import {
   readSavedFilters,
   type SavedFilter,
 } from '../../model/saved-filters';
 
-type ClientsWorkspaceProps = {
+export interface ClientsWorkspaceProps {
   currentEmployee: Employee | null;
   clients: Client[];
   sales: Sale[];
@@ -99,7 +100,7 @@ type ClientsWorkspaceProps = {
     payload: ClientDeviceFormValues,
   ) => Promise<boolean>;
   onDeleteClientDevice: (deviceId: string) => Promise<boolean>;
-};
+}
 
 const MAX_PHONE_LENGTH = 10;
 
@@ -148,7 +149,7 @@ const getLegacyClientAddress = (client: Client) =>
   getMetaFieldFromNote(client.note, 'Address') ||
   getMetaFieldFromNoteLegacy(client.note, 'Address');
 
-export const ClientsWorkspace = ({
+export const ClientsWorkspace: React.FC<ClientsWorkspaceProps> = ({
   currentEmployee,
   clients,
   sales,
@@ -172,18 +173,23 @@ export const ClientsWorkspace = ({
   clientDevices,
   onUpdateClientDevice,
   onDeleteClientDevice,
-}: ClientsWorkspaceProps) => {
+}) => {
   const { t } = useTranslation();
   const filterStatusOptions = useMemo(
     (): Array<{
       labelKey: string;
       value: ClientStatus | 'all';
-    }> => [{ labelKey: 'clients.filters.statusAll', value: 'all' }, ...clientStatusOptions],
+    }> => [
+      { labelKey: 'clients.filters.statusAll', value: 'all' },
+      ...clientStatusOptions,
+    ],
     [],
   );
   const [isFilterOpen, setIsFilterOpen] = useState(() => {
     try {
-      const parsed = JSON.parse(window.localStorage.getItem(clientsFiltersStorageKey) ?? '{}') as Partial<{
+      const parsed = JSON.parse(
+        window.localStorage.getItem(clientsFiltersStorageKey) ?? '{}',
+      ) as Partial<{
         isFilterOpen: boolean;
       }>;
       return Boolean(parsed.isFilterOpen);
@@ -191,10 +197,13 @@ export const ClientsWorkspace = ({
       return false;
     }
   });
-  const [draftFilters, setDraftFilters] =
-    useState<ClientFilters>(() => {
+  const [draftFilters, setDraftFilters] = useState<ClientFilters>(
+    () => {
       try {
-        const parsed = JSON.parse(window.localStorage.getItem(clientsFiltersStorageKey) ?? '{}') as Partial<{
+        const parsed = JSON.parse(
+          window.localStorage.getItem(clientsFiltersStorageKey) ??
+            '{}',
+        ) as Partial<{
           draftFilters: ClientFilters;
           appliedFilters: ClientFilters;
           searchValue: string;
@@ -204,11 +213,15 @@ export const ClientsWorkspace = ({
       } catch {
         return emptyFilters;
       }
-    });
-  const [appliedFilters, setAppliedFilters] =
-    useState<ClientFilters>(() => {
+    },
+  );
+  const [appliedFilters, setAppliedFilters] = useState<ClientFilters>(
+    () => {
       try {
-        const parsed = JSON.parse(window.localStorage.getItem(clientsFiltersStorageKey) ?? '{}') as Partial<{
+        const parsed = JSON.parse(
+          window.localStorage.getItem(clientsFiltersStorageKey) ??
+            '{}',
+        ) as Partial<{
           draftFilters: ClientFilters;
           appliedFilters: ClientFilters;
           searchValue: string;
@@ -218,10 +231,13 @@ export const ClientsWorkspace = ({
       } catch {
         return emptyFilters;
       }
-    });
+    },
+  );
   const [searchValue, setSearchValue] = useState(() => {
     try {
-      const parsed = JSON.parse(window.localStorage.getItem(clientsFiltersStorageKey) ?? '{}') as Partial<{
+      const parsed = JSON.parse(
+        window.localStorage.getItem(clientsFiltersStorageKey) ?? '{}',
+      ) as Partial<{
         searchValue: string;
       }>;
       return parsed.searchValue ?? '';
@@ -233,23 +249,18 @@ export const ClientsWorkspace = ({
     Array<SavedFilter<ClientFilters, 'clients' | 'suppliers'>>
   >([]);
   const [newFilterName, setNewFilterName] = useState('');
-  const [newFilterIcon, setNewFilterIcon] = useState(filterIconOptions[0]);
+  const [newFilterIcon, setNewFilterIcon] = useState(
+    filterIconOptions[0],
+  );
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isMergeModalOpen, setIsMergeModalOpen] = useState(false);
   const [isClientCardOpen, setIsClientCardOpen] = useState(false);
-  const [clientCardTab, setClientCardTab] =
-    useState<ClientCardTab>(getStoredClientCardTab);
+  const [clientCardTab, setClientCardTab] = useState<ClientCardTab>(
+    getStoredClientCardTab,
+  );
   const [personForm, setPersonForm] = useState({
     ...emptyClientDraft,
   });
-  const [mergeTargetQuery, setMergeTargetQuery] = useState('');
-  const [mergeSourceQuery, setMergeSourceQuery] = useState('');
-  const [showMergeTargetSuggestions, setShowMergeTargetSuggestions] =
-    useState(false);
-  const [showMergeSourceSuggestions, setShowMergeSourceSuggestions] =
-    useState(false);
-  const [mergeTargetId, setMergeTargetId] = useState('');
-  const [mergeSourceId, setMergeSourceId] = useState('');
   const [mainTabForm, setMainTabForm] = useState<ClientMainForm>({
     name: '',
     phone: '',
@@ -317,7 +328,8 @@ export const ClientsWorkspace = ({
   useEffect(() => {
     if (!selectedClient || !selectedClientId) return;
 
-    const clientChanged = hydratedClientIdRef.current !== selectedClientId;
+    const clientChanged =
+      hydratedClientIdRef.current !== selectedClientId;
     const serverChanged =
       hydratedUpdatedAtRef.current !== selectedClient.updatedAt;
 
@@ -376,56 +388,6 @@ export const ClientsWorkspace = ({
   );
   const activeHistoryRows =
     clientCardTab === 'orders' ? ordersHistory : salesHistory;
-
-  const mergeTargetOptions = useMemo(() => {
-    const query = mergeTargetQuery.trim();
-    if (!query) return [];
-
-    return clients
-      .filter((client) => clientMatchesPhoneQuery(client, query))
-      .slice(0, 6);
-  }, [clients, mergeTargetQuery]);
-
-  const mergeSourceOptions = useMemo(() => {
-    const query = mergeSourceQuery.trim();
-    if (!query) return [];
-
-    return clients
-      .filter((client) => clientMatchesPhoneQuery(client, query))
-      .slice(0, 6);
-  }, [clients, mergeSourceQuery]);
-
-  const handleMergeQueryChange = (
-    field: ClientMergeField,
-    value: string,
-  ) => {
-    if (field === 'target') {
-      setMergeTargetQuery(value);
-      setMergeTargetId('');
-      setShowMergeTargetSuggestions(true);
-      return;
-    }
-
-    setMergeSourceQuery(value);
-    setMergeSourceId('');
-    setShowMergeSourceSuggestions(true);
-  };
-
-  const handleMergeClientSelect = (
-    field: ClientMergeField,
-    client: Client,
-  ) => {
-    if (field === 'target') {
-      setMergeTargetId(client.id);
-      setMergeTargetQuery(getClientSubtitle(client));
-      setShowMergeTargetSuggestions(false);
-      return;
-    }
-
-    setMergeSourceId(client.id);
-    setMergeSourceQuery(getClientSubtitle(client));
-    setShowMergeSourceSuggestions(false);
-  };
 
   const applyFilters = () => {
     const next = normalizeClientFiltersForApply(draftFilters);
@@ -558,9 +520,13 @@ export const ClientsWorkspace = ({
     })();
   };
   const applySavedFilter = (filterId: string) => {
-    const savedFilter = savedFilters.find((item) => item.id === filterId);
+    const savedFilter = savedFilters.find(
+      (item) => item.id === filterId,
+    );
     if (!savedFilter) return;
-    const nextFilters = normalizeClientFiltersForApply(savedFilter.filters);
+    const nextFilters = normalizeClientFiltersForApply(
+      savedFilter.filters,
+    );
     setDraftFilters(nextFilters);
     setAppliedFilters(nextFilters);
     setSearchValue(nextFilters.query);
@@ -603,7 +569,10 @@ export const ClientsWorkspace = ({
 
   useEffect(() => {
     try {
-      window.localStorage.setItem(clientCardTabStorageKey, clientCardTab);
+      window.localStorage.setItem(
+        clientCardTabStorageKey,
+        clientCardTab,
+      );
     } catch {
       // Ignore localStorage write errors.
     }
@@ -623,15 +592,17 @@ export const ClientsWorkspace = ({
     hydratedUpdatedAtRef.current = null;
   }, [onSelectClient]);
 
-  const handleMainTabFormChange: Dispatch<SetStateAction<ClientMainForm>> = (
-    value,
-  ) => {
+  const handleMainTabFormChange: Dispatch<
+    SetStateAction<ClientMainForm>
+  > = (value) => {
     isMainTabDirtyRef.current = true;
     setMainTabForm(value);
   };
 
   const validatePhone = (phone: string): boolean => {
-    const phoneFormatError = t('clients.messages.errors.invalidPhoneFormat');
+    const phoneFormatError = t(
+      'clients.messages.errors.invalidPhoneFormat',
+    );
     const normalized = normalizePhone(phone);
     if (normalized.length === 0) {
       setMainTabPhoneError(phoneFormatError);
@@ -669,27 +640,6 @@ export const ClientsWorkspace = ({
     });
   };
 
-  const handleMergeClients = async () => {
-    if (
-      !mergeTargetId ||
-      !mergeSourceId ||
-      mergeTargetId === mergeSourceId
-    )
-      return;
-
-    const isSuccess = await onMergeClients(
-      mergeTargetId,
-      mergeSourceId,
-    );
-    if (!isSuccess) return;
-
-    setIsMergeModalOpen(false);
-    setMergeTargetQuery('');
-    setMergeSourceQuery('');
-    setMergeTargetId('');
-    setMergeSourceId('');
-  };
-
   const handleMainTabSave = async () => {
     if (!selectedClientId) return;
 
@@ -712,7 +662,10 @@ export const ClientsWorkspace = ({
       note: mainTabForm.note,
     };
     const payload = {
-      ...mapClientDraftToPayload(draftForSave, mainTabForm.status as ClientStatus | ''),
+      ...mapClientDraftToPayload(
+        draftForSave,
+        mainTabForm.status as ClientStatus | '',
+      ),
       expectedUpdatedAt: selectedClient?.updatedAt,
     };
     const isSuccess = await onUpdateClient(selectedClientId, payload);
@@ -847,22 +800,25 @@ export const ClientsWorkspace = ({
       ) : null}
 
       {isMergeModalOpen ? (
-        <ClientMergeModal
+        <CatalogRecordMergeModal<Client>
+          isOpen={isMergeModalOpen}
+          title={t('clients.merge.title')}
+          records={clients}
+          searchPlaceholder={t('clients.merge.searchPlaceholder')}
           isSaving={isSaving}
-          sourceId={mergeSourceId}
-          sourceOptions={mergeSourceOptions}
-          sourceQuery={mergeSourceQuery}
-          targetId={mergeTargetId}
-          targetOptions={mergeTargetOptions}
-          targetQuery={mergeTargetQuery}
-          showSourceSuggestions={showMergeSourceSuggestions}
-          showTargetSuggestions={showMergeTargetSuggestions}
           onClose={() => setIsMergeModalOpen(false)}
-          onMerge={() => {
-            void handleMergeClients();
+          onMerge={async (targetId, sourceId) => {
+            return onMergeClients(targetId, sourceId);
           }}
-          onQueryChange={handleMergeQueryChange}
-          onSelectClient={handleMergeClientSelect}
+          getRecordId={(client) => client.id}
+          getRecordName={(client) => client.name}
+          getRecordSecondaryText={(client) =>
+            formatClientPhonesLabel(client)
+          }
+          getRecordNote={(client) => client.note}
+          matchesRecord={(client, query) =>
+            clientMatchesPhoneQuery(client, query)
+          }
         />
       ) : null}
 
@@ -875,8 +831,8 @@ export const ClientsWorkspace = ({
           isHistoryLoading={isHistoryLoading}
           isSaving={isSaving}
           clientVisitCount={
-            statsByClient.get(selectedClientId ?? '')?.visits
-            ?? selectedHistorySales.length
+            statsByClient.get(selectedClientId ?? '')?.visits ??
+            selectedHistorySales.length
           }
           clientTotalRevenue={
             clientCardTab === 'orders'
@@ -915,9 +871,3 @@ export const ClientsWorkspace = ({
     </section>
   );
 };
-
-
-
-
-
-

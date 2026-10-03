@@ -1,3 +1,4 @@
+import type React from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   isOptionalAddressValid,
@@ -9,7 +10,7 @@ import {
 import { Modal } from '../../../../shared/ui/Modal';
 import { Button } from '../../../../shared/ui/Button';
 
-type ClientCreateModalProps = {
+export interface ClientCreateModalProps {
   form: ClientDraft;
   isSaving: boolean;
   onChange: (form: ClientDraft) => void;
@@ -17,13 +18,13 @@ type ClientCreateModalProps = {
   onSave: () => void;
 };
 
-export const ClientCreateModal = ({
+export const ClientCreateModal: React.FC<ClientCreateModalProps> = ({
   form,
   isSaving,
   onChange,
   onClose,
   onSave,
-}: ClientCreateModalProps) => {
+}) => {
   const { t } = useTranslation();
 
   const updateForm = <K extends keyof ClientDraft>(

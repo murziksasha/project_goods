@@ -1,10 +1,11 @@
+import type React from 'react';
 import type { Dispatch, RefObject, SetStateAction } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { Supplier } from '../../../../entities/supplier/model/types';
+import type { Supplier } from '../../../../entities/supplier';
 import type {
   SupplierOrderStatus,
   SupplierPaymentStatus,
-} from '../../../../entities/supplier-order/model/types';
+} from '../../../../entities/supplier-order';
 import {
   supplierOrderStatuses,
   supplierPaymentStatuses,
@@ -19,7 +20,7 @@ type SavedFilterItem = {
   icon: string;
 };
 
-type SupplierOrdersFilterPanelProps = {
+export interface SupplierOrdersFilterPanelProps {
   isOpen: boolean;
   isStatusFilterOpen: boolean;
   isPaymentFilterOpen: boolean;
@@ -44,7 +45,7 @@ type SupplierOrdersFilterPanelProps = {
   onRemoveSavedFilter: (filterId: string) => void;
 };
 
-export const SupplierOrdersFilterPanel = ({
+export const SupplierOrdersFilterPanel: React.FC<SupplierOrdersFilterPanelProps> = ({
   isOpen,
   isStatusFilterOpen,
   isPaymentFilterOpen,
@@ -67,7 +68,7 @@ export const SupplierOrdersFilterPanel = ({
   onSaveCurrentFilter,
   onApplySavedFilter,
   onRemoveSavedFilter,
-}: SupplierOrdersFilterPanelProps) => {
+}) => {
   const { t } = useTranslation();
 
   const toggleStatus = (status: SupplierOrderStatus) => {

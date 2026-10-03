@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { SupplierOrder } from '../../../entities/supplier-order/model/types';
+import type { SupplierOrder } from '../../../entities/supplier-order';
 import {
   areAllSupplierOrderItemsCancelled,
   buildSupplierOrderTableRows,

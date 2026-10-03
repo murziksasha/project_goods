@@ -1,4 +1,4 @@
-﻿import mongoose from 'mongoose';
+import mongoose from 'mongoose';
 import { normalizeClientPhone } from '../../shared/lib/parsers';
 
 export const supplierSchema = new mongoose.Schema(
@@ -21,19 +21,31 @@ export const supplierSchema = new mongoose.Schema(
       type: String,
       required: [true, 'Supplier name is required'],
       trim: true,
-      minlength: [2, 'Supplier name must contain at least 2 characters'],
-      maxlength: [120, 'Supplier name must contain no more than 120 characters'],
+      minlength: [
+        2,
+        'Supplier name must contain at least 2 characters',
+      ],
+      maxlength: [
+        120,
+        'Supplier name must contain no more than 120 characters',
+      ],
     },
     note: {
       type: String,
       trim: true,
-      maxlength: [500, 'Supplier note must contain no more than 500 characters'],
+      maxlength: [
+        500,
+        'Supplier note must contain no more than 500 characters',
+      ],
       default: '',
     },
     supplierOrder: {
       type: String,
       trim: true,
-      maxlength: [120, 'Supplier order must contain no more than 120 characters'],
+      maxlength: [
+        120,
+        'Supplier order must contain no more than 120 characters',
+      ],
       default: '',
     },
     isActive: {
@@ -46,6 +58,11 @@ export const supplierSchema = new mongoose.Schema(
       default: '',
       index: true,
     },
+    sortOrder: {
+      type: Number,
+      default: 0,
+      index: true,
+    },
   },
   {
     timestamps: true,
@@ -56,10 +73,18 @@ export const supplierSchema = new mongoose.Schema(
 supplierSchema.index({ phoneIdentities: 1 }, { unique: true });
 
 supplierSchema.pre('validate', function ensurePhonesConsistency() {
-  const currentPhones: string[] = Array.isArray(this.phones) ? this.phones.filter(Boolean) : [];
+  const currentPhones: string[] = Array.isArray(this.phones)
+    ? this.phones.filter(Boolean)
+    : [];
   if (this.phone) {
-    if (currentPhones.length === 0 || currentPhones[0] !== this.phone) {
-      this.phones = [this.phone, ...currentPhones.filter((p) => p !== this.phone)];
+    if (
+      currentPhones.length === 0 ||
+      currentPhones[0] !== this.phone
+    ) {
+      this.phones = [
+        this.phone,
+        ...currentPhones.filter((p) => p !== this.phone),
+      ];
     }
   } else if (currentPhones.length > 0) {
     this.phone = currentPhones[0]!;
@@ -78,16 +103,24 @@ supplierSchema.pre('validate', function ensurePhonesConsistency() {
 });
 
 supplierSchema.pre('validate', function validateAtLeastOnePhone() {
-  const list = Array.isArray(this.phones) ? this.phones.filter(Boolean) : [];
+  const list = Array.isArray(this.phones)
+    ? this.phones.filter(Boolean)
+    : [];
   if (list.length === 0 && !this.phone) {
-    this.invalidate('phone', 'Supplier must have at least one valid phone');
+    this.invalidate(
+      'phone',
+      'Supplier must have at least one valid phone',
+    );
   }
 });
 
 supplierSchema.pre('validate', function updateSearchText() {
-  const phonesForSearch = Array.isArray(this.phones) && this.phones.length > 0
-    ? this.phones
-    : this.phone ? [this.phone] : [];
+  const phonesForSearch =
+    Array.isArray(this.phones) && this.phones.length > 0
+      ? this.phones
+      : this.phone
+        ? [this.phone]
+        : [];
   this.searchText = [
     ...phonesForSearch,
     this.phone,
@@ -105,7 +138,9 @@ supplierSchema.index(
   { unique: true, collation: { locale: 'en', strength: 2 } },
 );
 
-export type SupplierDocument = mongoose.InferSchemaType<typeof supplierSchema> & {
+export type SupplierDocument = mongoose.InferSchemaType<
+  typeof supplierSchema
+> & {
   _id: mongoose.Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;

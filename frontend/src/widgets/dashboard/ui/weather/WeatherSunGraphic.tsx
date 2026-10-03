@@ -1,4 +1,5 @@
-type WeatherSunGraphicProps = {
+import type React from 'react';
+export interface WeatherSunGraphicProps {
   variant?: 'full' | 'small';
   showRays?: boolean;
   rayOpacity?: number;
@@ -7,12 +8,12 @@ type WeatherSunGraphicProps = {
 
 const SUN_CENTER = 32;
 
-export const WeatherSunGraphic = ({
+export const WeatherSunGraphic: React.FC<WeatherSunGraphicProps> = ({
   variant = 'full',
   showRays = true,
   rayOpacity = 1,
   className = '',
-}: WeatherSunGraphicProps) => {
+}) => {
   const isSmall = variant === 'small';
   const sunRadius = isSmall ? 10 : 14;
   const rayInner = isSmall ? 14 : 18;

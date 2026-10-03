@@ -1,3 +1,4 @@
+import type React from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   formatCurrencyMetric,
@@ -5,11 +6,11 @@ import {
   type DashboardAnalyticsView,
 } from '../../model/sales-analytics';
 
-type AnalyticsStockPanelProps = {
+export interface AnalyticsStockPanelProps {
   stock: DashboardAnalyticsView['stock'];
 };
 
-export const AnalyticsStockPanel = ({ stock }: AnalyticsStockPanelProps) => {
+export const AnalyticsStockPanel: React.FC<AnalyticsStockPanelProps> = ({ stock }) => {
   const { t } = useTranslation();
   const total = Math.max(stock.totalStock, 1);
   const freePct = (stock.freeStock / total) * 100;

@@ -1,19 +1,18 @@
+import type React from 'react';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useDismissibleSuggestions } from '../../../shared/lib/useDismissibleSuggestions';
 import {
   clientStatusOptions,
   getClientStatusColor,
-} from '../../../entities/client/model/constants';
-import type {
-  Client,
-  ClientFormValues,
-  ClientStatus,
-} from '../../../entities/client/model/types';
-import { getClientPhones } from '../../../entities/client/model/forms';
+  getClientPhones,
+  type Client,
+  type ClientFormValues,
+  type ClientStatus,
+} from '../../../entities/client';
 import { isValidUkrainianPhone } from '../../../shared/lib/phoneFormatter';
 
-type ClientFormProps = {
+export interface ClientFormProps {
   clients: Client[];
   form: ClientFormValues;
   isSaving: boolean;
@@ -25,7 +24,7 @@ type ClientFormProps = {
   onSubmit: () => void;
   onCancelEdit: () => void;
   onPickExisting: (client: Client) => void;
-};
+}
 
 const DEBOUNCE_MS = 300;
 const MAX_SUGGESTIONS = 6;
@@ -33,7 +32,7 @@ const MAX_SUGGESTIONS = 6;
 const normalizeText = (value: string) => value.trim().toLowerCase();
 const normalizeDigits = (value: string) => value.replace(/\D/g, '');
 
-export const ClientForm = ({
+export const ClientForm: React.FC<ClientFormProps> = ({
   clients,
   form,
   isSaving,
@@ -42,16 +41,21 @@ export const ClientForm = ({
   onSubmit,
   onCancelEdit,
   onPickExisting,
-}: ClientFormProps) => {
+}) => {
   const { t } = useTranslation();
-  const [recommendations, setRecommendations] = useState<Client[]>([]);
-  const [showRecommendations, setShowRecommendations] = useState(false);
+  const [recommendations, setRecommendations] = useState<Client[]>(
+    [],
+  );
+  const [showRecommendations, setShowRecommendations] =
+    useState(false);
   const [phoneError, setPhoneError] = useState<string | null>(null);
-  const { rootRef: recommendationsRootRef, isVisible: isRecommendationsVisible } =
-    useDismissibleSuggestions({
-      query: `${form.phone}\n${form.name}`,
-      isActive: showRecommendations && recommendations.length > 0,
-    });
+  const {
+    rootRef: recommendationsRootRef,
+    isVisible: isRecommendationsVisible,
+  } = useDismissibleSuggestions({
+    query: `${form.phone}\n${form.name}`,
+    isActive: showRecommendations && recommendations.length > 0,
+  });
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
@@ -103,7 +107,9 @@ export const ClientForm = ({
     <section className='panel'>
       <div className='panel-header'>
         <div>
-          <p className='section-label'>{t('legacy.clientForm.sectionLabel')}</p>
+          <p className='section-label'>
+            {t('legacy.clientForm.sectionLabel')}
+          </p>
           <h2>
             {isEditing
               ? t('legacy.clientForm.editTitle')
@@ -122,68 +128,71 @@ export const ClientForm = ({
       </div>
 
       <div className='form-grid'>
-        <div ref={recommendationsRootRef} className='field field-wide modal-suggestions-anchor'>
-        <label className='field'>
-          <span>{t('clients.modal.fields.phone')}</span>
-          <input
-            value={form.phone}
-            placeholder='+38 067 111 22 33'
-            onBlur={() => {
-              validatePhone(form.phone);
-            }}
-            onChange={(event) => {
-              const val = event.target.value;
-              const nextPhones =
-                Array.isArray(form.phones) && form.phones.length > 0
-                  ? [val, ...form.phones.slice(1)]
-                  : [val];
-              onChange('phone', val);
-              onChange('phones', nextPhones);
-              setPhoneError(null);
-              setShowRecommendations(true);
-            }}
-          />
-          {phoneError ? (
-            <span className='error-message'>{phoneError}</span>
-          ) : null}
-        </label>
+        <div
+          ref={recommendationsRootRef}
+          className='field field-wide modal-suggestions-anchor'
+        >
+          <label className='field'>
+            <span>{t('clients.modal.fields.phone')}</span>
+            <input
+              value={form.phone}
+              placeholder='+38 067 111 22 33'
+              onBlur={() => {
+                validatePhone(form.phone);
+              }}
+              onChange={(event) => {
+                const val = event.target.value;
+                const nextPhones =
+                  Array.isArray(form.phones) && form.phones.length > 0
+                    ? [val, ...form.phones.slice(1)]
+                    : [val];
+                onChange('phone', val);
+                onChange('phones', nextPhones);
+                setPhoneError(null);
+                setShowRecommendations(true);
+              }}
+            />
+            {phoneError ? (
+              <span className='error-message'>{phoneError}</span>
+            ) : null}
+          </label>
 
-        <label className='field'>
-          <span>{t('clients.modal.fields.name')}</span>
-          <input
-            value={form.name}
-            placeholder={t('legacy.clientForm.namePlaceholder')}
-            onChange={(event) => {
-              onChange('name', event.target.value);
-              setShowRecommendations(true);
-            }}
-          />
-        </label>
+          <label className='field'>
+            <span>{t('clients.modal.fields.name')}</span>
+            <input
+              value={form.name}
+              placeholder={t('legacy.clientForm.namePlaceholder')}
+              onChange={(event) => {
+                onChange('name', event.target.value);
+                setShowRecommendations(true);
+              }}
+            />
+          </label>
 
-        {isRecommendationsVisible ? (
-          <div className='field field-wide'>
-            <span>{t('legacy.clientForm.similarClients')}</span>
-            <div className='suggestions-panel'>
-              {recommendations.map((client) => (
-                <button
-                  key={client.id}
-                  className='suggestion-item'
-                  type='button'
-                  onMouseDown={(event) => event.preventDefault()}
-                  onClick={() => {
-                    onPickExisting(client);
-                    setShowRecommendations(false);
-                  }}
-                >
-                  <strong>{client.name}</strong>
-                  <span>
-                    {client.phone} • {client.status}
-                  </span>
-                </button>
-              ))}
+          {isRecommendationsVisible ? (
+            <div className='field field-wide'>
+              <span>{t('legacy.clientForm.similarClients')}</span>
+              <div className='suggestions-panel'>
+                {recommendations.map((client) => (
+                  <button
+                    key={client.id}
+                    className='suggestion-item'
+                    type='button'
+                    onMouseDown={(event) => event.preventDefault()}
+                    onClick={() => {
+                      onPickExisting(client);
+                      setShowRecommendations(false);
+                    }}
+                  >
+                    <strong>{client.name}</strong>
+                    <span>
+                      {client.phone} • {client.status}
+                    </span>
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
-        ) : null}
+          ) : null}
         </div>
 
         <label className='field field-wide'>

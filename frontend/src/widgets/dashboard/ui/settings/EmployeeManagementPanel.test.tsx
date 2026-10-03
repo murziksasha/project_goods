@@ -1,8 +1,8 @@
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { I18nextProvider } from 'react-i18next';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { initialEmployeeForm } from '../../../../entities/employee/model/forms';
-import type { Employee } from '../../../../entities/employee/model/types';
+import { initialEmployeeForm } from '../../../../entities/employee';
+import type { Employee } from '../../../../entities/employee';
 import i18n from '../../../../shared/i18n/config';
 import { EmployeeManagementPanel } from './EmployeeManagementPanel';
 

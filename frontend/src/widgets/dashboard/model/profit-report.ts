@@ -4,8 +4,8 @@ import type {
   ProfitMarginRow,
   ProfitReportPeriod,
   ProfitReportSource,
-} from '../../../entities/finance/model/types';
-import type { ServiceCatalogItem } from '../../../entities/service-catalog/model/types';
+} from '../../../entities/finance';
+import type { ServiceCatalogItem } from '../../../entities/service-catalog';
 import type { AnalyticsDateRange } from './analytics-date-range';
 
 export const profitReportFiltersStorageKey =

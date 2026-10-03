@@ -1,9 +1,10 @@
+import type React from 'react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { Sale } from '../../../../../entities/sale/model/types';
-import { isRepairOrder } from '../../../../../entities/sale/lib/sale-kind';
-import type { Cashbox } from '../../../../../entities/finance/model/types';
-import type { PrintForm } from '../../../../../entities/settings/model/types';
+import type { Sale } from '../../../../../entities/sale';
+import { isRepairOrder } from '../../../../../entities/sale';
+import type { Cashbox } from '../../../../../entities/finance';
+import type { PrintForm } from '../../../../../entities/settings';
 import { formatCurrency } from '../../../../../shared/lib/format';
 import { parseDecimal } from '../../../../../shared/lib/decimal';
 import {
@@ -26,7 +27,7 @@ import { UnboundSerialIssueModal } from './UnboundSerialIssueModal';
 import {
   defaultPrintForms,
   normalizePrintFormsForView,
-} from '../../../../../entities/settings/model/printForms';
+} from '../../../../../entities/settings';
 
 type PaymentAction =
   | 'deposit'
@@ -72,7 +73,7 @@ const getLineItemsTotal = (lineItems: OrderLineItem[]) =>
     0,
   );
 
-type PaymentModalProps = {
+export interface PaymentModalProps {
   sale: Sale;
   paymentTargetStatus: PaymentTargetStatus;
   printForms: PrintForm[];
@@ -97,7 +98,7 @@ type PaymentModalProps = {
   onSubmit: (action: PaymentAction) => void;
 };
 
-export const PaymentModal = ({
+export const PaymentModal: React.FC<PaymentModalProps> = ({
   sale,
   paymentTargetStatus,
   printForms,
@@ -120,7 +121,7 @@ export const PaymentModal = ({
   onClose,
   onOpenPrint,
   onSubmit,
-}: PaymentModalProps) => {
+}) => {
   const { t } = useTranslation();
   const [isUnboundSerialIssueOpen, setIsUnboundSerialIssueOpen] =
     useState(false);
@@ -342,7 +343,7 @@ export const PaymentModal = ({
   );
 };
 
-type RefundModalProps = {
+export interface RefundModalProps {
   cashboxes: Cashbox[];
   selectedCashboxId: string;
   amount: string;
@@ -356,7 +357,7 @@ type RefundModalProps = {
   onSubmit: () => void;
 };
 
-export const RefundModal = ({
+export const RefundModal: React.FC<RefundModalProps> = ({
   cashboxes,
   selectedCashboxId,
   amount,
@@ -368,7 +369,7 @@ export const RefundModal = ({
   onAmountChange,
   onClose,
   onSubmit,
-}: RefundModalProps) => {
+}) => {
   const { t } = useTranslation();
   const numericAmount = parseDecimal(amount);
   const isSubmitDisabled =
@@ -470,7 +471,7 @@ export const RefundModal = ({
   );
 };
 
-type ReturnLineItemModalProps = {
+export interface ReturnLineItemModalProps {
   sale: Sale;
   item: OrderLineItem;
   warehouse: string;
@@ -481,7 +482,7 @@ type ReturnLineItemModalProps = {
   onSubmit: () => void;
 };
 
-type ReturnSaleModalProps = {
+export interface ReturnSaleModalProps {
   sale: Sale;
   lineItems: OrderLineItem[];
   cashboxes: Cashbox[];
@@ -498,7 +499,7 @@ type ReturnSaleModalProps = {
   onSubmit: () => void;
 };
 
-export const ReturnSaleModal = ({
+export const ReturnSaleModal: React.FC<ReturnSaleModalProps> = ({
   sale,
   lineItems,
   cashboxes,
@@ -513,7 +514,7 @@ export const ReturnSaleModal = ({
   onWarehouseChange,
   onClose,
   onSubmit,
-}: ReturnSaleModalProps) => {
+}) => {
   const { t } = useTranslation();
   const productItems = lineItems.filter(
     (item) => item.kind === 'product',
@@ -642,7 +643,7 @@ export const ReturnSaleModal = ({
   );
 };
 
-export const ReturnLineItemModal = ({
+export const ReturnLineItemModal: React.FC<ReturnLineItemModalProps> = ({
   sale,
   item,
   warehouse,
@@ -651,7 +652,7 @@ export const ReturnLineItemModal = ({
   onWarehouseChange,
   onClose,
   onSubmit,
-}: ReturnLineItemModalProps) => {
+}) => {
   const { t } = useTranslation();
   const itemTotal = item.price * item.quantity;
   const isSubmitDisabled =
@@ -726,17 +727,17 @@ export const ReturnLineItemModal = ({
   );
 };
 
-type MessageModalProps = {
+export interface MessageModalProps {
   title: string;
   message: string;
   onClose: () => void;
 };
 
-export const MessageModal = ({
+export const MessageModal: React.FC<MessageModalProps> = ({
   title,
   message,
   onClose,
-}: MessageModalProps) => {
+}) => {
   const { t } = useTranslation();
 
   return (

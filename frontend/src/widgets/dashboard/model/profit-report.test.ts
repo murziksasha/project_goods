@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import type {
   FinanceProfitReport,
   ProfitMarginRow,
-} from '../../../entities/finance/model/types';
+} from '../../../entities/finance';
 import {
   buildProfitChartRows,
   buildProfitMixShare,

@@ -1,8 +1,9 @@
+import type React from 'react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { createRuntimeId } from '../../../../shared/lib/runtime-id';
 
-type NotificationsProps = {
+export interface NotificationsProps {
   error: string;
   successMessage: string;
   isOffline: boolean;
@@ -19,11 +20,11 @@ const maxToastsInStack = 5;
 const successToastTtlMs = 3000;
 const errorToastTtlMs = 6000;
 
-export const Notifications = ({
+export const Notifications: React.FC<NotificationsProps> = ({
   error,
   successMessage,
   isOffline,
-}: NotificationsProps) => {
+}) => {
   const { t } = useTranslation();
   const [toasts, setToasts] = useState<ToastItem[]>([]);
   const [pausedToastId, setPausedToastId] = useState<string | null>(null);

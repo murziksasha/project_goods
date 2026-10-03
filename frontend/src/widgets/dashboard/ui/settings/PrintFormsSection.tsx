@@ -1,10 +1,11 @@
+import type React from 'react';
 import { useTranslation } from 'react-i18next';
-import type { PrintForm } from '../../../../entities/settings/model/types';
+import type { PrintForm } from '../../../../entities/settings';
 import { Button } from '../../../../shared/ui/Button';
 import { PageHeader } from '../../../../shared/ui/PageHeader';
 import { PrintFormBuilder } from './PrintFormBuilder';
 
-type PrintFormsSectionProps = {
+export interface PrintFormsSectionProps {
   printForms: PrintForm[];
   selectedForm?: PrintForm;
   previewValues: Record<string, string>;
@@ -16,7 +17,7 @@ type PrintFormsSectionProps = {
   onUpdateForms: (forms: PrintForm[]) => void;
 };
 
-export const PrintFormsSection = ({
+export const PrintFormsSection: React.FC<PrintFormsSectionProps> = ({
   printForms,
   selectedForm,
   previewValues,
@@ -26,7 +27,7 @@ export const PrintFormsSection = ({
   onSelectForm,
   onUpdateForm,
   onUpdateForms,
-}: PrintFormsSectionProps) => {
+}) => {
   const { t } = useTranslation();
 
   return (

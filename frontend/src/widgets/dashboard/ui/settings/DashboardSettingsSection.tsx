@@ -1,11 +1,12 @@
+import type React from 'react';
 import { useTranslation } from 'react-i18next';
-import type { DashboardPreferences, RateProvider } from '../../../../entities/settings/model/types';
+import type { DashboardPreferences, RateProvider } from '../../../../entities/settings';
 import { StatusBadge } from '../../../../shared/ui/StatusBadge';
 
 const AVAILABLE_CURRENCIES = ['USD', 'EUR', 'GBP', 'PLN'] as const;
 const AVAILABLE_RATE_PROVIDERS: RateProvider[] = ['nbu', 'privat', 'mono'];
 
-type DashboardSettingsSectionProps = {
+export interface DashboardSettingsSectionProps {
   preferences: DashboardPreferences;
   onChange: (preferences: DashboardPreferences) => void;
 };
@@ -32,10 +33,10 @@ const ToggleRow = ({
   </label>
 );
 
-export const DashboardSettingsSection = ({
+export const DashboardSettingsSection: React.FC<DashboardSettingsSectionProps> = ({
   preferences,
   onChange,
-}: DashboardSettingsSectionProps) => {
+}) => {
   const { t } = useTranslation();
   const ratesEnabled = preferences.exchangeRatesEnabled;
   const weatherEnabled = preferences.weatherEnabled;

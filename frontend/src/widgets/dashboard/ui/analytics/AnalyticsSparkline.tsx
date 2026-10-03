@@ -1,12 +1,13 @@
-type AnalyticsSparklineProps = {
+import type React from 'react';
+export interface AnalyticsSparklineProps {
   values: number[];
   color?: string;
 };
 
-export const AnalyticsSparkline = ({
+export const AnalyticsSparkline: React.FC<AnalyticsSparklineProps> = ({
   values,
   color = 'var(--color-primary)',
-}: AnalyticsSparklineProps) => {
+}) => {
   const width = 88;
   const height = 28;
   const maxValue = Math.max(1, ...values);

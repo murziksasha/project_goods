@@ -10,7 +10,7 @@ import {
   shouldCaptureReceivedBy,
   stockLockedRepairStatuses,
 } from '../orders/workspace/orders-workspace-shared';
-import type { Sale } from '../../../../entities/sale/model/types';
+import type { Sale } from '../../../../entities/sale';
 import {
   computeColumnRankAfterDrop,
   computeColumnRankAfterMove,

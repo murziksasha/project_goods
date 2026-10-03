@@ -1,21 +1,10 @@
-import type { Sale } from '../../sale/model/types';
+import type {
+  Client,
+  ClientStatus,
+  Sale,
+} from '../../../shared/types/domain';
 
-export type ClientStatus = 'new' | 'vip' | 'opt' | 'blacklist' | 'ok';
-
-export type Client = {
-  id: string;
-  phone: string;
-  phones: string[];
-  name: string;
-  email: string;
-  address: string;
-  registrationId: string;
-  iban: string;
-  note: string;
-  status: ClientStatus | '';
-  createdAt: string;
-  updatedAt: string;
-};
+export type { Client, ClientStatus, Sale };
 
 export type ClientFormValues = {
   phone: string;
@@ -39,6 +28,22 @@ export type ClientHistory = {
     totalRevenue: number;
     totalItemsSold: number;
   };
+};
+
+export type ClientStats = {
+  visits: number;
+  income: number;
+  serviceCount: number;
+  salesCount: number;
+  orderNumbers: string[];
+};
+
+export const defaultClientStats: ClientStats = {
+  visits: 0,
+  income: 0,
+  serviceCount: 0,
+  salesCount: 0,
+  orderNumbers: [],
 };
 
 export type ClientImportReportEntry = {

@@ -1,33 +1,34 @@
-export type TableSkeletonProps = {
+import type React from 'react';
+export interface TableSkeletonProps {
   rows?: number;
   columns?: number;
   className?: string;
   label?: string;
-};
+}
 
-export const TableSkeleton = ({
+export const TableSkeleton: React.FC<TableSkeletonProps> = ({
   rows = 6,
   columns = 5,
   className = '',
   label = 'Loading',
-}: TableSkeletonProps) => (
+}) => (
   <div
     className={`table-skeleton ${className}`.trim()}
-    role="status"
-    aria-busy="true"
+    role='status'
+    aria-busy='true'
     aria-label={label}
   >
-    <div className="table-skeleton-header" aria-hidden="true">
+    <div className='table-skeleton-header' aria-hidden='true'>
       {Array.from({ length: columns }, (_, columnIndex) => (
         <span
           key={`header-${columnIndex}`}
-          className="skeleton-line skeleton-line-section"
+          className='skeleton-line skeleton-line-section'
         />
       ))}
     </div>
-    <div className="table-skeleton-body" aria-hidden="true">
+    <div className='table-skeleton-body' aria-hidden='true'>
       {Array.from({ length: rows }, (_, rowIndex) => (
-        <div key={`row-${rowIndex}`} className="table-skeleton-row">
+        <div key={`row-${rowIndex}`} className='table-skeleton-row'>
           {Array.from({ length: columns }, (_, columnIndex) => (
             <span
               key={`cell-${rowIndex}-${columnIndex}`}

@@ -1,12 +1,13 @@
+import type React from 'react';
 import { useTranslation } from 'react-i18next';
 import type {
   EmployeeFormValues,
   EmployeePermission,
-} from '../../../../entities/employee/model/types';
+} from '../../../../entities/employee';
 import {
   defaultEmployeePermissionsByRole,
   employeeRoleOptions,
-} from '../../../../entities/employee/model/types';
+} from '../../../../entities/employee';
 import { Button } from '../../../../shared/ui/Button';
 import { Modal } from '../../../../shared/ui/Modal';
 import { employeePermissionLabelKey, employeeRoleLabelKey } from './employee-ui';
@@ -64,7 +65,7 @@ const permissionGroups: Array<{
   },
 ];
 
-type EmployeeFormModalProps = {
+export interface EmployeeFormModalProps {
   form: EmployeeFormValues;
   isOpen: boolean;
   isSaving: boolean;
@@ -79,7 +80,7 @@ type EmployeeFormModalProps = {
   onClose: () => void;
 };
 
-export const EmployeeFormModal = ({
+export const EmployeeFormModal: React.FC<EmployeeFormModalProps> = ({
   form,
   isOpen,
   isSaving,
@@ -89,7 +90,7 @@ export const EmployeeFormModal = ({
   onChange,
   onSubmit,
   onClose,
-}: EmployeeFormModalProps) => {
+}) => {
   const { t } = useTranslation();
   const isOwnerRoleSelected = form.role === 'owner';
   const canSubmit =

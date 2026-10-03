@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import type { Cashbox } from '../../../../entities/finance/model/types';
+import type { Cashbox } from '../../../../entities/finance';
 import {
   accountingCashboxOrderStorageKey,
   accountingExpandedFinanceSettingsCardStorageKey,

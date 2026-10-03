@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import type { WeatherProvider } from '../../settings/model/types';
+import type { WeatherProvider } from '../../../shared/types/domain';
 import { apiClient, getApiErrorMessage } from '../../../shared/api/http';
 import { queryKeys } from '../../../shared/api/queryClient';
 

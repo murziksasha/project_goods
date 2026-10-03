@@ -1,6 +1,6 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { Client } from '../../../../entities/client/model/types';
+import type { Client } from '../../../../entities/client';
 import * as clipboard from '../../../../shared/lib/clipboard';
 import { ClientsTable } from './ClientsTable';
 

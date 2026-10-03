@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { TFunction } from 'i18next';
-import type { Sale } from '../../../entities/sale/model/types';
+import type { Sale } from '../../../entities/sale';
 import {
   getSaleClientDisplayName,
   getSaleClientSearchValues,

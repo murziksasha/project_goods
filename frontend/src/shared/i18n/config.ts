@@ -19,7 +19,9 @@ function getInitialLanguage(): string {
   // Browser detection fallback
   const navLang =
     (typeof navigator !== 'undefined' &&
-      (navigator.language || (navigator as unknown as { userLanguage?: string }).userLanguage)) ||
+      (navigator.language ||
+        (navigator as unknown as { userLanguage?: string })
+          ?.userLanguage)) ||
     '';
   return String(navLang).toLowerCase().startsWith('uk') ? 'uk' : 'en';
 }
@@ -37,7 +39,15 @@ if (!i18n.isInitialized) {
     interpolation: {
       escapeValue: false,
     },
-    debug: (import.meta as unknown as { env?: { DEV?: boolean } }).env?.DEV ?? false,
+    debug:
+      (
+        import.meta as unknown as {
+          env?: { DEV?: boolean; MODE?: string };
+        }
+      ).env?.MODE === 'test'
+        ? false
+        : ((import.meta as unknown as { env?: { DEV?: boolean } }).env
+            ?.DEV ?? false),
     react: {
       useSuspense: false,
       bindI18n: 'languageChanged',

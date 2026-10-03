@@ -1,3 +1,4 @@
+import type React from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Client } from '../model/types';
 import {
@@ -7,10 +8,9 @@ import {
   getEffectiveClientStatusLogic,
 } from '../model/constants';
 import { formatUkrainianPhone } from '../../../shared/lib/phoneFormatter';
-import type { ClientStats } from '../../../widgets/dashboard/model/clients-workspace';
-import { defaultClientStats } from '../../../widgets/dashboard/model/clients-workspace';
+import { defaultClientStats, type ClientStats } from '../model/types';
 
-type ClientListProps = {
+export interface ClientListProps {
   clients: Client[];
   isLoading: boolean;
   searchQuery: string;
@@ -19,9 +19,9 @@ type ClientListProps = {
   onSelect: (client: Client) => void;
   onEdit: (client: Client) => void;
   onDelete: (client: Client) => void;
-};
+}
 
-export const ClientList = ({
+export const ClientList: React.FC<ClientListProps> = ({
   clients,
   isLoading,
   searchQuery,
@@ -30,11 +30,13 @@ export const ClientList = ({
   onSelect,
   onEdit,
   onDelete,
-}: ClientListProps) => {
+}) => {
   const { t } = useTranslation();
 
   if (isLoading) {
-    return <p className='empty-state'>{t('clients.table.loading')}</p>;
+    return (
+      <p className='empty-state'>{t('clients.table.loading')}</p>
+    );
   }
 
   if (clients.length === 0) {
@@ -69,7 +71,8 @@ export const ClientList = ({
               <p>{formatUkrainianPhone(client.phone)}</p>
             </div>
             {(() => {
-              const stats = statsByClient?.get(client.id) ?? defaultClientStats;
+              const stats =
+                statsByClient?.get(client.id) ?? defaultClientStats;
               const effectiveStatus = getEffectiveClientStatusLogic(
                 client.status || '',
                 stats.visits,
@@ -78,7 +81,9 @@ export const ClientList = ({
                 <span
                   className={`status-pill ${getClientStatusClass(effectiveStatus || '')}`}
                   style={{
-                    backgroundColor: getClientStatusColor(effectiveStatus || ''),
+                    backgroundColor: getClientStatusColor(
+                      effectiveStatus || '',
+                    ),
                     color: 'white',
                   }}
                 >

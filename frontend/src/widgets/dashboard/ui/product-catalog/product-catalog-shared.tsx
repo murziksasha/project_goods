@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
-import type { ProductFormValues } from '../../../../entities/product/model/types';
-import type { ServiceCatalogFormValues } from '../../../../entities/service-catalog/model/types';
+import type { ProductFormValues } from '../../../../entities/product';
+import type { ServiceCatalogFormValues } from '../../../../entities/service-catalog';
 
 export type CatalogTab = 'products' | 'catalogProducts' | 'services' | 'suppliers';
 export type CatalogActivityFilter = 'all' | 'active' | 'inactive';

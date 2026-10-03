@@ -3,7 +3,7 @@ import type {
   Cashbox,
   CreateFinanceTransactionPayload,
   FinanceTransactionType,
-} from '../../../../entities/finance/model/types';
+} from '../../../../entities/finance';
 import i18n from '../../../../shared/i18n/config';
 import { parseDecimal } from '../../../../shared/lib/decimal';
 import { createRuntimeId } from '../../../../shared/lib/runtime-id';

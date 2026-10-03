@@ -1,9 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Sale } from './model';
-import { getSaleById, listOccupiedSerialNumbers, listSales } from './list';
+import {
+  getSaleById,
+  listOccupiedSerialNumbers,
+  listSales,
+} from './list';
 
 vi.mock('../../shared/lib/formatters', () => ({
-  formatSale: (sale: { _id: { toString: () => string }; kind: string }) => ({
+  formatSale: (sale: {
+    _id: { toString: () => string };
+    kind: string;
+  }) => ({
     id: sale._id.toString(),
     kind: sale.kind,
   }),
@@ -15,13 +22,19 @@ describe('listSales', () => {
   });
 
   it('loads full list without filters', async () => {
-    const lean = vi.fn().mockResolvedValue([
-      { _id: { toString: () => '1' }, kind: 'sale' },
-    ]);
+    const lean = vi
+      .fn()
+      .mockResolvedValue([
+        { _id: { toString: () => '1' }, kind: 'sale' },
+      ]);
     const sort = vi.fn().mockReturnValue({ lean });
-    const find = vi.spyOn(Sale, 'find').mockReturnValue({ sort } as never);
+    const find = vi
+      .spyOn(Sale, 'find')
+      .mockReturnValue({ sort } as never);
 
-    await expect(listSales({})).resolves.toEqual([{ id: '1', kind: 'sale' }]);
+    await expect(listSales({})).resolves.toEqual([
+      { id: '1', kind: 'sale' },
+    ]);
     expect(find).toHaveBeenCalledWith({});
     expect(sort).toHaveBeenCalledWith({ saleDate: -1 });
   });
@@ -59,13 +72,15 @@ describe('listSales', () => {
 
     await listSales({ compact: '1' });
 
-    expect(select).toHaveBeenCalledWith('-timeline -paymentHistory');
+    expect(select).toHaveBeenCalledWith('-timeline');
   });
 
   it('returns a paginated envelope when page is set', async () => {
-    const lean = vi.fn().mockResolvedValue([
-      { _id: { toString: () => '1' }, kind: 'repair' },
-    ]);
+    const lean = vi
+      .fn()
+      .mockResolvedValue([
+        { _id: { toString: () => '1' }, kind: 'repair' },
+      ]);
     const limit = vi.fn().mockReturnValue({ lean });
     const skip = vi.fn().mockReturnValue({ limit });
     const select = vi.fn().mockReturnValue({ skip });
@@ -74,7 +89,12 @@ describe('listSales', () => {
     vi.spyOn(Sale, 'countDocuments').mockResolvedValue(41);
 
     await expect(
-      listSales({ kind: 'repair', page: '2', pageSize: '20', compact: '1' }),
+      listSales({
+        kind: 'repair',
+        page: '2',
+        pageSize: '20',
+        compact: '1',
+      }),
     ).resolves.toEqual({
       items: [{ id: '1', kind: 'repair' }],
       total: 41,
@@ -83,7 +103,7 @@ describe('listSales', () => {
     });
     expect(skip).toHaveBeenCalledWith(20);
     expect(limit).toHaveBeenCalledWith(20);
-    expect(select).toHaveBeenCalledWith('-timeline -paymentHistory');
+    expect(select).toHaveBeenCalledWith('-timeline');
   });
 
   it('loads a full sale by id', async () => {
@@ -93,7 +113,9 @@ describe('listSales', () => {
     });
     vi.spyOn(Sale, 'findById').mockReturnValue({ lean } as never);
 
-    await expect(getSaleById('507f1f77bcf86cd799439011')).resolves.toEqual({
+    await expect(
+      getSaleById('507f1f77bcf86cd799439011'),
+    ).resolves.toEqual({
       id: 'sale-1',
       kind: 'repair',
     });

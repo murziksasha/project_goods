@@ -48,7 +48,7 @@ Canonical order (keys): `number`, `product`, `quantity`, `price`, `total`, `paid
 
 ## Modal and picker
 
-- `SupplierOrderModal`: price/qty steppers (1 UAH / qty 1), supplier `Choose` nested picker (300ms debounce, 10/page). Supplier and catalog-product typeahead lists follow [SPEC_SUGGESTIONS_BEHAVIOR.md](./SPEC_SUGGESTIONS_BEHAVIOR.md#dismiss-without-select-rule).
+- `SupplierOrderModal`: price/qty steppers (1 UAH / qty 1), supplier `Choose` nested picker (300ms debounce, 10/page). Supplier suggestions support drag-and-drop and arrow navigation/reordering (keyboard `ArrowDown`/`ArrowUp`/`Enter`, shift buttons, drag handle) following [SPEC_SUGGESTIONS_BEHAVIOR.md](./SPEC_SUGGESTIONS_BEHAVIOR.md#reorderable-suggestions-behavior-drag--drop-visual-arrows-keyboard-navigation). Supplier and catalog-product typeahead lists follow [SPEC_SUGGESTIONS_BEHAVIOR.md](./SPEC_SUGGESTIONS_BEHAVIOR.md#dismiss-without-select-rule).
 - Content locked after receipt/final status or paid/`without_payment` (take-on-charge remains when allowed).
 - Paid orders cannot be cancelled (`POST .../cancel` rejected).
 - Full-order modal: **Cancel order** (confirm) cancels the unpaid order. **Cancel item** cancels one unreceived line (`new` / `approved` receipt), including on `approved` + paid/`without_payment` orders. There is no hard-delete.

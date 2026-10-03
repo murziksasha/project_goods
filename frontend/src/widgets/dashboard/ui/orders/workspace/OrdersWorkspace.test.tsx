@@ -1,6 +1,23 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  QueryClient,
+  QueryClientProvider,
+} from '@tanstack/react-query';
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react';
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from 'vitest';
 import type { ComponentProps } from 'react';
 import * as financeApi from '../../../../../entities/finance/api/financeApi';
 import * as saleApi from '../../../../../entities/sale/api/saleApi';
@@ -53,61 +70,71 @@ const {
   getSalesPageMock: vi.fn(),
   createFinanceTransactionMock: vi.fn(),
   getCashboxesMock: vi.fn(
-    async (_options?: { includeArchived?: boolean }): Promise<Cashbox[]> => [],
+    async (_options?: {
+      includeArchived?: boolean;
+    }): Promise<Cashbox[]> => [],
   ),
 }));
 
-vi.mock('../../../../../entities/sale/api/saleApi', async (importOriginal) => {
-  const actual = await importOriginal<
-    typeof import('../../../../../entities/sale/api/saleApi')
-  >();
-  return {
-    ...actual,
-    acceptSalePayment: acceptSalePaymentMock,
-    refundSalePayment: refundSalePaymentMock,
-    updateSaleFavorite: updateSaleFavoriteMock,
-    updateSaleWorkspace: updateSaleWorkspaceMock,
-    getSaleById: getSaleByIdMock,
-    getSalesPage: getSalesPageMock,
-    useSalesPageQuery: (
-      _enabled: boolean,
-      params: {
-        kind?: 'sale' | 'repair';
-        page?: number;
-        pageSize?: number;
-      } = {},
-    ) => {
-      const rows = testSales.filter(
-        (item) => !params.kind || item.kind === params.kind,
-      );
-      const page = params.page ?? 1;
-      const pageSize = params.pageSize ?? 30;
-      const start = (page - 1) * pageSize;
-      return {
-        data: {
-          items: rows.slice(start, start + pageSize),
-          total: rows.length,
-          page,
-          pageSize,
-        },
-        isSuccess: true,
-        isLoading: false,
-        isFetching: false,
-        error: null,
-      };
-    },
-  };
-});
-vi.mock('../../../../../entities/finance/api/financeApi', async (importOriginal) => {
-  const actual = await importOriginal<
-    typeof import('../../../../../entities/finance/api/financeApi')
-  >();
-  return {
-    ...actual,
-    createFinanceTransaction: createFinanceTransactionMock,
-    getCashboxes: getCashboxesMock,
-  };
-});
+vi.mock(
+  '../../../../../entities/sale/api/saleApi',
+  async (importOriginal) => {
+    const actual =
+      await importOriginal<
+        typeof import('../../../../../entities/sale/api/saleApi')
+      >();
+    return {
+      ...actual,
+      acceptSalePayment: acceptSalePaymentMock,
+      refundSalePayment: refundSalePaymentMock,
+      updateSaleFavorite: updateSaleFavoriteMock,
+      updateSaleWorkspace: updateSaleWorkspaceMock,
+      getSaleById: getSaleByIdMock,
+      getSalesPage: getSalesPageMock,
+      useSalesPageQuery: (
+        _enabled: boolean,
+        params: {
+          kind?: 'sale' | 'repair';
+          page?: number;
+          pageSize?: number;
+        } = {},
+      ) => {
+        const rows = testSales.filter(
+          (item) => !params.kind || item.kind === params.kind,
+        );
+        const page = params.page ?? 1;
+        const pageSize = params.pageSize ?? 30;
+        const start = (page - 1) * pageSize;
+        return {
+          data: {
+            items: rows.slice(start, start + pageSize),
+            total: rows.length,
+            page,
+            pageSize,
+          },
+          isSuccess: true,
+          isLoading: false,
+          isFetching: false,
+          error: null,
+        };
+      },
+    };
+  },
+);
+vi.mock(
+  '../../../../../entities/finance/api/financeApi',
+  async (importOriginal) => {
+    const actual =
+      await importOriginal<
+        typeof import('../../../../../entities/finance/api/financeApi')
+      >();
+    return {
+      ...actual,
+      createFinanceTransaction: createFinanceTransactionMock,
+      getCashboxes: getCashboxesMock,
+    };
+  },
+);
 
 const restoreApiMocks = () => {
   useSupplierOrdersQueryMock.mockImplementation(() => ({
@@ -123,22 +150,44 @@ const restoreApiMocks = () => {
     fetchStatus: 'idle',
     refetch: vi.fn(),
   }));
-  getCashboxesMock.mockImplementation(async (): Promise<Cashbox[]> => []);
+  getCashboxesMock.mockImplementation(
+    async (): Promise<Cashbox[]> => [],
+  );
 
-  vi.spyOn(supplierOrderApi, 'useSupplierOrdersQuery').mockImplementation(
+  vi.spyOn(
+    supplierOrderApi,
+    'useSupplierOrdersQuery',
+  ).mockImplementation(
     useSupplierOrdersQueryMock as unknown as typeof supplierOrderApi.useSupplierOrdersQuery,
   );
-  vi.spyOn(supplierOrderApi, 'invalidateSupplierOrderQueries').mockResolvedValue(
-    undefined,
+  vi.spyOn(
+    supplierOrderApi,
+    'invalidateSupplierOrderQueries',
+  ).mockResolvedValue(undefined);
+  vi.spyOn(saleApi, 'acceptSalePayment').mockImplementation(
+    acceptSalePaymentMock,
   );
-  vi.spyOn(saleApi, 'acceptSalePayment').mockImplementation(acceptSalePaymentMock);
-  vi.spyOn(saleApi, 'refundSalePayment').mockImplementation(refundSalePaymentMock);
-  vi.spyOn(saleApi, 'updateSaleFavorite').mockImplementation(updateSaleFavoriteMock);
-  vi.spyOn(saleApi, 'updateSaleWorkspace').mockImplementation(updateSaleWorkspaceMock);
-  vi.spyOn(saleApi, 'getSaleById').mockImplementation(getSaleByIdMock);
-  vi.spyOn(saleApi, 'getSalesPage').mockImplementation(getSalesPageMock);
-  vi.spyOn(financeApi, 'createFinanceTransaction').mockImplementation(createFinanceTransactionMock);
-  vi.spyOn(financeApi, 'getCashboxes').mockImplementation(getCashboxesMock);
+  vi.spyOn(saleApi, 'refundSalePayment').mockImplementation(
+    refundSalePaymentMock,
+  );
+  vi.spyOn(saleApi, 'updateSaleFavorite').mockImplementation(
+    updateSaleFavoriteMock,
+  );
+  vi.spyOn(saleApi, 'updateSaleWorkspace').mockImplementation(
+    updateSaleWorkspaceMock,
+  );
+  vi.spyOn(saleApi, 'getSaleById').mockImplementation(
+    getSaleByIdMock,
+  );
+  vi.spyOn(saleApi, 'getSalesPage').mockImplementation(
+    getSalesPageMock,
+  );
+  vi.spyOn(financeApi, 'createFinanceTransaction').mockImplementation(
+    createFinanceTransactionMock,
+  );
+  vi.spyOn(financeApi, 'getCashboxes').mockImplementation(
+    getCashboxesMock,
+  );
 };
 
 beforeEach(() => {
@@ -265,7 +314,9 @@ const renderWorkspace = (
   });
   getSalesPageMock.mockImplementation(async (params = {}) => {
     const kind = params.kind;
-    const rows = testSales.filter((item) => !kind || item.kind === kind);
+    const rows = testSales.filter(
+      (item) => !kind || item.kind === kind,
+    );
     const page = params.page ?? 1;
     const pageSize = params.pageSize ?? 30;
     const start = (page - 1) * pageSize;
@@ -280,44 +331,44 @@ const renderWorkspace = (
   return render(
     <QueryClientProvider client={queryClient}>
       <OrdersWorkspace
-      sales={[]}
-      employees={[]}
-      isLoading={false}
-      activeTab="orders"
-      visibleTabs={['orders', 'sales']}
-      searchValue=""
-      currentEmployee={employee}
-      canCreateOrders={true}
-      onActiveTabChange={vi.fn()}
-      onSearchChange={vi.fn()}
-      onCreateOrder={vi.fn()}
-      createOrderHref="/?page=orders&ordersTab=orders&createOrder=repair"
-      getCreateOrderHref={(tab) =>
-        `/?page=orders&ordersTab=${tab}&createOrder=${tab === 'sales' ? 'sale' : 'repair'}`
-      }
-      onSaleUpdate={vi.fn()}
-      onError={vi.fn()}
-      onSuccess={vi.fn()}
-      onOpenClientCard={vi.fn()}
-      products={[]}
-      clientDevices={[]}
-      catalogProducts={[]}
-      printForms={[]}
-      printCompanySettings={{
-        serviceName: 'Service CRM',
-        company: 'Service CRM',
-        companyAddress: '',
-        companyId: '',
-        companyIban: '',
-        companyEmail: '',
-        companySite: '',
-      }}
-      onCreateClientDevice={vi.fn(async () => true)}
-      onUpdateClientDevice={vi.fn(async () => true)}
-      onDeleteClientDevice={vi.fn(async () => true)}
-      onUpdateProductModel={vi.fn(async () => true)}
-      {...props}
-    />
+        sales={[]}
+        employees={[]}
+        isLoading={false}
+        activeTab='orders'
+        visibleTabs={['orders', 'sales']}
+        searchValue=''
+        currentEmployee={employee}
+        canCreateOrders={true}
+        onActiveTabChange={vi.fn()}
+        onSearchChange={vi.fn()}
+        onCreateOrder={vi.fn()}
+        createOrderHref='/?page=orders&ordersTab=orders&createOrder=repair'
+        getCreateOrderHref={(tab) =>
+          `/?page=orders&ordersTab=${tab}&createOrder=${tab === 'sales' ? 'sale' : 'repair'}`
+        }
+        onSaleUpdate={vi.fn()}
+        onError={vi.fn()}
+        onSuccess={vi.fn()}
+        onOpenClientCard={vi.fn()}
+        products={[]}
+        clientDevices={[]}
+        catalogProducts={[]}
+        printForms={[]}
+        printCompanySettings={{
+          serviceName: 'Service CRM',
+          company: 'Service CRM',
+          companyAddress: '',
+          companyId: '',
+          companyIban: '',
+          companyEmail: '',
+          companySite: '',
+        }}
+        onCreateClientDevice={vi.fn(async () => true)}
+        onUpdateClientDevice={vi.fn(async () => true)}
+        onDeleteClientDevice={vi.fn(async () => true)}
+        onUpdateProductModel={vi.fn(async () => true)}
+        {...props}
+      />
     </QueryClientProvider>,
   );
 };
@@ -356,7 +407,9 @@ describe('OrdersWorkspace', () => {
     fireEvent.click(orderLink);
 
     expect(onSelectedSaleIdChange).toHaveBeenCalledWith('sale-1');
-    expect(await screen.findByLabelText('Order card')).toBeInTheDocument();
+    expect(
+      await screen.findByLabelText('Order card'),
+    ).toBeInTheDocument();
 
     fireEvent.click(screen.getByLabelText('Close order card'));
 
@@ -364,10 +417,12 @@ describe('OrdersWorkspace', () => {
   });
 
   it('scrolls the order card into view when opening from the order number link', async () => {
-    vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => {
-      callback(0);
-      return 0;
-    });
+    vi.spyOn(window, 'requestAnimationFrame').mockImplementation(
+      (callback) => {
+        callback(0);
+        return 0;
+      },
+    );
 
     renderWorkspace({
       sales: [sale],
@@ -375,15 +430,19 @@ describe('OrdersWorkspace', () => {
 
     fireEvent.click(screen.getByRole('link', { name: /r000001/i }));
 
-    expect(await screen.findByLabelText('Order card')).toBeInTheDocument();
+    expect(
+      await screen.findByLabelText('Order card'),
+    ).toBeInTheDocument();
     expect(scrollDashboardMainToTopMock).toHaveBeenCalledTimes(1);
   });
 
   it('scrolls the order card into view when opening from the device serial button', async () => {
-    vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => {
-      callback(0);
-      return 0;
-    });
+    vi.spyOn(window, 'requestAnimationFrame').mockImplementation(
+      (callback) => {
+        callback(0);
+        return 0;
+      },
+    );
 
     renderWorkspace({
       sales: [
@@ -397,16 +456,22 @@ describe('OrdersWorkspace', () => {
       ],
     });
 
-    fireEvent.click(screen.getByRole('button', { name: /s\/n: r0035759/i }));
+    fireEvent.click(
+      screen.getByRole('button', { name: /s\/n: r0035759/i }),
+    );
 
-    expect(await screen.findByLabelText('Order card')).toBeInTheDocument();
+    expect(
+      await screen.findByLabelText('Order card'),
+    ).toBeInTheDocument();
     expect(scrollDashboardMainToTopMock).toHaveBeenCalledTimes(1);
   });
 
   it('labels created date Created and hides Non-urgent term text', () => {
     renderWorkspace({ sales: [sale] });
 
-    expect(screen.getByRole('columnheader', { name: 'Created' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('columnheader', { name: 'Created' }),
+    ).toBeInTheDocument();
     expect(screen.queryByText('Non-urgent')).not.toBeInTheDocument();
     expect(screen.getAllByText('—').length).toBeGreaterThan(0);
   });
@@ -420,22 +485,30 @@ describe('OrdersWorkspace', () => {
   });
 
   it('opens the order card when clicking the table row', async () => {
-    vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => {
-      callback(0);
-      return 0;
-    });
+    vi.spyOn(window, 'requestAnimationFrame').mockImplementation(
+      (callback) => {
+        callback(0);
+        return 0;
+      },
+    );
 
     renderWorkspace({ sales: [sale] });
 
-    fireEvent.click(screen.getByRole('link', { name: /r000001/i }).closest('tr')!);
-    expect(await screen.findByLabelText('Order card')).toBeInTheDocument();
+    fireEvent.click(
+      screen.getByRole('link', { name: /r000001/i }).closest('tr')!,
+    );
+    expect(
+      await screen.findByLabelText('Order card'),
+    ).toBeInTheDocument();
   });
 
   it('scrolls to the top again when clicking the already open order number', async () => {
-    vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => {
-      callback(0);
-      return 0;
-    });
+    vi.spyOn(window, 'requestAnimationFrame').mockImplementation(
+      (callback) => {
+        callback(0);
+        return 0;
+      },
+    );
 
     renderWorkspace({
       sales: [sale],
@@ -443,7 +516,9 @@ describe('OrdersWorkspace', () => {
 
     const orderLink = screen.getByRole('link', { name: /r000001/i });
     fireEvent.click(orderLink);
-    expect(await screen.findByLabelText('Order card')).toBeInTheDocument();
+    expect(
+      await screen.findByLabelText('Order card'),
+    ).toBeInTheDocument();
     expect(scrollDashboardMainToTopMock).toHaveBeenCalledTimes(1);
 
     fireEvent.click(orderLink);
@@ -451,22 +526,28 @@ describe('OrdersWorkspace', () => {
   });
 
   it('does not scroll when closing the order card', async () => {
-    vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => {
-      callback(0);
-      return 0;
-    });
+    vi.spyOn(window, 'requestAnimationFrame').mockImplementation(
+      (callback) => {
+        callback(0);
+        return 0;
+      },
+    );
 
     renderWorkspace({
       sales: [sale],
     });
 
     fireEvent.click(screen.getByRole('link', { name: /r000001/i }));
-    expect(await screen.findByLabelText('Order card')).toBeInTheDocument();
+    expect(
+      await screen.findByLabelText('Order card'),
+    ).toBeInTheDocument();
     expect(scrollDashboardMainToTopMock).toHaveBeenCalledTimes(1);
 
     fireEvent.click(screen.getByLabelText('Close order card'));
 
-    expect(screen.queryByLabelText('Order card')).not.toBeInTheDocument();
+    expect(
+      screen.queryByLabelText('Order card'),
+    ).not.toBeInTheDocument();
     expect(scrollDashboardMainToTopMock).toHaveBeenCalledTimes(1);
   });
 
@@ -483,10 +564,15 @@ describe('OrdersWorkspace', () => {
 
     fireEvent.click(screen.getByRole('link', { name: /r000001/i }));
 
-    const commentInput = await screen.findByPlaceholderText('Comment');
+    const commentInput =
+      await screen.findByPlaceholderText('Comment');
     expect(commentInput).not.toBeDisabled();
-    fireEvent.change(commentInput, { target: { value: 'Ready for diagnostics' } });
-    expect(screen.getByRole('button', { name: 'Add' })).not.toBeDisabled();
+    fireEvent.change(commentInput, {
+      target: { value: 'Ready for diagnostics' },
+    });
+    expect(
+      screen.getByRole('button', { name: 'Add' }),
+    ).not.toBeDisabled();
   });
 
   it('opens the order card read-only for a kanban.use-only employee', async () => {
@@ -504,11 +590,17 @@ describe('OrdersWorkspace', () => {
 
     fireEvent.click(screen.getByText('#R000001'));
 
-    expect(await screen.findByLabelText('Order card')).toBeInTheDocument();
+    expect(
+      await screen.findByLabelText('Order card'),
+    ).toBeInTheDocument();
     expect(screen.getByPlaceholderText('Comment')).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'Add' })).toBeDisabled();
+    expect(
+      screen.getByRole('button', { name: 'Add' }),
+    ).toBeDisabled();
 
-    fireEvent.click(screen.getByRole('button', { name: /Products/i }));
+    fireEvent.click(
+      screen.getByRole('button', { name: /Products/i }),
+    );
     expect(
       screen.queryByRole('button', { name: 'Add product' }),
     ).not.toBeInTheDocument();
@@ -527,11 +619,17 @@ describe('OrdersWorkspace', () => {
       onSaleUpdate,
     });
 
-    fireEvent.click(screen.getByRole('button', { name: 'New repair' }));
-    fireEvent.click(await screen.findByRole('button', { name: 'Diagnostics' }));
+    fireEvent.click(
+      screen.getByRole('button', { name: 'New repair' }),
+    );
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Diagnostics' }),
+    );
 
     await waitFor(() => {
-      expect(onError).toHaveBeenCalledWith('Backend API is unavailable.');
+      expect(onError).toHaveBeenCalledWith(
+        'Backend API is unavailable.',
+      );
     });
     expect(onSaleUpdate).not.toHaveBeenCalled();
   });
@@ -566,8 +664,12 @@ describe('OrdersWorkspace', () => {
         onSaleUpdate,
       });
 
-      fireEvent.click(screen.getByRole('button', { name: 'New repair' }));
-      fireEvent.click(await screen.findByRole('button', { name: 'Diagnostics' }));
+      fireEvent.click(
+        screen.getByRole('button', { name: 'New repair' }),
+      );
+      fireEvent.click(
+        await screen.findByRole('button', { name: 'Diagnostics' }),
+      );
 
       await waitFor(() => {
         expect(onSaleUpdate).toHaveBeenCalledWith(updatedSale);
@@ -578,10 +680,16 @@ describe('OrdersWorkspace', () => {
           status: 'diagnostics',
         }),
       );
-      expect(updateSaleWorkspaceMock.mock.calls[0]?.[1].lineItems).toBeUndefined();
+      expect(
+        updateSaleWorkspaceMock.mock.calls[0]?.[1].lineItems,
+      ).toBeUndefined();
     } finally {
       if (randomUuidDescriptor) {
-        Object.defineProperty(crypto, 'randomUUID', randomUuidDescriptor);
+        Object.defineProperty(
+          crypto,
+          'randomUUID',
+          randomUuidDescriptor,
+        );
       }
     }
   });
@@ -599,8 +707,12 @@ describe('OrdersWorkspace', () => {
       onSaleUpdate,
     });
 
-    fireEvent.click(screen.getByRole('button', { name: 'New repair' }));
-    fireEvent.click(await screen.findByRole('button', { name: 'Diagnostics' }));
+    fireEvent.click(
+      screen.getByRole('button', { name: 'New repair' }),
+    );
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Diagnostics' }),
+    );
 
     await waitFor(() => {
       expect(onError).toHaveBeenCalledWith(
@@ -643,8 +755,12 @@ describe('OrdersWorkspace', () => {
       onSaleUpdate,
     });
 
-    fireEvent.click(screen.getByRole('button', { name: 'New repair' }));
-    fireEvent.click(await screen.findByRole('button', { name: 'Diagnostics' }));
+    fireEvent.click(
+      screen.getByRole('button', { name: 'New repair' }),
+    );
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Diagnostics' }),
+    );
 
     await waitFor(() => {
       expect(onSaleUpdate).toHaveBeenCalledWith(updatedSale);
@@ -659,15 +775,15 @@ describe('OrdersWorkspace', () => {
           sales={[updatedSale]}
           employees={[]}
           isLoading={false}
-          activeTab="orders"
+          activeTab='orders'
           visibleTabs={['orders', 'sales']}
-          searchValue=""
+          searchValue=''
           currentEmployee={employee}
           canCreateOrders={true}
           onActiveTabChange={vi.fn()}
           onSearchChange={vi.fn()}
           onCreateOrder={vi.fn()}
-          createOrderHref="/?page=orders&ordersTab=orders&createOrder=repair"
+          createOrderHref='/?page=orders&ordersTab=orders&createOrder=repair'
           getCreateOrderHref={(tab) =>
             `/?page=orders&ordersTab=${tab}&createOrder=${tab === 'sales' ? 'sale' : 'repair'}`
           }
@@ -696,7 +812,9 @@ describe('OrdersWorkspace', () => {
       </QueryClientProvider>,
     );
 
-    expect(screen.getByRole('button', { name: 'Diagnostics' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Diagnostics' }),
+    ).toBeInTheDocument();
     expect(screen.getByText('Fallback device')).toBeInTheDocument();
   });
 
@@ -743,7 +861,9 @@ describe('OrdersWorkspace', () => {
 
     fireEvent.click(screen.getByRole('link', { name: /r000001/i }));
     fireEvent.click(await screen.findByLabelText('Change device'));
-    fireEvent.click(screen.getByRole('button', { name: /Replacement device/ }));
+    fireEvent.click(
+      screen.getByRole('button', { name: /Replacement device/ }),
+    );
     fireEvent.click(screen.getByText('Save changes'));
 
     await waitFor(() => {
@@ -840,7 +960,9 @@ describe('OrdersWorkspace', () => {
     fireEvent.change(cashboxSelect as HTMLSelectElement, {
       target: { value: 'cashbox-1' },
     });
-    fireEvent.click(screen.getByRole('button', { name: 'Accept to cashbox' }));
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Accept to cashbox' }),
+    );
 
     await waitFor(() => {
       expect(acceptSalePaymentMock).toHaveBeenCalledWith('sale-1', {
@@ -924,7 +1046,9 @@ describe('OrdersWorkspace', () => {
     expect(
       await screen.findByRole('button', { name: 'Accept and issue' }),
     ).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Accept and issue' }));
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Accept and issue' }),
+    );
 
     await waitFor(() => {
       expect(acceptSalePaymentMock).toHaveBeenCalledWith('sale-1', {
@@ -943,7 +1067,9 @@ describe('OrdersWorkspace', () => {
         screen.queryByRole('button', { name: 'Accept and issue' }),
       ).not.toBeInTheDocument();
     });
-    expect(screen.queryByLabelText('Order card')).not.toBeInTheDocument();
+    expect(
+      screen.queryByLabelText('Order card'),
+    ).not.toBeInTheDocument();
     expect(onSelectedSaleIdChange).toHaveBeenCalledWith(null);
   });
 
@@ -1006,13 +1132,19 @@ describe('OrdersWorkspace', () => {
     const alert = await screen.findByRole('alertdialog', {
       name: 'Serial numbers are not bound',
     });
-    expect(within(alert).getByText('Splash cover')).toBeInTheDocument();
+    expect(
+      within(alert).getByText('Splash cover'),
+    ).toBeInTheDocument();
     expect(acceptSalePaymentMock).not.toHaveBeenCalled();
 
-    fireEvent.click(within(alert).getByRole('button', { name: 'Cancel' }));
+    fireEvent.click(
+      within(alert).getByRole('button', { name: 'Cancel' }),
+    );
     expect(acceptSalePaymentMock).not.toHaveBeenCalled();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Accept and issue' }));
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Accept and issue' }),
+    );
     fireEvent.click(
       within(
         await screen.findByRole('alertdialog', {
@@ -1074,7 +1206,9 @@ describe('OrdersWorkspace', () => {
     fireEvent.click(screen.getByRole('link', { name: /r000001/i }));
     await clickHeaderAcceptPayment();
     fireEvent.click(
-      await screen.findByRole('button', { name: 'Issue without payment' }),
+      await screen.findByRole('button', {
+        name: 'Issue without payment',
+      }),
     );
 
     await waitFor(() => {
@@ -1091,10 +1225,14 @@ describe('OrdersWorkspace', () => {
     expect(onSaleUpdate).toHaveBeenCalledWith(issuedSale);
     await waitFor(() => {
       expect(
-        screen.queryByRole('button', { name: 'Issue without payment' }),
+        screen.queryByRole('button', {
+          name: 'Issue without payment',
+        }),
       ).not.toBeInTheDocument();
     });
-    expect(screen.queryByLabelText('Order card')).not.toBeInTheDocument();
+    expect(
+      screen.queryByLabelText('Order card'),
+    ).not.toBeInTheDocument();
     expect(onSelectedSaleIdChange).toHaveBeenCalledWith(null);
   });
 
@@ -1130,12 +1268,16 @@ describe('OrdersWorkspace', () => {
     });
 
     fireEvent.click(screen.getByRole('link', { name: /r000001/i }));
-    expect(await screen.findByLabelText('Order card')).toBeInTheDocument();
+    expect(
+      await screen.findByLabelText('Order card'),
+    ).toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText(/repair status/i), {
       target: { value: 'issued' },
     });
-    fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Save changes' }),
+    );
 
     expect(
       await screen.findByRole('dialog', { name: 'Accept payment' }),
@@ -1157,8 +1299,12 @@ describe('OrdersWorkspace', () => {
       searchValue: '0952898207',
     });
 
-    expect(screen.getByRole('link', { name: /r000001/i })).toBeInTheDocument();
-    expect(screen.queryByText('Orders not found.')).not.toBeInTheDocument();
+    expect(
+      screen.getByRole('link', { name: /r000001/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText('Orders not found.'),
+    ).not.toBeInTheDocument();
   });
 
   it('matches top search by additional phone in client snapshot', () => {
@@ -1176,8 +1322,12 @@ describe('OrdersWorkspace', () => {
       searchValue: '0952898207',
     });
 
-    expect(screen.getByRole('link', { name: /r000001/i })).toBeInTheDocument();
-    expect(screen.queryByText('Orders not found.')).not.toBeInTheDocument();
+    expect(
+      screen.getByRole('link', { name: /r000001/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText('Orders not found.'),
+    ).not.toBeInTheDocument();
   });
 
   it('matches client filter by normalized client phone digits', () => {
@@ -1194,13 +1344,20 @@ describe('OrdersWorkspace', () => {
     });
 
     fireEvent.click(screen.getByRole('button', { name: /Filter/i }));
-    fireEvent.change(screen.getByPlaceholderText('Client name or phone'), {
-      target: { value: '095 289 82 07' },
-    });
+    fireEvent.change(
+      screen.getByPlaceholderText('Client name or phone'),
+      {
+        target: { value: '095 289 82 07' },
+      },
+    );
     fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
 
-    expect(screen.getByRole('link', { name: /r000001/i })).toBeInTheDocument();
-    expect(screen.queryByText('Orders not found.')).not.toBeInTheDocument();
+    expect(
+      screen.getByRole('link', { name: /r000001/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText('Orders not found.'),
+    ).not.toBeInTheDocument();
   });
 
   it('keeps payment modal open when opening print from payment modal', async () => {
@@ -1262,7 +1419,9 @@ describe('OrdersWorkspace', () => {
     });
 
     expect(screen.getByLabelText('Rows per page')).toHaveValue('30');
-    expect(screen.getAllByRole('link', { name: /^R\d{6}$/ })).toHaveLength(30);
+    expect(
+      screen.getAllByRole('link', { name: /^R\d{6}$/ }),
+    ).toHaveLength(30);
     unmount();
 
     const productSales = repairSales.map((item, index) => ({
@@ -1277,7 +1436,9 @@ describe('OrdersWorkspace', () => {
     });
 
     expect(screen.getByLabelText('Rows per page')).toHaveValue('30');
-    expect(screen.getAllByRole('link', { name: /^S\d{6}$/ })).toHaveLength(30);
+    expect(
+      screen.getAllByRole('link', { name: /^S\d{6}$/ }),
+    ).toHaveLength(30);
   });
 
   it('filters and updates starred repair orders', async () => {
@@ -1299,16 +1460,30 @@ describe('OrdersWorkspace', () => {
       onSaleUpdate,
     });
 
-    expect(screen.getByRole('link', { name: 'R000001' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'R000002' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('link', { name: 'R000001' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('link', { name: 'R000002' }),
+    ).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Show starred orders' }));
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Show starred orders' }),
+    );
 
-    expect(screen.queryByRole('link', { name: 'R000001' })).not.toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'R000002' })).toBeInTheDocument();
+    expect(
+      screen.queryByRole('link', { name: 'R000001' }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole('link', { name: 'R000002' }),
+    ).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Show all orders' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Star R000001' }));
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Show all orders' }),
+    );
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Star R000001' }),
+    );
 
     expect(updateSaleFavoriteMock).toHaveBeenCalledWith('sale-1', {
       isFavorite: true,
@@ -1348,16 +1523,12 @@ describe('OrdersWorkspace', () => {
     });
     const firstUpdated: Sale = {
       ...saleWithService,
-      lineItems: [
-        { ...saleWithService.lineItems[0], quantity: 4 },
-      ],
+      lineItems: [{ ...saleWithService.lineItems[0], quantity: 4 }],
       updatedAt: '2026-01-01T00:00:01.000Z',
     };
     const secondUpdated: Sale = {
       ...firstUpdated,
-      lineItems: [
-        { ...firstUpdated.lineItems[0], quantity: 5 },
-      ],
+      lineItems: [{ ...firstUpdated.lineItems[0], quantity: 5 }],
       updatedAt: '2026-01-01T00:00:02.000Z',
     };
     updateSaleWorkspaceMock
@@ -1377,19 +1548,21 @@ describe('OrdersWorkspace', () => {
     await waitFor(() => {
       expect(updateSaleWorkspaceMock).toHaveBeenCalledTimes(1);
     });
-    expect(updateSaleWorkspaceMock.mock.calls[0]?.[1].expectedUpdatedAt).toBe(
-      '2026-01-01T00:00:00.000Z',
-    );
+    expect(
+      updateSaleWorkspaceMock.mock.calls[0]?.[1].expectedUpdatedAt,
+    ).toBe('2026-01-01T00:00:00.000Z');
 
     resolveFirst(firstUpdated);
 
     await waitFor(() => {
       expect(updateSaleWorkspaceMock).toHaveBeenCalledTimes(2);
     });
-    expect(updateSaleWorkspaceMock.mock.calls[1]?.[1].expectedUpdatedAt).toBe(
-      '2026-01-01T00:00:01.000Z',
-    );
-    expect(updateSaleWorkspaceMock.mock.calls[1]?.[1].lineItems?.[0]).toMatchObject({
+    expect(
+      updateSaleWorkspaceMock.mock.calls[1]?.[1].expectedUpdatedAt,
+    ).toBe('2026-01-01T00:00:01.000Z');
+    expect(
+      updateSaleWorkspaceMock.mock.calls[1]?.[1].lineItems?.[0],
+    ).toMatchObject({
       quantity: 5,
     });
   });
@@ -1426,8 +1599,12 @@ describe('OrdersWorkspace', () => {
     expect(
       document.querySelector('.orders-client-rapid-sale'),
     ).toHaveTextContent('Rapid sale');
-    expect(screen.queryByRole('button', { name: 'Rapid sale' })).not.toBeInTheDocument();
-    expect(screen.getByRole('columnheader', { name: 'Product' })).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Rapid sale' }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole('columnheader', { name: 'Product' }),
+    ).toBeInTheDocument();
     expect(screen.getByText('Mouse')).toBeInTheDocument();
   });
 
@@ -1474,12 +1651,18 @@ describe('OrdersWorkspace', () => {
       ],
     });
 
-    expect(screen.getByRole('columnheader', { name: 'Product' })).toBeInTheDocument();
-    expect(screen.getByRole('columnheader', { name: 'Manager' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('columnheader', { name: 'Product' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('columnheader', { name: 'Manager' }),
+    ).toBeInTheDocument();
     expect(screen.getByText('Phone case')).toBeInTheDocument();
     expect(screen.getByText('Olexandr')).toBeInTheDocument();
     expect(screen.getByText('+1')).toBeInTheDocument();
-    expect(document.querySelector('.orders-money-unpaid')).toBeTruthy();
+    expect(
+      document.querySelector('.orders-money-unpaid'),
+    ).toBeTruthy();
   });
 
   it('does not show extra-lines control for a single-item sale', () => {
@@ -1512,7 +1695,9 @@ describe('OrdersWorkspace', () => {
 
     expect(screen.getByText('Mouse')).toBeInTheDocument();
     expect(
-      screen.queryByRole('button', { name: 'Show items in this order' }),
+      screen.queryByRole('button', {
+        name: 'Show items in this order',
+      }),
     ).not.toBeInTheDocument();
     expect(screen.queryByText('+1')).not.toBeInTheDocument();
   });
@@ -1559,7 +1744,9 @@ describe('OrdersWorkspace', () => {
     });
 
     fireEvent.click(
-      screen.getByRole('button', { name: 'Show items in this order' }),
+      screen.getByRole('button', {
+        name: 'Show items in this order',
+      }),
     );
 
     const menu = await screen.findByRole('listbox');
@@ -1567,14 +1754,18 @@ describe('OrdersWorkspace', () => {
     expect(within(menu).getByText('Setup')).toBeInTheDocument();
     expect(within(menu).getByText('SN-CASE')).toBeInTheDocument();
     expect(within(menu).getByText('-')).toBeInTheDocument();
-    const prices = [...menu.querySelectorAll('.order-extra-lines-price')].map(
-      (el) => el.textContent ?? '',
-    );
+    const prices = [
+      ...menu.querySelectorAll('.order-extra-lines-price'),
+    ].map((el) => el.textContent ?? '');
     expect(prices[0]).toMatch(/1.?300/);
     expect(prices[1]).toMatch(/200/);
     expect(getSaleByIdMock).not.toHaveBeenCalled();
-    expect(screen.queryByLabelText('Order card')).not.toBeInTheDocument();
-    expect(screen.queryByLabelText('Sale card')).not.toBeInTheDocument();
+    expect(
+      screen.queryByLabelText('Order card'),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByLabelText('Sale card'),
+    ).not.toBeInTheDocument();
   });
 
   it('still opens the sale card from the product name when extra lines exist', async () => {
@@ -1614,9 +1805,13 @@ describe('OrdersWorkspace', () => {
       ],
     });
 
-    fireEvent.click(screen.getByRole('button', { name: /Phone case/i }));
+    fireEvent.click(
+      screen.getByRole('button', { name: /Phone case/i }),
+    );
 
-    expect(await screen.findByLabelText('Sale card')).toBeInTheDocument();
+    expect(
+      await screen.findByLabelText('Sale card'),
+    ).toBeInTheDocument();
     expect(getSaleByIdMock).toHaveBeenCalled();
   });
 
@@ -1755,12 +1950,18 @@ describe('OrdersWorkspace', () => {
     });
     fireEvent.click(triggers[0]);
     const firstMenu = await screen.findByRole('listbox');
-    expect(within(firstMenu).getByText('Alpha extra')).toBeInTheDocument();
+    expect(
+      within(firstMenu).getByText('Alpha extra'),
+    ).toBeInTheDocument();
 
     fireEvent.click(triggers[1]);
     const secondMenu = await screen.findByRole('listbox');
-    expect(within(secondMenu).getByText('Beta extra')).toBeInTheDocument();
-    expect(within(secondMenu).queryByText('Alpha extra')).not.toBeInTheDocument();
+    expect(
+      within(secondMenu).getByText('Beta extra'),
+    ).toBeInTheDocument();
+    expect(
+      within(secondMenu).queryByText('Alpha extra'),
+    ).not.toBeInTheDocument();
     expect(screen.getAllByRole('listbox')).toHaveLength(1);
   });
 
@@ -1801,14 +2002,18 @@ describe('OrdersWorkspace', () => {
     expect(screen.getByText('Sale type')).toBeInTheDocument();
     expect(screen.queryByText('Repair type')).not.toBeInTheDocument();
 
-    const saleTypeSelect = screen.getByText('Sale type')
-      .parentElement
-      ?.querySelector('select') as HTMLSelectElement;
+    const saleTypeSelect = screen
+      .getByText('Sale type')
+      .parentElement?.querySelector('select') as HTMLSelectElement;
     fireEvent.change(saleTypeSelect, { target: { value: 'rapid' } });
     fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
 
-    expect(screen.getByRole('link', { name: /r000717/i })).toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: /r000726/i })).not.toBeInTheDocument();
+    expect(
+      screen.getByRole('link', { name: /r000717/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole('link', { name: /r000726/i }),
+    ).not.toBeInTheDocument();
   });
 
   it('opens payment modal when pendingPaymentSale is provided', async () => {
@@ -1876,7 +2081,12 @@ describe('OrdersWorkspace', () => {
       activeTab: 'kanban',
       visibleTabs: ['orders', 'kanban'],
       sales: [
-        { ...sale, id: 'sale-new', status: 'new', recordNumber: 'R000101' },
+        {
+          ...sale,
+          id: 'sale-new',
+          status: 'new',
+          recordNumber: 'R000101',
+        },
         {
           ...sale,
           id: 'sale-repair',
@@ -1974,9 +2184,13 @@ describe('OrdersWorkspace', () => {
       ],
     });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Orders: 1' }));
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Orders: 1' }),
+    );
     await waitFor(() => {
-      expect(onSelectedSaleIdChange).toHaveBeenCalledWith('sale-match');
+      expect(onSelectedSaleIdChange).toHaveBeenCalledWith(
+        'sale-match',
+      );
     });
   });
 
@@ -1986,11 +2200,21 @@ describe('OrdersWorkspace', () => {
       JSON.stringify({
         orders: {
           ...emptyOrdersFilters,
-          statuses: ['ready', 'inRepair', 'diagnostics', 'waitingParts'],
+          statuses: [
+            'ready',
+            'inRepair',
+            'diagnostics',
+            'waitingParts',
+          ],
         },
         kanban: {
           ...emptyOrdersFilters,
-          statuses: ['ready', 'inRepair', 'diagnostics', 'waitingParts'],
+          statuses: [
+            'ready',
+            'inRepair',
+            'diagnostics',
+            'waitingParts',
+          ],
         },
       }),
     );
@@ -2096,13 +2320,62 @@ describe('OrdersWorkspace', () => {
     expect(
       [...masterSelect.options].map((option) => option.textContent),
     ).toEqual(['All', 'Kostiantyn']);
-    fireEvent.change(masterSelect, { target: { value: masterEmployee.id } });
+    fireEvent.change(masterSelect, {
+      target: { value: masterEmployee.id },
+    });
     fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
 
     expect(screen.getByLabelText('Orders: 1')).toBeInTheDocument();
     expect(screen.getByText('#R000302')).toBeInTheDocument();
     expect(screen.queryByText('#R000301')).not.toBeInTheDocument();
     expect(screen.queryByText('#R000303')).not.toBeInTheDocument();
-    expect(screen.getByText(/Master: Kostiantyn/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Master: Kostiantyn/i),
+    ).toBeInTheDocument();
+  });
+
+  it('renders Price and Paid columns in red for non-cash payments', async () => {
+    const nonCashSale: Sale = {
+      ...sale,
+      id: 'repair-non-cash',
+      recordNumber: 'R000951',
+      paidAmount: 250,
+      kind: 'repair',
+      status: 'paid',
+      lineItems: [
+        {
+          id: 'item-1',
+          kind: 'product',
+          name: 'JBL Speaker',
+          price: 250,
+          quantity: 1,
+          warrantyPeriod: 0,
+        },
+      ],
+      paymentHistory: [
+        {
+          id: 'pay-1',
+          type: 'deposit',
+          paymentMethod: 'non-cash',
+          amount: 250,
+          cashboxId: 'cb-1',
+          cashboxName: 'Bank',
+          author: 'Admin',
+          createdAt: '2026-09-21T12:00:00.000Z',
+        },
+      ],
+    };
+
+    renderWorkspace({
+      activeTab: 'orders',
+      sales: [nonCashSale],
+    });
+
+    const priceCells = document.querySelectorAll(
+      '.orders-money-non-cash',
+    );
+    expect(priceCells.length).toBe(2);
+    expect(priceCells[0].textContent).toContain('250');
+    expect(priceCells[1].textContent).toContain('250');
   });
 });

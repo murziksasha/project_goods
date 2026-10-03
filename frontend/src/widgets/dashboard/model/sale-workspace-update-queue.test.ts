@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { Sale } from '../../../entities/sale/model/types';
+import type { Sale } from '../../../entities/sale';
 import { patchLineItemsById } from './line-item-ops';
 import { createSaleWorkspaceUpdateQueue } from './sale-workspace-update-queue';
 

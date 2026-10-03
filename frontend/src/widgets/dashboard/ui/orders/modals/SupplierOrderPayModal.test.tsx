@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import type { Cashbox } from '../../../../../entities/finance/model/types';
-import type { SupplierOrder } from '../../../../../entities/supplier-order/model/types';
+import type { Cashbox } from '../../../../../entities/finance';
+import type { SupplierOrder } from '../../../../../entities/supplier-order';
 import { SupplierOrderPayModal } from './SupplierOrderPayModal';
 
 const cashbox = (patch: Partial<Cashbox> = {}): Cashbox => ({

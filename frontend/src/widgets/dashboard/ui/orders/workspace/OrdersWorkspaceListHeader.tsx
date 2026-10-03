@@ -1,3 +1,4 @@
+import type React from 'react';
 import type { MouseEvent as ReactMouseEvent, RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import { CompactPaginationPanel } from '../../../../../shared/ui/PaginationPanel';
@@ -12,7 +13,7 @@ import {
 } from './orders-workspace-shared';
 import { OrdersWorkspaceTabList } from './OrdersWorkspaceTabList';
 
-type OrdersWorkspaceListHeaderProps = {
+export interface OrdersWorkspaceListHeaderProps {
   activeTab: OrdersTab;
   visibleTabs: OrdersTab[];
   permittedTabs?: OrdersTab[];
@@ -41,7 +42,7 @@ type OrdersWorkspaceListHeaderProps = {
   onOpenSingleMatch?: () => void;
 };
 
-export const OrdersWorkspaceListHeader = ({
+export const OrdersWorkspaceListHeader: React.FC<OrdersWorkspaceListHeaderProps> = ({
   activeTab,
   visibleTabs,
   permittedTabs,
@@ -68,7 +69,7 @@ export const OrdersWorkspaceListHeader = ({
   onResetColumns,
   onToggleFavoritesOnly,
   onOpenSingleMatch,
-}: OrdersWorkspaceListHeaderProps) => {
+}) => {
   const { t } = useTranslation();
   const canOpenSingleMatch =
     Boolean(onOpenSingleMatch) &&

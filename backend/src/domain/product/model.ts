@@ -101,6 +101,11 @@ export const productSchema = new mongoose.Schema(
       default: '',
       index: true,
     },
+    sortOrder: {
+      type: Number,
+      default: 0,
+      index: true,
+    },
   },
   {
     timestamps: true,

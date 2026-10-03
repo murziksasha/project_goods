@@ -1,16 +1,17 @@
+import type React from 'react';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { FinanceCategory } from '../../../../entities/finance/model/types';
-import { OTHER_CATEGORY_SLUG } from '../../../../entities/finance/model/types';
+import type { FinanceCategory } from '../../../../entities/finance';
+import { OTHER_CATEGORY_SLUG } from '../../../../entities/finance';
 import {
   getFinanceCategoryLabel,
   getSettingsFinanceCategories,
   isAlwaysActiveFinanceCategory,
   toFinanceCategoryStoredName,
-} from '../../../../entities/finance/model/category-label';
+} from '../../../../entities/finance';
 import { CreateFinanceCategoryModal } from './CreateFinanceCategoryModal';
 
-type AccountingCategorySettingsProps = {
+export interface AccountingCategorySettingsProps {
   categories: FinanceCategory[];
   isSaving: boolean;
   onCreateCategory: (name: string) => Promise<unknown>;
@@ -19,14 +20,14 @@ type AccountingCategorySettingsProps = {
   onToggleCategoryActive: (category: FinanceCategory) => void;
 };
 
-export const AccountingCategorySettings = ({
+export const AccountingCategorySettings: React.FC<AccountingCategorySettingsProps> = ({
   categories,
   isSaving,
   onCreateCategory,
   onDeleteCategory,
   onRenameCategory,
   onToggleCategoryActive,
-}: AccountingCategorySettingsProps) => {
+}) => {
   const { t } = useTranslation();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const rows = getSettingsFinanceCategories(categories);
@@ -136,7 +137,7 @@ export const AccountingCategorySettings = ({
   );
 };
 
-type CategoryNameInputProps = {
+export interface CategoryNameInputProps {
   category: FinanceCategory;
   isSaving: boolean;
   label: string;

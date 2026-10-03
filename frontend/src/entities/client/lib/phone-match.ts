@@ -1,16 +1,20 @@
 import { normalizePhone } from '../../../shared/lib/phoneFormatter';
-import type { Sale } from '../../sale/model/types';
+import type { Sale } from '../../../shared/types/domain';
 import { getClientPhones } from '../model/forms';
 import type { Client } from '../model/types';
 
-export const normalizeClientPhoneIdentity = (value: string): string => {
+export const normalizeClientPhoneIdentity = (
+  value: string,
+): string => {
   const digits = normalizePhone(value);
   if (digits.startsWith('380')) return digits.slice(3);
   if (digits.startsWith('0')) return digits.slice(1);
   return digits;
 };
 
-export const getClientPhoneIdentities = (client: Client): string[] => {
+export const getClientPhoneIdentities = (
+  client: Client,
+): string[] => {
   const seen = new Set<string>();
   const identities: string[] = [];
 
@@ -24,7 +28,10 @@ export const getClientPhoneIdentities = (client: Client): string[] => {
   return identities;
 };
 
-export const clientMatchesPhoneQuery = (client: Client, query: string): boolean => {
+export const clientMatchesPhoneQuery = (
+  client: Client,
+  query: string,
+): boolean => {
   const normalizedQuery = query.trim().toLowerCase();
   if (!normalizedQuery) return true;
 
@@ -33,7 +40,9 @@ export const clientMatchesPhoneQuery = (client: Client, query: string): boolean 
   }
 
   const queryDigits = normalizePhone(query);
-  const queryIdentity = queryDigits ? normalizeClientPhoneIdentity(query) : '';
+  const queryIdentity = queryDigits
+    ? normalizeClientPhoneIdentity(query)
+    : '';
 
   return getClientPhones(client).some((phone) => {
     if (phone.toLowerCase().includes(normalizedQuery)) {
@@ -45,7 +54,10 @@ export const clientMatchesPhoneQuery = (client: Client, query: string): boolean 
     }
 
     const phoneDigits = normalizePhone(phone);
-    if (phoneDigits.includes(queryDigits) || queryDigits.includes(phoneDigits)) {
+    if (
+      phoneDigits.includes(queryDigits) ||
+      queryDigits.includes(phoneDigits)
+    ) {
       return true;
     }
 
@@ -55,7 +67,8 @@ export const clientMatchesPhoneQuery = (client: Client, query: string): boolean 
 
     const phoneIdentity = normalizeClientPhoneIdentity(phone);
     return (
-      phoneIdentity.includes(queryIdentity) || queryIdentity.includes(phoneIdentity)
+      phoneIdentity.includes(queryIdentity) ||
+      queryIdentity.includes(phoneIdentity)
     );
   });
 };
@@ -82,7 +95,10 @@ export const formatClientPhonesLabel = (
 export const getSaleClientPhones = (
   sale: Pick<Sale, 'client'>,
 ): string[] => {
-  if (Array.isArray(sale.client.phones) && sale.client.phones.length > 0) {
+  if (
+    Array.isArray(sale.client.phones) &&
+    sale.client.phones.length > 0
+  ) {
     return sale.client.phones.filter(Boolean);
   }
 
@@ -101,7 +117,9 @@ export const saleMatchesPhoneQuery = (
   }
 
   const queryDigits = normalizePhone(query);
-  const queryIdentity = queryDigits ? normalizeClientPhoneIdentity(query) : '';
+  const queryIdentity = queryDigits
+    ? normalizeClientPhoneIdentity(query)
+    : '';
 
   return getSaleClientPhones(sale).some((phone) => {
     if (phone.toLowerCase().includes(normalizedQuery)) {
@@ -113,7 +131,10 @@ export const saleMatchesPhoneQuery = (
     }
 
     const phoneDigits = normalizePhone(phone);
-    if (phoneDigits.includes(queryDigits) || queryDigits.includes(phoneDigits)) {
+    if (
+      phoneDigits.includes(queryDigits) ||
+      queryDigits.includes(phoneDigits)
+    ) {
       return true;
     }
 
@@ -123,7 +144,8 @@ export const saleMatchesPhoneQuery = (
 
     const phoneIdentity = normalizeClientPhoneIdentity(phone);
     return (
-      phoneIdentity.includes(queryIdentity) || queryIdentity.includes(phoneIdentity)
+      phoneIdentity.includes(queryIdentity) ||
+      queryIdentity.includes(phoneIdentity)
     );
   });
 };

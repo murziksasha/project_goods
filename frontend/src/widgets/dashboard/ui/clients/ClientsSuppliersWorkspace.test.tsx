@@ -7,36 +7,50 @@ import {
   within,
 } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { Employee } from '../../../../entities/employee/model/types';
-import type { Supplier } from '../../../../entities/supplier/model/types';
+import type { Employee } from '../../../../entities/employee';
+import type { Supplier } from '../../../../entities/supplier';
 import { ClientsSuppliersWorkspace } from './ClientsSuppliersWorkspace';
 
 const savedFiltersStore: Array<Record<string, unknown>> = [];
 
-vi.mock('../../../../entities/saved-filter/api/savedFilterApi', () => ({
-  listSavedFilters: vi.fn(async () =>
-    savedFiltersStore.filter((item) => item.scope === 'clients'),
-  ),
-  createSavedFilter: vi.fn(async (payload: Record<string, unknown>) => {
-    const created = {
-      id: `sf-${savedFiltersStore.length + 1}`,
-      employeeId: 'employee-1',
-      scope: payload.scope,
-      tab: payload.tab,
-      name: payload.name,
-      icon: payload.icon,
-      filters: payload.filters,
-      createdAt: new Date().toISOString(),
+vi.mock(
+  '../../../../entities/saved-filter',
+  async (importOriginal) => {
+    const actual =
+      await importOriginal<
+        typeof import('../../../../entities/saved-filter')
+      >();
+    return {
+      ...actual,
+      listSavedFilters: vi.fn(async () =>
+        savedFiltersStore.filter((item) => item.scope === 'clients'),
+      ),
+      createSavedFilter: vi.fn(
+        async (payload: Record<string, unknown>) => {
+          const created = {
+            id: `sf-${savedFiltersStore.length + 1}`,
+            employeeId: 'employee-1',
+            scope: payload.scope,
+            tab: payload.tab,
+            name: payload.name,
+            icon: payload.icon,
+            filters: payload.filters,
+            createdAt: new Date().toISOString(),
+          };
+          savedFiltersStore.unshift(created);
+          return created;
+        },
+      ),
+      deleteSavedFilter: vi.fn(async (filterId: string) => {
+        const index = savedFiltersStore.findIndex(
+          (item) => item.id === filterId,
+        );
+        if (index >= 0) savedFiltersStore.splice(index, 1);
+        return { id: filterId, deleted: true as const };
+      }),
     };
-    savedFiltersStore.unshift(created);
-    return created;
-  }),
-  deleteSavedFilter: vi.fn(async (filterId: string) => {
-    const index = savedFiltersStore.findIndex((item) => item.id === filterId);
-    if (index >= 0) savedFiltersStore.splice(index, 1);
-    return { id: filterId, deleted: true as const };
-  }),
-}));
+  },
+);
 
 const employee: Employee = {
   id: 'employee-1',
@@ -85,6 +99,8 @@ const renderWorkspace = (suppliers: Supplier[]) =>
       onCreateClient={vi.fn().mockResolvedValue(true)}
       onImportClients={vi.fn().mockResolvedValue(true)}
       onExportClients={vi.fn().mockResolvedValue(undefined)}
+      onImportSuppliers={vi.fn().mockResolvedValue(true)}
+      onExportSuppliers={vi.fn().mockResolvedValue(undefined)}
       onMergeClients={vi.fn().mockResolvedValue(true)}
       onMergeSuppliers={vi.fn().mockResolvedValue(true)}
       onUpdateClient={vi.fn().mockResolvedValue(true)}
@@ -109,7 +125,9 @@ describe('ClientsSuppliersWorkspace suppliers filters', () => {
 
     fireEvent.click(screen.getByRole('tab', { name: /Suppliers/ }));
 
-    expect(screen.queryByRole('columnheader', { name: 'Supplier order' })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('columnheader', { name: 'Supplier order' }),
+    ).not.toBeInTheDocument();
     expect(screen.queryByText('SO-1')).not.toBeInTheDocument();
   });
 
@@ -140,7 +158,9 @@ describe('ClientsSuppliersWorkspace suppliers filters', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
 
     expect(screen.getByText('Fresh Supplier')).toBeInTheDocument();
-    expect(screen.queryByText('Old Supplier')).not.toBeInTheDocument();
+    expect(
+      screen.queryByText('Old Supplier'),
+    ).not.toBeInTheDocument();
   });
 
   it('keeps primary phone edits in the supplier editor modal', () => {
@@ -171,9 +191,12 @@ describe('ClientsSuppliersWorkspace suppliers filters', () => {
     fireEvent.click(screen.getByRole('tab', { name: /Suppliers/ }));
     fireEvent.click(screen.getByText('Main Parts'));
 
-    const phonesField = screen.getByText('Phones').parentElement as HTMLElement;
+    const phonesField = screen.getByText('Phones')
+      .parentElement as HTMLElement;
     fireEvent.click(
-      within(phonesField).getByRole('button', { name: 'Set as primary phone' }),
+      within(phonesField).getByRole('button', {
+        name: 'Set as primary phone',
+      }),
     );
 
     const phoneInputs = within(phonesField).getAllByRole('textbox');
@@ -186,10 +209,15 @@ describe('ClientsSuppliersWorkspace suppliers filters', () => {
 
     fireEvent.click(screen.getByRole('tab', { name: /Suppliers/ }));
     fireEvent.click(screen.getByText('Main Parts'));
-    fireEvent.click(screen.getByRole('button', { name: '+ Add phone' }));
+    fireEvent.click(
+      screen.getByRole('button', { name: '+ Add phone' }),
+    );
 
-    const phonesField = screen.getByText('Phones').parentElement as HTMLElement;
-    expect(within(phonesField).getAllByRole('textbox')).toHaveLength(2);
+    const phonesField = screen.getByText('Phones')
+      .parentElement as HTMLElement;
+    expect(within(phonesField).getAllByRole('textbox')).toHaveLength(
+      2,
+    );
     expect(screen.getByText('Additional phone')).toBeInTheDocument();
   });
 
@@ -201,11 +229,16 @@ describe('ClientsSuppliersWorkspace suppliers filters', () => {
 
     fireEvent.click(screen.getByRole('tab', { name: /Suppliers/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Filter' }));
-    fireEvent.change(screen.getByPlaceholderText('Supplier name or phone'), {
-      target: { value: 'Alt' },
-    });
+    fireEvent.change(
+      screen.getByPlaceholderText('Supplier name or phone'),
+      {
+        target: { value: 'Alt' },
+      },
+    );
     fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Save filter' }));
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Save filter' }),
+    );
     fireEvent.change(screen.getByPlaceholderText('My filter'), {
       target: { value: 'Alt suppliers' },
     });
@@ -215,7 +248,10 @@ describe('ClientsSuppliersWorkspace suppliers filters', () => {
       expect(
         screen
           .getAllByRole('button', { name: /Alt suppliers/ })
-          .some((button) => button.className === 'orders-filter-saved-button'),
+          .some(
+            (button) =>
+              button.className === 'orders-filter-saved-button',
+          ),
       ).toBe(true);
     });
 
@@ -225,7 +261,179 @@ describe('ClientsSuppliersWorkspace suppliers filters', () => {
     expect(
       screen
         .queryAllByRole('button', { name: /Alt suppliers/ })
-        .some((button) => button.className === 'orders-filter-saved-button'),
+        .some(
+          (button) =>
+            button.className === 'orders-filter-saved-button',
+        ),
     ).toBe(false);
+  });
+
+  it('renders Import XLS and Export XLS buttons on the suppliers tab and triggers actions', async () => {
+    const onExportSuppliers = vi.fn().mockResolvedValue(undefined);
+    const onImportSuppliers = vi.fn().mockResolvedValue(true);
+
+    render(
+      <ClientsSuppliersWorkspace
+        currentEmployee={employee}
+        clients={[]}
+        sales={[]}
+        suppliers={[supplier()]}
+        selectedClientId={null}
+        history={null}
+        isClientsLoading={false}
+        isHistoryLoading={false}
+        isSaving={false}
+        isClientImporting={false}
+        isClientExporting={false}
+        onSelectClient={vi.fn()}
+        onDeleteClient={vi.fn()}
+        onCreateClient={vi.fn().mockResolvedValue(true)}
+        onImportClients={vi.fn().mockResolvedValue(true)}
+        onExportClients={vi.fn().mockResolvedValue(undefined)}
+        onImportSuppliers={onImportSuppliers}
+        onExportSuppliers={onExportSuppliers}
+        onMergeClients={vi.fn().mockResolvedValue(true)}
+        onMergeSuppliers={vi.fn().mockResolvedValue(true)}
+        onUpdateClient={vi.fn().mockResolvedValue(true)}
+        onCreateSupplier={vi.fn().mockResolvedValue(true)}
+        onUpdateSupplier={vi.fn().mockResolvedValue(true)}
+        onOpenSaleCard={vi.fn()}
+        clientDevices={[]}
+        onUpdateClientDevice={vi.fn().mockResolvedValue(true)}
+        onDeleteClientDevice={vi.fn().mockResolvedValue(true)}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('tab', { name: /Suppliers/ }));
+
+    const importButton = screen.getByRole('button', {
+      name: 'Import XLS',
+    });
+    const exportButton = screen.getByRole('button', {
+      name: 'Export XLS',
+    });
+
+    expect(importButton).toBeInTheDocument();
+    expect(exportButton).toBeInTheDocument();
+
+    fireEvent.click(exportButton);
+    expect(onExportSuppliers).toHaveBeenCalledTimes(1);
+
+    const fileInput = document.querySelector(
+      'input[type="file"].clients-import-input',
+    ) as HTMLInputElement;
+    expect(fileInput).toBeInTheDocument();
+
+    const testFile = new File(['dummy content'], 'suppliers.xls', {
+      type: 'application/vnd.ms-excel',
+    });
+    fireEvent.change(fileInput, { target: { files: [testFile] } });
+
+    await waitFor(() => {
+      expect(onImportSuppliers).toHaveBeenCalledWith(testFile);
+    });
+  });
+
+  it('opens CatalogRecordMergeModal on Clients tab with swap and target/source inputs', async () => {
+    renderWorkspace([supplier()]);
+
+    const mergeButton = screen.getByRole('button', { name: 'Merge' });
+    fireEvent.click(mergeButton);
+
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    expect(screen.getByText('Merge clients')).toBeInTheDocument();
+    expect(
+      screen.getByLabelText(/Target \(Surviving\)/i),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByLabelText(/Source \(To delete\)/i),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: /swap/i }),
+    ).toBeInTheDocument();
+  });
+
+  it('opens CatalogRecordMergeModal on Suppliers tab and merges selected suppliers', async () => {
+    const onMergeSuppliers = vi.fn().mockResolvedValue(true);
+
+    render(
+      <ClientsSuppliersWorkspace
+        currentEmployee={employee}
+        clients={[]}
+        sales={[]}
+        suppliers={[
+          supplier({
+            id: 's-1',
+            name: 'Alpha Supplier',
+            phone: '+380501111111',
+          }),
+          supplier({
+            id: 's-2',
+            name: 'Beta Supplier',
+            phone: '+380502222222',
+          }),
+        ]}
+        selectedClientId={null}
+        history={null}
+        isClientsLoading={false}
+        isHistoryLoading={false}
+        isSaving={false}
+        isClientImporting={false}
+        isClientExporting={false}
+        onSelectClient={vi.fn()}
+        onDeleteClient={vi.fn()}
+        onCreateClient={vi.fn().mockResolvedValue(true)}
+        onImportClients={vi.fn().mockResolvedValue(true)}
+        onExportClients={vi.fn().mockResolvedValue(undefined)}
+        onMergeClients={vi.fn().mockResolvedValue(true)}
+        onMergeSuppliers={onMergeSuppliers}
+        onUpdateClient={vi.fn().mockResolvedValue(true)}
+        onCreateSupplier={vi.fn().mockResolvedValue(true)}
+        onUpdateSupplier={vi.fn().mockResolvedValue(true)}
+        onOpenSaleCard={vi.fn()}
+        clientDevices={[]}
+        onUpdateClientDevice={vi.fn().mockResolvedValue(true)}
+        onDeleteClientDevice={vi.fn().mockResolvedValue(true)}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('tab', { name: /Suppliers/ }));
+    const mergeButton = screen.getByRole('button', { name: 'Merge' });
+    fireEvent.click(mergeButton);
+
+    const dialog = screen.getByRole('dialog');
+    expect(
+      within(dialog).getByText('Merge suppliers'),
+    ).toBeInTheDocument();
+
+    const targetInput = within(dialog).getByLabelText(
+      /Target \(Surviving\)/i,
+    );
+    fireEvent.change(targetInput, { target: { value: 'Alpha' } });
+    fireEvent.click(
+      within(dialog).getByRole('button', {
+        name: /^Alpha Supplier\+/i,
+      }),
+    );
+
+    const sourceInput = within(dialog).getByLabelText(
+      /Source \(To delete\)/i,
+    );
+    fireEvent.change(sourceInput, { target: { value: 'Beta' } });
+    fireEvent.click(
+      within(dialog).getByRole('button', {
+        name: /^Beta Supplier\+/i,
+      }),
+    );
+
+    const confirmMergeBtn = within(dialog).getByRole('button', {
+      name: /^Merge$/i,
+    });
+    expect(confirmMergeBtn).not.toBeDisabled();
+    fireEvent.click(confirmMergeBtn);
+
+    await waitFor(() => {
+      expect(onMergeSuppliers).toHaveBeenCalledWith('s-1', 's-2');
+    });
   });
 });

@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { defaultPrintForms } from '../../../entities/settings/model/printForms';
-import type { PrintForm } from '../../../entities/settings/model/types';
+import { defaultPrintForms } from '../../../entities/settings';
+import type { PrintForm } from '../../../entities/settings';
 import {
   applyPrintFormLocalOverrides,
   getPrintFormOverridesStorageKey,

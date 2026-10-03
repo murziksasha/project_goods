@@ -1,8 +1,8 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import * as clipboard from '../../../../shared/lib/clipboard';
-import type { Client } from '../../../../entities/client/model/types';
-import type { Sale } from '../../../../entities/sale/model/types';
+import type { Client } from '../../../../entities/client';
+import type { Sale } from '../../../../entities/sale';
 import type { ClientMainForm } from '../../model/clients-workspace';
 import { ClientCardModal } from './ClientCardModal';
 

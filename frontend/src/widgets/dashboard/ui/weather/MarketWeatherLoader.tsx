@@ -1,16 +1,17 @@
+import type React from 'react';
 import { useTranslation } from 'react-i18next';
 
-type MarketWeatherLoaderProps = {
+export interface MarketWeatherLoaderProps {
   showRates: boolean;
   showWeather: boolean;
   overlay?: boolean;
 };
 
-export const MarketWeatherLoader = ({
+export const MarketWeatherLoader: React.FC<MarketWeatherLoaderProps> = ({
   showRates,
   showWeather,
   overlay = false,
-}: MarketWeatherLoaderProps) => {
+}) => {
   const { t } = useTranslation();
 
   return (

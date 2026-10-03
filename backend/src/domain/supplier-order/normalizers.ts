@@ -34,6 +34,8 @@ export type SupplierOrderTakeOnChargePayload = {
   serialNumbers?: unknown;
   autoGenerateArticles?: unknown;
   articleBase?: unknown;
+  groupArticles?: unknown;
+  groupAutoGenerateArticles?: unknown;
   itemIndex?: unknown;
   warehouseId?: unknown;
   locationId?: unknown;

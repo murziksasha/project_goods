@@ -158,6 +158,18 @@
   background: var(--bg-panel-muted);
 }
 
+.catalog-merge-field-group {
+  display: grid;
+  gap: 8px;
+}
+
+.catalog-merge-suggestions {
+  margin-top: 4px;
+  max-height: 200px;
+  overflow-y: auto;
+  overscroll-behavior: auto;
+}
+
 .modal-suggestions-anchor {
   position: relative;
 }

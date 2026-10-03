@@ -1,11 +1,12 @@
+import type React from 'react';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type {
   Employee,
   EmployeeFormValues,
   EmployeeRole,
-} from '../../../../entities/employee/model/types';
-import { employeeRoleOptions } from '../../../../entities/employee/model/types';
+} from '../../../../entities/employee';
+import { employeeRoleOptions } from '../../../../entities/employee';
 import { Button } from '../../../../shared/ui/Button';
 import { EmptyState } from '../../../../shared/ui/EmptyState';
 import { LoadingState } from '../../../../shared/ui/LoadingState';
@@ -18,7 +19,7 @@ import { employeeRoleLabelKey, employeeRoleTone } from './employee-ui';
 
 type EmployeeStatusFilter = 'all' | 'active' | 'inactive';
 
-type EmployeeManagementPanelProps = {
+export interface EmployeeManagementPanelProps {
   employees: Employee[];
   form: EmployeeFormValues;
   isLoading: boolean;
@@ -58,7 +59,7 @@ const matchesEmployeeSearch = (
   return haystack.includes(query);
 };
 
-export const EmployeeManagementPanel = ({
+export const EmployeeManagementPanel: React.FC<EmployeeManagementPanelProps> = ({
   employees,
   form,
   isLoading,
@@ -72,7 +73,7 @@ export const EmployeeManagementPanel = ({
   onCancelEdit,
   onEdit,
   onDelete,
-}: EmployeeManagementPanelProps) => {
+}) => {
   const { t } = useTranslation();
   const [employeeToDelete, setEmployeeToDelete] = useState<Employee | null>(
     null,

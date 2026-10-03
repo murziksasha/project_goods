@@ -1,3 +1,4 @@
+import type React from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   addPhoneRow,
@@ -8,23 +9,23 @@ import {
   type PhoneFieldState,
 } from '../lib/phones';
 
-type PhonesFieldProps = {
+export interface PhonesFieldProps {
   phone: string;
   phones?: string[];
   phoneError?: string | null;
   onPhonesUpdate: (next: PhoneFieldState) => void;
   onValidatePhone?: (phone: string) => boolean;
   onClearPhoneError?: () => void;
-};
+}
 
-export const PhonesField = ({
+export const PhonesField: React.FC<PhonesFieldProps> = ({
   phone,
   phones,
   phoneError,
   onPhonesUpdate,
   onValidatePhone,
   onClearPhoneError,
-}: PhonesFieldProps) => {
+}) => {
   const { t } = useTranslation();
   const phoneRows = getPhoneRows(phone, phones);
   const canRemoveRow = phoneRows.length > 1;
@@ -71,10 +72,14 @@ export const PhonesField = ({
                 <button
                   type='button'
                   className='ghost-button phone-primary-action'
-                  aria-label={t('clients.card.setPrimaryPhoneAriaLabel')}
+                  aria-label={t(
+                    'clients.card.setPrimaryPhoneAriaLabel',
+                  )}
                   title={t('clients.card.setPrimaryPhone')}
                   onClick={() => {
-                    onPhonesUpdate(setPrimaryPhoneAtIndex(phone, phones, index));
+                    onPhonesUpdate(
+                      setPrimaryPhoneAtIndex(phone, phones, index),
+                    );
                     onClearPhoneError?.();
                   }}
                 >
@@ -87,7 +92,9 @@ export const PhonesField = ({
                   className='ghost-button'
                   aria-label={t('clients.card.removePhoneAriaLabel')}
                   onClick={() => {
-                    onPhonesUpdate(removePhoneAtIndex(phone, phones, index));
+                    onPhonesUpdate(
+                      removePhoneAtIndex(phone, phones, index),
+                    );
                     onClearPhoneError?.();
                   }}
                 >
@@ -107,7 +114,9 @@ export const PhonesField = ({
           {t('clients.card.addPhone')}
         </button>
       </div>
-      {phoneError ? <span className='error-message'>{phoneError}</span> : null}
+      {phoneError ? (
+        <span className='error-message'>{phoneError}</span>
+      ) : null}
     </div>
   );
 };

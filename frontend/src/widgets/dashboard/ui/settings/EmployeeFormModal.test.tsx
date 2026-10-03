@@ -2,8 +2,8 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { I18nextProvider } from 'react-i18next';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { useState } from 'react';
-import { initialEmployeeForm } from '../../../../entities/employee/model/forms';
-import type { EmployeeFormValues } from '../../../../entities/employee/model/types';
+import { initialEmployeeForm } from '../../../../entities/employee';
+import type { EmployeeFormValues } from '../../../../entities/employee';
 import i18n from '../../../../shared/i18n/config';
 import { EmployeeFormModal } from './EmployeeFormModal';
 

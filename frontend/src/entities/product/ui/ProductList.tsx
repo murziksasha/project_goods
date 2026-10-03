@@ -1,31 +1,37 @@
+import type React from 'react';
 import { useTranslation } from 'react-i18next';
-import { formatCurrency, formatDate } from '../../../shared/lib/format';
+import {
+  formatCurrency,
+  formatDate,
+} from '../../../shared/lib/format';
 import type { Product } from '../model/types';
 
-type ProductListProps = {
+export interface ProductListProps {
   products: Product[];
   isLoading: boolean;
   searchQuery: string;
   onEdit: (product: Product) => void;
   onDelete: (product: Product) => void;
-};
+}
 
-export const ProductList = ({
+export const ProductList: React.FC<ProductListProps> = ({
   products,
   isLoading,
   searchQuery,
   onEdit,
   onDelete,
-}: ProductListProps) => {
+}) => {
   const { t } = useTranslation();
 
   if (isLoading) {
-    return <p className="empty-state">{t('legacy.productList.loading')}</p>;
+    return (
+      <p className='empty-state'>{t('legacy.productList.loading')}</p>
+    );
   }
 
   if (products.length === 0) {
     return (
-      <p className="empty-state">
+      <p className='empty-state'>
         {searchQuery
           ? t('legacy.productList.noSearchResults')
           : t('legacy.productList.empty')}
@@ -34,12 +40,12 @@ export const ProductList = ({
   }
 
   return (
-    <div className="product-list">
+    <div className='product-list'>
       {products.map((product) => (
-        <article key={product.id} className="product-card">
-          <div className="product-card-header">
+        <article key={product.id} className='product-card'>
+          <div className='product-card-header'>
             <div>
-              <div className="product-title-row">
+              <div className='product-title-row'>
                 <h3>{product.name}</h3>
                 <span
                   className={
@@ -54,12 +60,14 @@ export const ProductList = ({
                 </span>
               </div>
               <p>{product.article}</p>
-              <p>{t('common.serial', { value: product.serialNumber })}</p>
+              <p>
+                {t('common.serial', { value: product.serialNumber })}
+              </p>
             </div>
             <strong>{formatCurrency(product.price)}</strong>
           </div>
 
-          <dl className="product-meta">
+          <dl className='product-meta'>
             <div>
               <dt>{t('legacy.productList.salePrices')}</dt>
               <dd>
@@ -84,7 +92,9 @@ export const ProductList = ({
             </div>
             <div>
               <dt>{t('legacy.productList.purchasePlace')}</dt>
-              <dd>{product.purchasePlace || t('common.notSpecified')}</dd>
+              <dd>
+                {product.purchasePlace || t('common.notSpecified')}
+              </dd>
             </div>
             <div>
               <dt>{t('legacy.productList.purchaseDate')}</dt>
@@ -92,7 +102,11 @@ export const ProductList = ({
             </div>
             <div>
               <dt>{t('legacy.productList.warranty')}</dt>
-              <dd>{t('common.months', { count: product.warrantyPeriod })}</dd>
+              <dd>
+                {t('common.months', {
+                  count: product.warrantyPeriod,
+                })}
+              </dd>
             </div>
             <div>
               <dt>{t('legacy.productList.defaultNote')}</dt>
@@ -100,11 +114,19 @@ export const ProductList = ({
             </div>
           </dl>
 
-          <div className="card-actions">
-            <button className="ghost-button" type="button" onClick={() => onEdit(product)}>
+          <div className='card-actions'>
+            <button
+              className='ghost-button'
+              type='button'
+              onClick={() => onEdit(product)}
+            >
               {t('common.edit')}
             </button>
-            <button className="danger-button" type="button" onClick={() => onDelete(product)}>
+            <button
+              className='danger-button'
+              type='button'
+              onClick={() => onDelete(product)}
+            >
               {t('common.delete')}
             </button>
           </div>

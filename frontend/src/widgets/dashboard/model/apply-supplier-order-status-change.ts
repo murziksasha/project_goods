@@ -1,7 +1,7 @@
 import type {
   SupplierOrder,
   SupplierOrderStatus,
-} from '../../../entities/supplier-order/model/types';
+} from '../../../entities/supplier-order';
 import {
   getActiveSupplierOrderItems,
   isMultiItemSupplierOrder,
@@ -93,7 +93,7 @@ export const applySupplierOrderStatusChange = async ({
       const takeOnChargeBase = {
         autoGenerateSerialNumbers: true,
         serialNumbers: [] as string[],
-        autoGenerateArticles: false,
+        autoGenerateArticles: true,
         articleBase: '',
         warehouseId: defaultWarehouse.warehouseId,
         locationId: defaultWarehouse.locationId,

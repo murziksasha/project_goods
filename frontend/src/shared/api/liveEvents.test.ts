@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { authTokenStorageKey } from '../../entities/auth/api/authApi';
+import { authTokenStorageKey } from '../../entities/auth';
 import { queryClient, queryKeys } from './queryClient';
 import {
   consumeSseBuffer,

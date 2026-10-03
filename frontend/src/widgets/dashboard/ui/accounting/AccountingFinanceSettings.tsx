@@ -1,14 +1,15 @@
+import type React from 'react';
 import { useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import type {
   Cashbox,
   FinanceCategory,
-} from '../../../../entities/finance/model/types';
+} from '../../../../entities/finance';
 import { isCashboxCurrencyUncheckLocked } from '../../model/accounting';
 import { AccountingCategorySettings } from './AccountingCategorySettings';
 import type { FinanceSettingsTab } from './useAccountingPreferences';
 
-type AccountingFinanceSettingsProps = {
+export interface AccountingFinanceSettingsProps {
   activeTab: FinanceSettingsTab;
   allCashboxes: Cashbox[];
   allCurrencyCodes: string[];
@@ -45,7 +46,7 @@ type AccountingFinanceSettingsProps = {
   onToggleCategoryActive: (category: FinanceCategory) => void;
 };
 
-export const AccountingFinanceSettings = ({
+export const AccountingFinanceSettings: React.FC<AccountingFinanceSettingsProps> = ({
   activeTab,
   allCashboxes,
   allCurrencyCodes,
@@ -77,7 +78,7 @@ export const AccountingFinanceSettings = ({
   onDeleteCategory,
   onRenameCategory,
   onToggleCategoryActive,
-}: AccountingFinanceSettingsProps) => {
+}) => {
   const { t } = useTranslation();
 
   return (
@@ -611,7 +612,7 @@ const CurrencySettings = ({
   );
 };
 
-type SettingsCardProps = {
+export interface SettingsCardProps {
   cardId: string;
   children: ReactNode;
   expandedCard: string | null;

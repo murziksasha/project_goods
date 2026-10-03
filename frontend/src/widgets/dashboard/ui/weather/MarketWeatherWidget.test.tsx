@@ -2,23 +2,23 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { I18nextProvider } from 'react-i18next';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import * as marketApi from '../../../../entities/market/api/marketApi';
-import * as weatherApi from '../../../../entities/weather/api/weatherApi';
-import { createDefaultSettingsForm } from '../../../../entities/settings/model/printForms';
+import * as marketApi from '../../../../entities/market';
+import * as weatherApi from '../../../../entities/weather';
+import { createDefaultSettingsForm } from '../../../../entities/settings';
 import { dashboardWidgetOverridesStorageKey } from '../../model/dashboard-widget-settings';
 import i18n from '../../../../shared/i18n/config';
 import { MarketWeatherWidget } from './MarketWeatherWidget';
 
-vi.mock('../../../../entities/market/api/marketApi', async (importOriginal) => {
+vi.mock('../../../../entities/market', async (importOriginal) => {
   const actual = await importOriginal<
-    typeof import('../../../../entities/market/api/marketApi')
+    typeof import('../../../../entities/market')
   >();
   return { ...actual };
 });
 
-vi.mock('../../../../entities/weather/api/weatherApi', async (importOriginal) => {
+vi.mock('../../../../entities/weather', async (importOriginal) => {
   const actual = await importOriginal<
-    typeof import('../../../../entities/weather/api/weatherApi')
+    typeof import('../../../../entities/weather')
   >();
   return { ...actual };
 });

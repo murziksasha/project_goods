@@ -1,6 +1,6 @@
-import type { Employee, EmployeeRole } from '../../../entities/employee/model/types';
-import { employeeRoleOptions } from '../../../entities/employee/model/types';
-import type { Sale } from '../../../entities/sale/model/types';
+import type { Employee, EmployeeRole } from '../../../entities/employee';
+import { employeeRoleOptions } from '../../../entities/employee';
+import type { Sale } from '../../../entities/sale';
 import { getSaleTotal } from './sales-analytics';
 
 export type EmployeeInformationView =

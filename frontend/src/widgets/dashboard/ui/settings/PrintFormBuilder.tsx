@@ -1,3 +1,4 @@
+import type React from 'react';
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { useTranslation } from 'react-i18next';
 import JsBarcode from 'jsbarcode';
@@ -7,7 +8,7 @@ import type {
   PrintLayoutField,
   PrintLayoutTableColumn,
   PrintLayoutTableRow,
-} from '../../../../entities/settings/model/types';
+} from '../../../../entities/settings';
 import {
   createLayoutPrintForm,
   createPrintLayoutBlock,
@@ -20,11 +21,11 @@ import {
   printFormVariableGroups,
   renderPrintLayout,
   renderPrintTemplate,
-} from '../../../../entities/settings/model/printForms';
-import type { PrintContentMargins } from '../../../../entities/settings/model/types';
+} from '../../../../entities/settings';
+import type { PrintContentMargins } from '../../../../entities/settings';
 import { sanitizePrintHtml } from '../../../../shared/lib/sanitizeHtml';
 
-type PrintFormBuilderProps = {
+export interface PrintFormBuilderProps {
   forms: PrintForm[];
   selectedForm: PrintForm;
   previewValues: Record<string, string>;
@@ -701,7 +702,7 @@ const BlockEditor = ({
   }
 };
 
-export const PrintFormBuilder = ({
+export const PrintFormBuilder: React.FC<PrintFormBuilderProps> = ({
   forms,
   selectedForm,
   previewValues,
@@ -709,7 +710,7 @@ export const PrintFormBuilder = ({
   onUpdateForms,
   onUpdateForm,
   onDeleteForm,
-}: PrintFormBuilderProps) => {
+}) => {
   const { t } = useTranslation();
   const [activeBlockId, setActiveBlockId] = useState(
     () => selectedForm.layoutBlocks?.[0]?.id ?? '',

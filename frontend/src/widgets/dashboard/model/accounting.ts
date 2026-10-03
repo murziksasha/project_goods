@@ -7,18 +7,19 @@ import type {
   FinanceTransactionsListParams,
   FinanceTransactionType,
   SupplierOrderPaymentQueueItem,
-} from '../../../entities/finance/model/types';
-import type { Sale } from '../../../entities/sale/model/types';
-import type { SupplierOrder } from '../../../entities/supplier-order/model/types';
+} from '../../../entities/finance';
+import type { Sale } from '../../../entities/sale';
+import type { SupplierOrder } from '../../../entities/supplier-order';
 import i18n from '../../../shared/i18n/config';
 import { formatDateTime } from '../../../shared/lib/format';
 
-export type AccountingTab =
-  | 'cashboxes'
-  | 'transactions'
-  | 'orders'
-  | 'information'
-  | 'reports';
+import {
+  type AccountingTab,
+  isAccountingTab,
+} from '../../../shared/config/routing';
+
+export type { AccountingTab };
+export { isAccountingTab };
 
 export const accountingTabStorageKey = 'project-goods.accounting-tab';
 export const accountingTabInformationMigrationKey =
@@ -599,12 +600,7 @@ export const applyCashboxOrder = (items: Cashbox[], orderedIds: string[]) => {
   return [...ordered, ...unordered];
 };
 
-export const isAccountingTab = (value: string | null): value is AccountingTab =>
-  value === 'cashboxes' ||
-  value === 'transactions' ||
-  value === 'orders' ||
-  value === 'information' ||
-  value === 'reports';
+
 
 export const getAccountingTabFromUrl = (): AccountingTab | null => {
   try {

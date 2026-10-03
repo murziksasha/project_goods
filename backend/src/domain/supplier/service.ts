@@ -102,7 +102,7 @@ export const listSuppliers = async (queryValue: unknown) => {
     ? { $and: [searchQuery, { isActive: { $ne: false } }] }
     : searchQuery;
   const suppliers = await Supplier.find(query)
-    .sort({ createdAt: -1 })
+    .sort({ sortOrder: 1, createdAt: -1 })
     .lean<SupplierDocument[]>();
   return suppliers.map(formatSupplier);
 };
@@ -269,4 +269,33 @@ export const mergeSuppliers = async (
         movedSupplierOrdersResult.modifiedCount ?? 0,
     };
   });
+};
+
+export const reorderSuppliers = async (
+  items: Array<{ id: string; sortOrder: number }>,
+) => {
+  if (!Array.isArray(items) || items.length === 0) {
+    throw new HttpError(400, 'Invalid items array.');
+  }
+
+  const bulkOps = items
+    .filter(
+      (item) =>
+        item &&
+        typeof item.id === 'string' &&
+        item.id.trim().length > 0 &&
+        Number.isFinite(item.sortOrder),
+    )
+    .map((item) => ({
+      updateOne: {
+        filter: { _id: item.id.trim() },
+        update: { $set: { sortOrder: item.sortOrder } },
+      },
+    }));
+
+  if (bulkOps.length > 0) {
+    await Supplier.bulkWrite(bulkOps);
+  }
+
+  return { success: true, updatedCount: bulkOps.length };
 };

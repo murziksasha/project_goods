@@ -1,3 +1,4 @@
+import type React from 'react';
 import { useTranslation } from 'react-i18next';
 import { formatMetric, type DashboardAnalyticsView } from '../../model/sales-analytics';
 
@@ -13,11 +14,11 @@ const FUNNEL_COLORS: Record<string, string> = {
   other: '#64748b',
 };
 
-type AnalyticsFunnelPanelProps = {
+export interface AnalyticsFunnelPanelProps {
   funnel: DashboardAnalyticsView['funnel'];
 };
 
-export const AnalyticsFunnelPanel = ({ funnel }: AnalyticsFunnelPanelProps) => {
+export const AnalyticsFunnelPanel: React.FC<AnalyticsFunnelPanelProps> = ({ funnel }) => {
   const { t } = useTranslation();
   const total = funnel.reduce((sum, item) => sum + item.count, 0);
 

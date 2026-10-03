@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { ClientDevice } from '../../../../../entities/client-device/model/types';
+import type { ClientDevice } from '../../../../../entities/client-device';
 import {
   filterActiveDevicesByQuery,
   scoreDeviceQueryMatch,

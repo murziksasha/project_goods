@@ -1,7 +1,8 @@
+import type React from 'react';
 import { createPortal } from 'react-dom';
 import type { ReactNode, RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { Sale } from '../../../../../entities/sale/model/types';
+import type { Sale } from '../../../../../entities/sale';
 import { PaginationPanel } from '../../../../../shared/ui/PaginationPanel';
 import { TableSkeleton } from '../../../../../shared/ui/TableSkeleton';
 import {
@@ -19,7 +20,7 @@ import {
   type OrdersTab,
 } from './orders-workspace-shared';
 
-type OrdersWorkspaceTableSectionProps = {
+export interface OrdersWorkspaceTableSectionProps {
   activeTab: OrdersTab;
   isLoading: boolean;
   filteredOrders: Sale[];
@@ -46,7 +47,7 @@ type OrdersWorkspaceTableSectionProps = {
   canAssignStatus: (sale: Sale, status: OrderStatus) => boolean;
 };
 
-export const OrdersWorkspaceTableSection = ({
+export const OrdersWorkspaceTableSection: React.FC<OrdersWorkspaceTableSectionProps> = ({
   activeTab,
   isLoading,
   filteredOrders,
@@ -71,7 +72,7 @@ export const OrdersWorkspaceTableSection = ({
   onUpdateStatus,
   onOpenSale,
   canAssignStatus,
-}: OrdersWorkspaceTableSectionProps) => {
+}) => {
   const { t } = useTranslation();
 
   return (

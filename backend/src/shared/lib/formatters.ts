@@ -43,6 +43,7 @@ export const formatProduct = (product: ProductDocument) => {
       : null,
     warrantyPeriod: product.warrantyPeriod,
     isActive: product.isActive ?? true,
+    sortOrder: product.sortOrder ?? 0,
     createdAt: product.createdAt.toISOString(),
     updatedAt: product.updatedAt.toISOString(),
   };
@@ -81,6 +82,7 @@ export const formatSupplier = (supplier: SupplierDocument) => ({
   note: supplier.note,
   supplierOrder: supplier.supplierOrder ?? '',
   isActive: supplier.isActive,
+  sortOrder: supplier.sortOrder ?? 0,
   createdAt: supplier.createdAt.toISOString(),
   updatedAt: supplier.updatedAt.toISOString(),
 });
@@ -96,6 +98,7 @@ export const formatCatalogProduct = (
   usageCount,
   canRemove: usageCount === 0,
   sourceTags: item.sourceTags ?? [],
+  sortOrder: item.sortOrder ?? 0,
   lastSeenAt: item.lastSeenAt
     ? item.lastSeenAt.toISOString()
     : item.updatedAt.toISOString(),
