@@ -137,6 +137,11 @@ describe('returnSale', () => {
 
     expect(result.status).toBe('returned');
     expect(result.paidAmount).toBe(0);
+    expect(financeService.createFinanceTransaction).toHaveBeenCalledWith(
+      expect.objectContaining({
+        note: 'Full return for sale r000001',
+      }),
+    );
     expect(Product.findByIdAndUpdate).toHaveBeenCalledWith(
       lineItem.productId,
       {
@@ -172,6 +177,11 @@ describe('returnSale', () => {
 
     expect(result.status).toBe('returned');
     expect(result.paidAmount).toBe(4650);
+    expect(financeService.createFinanceTransaction).toHaveBeenCalledWith(
+      expect.objectContaining({
+        note: 'Return for sale r000001',
+      }),
+    );
     expect(Product.findByIdAndUpdate).toHaveBeenCalledWith(
       lineItem.productId,
       {
@@ -179,6 +189,29 @@ describe('returnSale', () => {
         $set: { purchasePlace: 'Service center' },
       },
       { returnDocument: 'before' },
+    );
+  });
+
+  it('uses Full return note when returning an order with only goods', async () => {
+    currentSale = withFormatSaleFields({
+      ...buildSale('sale'),
+      paidAmount: 350,
+      lineItems: [lineItem],
+    });
+
+    const result = await returnSale('507f1f77bcf86cd799439012', {
+      cashboxId: '507f1f77bcf86cd799439099',
+      refundAmount: '350',
+      warehouse: 'Service center',
+      author: 'Tester',
+    });
+
+    expect(result.status).toBe('returned');
+    expect(result.paidAmount).toBe(0);
+    expect(financeService.createFinanceTransaction).toHaveBeenCalledWith(
+      expect.objectContaining({
+        note: 'Full return for sale r000001',
+      }),
     );
   });
 

@@ -501,12 +501,19 @@ export const returnSale = async (
   }
 
   try {
+    const hasUnrefundedServices =
+      remainingLineItems.length > 0 &&
+      Math.abs(currentPaidAmount - goodsOnlyAmount) >= 0.005 &&
+      Math.abs(refundAmount - goodsOnlyAmount) < 0.005;
+    const notePrefix = hasUnrefundedServices ? 'Return' : 'Full return';
+    const orderToken = sale.recordNumber ?? sale._id.toString();
+
     const transaction = await createFinanceTransaction({
       type: 'withdraw',
       amount: String(refundAmount),
       currency: 'UAH',
       fromCashboxId: cashboxId,
-      note: `Full return for sale ${sale.recordNumber ?? sale._id.toString()}`,
+      note: `${notePrefix} for sale ${orderToken}`,
       category: 'client_refund',
     });
     const cashboxName = transaction.fromCashbox?.name ?? 'Cashbox';
