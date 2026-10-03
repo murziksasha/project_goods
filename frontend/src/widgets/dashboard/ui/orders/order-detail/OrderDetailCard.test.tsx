@@ -2166,6 +2166,9 @@ describe('OrderDetailCard product entry', () => {
     expect(
       groupToggle.querySelector('.order-line-item-group-qty'),
     ).toHaveTextContent('2');
+    expect(
+      groupToggle.querySelector('.order-line-item-group-total'),
+    ).toHaveTextContent(/176,00/);
     expect(screen.queryByText('S000001')).not.toBeInTheDocument();
     expect(screen.queryByText('S000002')).not.toBeInTheDocument();
 
@@ -2174,6 +2177,9 @@ describe('OrderDetailCard product entry', () => {
     expect(
       groupToggle.querySelector('.order-line-item-group-price'),
     ).toBeNull();
+    expect(
+      groupToggle.querySelector('.order-detail-section-summary'),
+    ).toHaveTextContent(/176,00/);
     expect(screen.getByText('S000001')).toBeInTheDocument();
     expect(screen.getByText('S000002')).toBeInTheDocument();
   });
@@ -2215,9 +2221,15 @@ describe('OrderDetailCard product entry', () => {
     expect(
       groupToggle.querySelector('.order-line-item-group-qty'),
     ).toHaveTextContent('2');
+    expect(
+      groupToggle.querySelector('.order-line-item-group-total'),
+    ).toHaveTextContent(/20,00/);
     expect(screen.queryByText('R1')).not.toBeInTheDocument();
 
     fireEvent.click(groupToggle);
+    expect(
+      groupToggle.querySelector('.order-detail-section-summary'),
+    ).toHaveTextContent(/20,00/);
     expect(screen.getByText('R1')).toBeInTheDocument();
     expect(screen.getByText('R2')).toBeInTheDocument();
   });
@@ -2255,7 +2267,7 @@ describe('OrderDetailCard product entry', () => {
     ).toBeInTheDocument();
   });
 
-  it('shows mixed-price group amount on the collapsed price cell', () => {
+  it('shows em-dash on price cell and group total on action cell when unit prices differ', () => {
     renderCard({
       lineItems: [
         {
@@ -2284,10 +2296,18 @@ describe('OrderDetailCard product entry', () => {
     });
     expect(
       groupToggle.querySelector('.order-line-item-group-price'),
-    ).toHaveTextContent(/35,00/);
+    ).toHaveTextContent('\u2014');
     expect(
       groupToggle.querySelector('.order-line-item-group-qty'),
     ).toHaveTextContent('2');
+    expect(
+      groupToggle.querySelector('.order-line-item-group-total'),
+    ).toHaveTextContent(/35,00/);
+
+    fireEvent.click(groupToggle);
+    expect(
+      groupToggle.querySelector('.order-detail-section-summary'),
+    ).toHaveTextContent(/35,00/);
   });
 
   it('expands a product group when a new matching line is added', () => {

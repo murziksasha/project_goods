@@ -93,7 +93,7 @@ export const applySupplierOrderStatusChange = async ({
       const takeOnChargeBase = {
         autoGenerateSerialNumbers: true,
         serialNumbers: [] as string[],
-        autoGenerateArticles: false,
+        autoGenerateArticles: true,
         articleBase: '',
         warehouseId: defaultWarehouse.warehouseId,
         locationId: defaultWarehouse.locationId,

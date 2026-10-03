@@ -1252,6 +1252,8 @@
         "articleExamplePlaceholder": "Example: SSD-KINGSTON",
         "articleForGroup": "Article for group",
         "articleGroupHint": "Leave blank to auto-generate",
+        "articleGroupNoneHint": "Leave blank for no article",
+        "autoArticle": "Auto-generate article",
         "warehouse": "Warehouse",
         "location": "Location",
         "noWarehouses": "No warehouses",

@@ -1124,10 +1124,18 @@
 }
 
 .order-line-item-group-price,
-.order-line-item-group-qty {
+.order-line-item-group-qty,
+.order-line-item-group-total {
   font-weight: 800;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
+}
+
+.order-line-item-group-action {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
 }
 
 .order-line-item-group-header-collapsed .order-detail-collapse-icon {

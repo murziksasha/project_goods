@@ -9,6 +9,7 @@ import {
   updateSupplierOrder,
   updateSupplierOrderFavorite,
   type SupplierOrderPayload,
+  type SupplierOrderTakeOnChargePayload,
 } from './service';
 import {
   requireAnyPermission,
@@ -56,15 +57,7 @@ export const takeOnCharge = async (req: Request, res: Response): Promise<void> =
   res.json(
     await takeOnChargeSupplierOrder(
       routeParam(req, 'supplierOrderId'),
-      req.body as {
-        autoGenerateSerialNumbers?: unknown;
-        serialNumbers?: unknown;
-        autoGenerateArticles?: unknown;
-        articleBase?: unknown;
-        itemIndex?: unknown;
-        warehouseId?: unknown;
-        locationId?: unknown;
-      },
+      req.body as SupplierOrderTakeOnChargePayload,
     ),
   );
 };
