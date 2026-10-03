@@ -1,8 +1,9 @@
 import mongoose from 'mongoose';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Product } from '../product/model';
+import * as financeService from '../finance/service';
 import { Sale } from './model';
-import { returnSaleLineItemToStock } from './service';
+import { returnSale, returnSaleLineItemToStock } from './service';
 import { leanResult, withFormatSaleFields } from './test-helpers';
 
 const lineItem = {
@@ -63,6 +64,10 @@ const installSpies = () => {
       purchasePlace: 'Service center',
     }) as never,
   );
+  vi.spyOn(financeService, 'createFinanceTransaction').mockResolvedValue({
+    toCashbox: { name: 'Основная' },
+    fromCashbox: { name: 'Основная' },
+  } as never);
 };
 
 beforeEach(() => {
@@ -103,5 +108,111 @@ describe('returnSaleLineItemToStock', () => {
     });
 
     expect(Sale.findByIdAndUpdate).toHaveBeenCalled();
+  });
+});
+
+describe('returnSale', () => {
+  it('accepts full refund when paidAmount exceeds productTotal due to services', async () => {
+    currentSale = withFormatSaleFields({
+      ...buildSale('sale'),
+      paidAmount: 5000,
+      lineItems: [
+        lineItem, // price 350
+        {
+          id: 'li-service',
+          kind: 'service',
+          name: 'Consultation',
+          price: 4650,
+          quantity: 1,
+        },
+      ],
+    });
+
+    const result = await returnSale('507f1f77bcf86cd799439012', {
+      cashboxId: '507f1f77bcf86cd799439099',
+      refundAmount: '5000',
+      warehouse: 'Service center',
+      author: 'Tester',
+    });
+
+    expect(result.status).toBe('returned');
+    expect(result.paidAmount).toBe(0);
+    expect(Product.findByIdAndUpdate).toHaveBeenCalledWith(
+      lineItem.productId,
+      {
+        $inc: { quantity: lineItem.quantity },
+        $set: { purchasePlace: 'Service center' },
+      },
+      { returnDocument: 'before' },
+    );
+  });
+
+  it('accepts goods-only refund when paidAmount exceeds productTotal due to services', async () => {
+    currentSale = withFormatSaleFields({
+      ...buildSale('sale'),
+      paidAmount: 5000,
+      lineItems: [
+        lineItem, // price 350
+        {
+          id: 'li-service',
+          kind: 'service',
+          name: 'Consultation',
+          price: 4650,
+          quantity: 1,
+        },
+      ],
+    });
+
+    const result = await returnSale('507f1f77bcf86cd799439012', {
+      cashboxId: '507f1f77bcf86cd799439099',
+      refundAmount: '350',
+      warehouse: 'Service center',
+      author: 'Tester',
+    });
+
+    expect(result.status).toBe('returned');
+    expect(result.paidAmount).toBe(4650);
+    expect(Product.findByIdAndUpdate).toHaveBeenCalledWith(
+      lineItem.productId,
+      {
+        $inc: { quantity: lineItem.quantity },
+        $set: { purchasePlace: 'Service center' },
+      },
+      { returnDocument: 'before' },
+    );
+  });
+
+  it('rejects partial refund on full sale return', async () => {
+    currentSale = withFormatSaleFields({
+      ...buildSale('sale'),
+      paidAmount: 5000,
+      lineItems: [lineItem],
+    });
+
+    await expect(
+      returnSale('507f1f77bcf86cd799439012', {
+        cashboxId: '507f1f77bcf86cd799439099',
+        refundAmount: '4300',
+        warehouse: 'Service center',
+        author: 'Tester',
+      }),
+    ).rejects.toThrow('Refund amount is not valid for this return.');
+  });
+
+  it('rejects refund amount exceeding paidAmount', async () => {
+    currentSale = withFormatSaleFields({
+      ...buildSale('sale'),
+      paidAmount: 5000,
+      lineItems: [lineItem],
+    });
+
+    await expect(
+      returnSale('507f1f77bcf86cd799439012', {
+        cashboxId: '507f1f77bcf86cd799439099',
+        refundAmount: '6000',
+        warehouse: 'Service center',
+        author: 'Tester',
+      }),
+    ).rejects.toThrow('Refund amount is not valid for this return.');
   });
 });

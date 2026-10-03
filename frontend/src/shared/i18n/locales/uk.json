@@ -821,6 +821,8 @@
       "productsToStock": "Товари на склад",
       "productTotal": "Сума товарів",
       "returnBadge": "Повернення",
+      "fullAmount": "Повна сума",
+      "goodsOnly": "Тільки товари",
       "receiveToWarehouse": "Оприбуткувати на склад",
       "refundFromCashbox": "Повернення з каси",
       "suggestedCashbox": "Рекомендована каса: {{name}}",

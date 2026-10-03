@@ -1751,6 +1751,13 @@
     grid-template-columns: 1fr;
   }
 
+  .payment-cash-button {
+    min-height: 38px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
   .payment-modal-footer {
     flex-direction: column;
     align-items: stretch;

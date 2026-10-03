@@ -456,22 +456,25 @@ export const returnSale = async (
   const refundAmount = Math.round(toNumber(payload.refundAmount) * 100) / 100;
   const productTotal = calculateLineItemsTotal(productLineItems);
   const remainingLineItems = lineItems.filter((item) => item.kind !== 'product');
-  const remainingTotal = calculateLineItemsTotal(remainingLineItems);
-  const currentPaidAmount = sale.paidAmount ?? 0;
-  const nextPaidAmount = Math.max(
-    Math.round((currentPaidAmount - refundAmount) * 100) / 100,
-    0,
-  );
+  const currentPaidAmount = Math.round((sale.paidAmount ?? 0) * 100) / 100;
+  const goodsOnlyAmount = Math.max(0, Math.min(productTotal, currentPaidAmount));
+  const isAllowedRefund =
+    Math.abs(refundAmount - goodsOnlyAmount) < 0.005 ||
+    Math.abs(refundAmount - currentPaidAmount) < 0.005;
 
   if (
     !Number.isFinite(refundAmount) ||
     refundAmount <= 0 ||
-    refundAmount > productTotal ||
     refundAmount > currentPaidAmount ||
-    nextPaidAmount > remainingTotal
+    !isAllowedRefund
   ) {
     throw new HttpError(400, 'Refund amount is not valid for this return.');
   }
+
+  const nextPaidAmount = Math.max(
+    Math.round((currentPaidAmount - refundAmount) * 100) / 100,
+    0,
+  );
 
   const cashboxId = String(payload.cashboxId ?? '').trim();
   const warehouse = String(payload.warehouse ?? '').trim() || 'Warehouse';

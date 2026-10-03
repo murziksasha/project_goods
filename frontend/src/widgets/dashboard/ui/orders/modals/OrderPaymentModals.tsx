@@ -45,7 +45,7 @@ type OrderLineItem = {
   name: string;
   price: number;
   quantity: number;
-  warrantyPeriod: number;
+  warrantyPeriod?: number;
   serialNumbers?: string[];
 };
 
@@ -554,14 +554,27 @@ export const ReturnSaleModal: React.FC<ReturnSaleModalProps> = ({
   const productItems = lineItems.filter(
     (item) => item.kind === 'product',
   );
-  const serviceItems = lineItems.filter(
-    (item) => item.kind !== 'product',
-  );
   const productTotal = getLineItemsTotal(productItems);
-  const serviceTotal = getLineItemsTotal(serviceItems);
+  const goodsOnlyAmount = Math.max(0, Math.min(productTotal, paidAmount));
   const numericAmount = parseDecimal(amount);
-  const minRefund = Math.max(paidAmount - serviceTotal, 0);
-  const maxRefund = Math.min(productTotal, paidAmount);
+  const isGoodsOnly = Math.abs(numericAmount - goodsOnlyAmount) < 0.005;
+  const isFullAmount = Math.abs(numericAmount - paidAmount) < 0.005;
+  const hasDifferentGoodsOnlyAmount =
+    Math.abs(paidAmount - goodsOnlyAmount) >= 0.005;
+
+  const toggleAmountLabel =
+    hasDifferentGoodsOnlyAmount && isFullAmount
+      ? t('orders.payment.goodsOnly')
+      : t('orders.payment.fullAmount');
+
+  const handleToggleAmount = () => {
+    if (hasDifferentGoodsOnlyAmount && isFullAmount) {
+      onAmountChange(String(goodsOnlyAmount));
+    } else {
+      onAmountChange(String(paidAmount));
+    }
+  };
+
   const suggestedCashboxName =
     cashboxes.find((cashbox) => cashbox.id === selectedCashboxId)
       ?.name ?? t('orders.payment.cashbox');
@@ -571,9 +584,9 @@ export const ReturnSaleModal: React.FC<ReturnSaleModalProps> = ({
     !selectedCashboxId ||
     !warehouse.trim() ||
     !Number.isFinite(numericAmount) ||
-    numericAmount < minRefund ||
     numericAmount <= 0 ||
-    numericAmount > maxRefund;
+    numericAmount > paidAmount ||
+    (!isGoodsOnly && !isFullAmount);
 
   return (
     <Modal
@@ -633,9 +646,14 @@ export const ReturnSaleModal: React.FC<ReturnSaleModalProps> = ({
             <dd>{formatCurrency(paidAmount)}</dd>
           </div>
         </dl>
-        <span className="payment-cash-badge">
-          {t('orders.payment.returnBadge')}
-        </span>
+        <button
+          type="button"
+          className="payment-cash-badge payment-cash-button"
+          onClick={handleToggleAmount}
+          disabled={isLoading || isSaving}
+        >
+          {toggleAmountLabel}
+        </button>
       </div>
 
       <div className="payment-modal-form return-sale-form">
@@ -669,13 +687,11 @@ export const ReturnSaleModal: React.FC<ReturnSaleModalProps> = ({
         </label>
         <label className="field">
           <span>{t('orders.payment.refundAmount')}</span>
-          <NumberStepper
-            min={minRefund}
-            max={maxRefund}
-            step={PRICE_STEPPER_STEP}
-            precision={PRICE_STEPPER_PRECISION}
+          <input
+            type="text"
+            readOnly
+            aria-readonly="true"
             value={amount}
-            onChange={onAmountChange}
             disabled={isLoading || isSaving}
           />
         </label>
