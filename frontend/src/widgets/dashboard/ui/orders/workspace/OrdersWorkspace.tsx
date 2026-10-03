@@ -2915,10 +2915,14 @@ export const OrdersWorkspace: React.FC<OrdersWorkspaceProps> = ({
       }
 
       onSaleUpdate(updatedSale);
-      await syncReceivedBy(
-        updatedSale,
-        updatedSale.status as OrderStatus,
-      );
+      try {
+        await syncReceivedBy(
+          updatedSale,
+          updatedSale.status as OrderStatus,
+        );
+      } catch (syncError) {
+        console.warn('Failed to sync receivedBy after product return:', syncError);
+      }
       onSuccess(t('orders.messages.success.productReturned'));
       setReturnSale(null);
       setReturnLineItem(null);
@@ -2972,10 +2976,14 @@ export const OrdersWorkspace: React.FC<OrdersWorkspaceProps> = ({
         author: currentEmployeeName,
       });
       onSaleUpdate(updatedSale);
-      await syncReceivedBy(
-        updatedSale,
-        updatedSale.status as OrderStatus,
-      );
+      try {
+        await syncReceivedBy(
+          updatedSale,
+          updatedSale.status as OrderStatus,
+        );
+      } catch (syncError) {
+        console.warn('Failed to sync receivedBy after sale return:', syncError);
+      }
       setCashboxes(await getCashboxes());
       window.dispatchEvent(
         new CustomEvent('project-goods:finance-updated'),
