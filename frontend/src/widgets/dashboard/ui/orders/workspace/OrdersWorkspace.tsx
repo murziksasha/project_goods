@@ -49,6 +49,7 @@ import {
   invalidateSupplierOrderQueries,
   useSupplierOrdersQuery,
 } from '../../../../../entities/supplier-order';
+import { useWarehouseSettingsQuery } from '../../../../../entities/warehouse-settings';
 import type { Cashbox } from '../../../../../entities/finance';
 import {
   isKanbanVisibleSale,
@@ -298,6 +299,11 @@ export const OrdersWorkspace: React.FC<OrdersWorkspaceProps> = ({
   const [selectedRefundCashboxId, setSelectedRefundCashboxId] =
     useState('');
   const [refundAmount, setRefundAmount] = useState('');
+  const warehouseSettingsQuery = useWarehouseSettingsQuery();
+  const warehouses = useMemo(
+    () => warehouseSettingsQuery.data?.warehouses ?? [],
+    [warehouseSettingsQuery.data?.warehouses],
+  );
   const [returnRefundAmount, setReturnRefundAmount] = useState('');
   const [returnWarehouse, setReturnWarehouse] = useState(() =>
     i18n.t('orders.columns.serviceCenter'),
@@ -2352,9 +2358,15 @@ export const OrdersWorkspace: React.FC<OrdersWorkspaceProps> = ({
       return;
     }
 
+    const activeWarehouses = warehouses.filter((w) => w.isActive);
+    const initialWarehouse =
+      activeWarehouses[0]?.name ??
+      warehouses[0]?.name ??
+      t('orders.columns.serviceCenter');
+
     setReturnSale(sale);
     setReturnLineItem(item);
-    setReturnWarehouse(t('orders.columns.serviceCenter'));
+    setReturnWarehouse(initialWarehouse);
     setIsReturnModalLoading(false);
   };
 
@@ -2390,11 +2402,17 @@ export const OrdersWorkspace: React.FC<OrdersWorkspaceProps> = ({
       return;
     }
 
+    const activeWarehouses = warehouses.filter((w) => w.isActive);
+    const initialWarehouse =
+      activeWarehouses[0]?.name ??
+      warehouses[0]?.name ??
+      t('orders.columns.serviceCenter');
+
     setFullReturnSale(sale);
     setReturnRefundAmount(
       String(Math.round(suggestedRefund * 100) / 100),
     );
-    setReturnWarehouse(t('orders.columns.serviceCenter'));
+    setReturnWarehouse(initialWarehouse);
     setIsFullReturnModalLoading(true);
 
     try {
@@ -3427,6 +3445,7 @@ export const OrdersWorkspace: React.FC<OrdersWorkspaceProps> = ({
         returnSale={returnSale}
         returnLineItem={returnLineItem}
         returnWarehouse={returnWarehouse}
+        warehouses={warehouses}
         isReturnModalLoading={isReturnModalLoading}
         isReturnSaving={isReturnSaving}
         fullReturnSale={fullReturnSale}

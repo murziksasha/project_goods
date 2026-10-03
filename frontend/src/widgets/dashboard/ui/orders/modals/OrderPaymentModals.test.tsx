@@ -2,7 +2,7 @@ import { fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import type { Sale } from '../../../../../entities/sale';
 import { defaultPrintForms } from '../../../../../entities/settings';
-import { PaymentModal } from './OrderPaymentModals';
+import { PaymentModal, ReturnSaleModal } from './OrderPaymentModals';
 
 const cashbox = {
   id: 'cashbox-1',
@@ -247,3 +247,109 @@ describe('PaymentModal discount', () => {
     ).toBeDisabled();
   });
 });
+
+describe('ReturnSaleModal layout and behavior', () => {
+  it('renders 2-row layout with return-sale-form and allows cashbox selection', () => {
+    const onCashboxChange = vi.fn();
+    const onWarehouseChange = vi.fn();
+    const onAmountChange = vi.fn();
+    const onClose = vi.fn();
+    const onSubmit = vi.fn();
+
+    render(
+      <ReturnSaleModal
+        sale={sale({ recordNumber: 'r000777' })}
+        lineItems={[
+          {
+            id: 'line-1',
+            kind: 'product',
+            name: 'Tablet 10.1',
+            price: 4000,
+            quantity: 1,
+            warrantyPeriod: 12,
+          },
+        ]}
+        cashboxes={[
+          cashbox,
+          {
+            id: 'cashbox-2',
+            name: 'Bank Service',
+            balances: { UAH: 5000, USD: 0 },
+            enabledCurrencies: { UAH: true, USD: false },
+            isDefault: false,
+            isArchived: false,
+            createdAt: '2026-01-01T00:00:00.000Z',
+            updatedAt: '2026-01-01T00:00:00.000Z',
+          },
+        ]}
+        warehouses={[
+          {
+            id: 'wh-1',
+            name: 'Service center',
+            isActive: true,
+            serviceCenterId: 'sc-1',
+            receiptAddress: '',
+            receiptPhone: '',
+            locations: [],
+          },
+          {
+            id: 'wh-2',
+            name: 'Main warehouse',
+            isActive: true,
+            serviceCenterId: 'sc-1',
+            receiptAddress: '',
+            receiptPhone: '',
+            locations: [],
+          },
+        ]}
+        selectedCashboxId="cashbox-2"
+        amount="4000"
+        warehouse="Service center"
+        paidAmount={4000}
+        isLoading={false}
+        isSaving={false}
+        onCashboxChange={onCashboxChange}
+        onAmountChange={onAmountChange}
+        onWarehouseChange={onWarehouseChange}
+        onClose={onClose}
+        onSubmit={onSubmit}
+      />,
+    );
+
+    // Verify form container has return-sale-form class
+    const form = document.querySelector('.payment-modal-form.return-sale-form');
+    expect(form).not.toBeNull();
+
+    // Verify warehouse field has return-sale-warehouse-field class
+    const warehouseField = document.querySelector('.return-sale-warehouse-field');
+    expect(warehouseField).not.toBeNull();
+
+    // Verify cashbox field does NOT have payment-cashbox-field class (stacked layout)
+    const oldCashboxField = document.querySelector('.payment-cashbox-field');
+    expect(oldCashboxField).toBeNull();
+
+    const selects = screen.getAllByRole('combobox');
+    expect(selects).toHaveLength(2);
+
+    // Warehouse select dropdown
+    const warehouseSelect = selects[0];
+    expect(warehouseSelect).toHaveValue('Service center');
+    expect(screen.getByRole('option', { name: 'Main warehouse' })).toBeInTheDocument();
+    fireEvent.change(warehouseSelect, { target: { value: 'Main warehouse' } });
+    expect(onWarehouseChange).toHaveBeenCalledWith('Main warehouse');
+
+    // Cashbox select dropdown
+    const cashboxSelect = selects[1];
+    expect(cashboxSelect).toHaveValue('cashbox-2');
+    expect(screen.getByRole('option', { name: 'Bank Service' })).toBeInTheDocument();
+
+    fireEvent.change(cashboxSelect, { target: { value: 'cashbox-1' } });
+    expect(onCashboxChange).toHaveBeenCalledWith('cashbox-1');
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Return sale' }),
+    );
+    expect(onSubmit).toHaveBeenCalled();
+  });
+});
+

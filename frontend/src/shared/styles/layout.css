@@ -4221,6 +4221,14 @@ button.payment-summary-discount-badge:hover:not(:disabled) {
   color: var(--color-text-label);
 }
 
+.return-sale-form {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+
+.return-sale-warehouse-field {
+  grid-column: 1 / -1;
+}
+
 .payment-modal-footer {
   display: flex;
   justify-content: space-between;

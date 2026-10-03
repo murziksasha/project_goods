@@ -530,3 +530,13 @@ Shown only on **Orders → Sales** (not the repair Orders tab) when `lineItems.l
   - client paid amount is fully refunded (`paidAmount = 0`).
 - Backend workspace update mirrors this guard and rejects direct `returned` saves that bypass the UI.
 
+## Return Sale Modal Layout and Adaptive Behavior
+
+- When returning a sale via `Return sale` modal (`ReturnSaleModal`):
+  - Form layout uses a 2-row adaptive grid (`.return-sale-form`):
+    - Row 1: `Receive to warehouse` dropdown menu spans full width (`.return-sale-warehouse-field`), presenting actual active warehouses in the app.
+    - Row 2: `Refund from cashbox` select and `Refund amount` stepper display side-by-side (`minmax(0, 1fr)` each) on desktop/tablet.
+  - Cashbox field uses a stacked label-above-select pattern, eliminating horizontal squeezing so the selected cashbox name remains clearly visible.
+  - On mobile/small screens (<= 720px), all 3 fields collapse into a single vertical column (`grid-template-columns: 1fr`).
+
+

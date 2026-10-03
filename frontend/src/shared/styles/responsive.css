@@ -1746,7 +1746,8 @@
     cursor: pointer;
   }
 
-  .payment-modal-form {
+  .payment-modal-form,
+  .return-sale-form {
     grid-template-columns: 1fr;
   }
 
