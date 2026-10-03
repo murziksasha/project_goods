@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import type { Cashbox } from '../../../../../entities/finance';
 import type { Sale } from '../../../../../entities/sale';
 import type { PrintForm } from '../../../../../entities/settings';
+import type { WarehouseItem } from '../../../../../entities/warehouse-settings';
 import {
   MessageModal,
   PaymentModal,
@@ -45,6 +46,7 @@ export interface OrdersWorkspaceModalsProps {
   returnSale: Sale | null;
   returnLineItem: OrderLineItem | null;
   returnWarehouse: string;
+  warehouses?: WarehouseItem[];
   isReturnModalLoading: boolean;
   isReturnSaving: boolean;
   fullReturnSale: Sale | null;
@@ -98,6 +100,7 @@ export const OrdersWorkspaceModals: React.FC<OrdersWorkspaceModalsProps> = ({
   returnSale,
   returnLineItem,
   returnWarehouse,
+  warehouses,
   isReturnModalLoading,
   isReturnSaving,
   fullReturnSale,
@@ -212,6 +215,7 @@ export const OrdersWorkspaceModals: React.FC<OrdersWorkspaceModalsProps> = ({
           sale={returnSale}
           item={returnLineItem}
           warehouse={returnWarehouse}
+          warehouses={warehouses}
           isLoading={isReturnModalLoading}
           isSaving={isReturnSaving}
           onWarehouseChange={onReturnWarehouseChange}
@@ -228,6 +232,7 @@ export const OrdersWorkspaceModals: React.FC<OrdersWorkspaceModalsProps> = ({
           selectedCashboxId={selectedRefundCashboxId}
           amount={returnRefundAmount}
           warehouse={returnWarehouse}
+          warehouses={warehouses}
           paidAmount={getPaidAmount(fullReturnSale)}
           isLoading={isFullReturnModalLoading}
           isSaving={isFullReturnSaving}

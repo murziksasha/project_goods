@@ -229,3 +229,13 @@ Related: [SALE_FLOW.md](./SALE_FLOW.md) · [ORDER_CARD.md](./ORDER_CARD.md) · [
   - order is not paid (`paidAmount = 0`)
   - card status is editable (`new`, `reserved`, `paid`, `away`)
 - In paid orders, service removal is blocked until refund is completed.
+
+## Return Sale Modal Layout and Behavior
+
+- When returning a sale via the `Return sale` modal (`ReturnSaleModal`):
+  - Form layout uses a 2-row adaptive grid (`.return-sale-form`):
+    - **Row 1:** `Receive to warehouse` dropdown menu spans full width (`.return-sale-warehouse-field`), populated dynamically with actual active warehouses configured in the app (fallback to default service center if none configured).
+    - **Row 2:** `Refund from cashbox` dropdown and `Refund amount` stepper display side-by-side (`minmax(0, 1fr)` each) on desktop/tablet.
+  - Cashbox field uses a stacked label-above-select pattern (not inline 90px grid) to ensure full visibility of selected cashbox names.
+  - Responsive behavior (<= 720px): collapses to a single column where all 3 fields stack vertically at full width.
+

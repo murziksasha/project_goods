@@ -1,9 +1,10 @@
 import type React from 'react';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Sale } from '../../../../../entities/sale';
 import { isRepairOrder } from '../../../../../entities/sale';
 import type { Cashbox } from '../../../../../entities/finance';
+import type { WarehouseItem } from '../../../../../entities/warehouse-settings';
 import type { PrintForm } from '../../../../../entities/settings';
 import { formatCurrency } from '../../../../../shared/lib/format';
 import { parseDecimal } from '../../../../../shared/lib/decimal';
@@ -471,10 +472,33 @@ export const RefundModal: React.FC<RefundModalProps> = ({
   );
 };
 
+const getReturnWarehouseOptions = (
+  warehouses: WarehouseItem[] | undefined,
+  currentWarehouse: string,
+  fallbackLabel: string,
+) => {
+  const activeWarehouses = (warehouses ?? []).filter((item) => item.isActive);
+  const available =
+    activeWarehouses.length > 0 ? activeWarehouses : (warehouses ?? []);
+  const options = available.map((item) => ({ id: item.id, name: item.name }));
+  if (options.length === 0) {
+    const name = currentWarehouse || fallbackLabel;
+    return [{ id: 'default', name }];
+  }
+  if (
+    currentWarehouse &&
+    !options.some((opt) => opt.name === currentWarehouse)
+  ) {
+    return [{ id: 'current', name: currentWarehouse }, ...options];
+  }
+  return options;
+};
+
 export interface ReturnLineItemModalProps {
   sale: Sale;
   item: OrderLineItem;
   warehouse: string;
+  warehouses?: WarehouseItem[];
   isLoading: boolean;
   isSaving: boolean;
   onWarehouseChange: (warehouse: string) => void;
@@ -489,6 +513,7 @@ export interface ReturnSaleModalProps {
   selectedCashboxId: string;
   amount: string;
   warehouse: string;
+  warehouses?: WarehouseItem[];
   paidAmount: number;
   isLoading: boolean;
   isSaving: boolean;
@@ -506,6 +531,7 @@ export const ReturnSaleModal: React.FC<ReturnSaleModalProps> = ({
   selectedCashboxId,
   amount,
   warehouse,
+  warehouses,
   paidAmount,
   isLoading,
   isSaving,
@@ -516,6 +542,15 @@ export const ReturnSaleModal: React.FC<ReturnSaleModalProps> = ({
   onSubmit,
 }) => {
   const { t } = useTranslation();
+  const warehouseOptions = useMemo(
+    () =>
+      getReturnWarehouseOptions(
+        warehouses,
+        warehouse,
+        t('orders.columns.serviceCenter'),
+      ),
+    [warehouses, warehouse, t],
+  );
   const productItems = lineItems.filter(
     (item) => item.kind === 'product',
   );
@@ -603,16 +638,22 @@ export const ReturnSaleModal: React.FC<ReturnSaleModalProps> = ({
         </span>
       </div>
 
-      <div className="payment-modal-form">
-        <label className="field">
+      <div className="payment-modal-form return-sale-form">
+        <label className="field return-sale-warehouse-field">
           <span>{t('orders.payment.receiveToWarehouse')}</span>
-          <input
+          <select
             value={warehouse}
             onChange={(event) => onWarehouseChange(event.target.value)}
             disabled={isLoading || isSaving}
-          />
+          >
+            {warehouseOptions.map((option) => (
+              <option key={option.id} value={option.name}>
+                {option.name}
+              </option>
+            ))}
+          </select>
         </label>
-        <label className="field payment-cashbox-field">
+        <label className="field">
           <span>{t('orders.payment.refundFromCashbox')}</span>
           <select
             value={selectedCashboxId}
@@ -647,6 +688,7 @@ export const ReturnLineItemModal: React.FC<ReturnLineItemModalProps> = ({
   sale,
   item,
   warehouse,
+  warehouses,
   isLoading,
   isSaving,
   onWarehouseChange,
@@ -654,6 +696,15 @@ export const ReturnLineItemModal: React.FC<ReturnLineItemModalProps> = ({
   onSubmit,
 }) => {
   const { t } = useTranslation();
+  const warehouseOptions = useMemo(
+    () =>
+      getReturnWarehouseOptions(
+        warehouses,
+        warehouse,
+        t('orders.columns.serviceCenter'),
+      ),
+    [warehouses, warehouse, t],
+  );
   const itemTotal = item.price * item.quantity;
   const isSubmitDisabled =
     isLoading ||
@@ -716,11 +767,17 @@ export const ReturnLineItemModal: React.FC<ReturnLineItemModalProps> = ({
       <div className="payment-modal-form">
         <label className="field">
           <span>{t('orders.payment.receiveToWarehouse')}</span>
-          <input
+          <select
             value={warehouse}
             onChange={(event) => onWarehouseChange(event.target.value)}
             disabled={isLoading || isSaving}
-          />
+          >
+            {warehouseOptions.map((option) => (
+              <option key={option.id} value={option.name}>
+                {option.name}
+              </option>
+            ))}
+          </select>
         </label>
       </div>
     </Modal>

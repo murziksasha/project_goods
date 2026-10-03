@@ -65,6 +65,12 @@ React wrappers: [`frontend/src/shared/ui/Button.tsx`](../frontend/src/shared/ui/
 - `.panel`, `.panel-header`, `.panel-subtitle` — workspace sections
 - React: `Panel`, `PanelHeader`
 - Modals: `.modal-backdrop` + `.catalog-edit-modal`; React `Modal` component
+- **Payment & Return modals** (`OrderPaymentModals.tsx`, `layout.css`, `responsive.css`):
+  - `.payment-modal-form` default: 3-column inline grid for standard payment/refund.
+  - `.payment-modal-form.return-sale-form`: 2-row adaptive grid for sale returns:
+    - Row 1: `.return-sale-warehouse-field` warehouse dropdown menu spans full width (`grid-column: 1 / -1`), listing actual active warehouses.
+    - Row 2: cashbox dropdown and refund amount stepper side-by-side (`minmax(0, 1fr)` each) with stacked label above `<select>` so the selected cashbox name is not clipped.
+    - Mobile (<= 720px): `.return-sale-form` collapses to single column with all fields stacked full-width.
 - **Save-filter drawer** (orders / warehouse / clients shared classes in `domains/orders.css`):
   - `.orders-filter-drawer-backdrop` is `position: fixed; inset: 0` with **`z-index: 120`** so it stacks **above** sticky `.topbar` (`z-index: 90`) and the filter name field is not clipped under the site header
   - Used by `OrdersWorkspaceFilterPanel`, `SavedFiltersPanel`, and warehouse save-filter UI
