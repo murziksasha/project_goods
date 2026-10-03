@@ -1,15 +1,17 @@
+import type React from 'react';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { scrollDashboardMainToTop } from '../lib/scrollDashboardMain';
 
 const SHOW_AFTER_PX = 320;
 
-export const ScrollToTopButton = () => {
+export const ScrollToTopButton: React.FC = () => {
   const { t } = useTranslation();
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
-    const main = document.querySelector<HTMLElement>('.dashboard-main');
+    const main =
+      document.querySelector<HTMLElement>('.dashboard-main');
     if (!main) return;
 
     const update = () => {
@@ -25,7 +27,7 @@ export const ScrollToTopButton = () => {
 
   return (
     <button
-      type="button"
+      type='button'
       className={`scroll-to-top-button${visible ? ' is-visible' : ''}`}
       aria-label={t('common.scrollToTop')}
       aria-hidden={!visible}
@@ -33,15 +35,15 @@ export const ScrollToTopButton = () => {
       onClick={() => scrollDashboardMainToTop()}
     >
       <svg
-        viewBox="0 0 24 24"
-        width="22"
-        height="22"
-        aria-hidden="true"
-        focusable="false"
+        viewBox='0 0 24 24'
+        width='22'
+        height='22'
+        aria-hidden='true'
+        focusable='false'
       >
         <path
-          d="M6.7 14.7a1 1 0 0 1-1.4-1.4l6-6a1 1 0 0 1 1.4 0l6 6a1 1 0 1 1-1.4 1.4L12 9.4l-5.3 5.3Z"
-          fill="currentColor"
+          d='M6.7 14.7a1 1 0 0 1-1.4-1.4l6-6a1 1 0 0 1 1.4 0l6 6a1 1 0 1 1-1.4 1.4L12 9.4l-5.3 5.3Z'
+          fill='currentColor'
         />
       </svg>
     </button>

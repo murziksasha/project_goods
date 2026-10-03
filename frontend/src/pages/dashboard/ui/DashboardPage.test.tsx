@@ -4,10 +4,10 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-libra
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ReactElement } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import * as authApi from '../../../entities/auth/api/authApi';
+import * as authApi from '../../../entities/auth';
 import { ApiRequestError } from '../../../shared/api/http';
-import type { Employee } from '../../../entities/employee/model/types';
-import { authTokenStorageKey } from '../../../entities/auth/api/authApi';
+import type { Employee } from '../../../entities/employee';
+import { authTokenStorageKey } from '../../../entities/auth';
 
 
 const { getCurrentEmployeeMock } = vi.hoisted(() => ({
@@ -15,7 +15,7 @@ const { getCurrentEmployeeMock } = vi.hoisted(() => ({
 }));
 
 vi.mock('../../../entities/auth/api/authApi', async () => {
-  const actual = await vi.importActual<typeof import('../../../entities/auth/api/authApi')>(
+  const actual = await vi.importActual<typeof import('../../../entities/auth')>(
     '../../../entities/auth/api/authApi',
   );
   return {

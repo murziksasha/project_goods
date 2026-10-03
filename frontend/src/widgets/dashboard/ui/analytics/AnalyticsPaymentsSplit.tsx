@@ -1,11 +1,12 @@
+import type React from 'react';
 import { useTranslation } from 'react-i18next';
 import { formatCurrencyMetric, type DashboardAnalyticsView } from '../../model/sales-analytics';
 
-type AnalyticsPaymentsSplitProps = {
+export interface AnalyticsPaymentsSplitProps {
   metrics: DashboardAnalyticsView['metrics'];
 };
 
-export const AnalyticsPaymentsSplit = ({ metrics }: AnalyticsPaymentsSplitProps) => {
+export const AnalyticsPaymentsSplit: React.FC<AnalyticsPaymentsSplitProps> = ({ metrics }) => {
   const { t } = useTranslation();
   const total =
     metrics.cashCollected + metrics.nonCashCollected + metrics.unspecifiedCollected;

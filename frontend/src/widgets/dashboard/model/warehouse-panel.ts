@@ -1,23 +1,26 @@
 import type { TFunction } from 'i18next';
 import type { CSSProperties } from 'react';
 import i18n from '../../../shared/i18n/config';
-import type { Employee } from '../../../entities/employee/model/types';
+import type { Employee } from '../../../entities/employee';
 import type {
   Product,
   ProductFormValues,
   ProductModelUpdatePayload,
-} from '../../../entities/product/model/types';
+} from '../../../entities/product';
 import type {
   CatalogProduct,
   CatalogProductFormValues,
-} from '../../../entities/catalog-product/model/types';
+} from '../../../entities/catalog-product';
 import type {
   Supplier,
   SupplierFormValues,
-} from '../../../entities/supplier/model/types';
-import type { SupplierOrder } from '../../../entities/supplier-order/model/types';
-import type { Sale } from '../../../entities/sale/model/types';
-import type { PrintForm } from '../../../entities/settings/model/types';
+} from '../../../entities/supplier';
+import type {
+  SupplierOrder,
+  SupplierOrderStatus,
+} from '../../../entities/supplier-order';
+import type { Sale } from '../../../entities/sale';
+import type { PrintForm } from '../../../entities/settings';
 import type {
   StockSupplierOrderLink,
   StockWarehouseMeta,
@@ -80,6 +83,15 @@ export const receiptStatusFilterOptions: ReceiptStatus[] = [
   'received',
   'cancelled',
 ];
+export const receiptChipToOrderStatuses: Record<
+  ReceiptStatus,
+  SupplierOrderStatus[]
+> = {
+  new: ['request', 'ordered'],
+  approved: ['approved'],
+  received: ['stocked', 'partially_stocked', 'partially_completed', 'overdue'],
+  cancelled: ['cancelled', 'unavailable'],
+};
 export type WarehouseFilters = {
   name: string;
   serial: string;
@@ -133,6 +145,7 @@ export type ReceiptRow = {
   approvedBy: string;
   acceptedAt: string;
   status: ReceiptStatus;
+  orderStatus: SupplierOrderStatus;
   paymentStatus?:
     | 'pending'
     | 'paid'
@@ -295,6 +308,45 @@ export const emptySupplierOrders: SupplierOrder[] = [];
 export const transferPageSize = 8;
 export const warehouseFiltersStorageKey =
   'project-goods.warehouse-filters';
+
+export const getWarehouseFiltersStorageKey = (
+  employeeId?: string,
+): string =>
+  employeeId?.trim()
+    ? `${warehouseFiltersStorageKey}.${employeeId.trim()}`
+    : warehouseFiltersStorageKey;
+
+export interface StoredWarehouseFilters {
+  activeTab?: WarehouseTab;
+  query?: string;
+  searchMode?: WarehouseSearchMode;
+  settingsTab?: SettingsTab;
+  currentPage?: number;
+  pageSize?: number;
+  stockView?: StockViewMode;
+  receiptsView?: ReceiptsViewMode;
+  receiptStatus?: ReceiptStatus | 'all';
+  receiptStatuses?: ReceiptStatus[];
+  statuses?: ReceiptStatus[];
+  favoritesOnly?: boolean;
+}
+
+export const readStoredWarehouseFilters = (
+  employeeId?: string,
+): StoredWarehouseFilters => {
+  if (typeof window === 'undefined' || !window.localStorage) return {};
+  try {
+    const userKey = getWarehouseFiltersStorageKey(employeeId);
+    const raw =
+      window.localStorage.getItem(userKey) ||
+      (userKey !== warehouseFiltersStorageKey
+        ? window.localStorage.getItem(warehouseFiltersStorageKey)
+        : null);
+    return raw ? (JSON.parse(raw) as StoredWarehouseFilters) : {};
+  } catch {
+    return {};
+  }
+};
 export const warehouseColumnsStorageKey =
   'project-goods.warehouse-columns';
 export const warehouseStockNameWidthStorageKey =
@@ -596,7 +648,9 @@ export const filterReceiptRows = ({
 
     if (
       filters.statuses.length > 0 &&
-      !filters.statuses.includes(receipt.status)
+      !filters.statuses.some((chip) =>
+        receiptChipToOrderStatuses[chip].includes(receipt.orderStatus),
+      )
     ) {
       return false;
     }
@@ -634,23 +688,6 @@ export const groupReceiptRowsByOrder = (
 
   return order.map((id) => groups.get(id)!);
 };
-
-const receiptStatusRank: Record<ReceiptStatus, number> = {
-  received: 1,
-  approved: 2,
-  new: 3,
-  cancelled: 4,
-};
-
-export const getReceiptGroupStatus = (
-  receipts: ReceiptRow[],
-): ReceiptStatus =>
-  receipts.reduce<ReceiptStatus>((worst, receipt) => {
-    return receiptStatusRank[receipt.status] >
-      receiptStatusRank[worst]
-      ? receipt.status
-      : worst;
-  }, receipts[0]?.status ?? 'new');
 
 export const getReceiptGroupTotals = (receipts: ReceiptRow[]) => {
   const quantity = receipts.reduce(

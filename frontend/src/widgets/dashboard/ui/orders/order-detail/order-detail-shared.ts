@@ -1,4 +1,4 @@
-import type { Sale } from '../../../../../entities/sale/model/types';
+import type { Sale } from '../../../../../entities/sale';
 import i18n from '../../../../../shared/i18n/config';
 import {
   getStatusLabel,

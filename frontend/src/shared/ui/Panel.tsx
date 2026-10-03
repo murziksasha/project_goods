@@ -1,10 +1,11 @@
+import type React from 'react';
 import type { HTMLAttributes, ReactNode } from 'react';
 
 export type PanelProps = HTMLAttributes<HTMLElement> & {
   children: ReactNode;
 };
 
-export const Panel = ({
+export const Panel: React.FC<PanelProps> = ({
   className = '',
   children,
   ...props

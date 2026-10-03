@@ -1,3 +1,4 @@
+import type React from 'react';
 import {
   useEffect,
   useMemo,
@@ -10,23 +11,23 @@ import { useTranslation } from 'react-i18next';
 import type {
   ClientDevice,
   ClientDeviceFormValues,
-} from '../../../../entities/client-device/model/types';
+} from '../../../../entities/client-device';
 import {
   filterActiveClientDevicesForClient,
   getUnbindClientDeviceAction,
   unbindClientDevice,
-} from '../../../../entities/client-device/lib/unbind-client-device';
+} from '../../../../entities/client-device';
 import type {
   Client,
   ClientStatus,
-} from '../../../../entities/client/model/types';
-import type { Sale } from '../../../../entities/sale/model/types';
+} from '../../../../entities/client';
+import type { Sale } from '../../../../entities/sale';
 import {
   clientStatusOptions,
   getClientStatusLabelKey,
   getEffectiveClientStatusLogic,
   isAutoManagedClientStatus,
-} from '../../../../entities/client/model/constants';
+} from '../../../../entities/client';
 import { StatusBadge } from '../../../../shared/ui/StatusBadge';
 import { Button } from '../../../../shared/ui/Button';
 import { CopyableValue } from '../../../../shared/ui/CopyableValue';
@@ -66,7 +67,7 @@ const isPlainLeftClick = (event: ReactMouseEvent<HTMLAnchorElement>) =>
   !event.shiftKey &&
   !event.altKey;
 
-type ClientCardModalProps = {
+export interface ClientCardModalProps {
   activeHistoryRows: Sale[];
   historySales?: Sale[];
   clientCardTab: ClientCardTab;
@@ -102,7 +103,7 @@ const clientCardTabs: Array<{ key: ClientCardTab; labelKey: string }> = [
   { key: 'information', labelKey: 'clients.tabs.information' },
 ];
 
-export const ClientCardModal = ({
+export const ClientCardModal: React.FC<ClientCardModalProps> = ({
   activeHistoryRows,
   historySales = [],
   clientCardTab,
@@ -125,7 +126,7 @@ export const ClientCardModal = ({
   clientDevices,
   onUpdateClientDevice,
   onDeleteClientDevice,
-}: ClientCardModalProps) => {
+}) => {
   const { t } = useTranslation();
   const [unbindingDeviceId, setUnbindingDeviceId] = useState<string | null>(
     null,

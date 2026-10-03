@@ -1,16 +1,20 @@
 import { cleanup, render, screen } from '@testing-library/react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import {
+  QueryClient,
+  QueryClientProvider,
+} from '@tanstack/react-query';
 import { I18nextProvider } from 'react-i18next';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { createDefaultSettingsForm } from '../../../../entities/settings/model/printForms';
-import type { Sale } from '../../../../entities/sale/model/types';
+import { createDefaultSettingsForm } from '../../../../entities/settings';
+import type { Sale } from '../../../../entities/sale';
 import i18n from '../../../../shared/i18n/config';
 import { AnalyticsHeroSection } from './AnalyticsHeroSection';
 
-vi.mock('../../../../entities/analytics/api/analyticsApi', async (importOriginal) => {
-  const actual = await importOriginal<
-    typeof import('../../../../entities/analytics/api/analyticsApi')
-  >();
+vi.mock('../../../../entities/analytics', async (importOriginal) => {
+  const actual =
+    await importOriginal<
+      typeof import('../../../../entities/analytics')
+    >();
   return {
     ...actual,
     useDashboardAnalyticsQuery: () => ({
@@ -60,7 +64,12 @@ const sale = (overrides: Partial<Sale> = {}): Sale =>
       },
     ],
     client: { id: 'c1', name: 'Client', phone: '', status: 'new' },
-    product: { id: 'p1', article: 'A1', name: 'Screen', serialNumber: 'S1' },
+    product: {
+      id: 'p1',
+      article: 'A1',
+      name: 'Screen',
+      serialNumber: 'S1',
+    },
     manager: null,
     master: null,
     issuedBy: null,
@@ -74,7 +83,9 @@ afterEach(() => {
 });
 
 const renderHero = (marketWeatherEnabled = true) => {
-  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
   const preferences = {
     ...createDefaultSettingsForm().dashboardPreferences,
     marketWeatherEnabled,
@@ -120,7 +131,7 @@ const renderHero = (marketWeatherEnabled = true) => {
           isSalesLoading={false}
           isSeeding={false}
           canEraseAllData={false}
-          statsPeriod="currentMonth"
+          statsPeriod='whole'
           analyticsDateRange={null}
           draftAnalyticsDateRange={{ dateFrom: '', dateTo: '' }}
           isAnalyticsDateFilterOpen={false}
@@ -140,10 +151,19 @@ const renderHero = (marketWeatherEnabled = true) => {
 describe('AnalyticsHeroSection', () => {
   it('renders billed, collected, funnel and today strip', () => {
     renderHero();
-    expect(screen.getAllByText(i18n.t('analytics.summary.billed')).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(i18n.t('analytics.summary.collected')).length).toBeGreaterThan(0);
-    expect(screen.getByText(i18n.t('analytics.funnel.title'))).toBeTruthy();
-    expect(screen.getByLabelText(i18n.t('analytics.todayStrip'))).toBeTruthy();
+    expect(
+      screen.getAllByText(i18n.t('analytics.summary.billed')).length,
+    ).toBeGreaterThan(0);
+    expect(
+      screen.getAllByText(i18n.t('analytics.summary.collected'))
+        .length,
+    ).toBeGreaterThan(0);
+    expect(
+      screen.getByText(i18n.t('analytics.funnel.title')),
+    ).toBeTruthy();
+    expect(
+      screen.getByLabelText(i18n.t('analytics.todayStrip')),
+    ).toBeTruthy();
     expect(screen.getByText('Market & weather')).toBeTruthy();
     expect(screen.getByText('UAH 200')).toBeTruthy();
   });
@@ -151,6 +171,8 @@ describe('AnalyticsHeroSection', () => {
   it('keeps weather hidden when the preference is off', () => {
     renderHero(false);
     expect(screen.queryByText('Market & weather')).toBeNull();
-    expect(screen.getByText(i18n.t('analytics.businessPerformance'))).toBeTruthy();
+    expect(
+      screen.getByText(i18n.t('analytics.businessPerformance')),
+    ).toBeTruthy();
   });
 });

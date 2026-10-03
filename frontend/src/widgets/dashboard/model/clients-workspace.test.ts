@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { Sale } from '../../../entities/sale/model/types';
+import type { Sale } from '../../../entities/sale';
 import {
   collectClientHistorySerials,
   formatItemList,

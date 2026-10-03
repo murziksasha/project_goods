@@ -71,8 +71,16 @@ Related: [SALE_FLOW.md](./SALE_FLOW.md) · [ORDER_CARD.md](./ORDER_CARD.md) · [
 
 - Display-only grouping in `Products` (same helper as repair cards: `groupProductLineItems`). Data rules below are unchanged.
 - Group key: `catalogProductId` when present, else normalized `name`.
-- 2+ matching rows start collapsed; header shows name + collapsed quantity (`×N` = sum of `quantity`) + `⌃` / `⌄`.
-- Collapsed group hides child rows (serials, warranty, actions) but still shows Price + Qty on the group header (Qty duplicates `×N`; Price is the common unit price, or group `sum(price × qty)` when unit prices differ). Expand to edit/bind/remove each line.
+- 2+ matching rows start collapsed.
+- **Expanded state**: Header shows product name on the left and a summary meta on the right mirroring section headers (`.order-detail-collapse-meta` with `.order-detail-section-summary`): `×N` quantity count, formatted group total amount (`sum(price × qty)`), and expand icon `⌃`.
+- **Collapsed state**: Table row displays:
+  - Name column: Product name + `×N`.
+  - Serial column: Empty spacer.
+  - Price column: Shared unit price when all items have identical unit prices; em dash `—` when unit prices differ.
+  - Qty column: Total quantity (`totalQuantity`).
+  - Warranty column: Empty spacer.
+  - Action column: Group total amount formatted alongside the collapse icon `⌄` (`.order-line-item-group-total` + chevron).
+- Serial / warranty / per-row actions stay hidden while collapsed. Expand to edit/bind/remove each line.
 - Single distinct products stay as flat rows.
 - Adding another matching line while the card is open auto-expands that group.
 - `Services` is not grouped.

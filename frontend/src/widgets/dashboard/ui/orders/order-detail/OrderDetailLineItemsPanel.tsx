@@ -1,3 +1,4 @@
+import type React from 'react';
 import {
   useCallback,
   useEffect,
@@ -6,39 +7,43 @@ import {
   useState,
 } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { Sale } from '../../../../../entities/sale/model/types';
+import type { Sale } from '../../../../../entities/sale';
 import {
   createServiceCatalogItem,
   getServiceCatalogItems,
   updateServiceCatalogItem,
-} from '../../../../../entities/service-catalog/api/serviceCatalogApi';
-import type { ServiceCatalogItem } from '../../../../../entities/service-catalog/model/types';
+  reorderServiceCatalog,
+} from '../../../../../entities/service-catalog';
+import type { ServiceCatalogItem } from '../../../../../entities/service-catalog';
 import {
   initialServiceCatalogForm,
   toServiceCatalogForm,
-} from '../../../../../entities/service-catalog/model/forms';
-import { getProducts } from '../../../../../entities/product/api/productApi';
-import { getOccupiedSerialNumbers } from '../../../../../entities/sale/api/saleApi';
+} from '../../../../../entities/service-catalog';
+import {
+  getProducts,
+  reorderProducts,
+} from '../../../../../entities/product';
+import { getOccupiedSerialNumbers } from '../../../../../entities/sale';
 import {
   createSupplier,
   getSuppliers,
-} from '../../../../../entities/supplier/api/supplierApi';
+} from '../../../../../entities/supplier';
 import type {
   Supplier,
   SupplierFormValues,
-} from '../../../../../entities/supplier/model/types';
+} from '../../../../../entities/supplier';
 import type {
   SupplierOrder,
   SupplierOrderFormValues,
-} from '../../../../../entities/supplier-order/model/types';
-import { createSupplierOrder } from '../../../../../entities/supplier-order/api/supplierOrderApi';
+} from '../../../../../entities/supplier-order';
+import { createSupplierOrder } from '../../../../../entities/supplier-order';
 import type {
   Product,
   ProductModelUpdatePayload,
-} from '../../../../../entities/product/model/types';
-import type { CatalogProduct } from '../../../../../entities/catalog-product/model/types';
-import { getWarehouseSettings } from '../../../../../entities/warehouse-settings/api/warehouseSettingsApi';
-import type { WarehouseItem } from '../../../../../entities/warehouse-settings/model/types';
+} from '../../../../../entities/product';
+import type { CatalogProduct } from '../../../../../entities/catalog-product';
+import { getWarehouseSettings } from '../../../../../entities/warehouse-settings';
+import type { WarehouseItem } from '../../../../../entities/warehouse-settings';
 import {
   formatProductSalePrice,
   getProductSalePriceByTier,
@@ -46,27 +51,29 @@ import {
   hasWholesaleSalePrice,
   matchesProductSalePriceTier,
   type ProductSalePriceTier,
-} from '../../../../../entities/product/lib/sale-prices';
+} from '../../../../../entities/product';
 import {
   formatServiceSalePrice,
   getServiceSalePriceByTier,
   hasServiceWholesaleSalePrice,
   matchesServiceSalePriceTier,
   type ServiceSalePriceTier,
-} from '../../../../../entities/service-catalog/lib/sale-prices';
+} from '../../../../../entities/service-catalog';
 import {
   MONEY_FIELD_COMMIT_MS,
   PRICE_STEPPER_PRECISION,
   PRICE_STEPPER_STEP,
 } from '../../../../../shared/lib/price-stepper';
 import { NumberStepper } from '../../../../../shared/ui/NumberStepper';
-import { ProductSalePriceField } from '../../../../../shared/ui/ProductSalePriceField';
-import { ProductSalePriceTierToggle } from '../../../../../shared/ui/ProductSalePriceTierToggle';
-import { ServiceSalePriceTierToggle } from '../../../../../shared/ui/ServiceSalePriceTierToggle';
+import { ProductSalePriceField } from '../../../../../entities/product';
+import { ProductSalePriceTierToggle } from '../../../../../entities/product';
+import { ServiceSalePriceTierToggle } from '../../../../../entities/service-catalog';
 import { parseDecimal } from '../../../../../shared/lib/decimal';
 import { formatCurrency } from '../../../../../shared/lib/format';
 import { useDismissibleSuggestions } from '../../../../../shared/lib/useDismissibleSuggestions';
-import type { PrintForm } from '../../../../../entities/settings/model/types';
+import { useReorderableSuggestions } from '../../../../../shared/lib/useReorderableSuggestions';
+import { ReorderableSuggestionItem } from '../../../../../shared/ui/ReorderableSuggestionItem';
+import type { PrintForm } from '../../../../../entities/settings';
 import {
   SupplierOrderModal,
   type SupplierOrderModalSubmitPayload,
@@ -115,7 +122,7 @@ import {
 } from '../workspace/orders-workspace-shared';
 import { OrderDetailCatalogServiceEditorModal } from './OrderDetailCatalogServiceEditorModal';
 
-export type OrderDetailLineItemsPanelProps = {
+export interface OrderDetailLineItemsPanelProps {
   kind: OrderLineItemKind;
   sales: Sale[];
   currentSaleId: string;
@@ -165,7 +172,8 @@ export type OrderDetailLineItemsPanelProps = {
   ) => Promise<boolean>;
   onError: (message: string) => void;
   onSuccess: (message: string) => void;
-};
+  canManageOrders?: boolean;
+}
 
 type ProductEntrySuggestion =
   | {
@@ -178,8 +186,11 @@ type ProductEntrySuggestion =
 
 const COLLAPSE_ICON_EXPANDED = '\u2303';
 const COLLAPSE_ICON_COLLAPSED = '\u2304';
+const EM_DASH = '\u2014';
 
-export const OrderDetailLineItemsPanel = ({
+export const OrderDetailLineItemsPanel: React.FC<
+  OrderDetailLineItemsPanelProps
+> = ({
   kind,
   sales,
   currentSaleId,
@@ -205,7 +216,8 @@ export const OrderDetailLineItemsPanel = ({
   onUpdateProductModel,
   onError,
   onSuccess,
-}: OrderDetailLineItemsPanelProps) => {
+  canManageOrders = true,
+}) => {
   const { t } = useTranslation();
   const warrantyOptions = getWarrantyOptions();
   const isProductKind = kind === 'product';
@@ -1196,6 +1208,59 @@ export const OrderDetailLineItemsPanel = ({
     setProductSuggestions([]);
   };
 
+  const productReorder =
+    useReorderableSuggestions<ProductEntrySuggestion>({
+      items: productSuggestions,
+      onSelect: applyProductSuggestion,
+      onReorder: async (newSuggestions) => {
+        setProductSuggestions(newSuggestions);
+        const reorderItems = newSuggestions.map(
+          (suggestion, index) => ({
+            name:
+              suggestion.type === 'catalog'
+                ? suggestion.catalogProduct.name
+                : suggestion.product.name,
+            sortOrder: index,
+          }),
+        );
+        try {
+          await reorderProducts(reorderItems);
+        } catch (error) {
+          onError(
+            error instanceof Error
+              ? error.message
+              : t('orders.messages.errors.failedReorder'),
+          );
+        }
+      },
+      canReorder: canManageOrders && !isReadOnly,
+      isVisible: isLineItemSuggestionsVisible && isProductKind,
+    });
+
+  const serviceReorder =
+    useReorderableSuggestions<ServiceCatalogItem>({
+      items: serviceSuggestions,
+      onSelect: applyServiceSuggestion,
+      onReorder: async (newServices) => {
+        setServiceSuggestions(newServices);
+        const reorderItems = newServices.map((service, index) => ({
+          id: service.id,
+          sortOrder: index,
+        }));
+        try {
+          await reorderServiceCatalog(reorderItems);
+        } catch (error) {
+          onError(
+            error instanceof Error
+              ? error.message
+              : t('orders.messages.errors.failedReorder'),
+          );
+        }
+      },
+      canReorder: canManageOrders && !isReadOnly,
+      isVisible: isLineItemSuggestionsVisible && !isProductKind,
+    });
+
   const openCreateServiceModal = () => {
     setCreateServiceForm({
       ...initialServiceCatalogForm,
@@ -1793,13 +1858,13 @@ export const OrderDetailLineItemsPanel = ({
             const groupPriceSummary = isGrouped
               ? getGroupedLinePriceSummary(group.items)
               : null;
+            const groupTotal = groupPriceSummary?.totalAmount ?? 0;
             const collapsedGroupPrice =
               groupPriceSummary == null
                 ? ''
-                : formatCurrency(
-                    groupPriceSummary.unitPrice ??
-                      groupPriceSummary.totalAmount,
-                  );
+                : groupPriceSummary.unitPrice !== null
+                  ? formatCurrency(groupPriceSummary.unitPrice)
+                  : EM_DASH;
             const header = isGrouped ? (
               <button
                 key={`group-${group.key}`}
@@ -1844,16 +1909,36 @@ export const OrderDetailLineItemsPanel = ({
                       className='order-line-item-group-warranty'
                       aria-hidden='true'
                     />
+                    <span className='order-line-item-group-action'>
+                      <span className='order-line-item-group-total'>
+                        {formatCurrency(groupTotal)}
+                      </span>
+                      <span
+                        className='order-detail-collapse-icon'
+                        aria-hidden='true'
+                      >
+                        {COLLAPSE_ICON_COLLAPSED}
+                      </span>
+                    </span>
                   </>
-                ) : null}
-                <span
-                  className='order-detail-collapse-icon'
-                  aria-hidden='true'
-                >
-                  {isExpanded
-                    ? COLLAPSE_ICON_EXPANDED
-                    : COLLAPSE_ICON_COLLAPSED}
-                </span>
+                ) : (
+                  <span className='order-detail-collapse-meta'>
+                    <span className='order-detail-section-summary'>
+                      <span>
+                        {t('orders.detail.lineItems.groupedCount', {
+                          quantity: group.totalQuantity,
+                        })}
+                      </span>
+                      <span>{formatCurrency(groupTotal)}</span>
+                    </span>
+                    <span
+                      className='order-detail-collapse-icon'
+                      aria-hidden='true'
+                    >
+                      {COLLAPSE_ICON_EXPANDED}
+                    </span>
+                  </span>
+                )}
               </button>
             ) : null;
             const rows = isExpanded
@@ -2154,6 +2239,13 @@ export const OrderDetailLineItemsPanel = ({
                         'orders.detail.lineItems.addServicePlaceholder',
                       )
                 }
+                onKeyDown={(event) => {
+                  if (isProductKind) {
+                    productReorder.handleKeyDown(event);
+                  } else {
+                    serviceReorder.handleKeyDown(event);
+                  }
+                }}
                 disabled={isReadOnly}
               />
             </div>
@@ -2257,7 +2349,7 @@ export const OrderDetailLineItemsPanel = ({
             {isProductLookupLoading ? (
               <p>{t('orders.detail.lineItems.searchingProducts')}</p>
             ) : null}
-            {productSuggestions.map((suggestion) => {
+            {productSuggestions.map((suggestion, index) => {
               const isStockSuggestion = suggestion.type === 'stock';
               const product = isStockSuggestion
                 ? suggestion.product
@@ -2282,15 +2374,32 @@ export const OrderDetailLineItemsPanel = ({
                   : suggestion.price,
               );
               return (
-                <button
+                <ReorderableSuggestionItem
                   key={suggestionKey}
-                  type='button'
-                  className='create-suggestion-item'
-                  onMouseDown={(event) => {
-                    event.preventDefault();
-                  }}
-                  onClick={() => applyProductSuggestion(suggestion)}
+                  id={suggestionKey}
+                  isActive={productReorder.activeIndex === index}
                   disabled={isReadOnly || !state.selectable}
+                  canReorder={canManageOrders && !isReadOnly}
+                  isFirst={index === 0}
+                  isLast={index === productSuggestions.length - 1}
+                  onSelect={() => applyProductSuggestion(suggestion)}
+                  onMoveUp={() =>
+                    productReorder.moveItem(index, 'up')
+                  }
+                  onMoveDown={() =>
+                    productReorder.moveItem(index, 'down')
+                  }
+                  onDragStart={(e) =>
+                    productReorder.handleDragStart(e, index)
+                  }
+                  onDragOver={(e) =>
+                    productReorder.handleDragOver(e, index)
+                  }
+                  onDrop={(e) => productReorder.handleDrop(e, index)}
+                  onDragEnd={productReorder.handleDragEnd}
+                  isDragging={productReorder.draggedIndex === index}
+                  isDragOver={productReorder.dragOverIndex === index}
+                  ariaLabel={suggestionName}
                   title={
                     state.selectable ? undefined : t(state.labelKey)
                   }
@@ -2312,7 +2421,7 @@ export const OrderDetailLineItemsPanel = ({
                       </>
                     )}
                   </span>
-                </button>
+                </ReorderableSuggestionItem>
               );
             })}
           </div>
@@ -2325,17 +2434,35 @@ export const OrderDetailLineItemsPanel = ({
             {isServiceLookupLoading ? (
               <p>{t('orders.detail.lineItems.searchingServices')}</p>
             ) : null}
-            {serviceSuggestions.map((service) => (
-              <button
+            {serviceSuggestions.map((service, index) => (
+              <ReorderableSuggestionItem
                 key={service.id}
-                type='button'
-                className='create-suggestion-item'
-                onClick={() => applyServiceSuggestion(service)}
+                id={service.id}
+                isActive={serviceReorder.activeIndex === index}
                 disabled={isReadOnly}
+                canReorder={canManageOrders && !isReadOnly}
+                isFirst={index === 0}
+                isLast={index === serviceSuggestions.length - 1}
+                onSelect={() => applyServiceSuggestion(service)}
+                onMoveUp={() => serviceReorder.moveItem(index, 'up')}
+                onMoveDown={() =>
+                  serviceReorder.moveItem(index, 'down')
+                }
+                onDragStart={(e) =>
+                  serviceReorder.handleDragStart(e, index)
+                }
+                onDragOver={(e) =>
+                  serviceReorder.handleDragOver(e, index)
+                }
+                onDrop={(e) => serviceReorder.handleDrop(e, index)}
+                onDragEnd={serviceReorder.handleDragEnd}
+                isDragging={serviceReorder.draggedIndex === index}
+                isDragOver={serviceReorder.dragOverIndex === index}
+                ariaLabel={service.name}
               >
                 <strong>{service.name}</strong>
                 <span>{`${formatCurrency(service.price)}${service.note ? ` / ${service.note}` : ''}`}</span>
-              </button>
+              </ReorderableSuggestionItem>
             ))}
           </div>
         ) : null}

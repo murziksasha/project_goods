@@ -1,5 +1,5 @@
-import type { ClientDevice } from '../../../entities/client-device/model/types';
-import type { Sale } from '../../../entities/sale/model/types';
+import type { ClientDevice } from '../../../entities/client-device';
+import type { Sale } from '../../../entities/sale';
 import { formatDateTime } from '../../../shared/lib/format';
 import {
   collectClientHistorySerials,

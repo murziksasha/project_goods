@@ -1,3 +1,4 @@
+import type React from 'react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Dispatch, SetStateAction } from 'react';
@@ -7,7 +8,7 @@ import type {
   CreateFinanceTransactionPayload,
   FinanceCategory,
   FinanceTransactionType,
-} from '../../../../entities/finance/model/types';
+} from '../../../../entities/finance';
 import { Modal } from '../../../../shared/ui/Modal';
 import {
   accountingHideEmptyCashboxesStorageKey,
@@ -19,7 +20,7 @@ import {
 import { AccountingOperationForm } from './AccountingOperationForm';
 import { CreateFinanceCategoryModal } from './CreateFinanceCategoryModal';
 
-type AccountingCashboxesViewProps = {
+export interface AccountingCashboxesViewProps {
   allowedTransactionCurrencies: string[];
   canCreateDeposit: boolean;
   canCreateTransfer: boolean;
@@ -62,7 +63,7 @@ const isCashboxEmpty = (
   return rows.every((row) => row.balance === 0);
 };
 
-export const AccountingCashboxesView = ({
+export const AccountingCashboxesView: React.FC<AccountingCashboxesViewProps> = ({
   allowedTransactionCurrencies,
   canCreateDeposit,
   canCreateTransfer,
@@ -87,7 +88,7 @@ export const AccountingCashboxesView = ({
   onStartTransaction,
   onTransactionFormChange,
   onTransactionTypeChange,
-}: AccountingCashboxesViewProps) => {
+}) => {
   const { t } = useTranslation();
   const [searchQuery, setSearchQuery] = useState('');
   const [hideEmpty, setHideEmpty] = useState(getStoredHideEmptyCashboxes);

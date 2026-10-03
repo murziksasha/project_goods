@@ -1,19 +1,20 @@
+import type React from 'react';
 import { useTranslation } from 'react-i18next';
 import { statsPeriodOptions, type StatsPeriod } from '../../model/stats-period';
 
-type StatsPeriodToggleProps = {
+export interface StatsPeriodToggleProps {
   statsPeriod: StatsPeriod;
   hasCustomDateRange: boolean;
   onChange: (value: StatsPeriod) => void;
   ariaLabel?: string;
 };
 
-export const StatsPeriodToggle = ({
+export const StatsPeriodToggle: React.FC<StatsPeriodToggleProps> = ({
   statsPeriod,
   hasCustomDateRange,
   onChange,
   ariaLabel,
-}: StatsPeriodToggleProps) => {
+}) => {
   const { t } = useTranslation();
 
   return (

@@ -1,3 +1,4 @@
+import type React from 'react';
 import {
   Fragment,
   useEffect,
@@ -9,9 +10,10 @@ import {
   type ReactNode,
 } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { Product } from '../../../../entities/product/model/types';
-import type { Sale } from '../../../../entities/sale/model/types';
-import { getOrderLink } from '../../../../pages/dashboard/model/dashboard-navigation';
+import type { Product } from '../../../../entities/product';
+import type { Sale } from '../../../../entities/sale';
+import type { SupplierOrderStatus } from '../../../../entities/supplier-order';
+import { getOrderLink } from '../../../../shared/config/routing';
 import {
   formatCurrency,
   formatDate,
@@ -25,11 +27,13 @@ import {
   type StockModelGroup,
 } from '../../model/stock-balance';
 import {
+  getSupplierOrderStatusClass,
+  getSupplierOrderStatusLabel,
+} from '../../model/supplier-orders-workspace';
+import {
   clampWarehouseStockNameWidth,
-  getReceiptGroupStatus,
   getReceiptGroupTotals,
   getReceiptPaymentStatusClass,
-  getReceiptStatusClassName,
   getWarehouseBadgeAccentStyle,
   getWarehouseStockTableMinWidth,
   readWarehouseStockNameWidth,
@@ -38,7 +42,6 @@ import {
   type ReceiptRow,
   type ReceiptsColumnKey,
   type ReceiptsViewMode,
-  type ReceiptStatus,
   type ServiceCenter,
   type StockColumnKey,
   type StockViewMode,
@@ -74,20 +77,18 @@ const TruncatedCell = ({
 const ReceiptStatusBadge = ({
   status,
 }: {
-  status: ReceiptStatus;
+  status: SupplierOrderStatus;
 }) => {
-  const { t } = useTranslation();
   return (
-    <span className={getReceiptStatusClassName(status)}>
-      {t(`warehouse.tables.receipts.status.${status}`)}
+    <span className={getSupplierOrderStatusClass(status)}>
+      {getSupplierOrderStatusLabel(status)}
     </span>
   );
 };
 
 const ReceiptPaymentCell = ({ receipt }: { receipt: ReceiptRow }) => {
   const { t } = useTranslation();
-  if (receipt.status === 'new' || !receipt.paymentStatus)
-    return <EmptyValue />;
+  if (!receipt.paymentStatus) return <EmptyValue />;
   const label = t(
     `warehouse.tables.receipts.paymentStatus.${receipt.paymentStatus}`,
   );
@@ -156,19 +157,7 @@ const ReceiptStarButton = ({
     </button>
   );
 };
-
-export const ReceiptsTable = ({
-  receipts,
-  groups,
-  view,
-  visibleColumns,
-  onOpenOrder,
-  onOpenGroupOrder,
-  onOpenProduct,
-  onOpenSupplier,
-  onToggleFavorite,
-  canManageSupplierOrders,
-}: {
+export interface ReceiptsTableProps {
   receipts: ReceiptRow[];
   groups?: Array<{
     id: string;
@@ -183,6 +172,19 @@ export const ReceiptsTable = ({
   onOpenSupplier: (receipt: ReceiptRow) => void;
   onToggleFavorite: (receipt: ReceiptRow) => void;
   canManageSupplierOrders: boolean;
+}
+
+export const ReceiptsTable: React.FC<ReceiptsTableProps> = ({
+  receipts,
+  groups,
+  view,
+  visibleColumns,
+  onOpenOrder,
+  onOpenGroupOrder,
+  onOpenProduct,
+  onOpenSupplier,
+  onToggleFavorite,
+  canManageSupplierOrders,
 }) => {
   const { t } = useTranslation();
   const [expandedIds, setExpandedIds] = useState<Set<string>>(
@@ -233,19 +235,21 @@ export const ReceiptsTable = ({
     }
     if (columnKey === 'product') {
       return (
-        <button
-          type='button'
-          className={`catalog-name-button warehouse-cell-truncate${
-            receipt.status === 'cancelled'
-              ? ' supplier-order-item-cancelled'
-              : ''
-          }`}
-          onClick={() => onOpenProduct(receipt)}
-        >
-          <TruncatedCell text={receipt.productName}>
-            {receipt.productName}
-          </TruncatedCell>
-        </button>
+        <CopyableValue value={receipt.productName}>
+          <button
+            type='button'
+            className={`catalog-name-button warehouse-cell-truncate${
+              receipt.status === 'cancelled'
+                ? ' supplier-order-item-cancelled'
+                : ''
+            }`}
+            onClick={() => onOpenProduct(receipt)}
+          >
+            <TruncatedCell text={receipt.productName}>
+              {receipt.productName}
+            </TruncatedCell>
+          </button>
+        </CopyableValue>
       );
     }
     if (columnKey === 'quantity') {
@@ -258,15 +262,17 @@ export const ReceiptsTable = ({
     if (columnKey === 'paid') return formatCurrency(receipt.paid);
     if (columnKey === 'supplier') {
       return (
-        <button
-          type='button'
-          className='catalog-name-button warehouse-cell-truncate'
-          onClick={() => onOpenSupplier(receipt)}
-        >
-          <TruncatedCell text={receipt.supplierName}>
-            {receipt.supplierName}
-          </TruncatedCell>
-        </button>
+        <CopyableValue value={receipt.supplierName}>
+          <button
+            type='button'
+            className='catalog-name-button warehouse-cell-truncate'
+            onClick={() => onOpenSupplier(receipt)}
+          >
+            <TruncatedCell text={receipt.supplierName}>
+              {receipt.supplierName}
+            </TruncatedCell>
+          </button>
+        </CopyableValue>
       );
     }
     if (columnKey === 'receiptDate')
@@ -294,7 +300,7 @@ export const ReceiptsTable = ({
       );
     }
     if (columnKey === 'status') {
-      return <ReceiptStatusBadge status={receipt.status} />;
+      return <ReceiptStatusBadge status={receipt.orderStatus} />;
     }
     return <ReceiptPaymentCell receipt={receipt} />;
   };
@@ -437,26 +443,28 @@ export const ReceiptsTable = ({
     if (column === 'product') {
       const target = isChild ? receipt : first;
       return (
-        <button
-          type='button'
-          className={`catalog-name-button warehouse-cell-truncate${
-            target.status === 'cancelled'
-              ? ' supplier-order-item-cancelled'
-              : ''
-          }`}
-          onClick={() => onOpenProduct(target)}
-        >
-          <TruncatedCell text={target.productName}>
-            {target.productName}
-          </TruncatedCell>
-          {!isChild && extraProducts > 0 ? (
-            <span className='warehouse-more-count'>
-              {t('warehouse.tables.receipts.moreProducts', {
-                count: extraProducts,
-              })}
-            </span>
-          ) : null}
-        </button>
+        <CopyableValue value={target.productName}>
+          <button
+            type='button'
+            className={`catalog-name-button warehouse-cell-truncate${
+              target.status === 'cancelled'
+                ? ' supplier-order-item-cancelled'
+                : ''
+            }`}
+            onClick={() => onOpenProduct(target)}
+          >
+            <TruncatedCell text={target.productName}>
+              {target.productName}
+            </TruncatedCell>
+            {!isChild && extraProducts > 0 ? (
+              <span className='warehouse-more-count'>
+                {t('warehouse.tables.receipts.moreProducts', {
+                  count: extraProducts,
+                })}
+              </span>
+            ) : null}
+          </button>
+        </CopyableValue>
       );
     }
     if (column === 'quantity') {
@@ -479,15 +487,17 @@ export const ReceiptsTable = ({
     if (column === 'supplier') {
       if (isChild) return null;
       return (
-        <button
-          type='button'
-          className='catalog-name-button warehouse-cell-truncate'
-          onClick={() => onOpenSupplier(first)}
-        >
-          <TruncatedCell text={first.supplierName}>
-            {first.supplierName}
-          </TruncatedCell>
-        </button>
+        <CopyableValue value={first.supplierName}>
+          <button
+            type='button'
+            className='catalog-name-button warehouse-cell-truncate'
+            onClick={() => onOpenSupplier(first)}
+          >
+            <TruncatedCell text={first.supplierName}>
+              {first.supplierName}
+            </TruncatedCell>
+          </button>
+        </CopyableValue>
       );
     }
     if (column === 'receiptDate') {
@@ -511,11 +521,7 @@ export const ReceiptsTable = ({
     if (column === 'status') {
       return (
         <ReceiptStatusBadge
-          status={
-            isChild
-              ? receipt.status
-              : getReceiptGroupStatus(groupReceipts)
-          }
+          status={receipt.orderStatus}
         />
       );
     }

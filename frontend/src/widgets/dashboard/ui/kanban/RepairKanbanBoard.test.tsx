@@ -5,7 +5,7 @@ import {
   within,
 } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import type { Sale } from '../../../../entities/sale/model/types';
+import type { Sale } from '../../../../entities/sale';
 import { RepairKanbanBoard } from './RepairKanbanBoard';
 
 const sale = {

@@ -10,11 +10,11 @@ import type {
   FinanceReport,
   FinanceTransaction,
   SupplierOrderPaymentQueueItem,
-} from '../../../../entities/finance/model/types';
-import type { SupplierOrder } from '../../../../entities/supplier-order/model/types';
+} from '../../../../entities/finance';
+import type { SupplierOrder } from '../../../../entities/supplier-order';
 import { accountingCashboxOrderStorageKey } from '../../model/accounting';
-import * as financeApi from '../../../../entities/finance/api/financeApi';
-import * as supplierOrderApi from '../../../../entities/supplier-order/api/supplierOrderApi';
+import * as financeApi from '../../../../entities/finance';
+import * as supplierOrderApi from '../../../../entities/supplier-order';
 import type { useAccountingFinanceData as UseAccountingFinanceDataHook } from './useAccountingFinanceData';
 
 let useAccountingFinanceData: typeof UseAccountingFinanceDataHook;

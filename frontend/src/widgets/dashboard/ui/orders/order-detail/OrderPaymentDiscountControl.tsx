@@ -1,3 +1,4 @@
+import type React from 'react';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { normalizeDecimalInput, parseDecimal } from '../../../../../shared/lib/decimal';
@@ -10,7 +11,7 @@ export type OrderPaymentDiscountValue = {
   value: number;
 };
 
-type OrderPaymentDiscountControlProps = {
+export interface OrderPaymentDiscountControlProps {
   discount: OrderPaymentDiscountValue;
   disabled?: boolean;
   resetKey?: string;
@@ -20,12 +21,12 @@ type OrderPaymentDiscountControlProps = {
 const initialEditorMode = (discount: OrderPaymentDiscountValue) =>
   discount.value > 0 ? discount.mode : 'percent';
 
-export const OrderPaymentDiscountControl = ({
+export const OrderPaymentDiscountControl: React.FC<OrderPaymentDiscountControlProps> = ({
   discount,
   disabled = false,
   resetKey,
   onDiscountChange,
-}: OrderPaymentDiscountControlProps) => {
+}) => {
   const { t } = useTranslation();
   const [discountInput, setDiscountInput] = useState(String(discount.value));
   const [editorMode, setEditorMode] = useState<'percent' | 'amount'>(

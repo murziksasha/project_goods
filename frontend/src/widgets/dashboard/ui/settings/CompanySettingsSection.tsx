@@ -1,6 +1,7 @@
+import type React from 'react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { AppSettingsFormValues } from '../../../../entities/settings/model/types';
+import type { AppSettingsFormValues } from '../../../../entities/settings';
 import {
   readUiDensity,
   writeUiDensity,
@@ -13,7 +14,7 @@ type SettingsChangeHandler = <K extends keyof AppSettingsFormValues>(
   value: AppSettingsFormValues[K],
 ) => void;
 
-type CompanySettingsSectionProps = {
+export interface CompanySettingsSectionProps {
   form: AppSettingsFormValues;
   validation: ReturnType<typeof getCompanyValidation>;
   onChange: SettingsChangeHandler;
@@ -59,11 +60,11 @@ const TokenField = ({
   </div>
 );
 
-export const CompanySettingsSection = ({
+export const CompanySettingsSection: React.FC<CompanySettingsSectionProps> = ({
   form,
   validation,
   onChange,
-}: CompanySettingsSectionProps) => {
+}) => {
   const { t } = useTranslation();
   const [uiDensity, setUiDensity] = useState<UiDensity>(() => readUiDensity());
 

@@ -56,7 +56,7 @@ beforeEach(() => {
       typeof value === 'string' && /^[a-f\d]{24}$/i.test(value),
   );
   vi.spyOn(SupplierOrder, 'findById').mockImplementation(
-    async () => state.supplierOrder as never,
+    (() => state.supplierOrder) as never,
   );
   vi.spyOn(SupplierOrder, 'updateMany').mockResolvedValue({
     modifiedCount: 0,

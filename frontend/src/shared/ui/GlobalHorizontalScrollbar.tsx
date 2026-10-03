@@ -1,4 +1,5 @@
-﻿import { useEffect, useRef, useState } from 'react';
+import type React from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 type Metrics = {
   left: number;
@@ -18,7 +19,8 @@ const isVisibleOverflow = (element: HTMLDivElement) => {
   if (shouldHideGlobalScrollbar()) return false;
 
   const rect = element.getBoundingClientRect();
-  const intersectsViewport = rect.bottom > 0 && rect.top < window.innerHeight;
+  const intersectsViewport =
+    rect.bottom > 0 && rect.top < window.innerHeight;
   const hasLayout = rect.width > 0 && rect.height > 0;
   const hasOverflow = element.scrollWidth > element.clientWidth + 1;
 
@@ -53,7 +55,7 @@ const pickBestTableWrap = () => {
   return best;
 };
 
-export const GlobalHorizontalScrollbar = () => {
+export const GlobalHorizontalScrollbar: React.FC = () => {
   const barRef = useRef<HTMLDivElement | null>(null);
   const activeWrapRef = useRef<HTMLDivElement | null>(null);
   const syncFromTableRef = useRef(false);
@@ -93,7 +95,9 @@ export const GlobalHorizontalScrollbar = () => {
         syncFromTableRef.current = false;
       };
 
-      nextWrap.addEventListener('scroll', onTableScroll, { passive: true });
+      nextWrap.addEventListener('scroll', onTableScroll, {
+        passive: true,
+      });
       cleanupActive = () => {
         nextWrap.removeEventListener('scroll', onTableScroll);
       };
@@ -146,9 +150,15 @@ export const GlobalHorizontalScrollbar = () => {
     });
 
     bar.addEventListener('scroll', onBarScroll, { passive: true });
-    window.addEventListener('resize', scheduleSync, { passive: true });
-    window.addEventListener('scroll', scheduleSync, { passive: true });
-    document.addEventListener('click', scheduleSync, { passive: true });
+    window.addEventListener('resize', scheduleSync, {
+      passive: true,
+    });
+    window.addEventListener('scroll', scheduleSync, {
+      passive: true,
+    });
+    document.addEventListener('click', scheduleSync, {
+      passive: true,
+    });
 
     scheduleSync();
 

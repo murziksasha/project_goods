@@ -3,10 +3,12 @@
 Related: [ORDER_FLOW.md](./ORDER_FLOW.md) · [SALE_FLOW.md](./SALE_FLOW.md) · [SPEC_SUGGESTIONS_BEHAVIOR.md](./SPEC_SUGGESTIONS_BEHAVIOR.md) · [index](./README.md)
 
 ## Client Status Localization Rule
+
 - Keep client status values in original English.
 - Do not translate client status enums in UI labels, API payloads, or documentation.
 
 ## Automatic Status (Effective Status) Rule
+
 - Stored `status` on a Client can be empty (`''`, UI label `-`) or one of: `new`, `ok`, `opt`, `vip`, `blacklist`.
 - Auto-managed stored values: `''` and legacy/default `new` (created before manual override).
 - Manual overrides (automation never changes these): `ok`, `opt`, `vip`, `blacklist`.
@@ -23,6 +25,7 @@ Related: [ORDER_FLOW.md](./ORDER_FLOW.md) · [SALE_FLOW.md](./SALE_FLOW.md) · [
 - Visit count is derived from the number of sales/repairs linked to the client.
 
 ## Client Profit / Revenue (Total for Concrete Client)
+
 - Per-client totals use the same order-total logic as dashboard analytics: sum of `getSaleTotal(sale)` per linked sale (line items when present, otherwise `salePrice * quantity`, minus discounts).
 - "Client income" column in the clients list uses the aggregate from all known sales for that client.
 - When viewing a concrete client's history/card, a total Revenue / profit summary must be shown for the visible rows (in addition to per-row amounts).
@@ -65,6 +68,7 @@ Related: [ORDER_FLOW.md](./ORDER_FLOW.md) · [SALE_FLOW.md](./SALE_FLOW.md) · [
 - Device serial numbers remain order-specific and are not shown or edited in this tab.
 
 ## Blacklist Status Rule
+
 - `blacklist` is a manual priority client status and must not be replaced by automatic visit-based status logic.
 - Clients list rows with `blacklist` status must be visually marked with a red warning treatment and the `blacklist` badge.
 - Client lookup suggestions in order creation must visually mark `blacklist` clients before the operator selects them.
@@ -106,6 +110,7 @@ a later feature explicitly adds phone selection per order.
   compatibility.
 - `phones[0]` must always equal `phone` after normalization.
 - Existing clients without `phones` are interpreted as `{ phone, phones:
+[phone] }`.
   [phone] }`.
 - API create/update payloads should accept either the old `{ phone }` shape or
   the new `{ phone, phones }` shape.
@@ -173,6 +178,21 @@ a later feature explicitly adds phone selection per order.
 - Client 2 is deleted after merge.
 - Sales and history from Client 2 move to Client 1.
 - Merge fails if any merged phone already belongs to a third client.
+- Both **Clients** and **Suppliers** merge dialogs reuse the unified `CatalogRecordMergeModal<T>` component (`features/catalog-duplicate-merge`), identical to Products & Services.
+- **UI & Layout:**
+  - Target (Surviving) and Source (To delete) search inputs with dismissible, scrollable suggestions (no overflow clipping).
+  - Search matches names and any associated phone numbers (including additional phones).
+  - "Swap" (↕) button swaps Target and Source selections instantly.
+  - Side-by-side comparison cards highlight the surviving record (green badge) and the record to remove (warning badge) with notes and phone details.
+  - Confirmation triggers `onMergeClients` or `onMergeSuppliers`.
+- **Clients Merge Logic:**
+  - Target client keeps its primary phone; all phones from Source client are appended to Target unless already present.
+  - Source client is deleted after merge.
+  - Sales and history from Source client move to Target client.
+  - Merge fails if any merged phone already belongs to a third client.
+- **Suppliers Merge Logic:**
+  - Target supplier survives; Source supplier is deleted.
+  - Linked records and data are transferred to Target supplier.
 
 ### Search Rule
 

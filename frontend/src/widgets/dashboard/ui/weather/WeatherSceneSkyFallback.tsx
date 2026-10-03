@@ -1,6 +1,7 @@
+import type React from 'react';
 import type { WeatherIntensity } from '../../model/weather-scene-params';
 
-type WeatherSceneSkyFallbackProps = {
+export interface WeatherSceneSkyFallbackProps {
   condition: string;
   intensity?: WeatherIntensity | string;
 };
@@ -36,10 +37,10 @@ const intensitySkyOverrides: Record<string, Record<string, [string, string, stri
 
 const defaultStops: [string, string, string] = ['#7dd3fc', '#bae6fd', '#e0f2fe'];
 
-export const WeatherSceneSkyFallback = ({
+export const WeatherSceneSkyFallback: React.FC<WeatherSceneSkyFallbackProps> = ({
   condition,
   intensity,
-}: WeatherSceneSkyFallbackProps) => {
+}) => {
   const intensityOverride =
     intensity && intensitySkyOverrides[condition]?.[intensity];
   const [top, mid, bottom] =

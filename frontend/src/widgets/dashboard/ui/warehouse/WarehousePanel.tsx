@@ -1,3 +1,4 @@
+import type React from 'react';
 import {
   useCallback,
   useEffect,
@@ -6,9 +7,9 @@ import {
   useState,
 } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { CatalogProduct } from '../../../../entities/catalog-product/model/types';
-import type { Product } from '../../../../entities/product/model/types';
-import { printSerialNumbers } from '../../../../shared/lib/serialPrint';
+import type { CatalogProduct } from '../../../../entities/catalog-product';
+import type { Product } from '../../../../entities/product';
+import { printSerialNumbers } from '../orders/workspace/orders-workspace-shared';
 import {
   normalizeDecimalInput,
   parseDecimal,
@@ -25,25 +26,25 @@ import {
   useTakeOnChargeSupplierOrderMutation,
   useUpdateSupplierOrderFavoriteMutation,
   useUpdateSupplierOrderMutation,
-} from '../../../../entities/supplier-order/api/supplierOrderApi';
+} from '../../../../entities/supplier-order';
 import {
   SupplierOrderModal,
   type SupplierOrderModalSubmitPayload,
 } from '../orders/modals/SupplierOrderModal';
-import type { Supplier } from '../../../../entities/supplier/model/types';
+import type { Supplier } from '../../../../entities/supplier';
 import type {
   SupplierOrder,
   SupplierOrderFormValues,
-} from '../../../../entities/supplier-order/model/types';
+} from '../../../../entities/supplier-order';
 import {
   useUpdateWarehouseSettingsMutation,
   useWarehouseSettingsQuery,
-} from '../../../../entities/warehouse-settings/api/warehouseSettingsApi';
+} from '../../../../entities/warehouse-settings';
 import {
   createSavedFilter as createSavedFilterRequest,
   deleteSavedFilter as deleteSavedFilterRequest,
   listSavedFilters,
-} from '../../../../entities/saved-filter/api/savedFilterApi';
+} from '../../../../entities/saved-filter';
 import {
   buildSupplierOrderItemNumber,
   getSupplierOrderDisplayNumber,
@@ -76,12 +77,14 @@ import {
   getReceiptGroupTotals,
   groupReceiptRowsByOrder,
   initialAdministrators,
+  getWarehouseFiltersStorageKey,
   initialServiceCenters,
   initialWarehouseFilters,
   initialWarehouses,
   lockedWarehouseColumns,
   normalizeProductName,
   normalizeReceiptStatuses,
+  readStoredWarehouseFilters,
   receiptStatusFilterOptions,
   savedWarehouseFiltersStorageKey,
   tabs,
@@ -90,7 +93,6 @@ import {
   transferPageSize,
   warehouseColumnsStorageKey,
   warehouseFilterIconOptions,
-  warehouseFiltersStorageKey,
   type Administrator,
   type ReceiptRow,
   type ReceiptsColumnKey,
@@ -113,7 +115,7 @@ import {
   type WarehouseSearchMode,
   type WarehouseTab,
 } from '../../model/warehouse-panel';
-export const WarehousePanel = ({
+export const WarehousePanel: React.FC<WarehousePanelProps> = ({
   printForms,
   products,
   sales,
@@ -138,7 +140,7 @@ export const WarehousePanel = ({
   onSuccess,
   onError,
   onOpenSaleCard,
-}: WarehousePanelProps) => {
+}) => {
   const { t, i18n } = useTranslation();
   const supplierOrdersQuery = useSupplierOrdersQuery(
     canViewSupplierOrders,
@@ -181,109 +183,60 @@ export const WarehousePanel = ({
   const [selectedStockProductIds, setSelectedStockProductIds] =
     useState<string[]>([]);
   const [activeTab, setActiveTab] = useState<WarehouseTab>(() => {
-    try {
-      const parsed = JSON.parse(
-        window.localStorage.getItem(warehouseFiltersStorageKey) ??
-          '{}',
-      ) as Partial<{ activeTab: WarehouseTab }>;
-      return parsed.activeTab === 'stock' ||
-        parsed.activeTab === 'receipts' ||
-        parsed.activeTab === 'transfers' ||
-        parsed.activeTab === 'information' ||
-        parsed.activeTab === 'settings'
-        ? parsed.activeTab
-        : 'stock';
-    } catch {
-      return 'stock';
-    }
+    const parsed = readStoredWarehouseFilters(currentEmployeeId);
+    return parsed.activeTab === 'stock' ||
+      parsed.activeTab === 'receipts' ||
+      parsed.activeTab === 'transfers' ||
+      parsed.activeTab === 'information' ||
+      parsed.activeTab === 'settings'
+      ? parsed.activeTab
+      : 'stock';
   });
   const [query, setQuery] = useState(() => {
-    try {
-      const parsed = JSON.parse(
-        window.localStorage.getItem(warehouseFiltersStorageKey) ??
-          '{}',
-      ) as Partial<{ query: string }>;
-      return parsed.query ?? '';
-    } catch {
-      return '';
-    }
+    const parsed = readStoredWarehouseFilters(currentEmployeeId);
+    return parsed.query ?? '';
   });
   const [searchMode, setSearchMode] = useState<WarehouseSearchMode>(
     () => {
-      try {
-        const parsed = JSON.parse(
-          window.localStorage.getItem(warehouseFiltersStorageKey) ??
-            '{}',
-        ) as Partial<{ searchMode: WarehouseSearchMode }>;
-        return parsed.searchMode === 'serial' ||
-          parsed.searchMode === 'name' ||
-          parsed.searchMode === 'article' ||
-          parsed.searchMode === 'supplier' ||
-          parsed.searchMode === 'warehouse'
-          ? parsed.searchMode
-          : 'serial';
-      } catch {
-        return 'serial';
-      }
+      const parsed = readStoredWarehouseFilters(currentEmployeeId);
+      return parsed.searchMode === 'serial' ||
+        parsed.searchMode === 'name' ||
+        parsed.searchMode === 'article' ||
+        parsed.searchMode === 'supplier' ||
+        parsed.searchMode === 'warehouse'
+        ? parsed.searchMode
+        : 'serial';
     },
   );
   const [stockView, setStockView] = useState<StockViewMode>(() => {
-    try {
-      const parsed = JSON.parse(
-        window.localStorage.getItem(warehouseFiltersStorageKey) ??
-          '{}',
-      ) as Partial<{ stockView: StockViewMode }>;
-      return parsed.stockView === 'units' ||
-        parsed.stockView === 'models'
-        ? parsed.stockView
-        : 'models';
-    } catch {
-      return 'models';
-    }
+    const parsed = readStoredWarehouseFilters(currentEmployeeId);
+    return parsed.stockView === 'units' ||
+      parsed.stockView === 'models'
+      ? parsed.stockView
+      : 'models';
   });
   const [receiptsView, setReceiptsView] = useState<ReceiptsViewMode>(
     () => {
-      try {
-        const parsed = JSON.parse(
-          window.localStorage.getItem(warehouseFiltersStorageKey) ??
-            '{}',
-        ) as Partial<{ receiptsView: ReceiptsViewMode }>;
-        return parsed.receiptsView === 'orders' ||
-          parsed.receiptsView === 'lines'
-          ? parsed.receiptsView
-          : 'orders';
-      } catch {
-        return 'orders';
-      }
+      const parsed = readStoredWarehouseFilters(currentEmployeeId);
+      return parsed.receiptsView === 'orders' ||
+        parsed.receiptsView === 'lines'
+        ? parsed.receiptsView
+        : 'orders';
     },
   );
   const [currentPage, setCurrentPage] = useState(() => {
-    try {
-      const parsed = JSON.parse(
-        window.localStorage.getItem(warehouseFiltersStorageKey) ??
-          '{}',
-      ) as Partial<{ currentPage: number }>;
-      return Number.isFinite(parsed.currentPage) &&
-        (parsed.currentPage ?? 0) > 0
-        ? Math.floor(parsed.currentPage as number)
-        : 1;
-    } catch {
-      return 1;
-    }
+    const parsed = readStoredWarehouseFilters(currentEmployeeId);
+    return Number.isFinite(parsed.currentPage) &&
+      (parsed.currentPage ?? 0) > 0
+      ? Math.floor(parsed.currentPage as number)
+      : 1;
   });
   const [pageSize, setPageSize] = useState(() => {
-    try {
-      const parsed = JSON.parse(
-        window.localStorage.getItem(warehouseFiltersStorageKey) ??
-          '{}',
-      ) as Partial<{ pageSize: number }>;
-      return Number.isFinite(parsed.pageSize) &&
-        (parsed.pageSize ?? 0) > 0
-        ? Math.floor(parsed.pageSize as number)
-        : 30;
-    } catch {
-      return 30;
-    }
+    const parsed = readStoredWarehouseFilters(currentEmployeeId);
+    return Number.isFinite(parsed.pageSize) &&
+      (parsed.pageSize ?? 0) > 0
+      ? Math.floor(parsed.pageSize as number)
+      : 30;
   });
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
   const [isReceiptStatusFilterOpen, setIsReceiptStatusFilterOpen] =
@@ -323,10 +276,31 @@ export const WarehousePanel = ({
       }
     });
   const [draftFilters, setDraftFilters] = useState<WarehouseFilters>(
-    normalizeWarehouseFilters(),
+    () => {
+      const parsed = readStoredWarehouseFilters(currentEmployeeId);
+      const statuses = parsed.receiptStatuses ?? parsed.statuses;
+      if (Array.isArray(statuses)) {
+        return normalizeWarehouseFilters({
+          statuses: normalizeReceiptStatuses({ statuses }),
+          favoritesOnly: parsed.favoritesOnly === true,
+        });
+      }
+      if (parsed.receiptStatus) {
+        return normalizeWarehouseFilters({
+          statuses:
+            parsed.receiptStatus === 'all'
+              ? []
+              : normalizeReceiptStatuses({
+                  statuses: [parsed.receiptStatus],
+                }),
+          favoritesOnly: parsed.favoritesOnly === true,
+        });
+      }
+      return normalizeWarehouseFilters();
+    },
   );
   const [appliedFilters, setAppliedFilters] =
-    useState<WarehouseFilters>(normalizeWarehouseFilters());
+    useState<WarehouseFilters>(draftFilters);
   const [savedFilters, setSavedFilters] = useState<
     SavedWarehouseFilter[]
   >([]);
@@ -335,20 +309,37 @@ export const WarehousePanel = ({
     warehouseFilterIconOptions[0],
   );
   const [settingsTab, setSettingsTab] = useState<SettingsTab>(() => {
-    try {
-      const parsed = JSON.parse(
-        window.localStorage.getItem(warehouseFiltersStorageKey) ??
-          '{}',
-      ) as Partial<{ settingsTab: SettingsTab }>;
-      return parsed.settingsTab === 'service-centers' ||
-        parsed.settingsTab === 'warehouses' ||
-        parsed.settingsTab === 'administrators'
-        ? parsed.settingsTab
-        : 'service-centers';
-    } catch {
-      return 'service-centers';
-    }
+    const parsed = readStoredWarehouseFilters(currentEmployeeId);
+    return parsed.settingsTab === 'service-centers' ||
+      parsed.settingsTab === 'warehouses' ||
+      parsed.settingsTab === 'administrators'
+      ? parsed.settingsTab
+      : 'service-centers';
   });
+
+  useEffect(() => {
+    const parsed = readStoredWarehouseFilters(currentEmployeeId);
+    const statuses = parsed.receiptStatuses ?? parsed.statuses;
+    let loadedStatuses: ReceiptStatus[] = [];
+    if (Array.isArray(statuses)) {
+      loadedStatuses = normalizeReceiptStatuses({ statuses });
+    } else if (parsed.receiptStatus && parsed.receiptStatus !== 'all') {
+      loadedStatuses = normalizeReceiptStatuses({
+        statuses: [parsed.receiptStatus],
+      });
+    }
+    const favoritesOnly = parsed.favoritesOnly === true;
+    setDraftFilters((current) => ({
+      ...current,
+      statuses: loadedStatuses,
+      favoritesOnly,
+    }));
+    setAppliedFilters((current) => ({
+      ...current,
+      statuses: loadedStatuses,
+      favoritesOnly,
+    }));
+  }, [currentEmployeeId]);
   const [serviceCenters, setServiceCenters] =
     useState<ServiceCenter[]>(initialServiceCenters) || [];
   const [warehouses, setWarehouses] =
@@ -487,6 +478,7 @@ export const WarehousePanel = ({
             order.paymentStatus === 'cancelled'
               ? 'cancelled'
               : (item.receiptStatus ?? 'new'),
+          orderStatus: order.status,
           paymentStatus: order.paymentStatus,
           note: order.note || '',
         })),
@@ -1154,21 +1146,39 @@ export const WarehousePanel = ({
   }, [currentEmployeeId, currentEmployeeName, onError, t]);
 
   useEffect(() => {
-    window.localStorage.setItem(
-      warehouseFiltersStorageKey,
-      JSON.stringify({
-        activeTab,
-        query,
-        searchMode,
-        settingsTab,
-        currentPage,
-        pageSize,
-        stockView,
-        receiptsView,
-      }),
-    );
+    const storageKey = getWarehouseFiltersStorageKey(currentEmployeeId);
+    const receiptStatus =
+      appliedFilters.statuses.length === 1
+        ? appliedFilters.statuses[0]
+        : appliedFilters.statuses.length === 0
+          ? 'all'
+          : appliedFilters.statuses;
+
+    try {
+      window.localStorage.setItem(
+        storageKey,
+        JSON.stringify({
+          activeTab,
+          query,
+          searchMode,
+          settingsTab,
+          currentPage,
+          pageSize,
+          stockView,
+          receiptsView,
+          receiptStatus,
+          receiptStatuses: appliedFilters.statuses,
+          favoritesOnly: appliedFilters.favoritesOnly,
+        }),
+      );
+    } catch {
+      // Ignore localStorage write errors.
+    }
   }, [
     activeTab,
+    appliedFilters.favoritesOnly,
+    appliedFilters.statuses,
+    currentEmployeeId,
     currentPage,
     pageSize,
     query,
@@ -1373,6 +1383,7 @@ export const WarehousePanel = ({
         approvedBy: '-',
         acceptedAt: now,
         status: 'new',
+        orderStatus: 'request',
         paymentStatus: 'pending',
         note: receiptForm.note.trim() || 'L',
       },
@@ -2560,6 +2571,8 @@ export const WarehousePanel = ({
           serialNumbers,
           autoGenerateArticles,
           articleBase,
+          groupArticles,
+          groupAutoGenerateArticles,
           warehouseId,
           locationId,
         }) => {
@@ -2575,6 +2588,8 @@ export const WarehousePanel = ({
                 serialNumbers,
                 autoGenerateArticles,
                 articleBase: articleBase.trim().toUpperCase(),
+                groupArticles,
+                groupAutoGenerateArticles,
                 itemIndex:
                   editingSupplierOrderItemIndex === null
                     ? undefined

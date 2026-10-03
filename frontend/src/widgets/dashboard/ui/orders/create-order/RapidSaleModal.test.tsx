@@ -2,8 +2,8 @@ import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testi
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ReactElement } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { Product } from '../../../../../entities/product/model/types';
-import type { ServiceCatalogItem } from '../../../../../entities/service-catalog/model/types';
+import type { Product } from '../../../../../entities/product';
+import type { ServiceCatalogItem } from '../../../../../entities/service-catalog';
 import { queryKeys } from '../../../../../shared/api/queryClient';
 import { RapidSaleModal } from './RapidSaleModal';
 
@@ -14,10 +14,14 @@ const { getServiceCatalogItemsMock, createServiceCatalogItemMock } = vi.hoisted(
   createServiceCatalogItemMock: vi.fn(),
 }));
 
-vi.mock('../../../../../entities/service-catalog/api/serviceCatalogApi', () => ({
+vi.mock('../../../../../entities/service-catalog', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../../../entities/service-catalog')>();
+  return {
+    ...actual,
   getServiceCatalogItems: getServiceCatalogItemsMock,
   createServiceCatalogItem: createServiceCatalogItemMock,
-}));
+  };
+});
 
 const { getWarehouseSettingsMock } = vi.hoisted(() => ({
   getWarehouseSettingsMock: vi.fn(async () => ({
@@ -44,9 +48,9 @@ const { getWarehouseSettingsMock } = vi.hoisted(() => ({
   })),
 }));
 
-vi.mock('../../../../../entities/warehouse-settings/api/warehouseSettingsApi', async (importOriginal) => {
+vi.mock('../../../../../entities/warehouse-settings', async (importOriginal) => {
   const actual = await importOriginal<
-    typeof import('../../../../../entities/warehouse-settings/api/warehouseSettingsApi')
+    typeof import('../../../../../entities/warehouse-settings')
   >();
   return {
     ...actual,

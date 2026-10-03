@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import type { SupplierOrder } from '../../../entities/supplier-order/model/types';
-import type { Supplier } from '../../../entities/supplier/model/types';
+import type { SupplierOrder } from '../../../entities/supplier-order';
+import type { Supplier } from '../../../entities/supplier';
 import {
   buildSupplierOrderAnalytics,
   buildSupplierOrderItemNumber,

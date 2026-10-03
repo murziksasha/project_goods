@@ -1,24 +1,25 @@
+import type React from 'react';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { Supplier } from '../../../../../entities/supplier/model/types';
+import type { Supplier } from '../../../../../entities/supplier';
 import { filterActiveSuppliers } from '../../../model/supplier-order-utils';
 import { CompactPaginationPanel } from '../../../../../shared/ui/PaginationPanel';
 
 const DEFAULT_PAGE_SIZE = 10;
 
-type SupplierChooseModalProps = {
+export interface SupplierChooseModalProps {
   isOpen: boolean;
   suppliers: Supplier[];
   onClose: () => void;
   onSelect: (supplier: Supplier) => void;
 };
 
-export const SupplierChooseModal = ({
+export const SupplierChooseModal: React.FC<SupplierChooseModalProps> = ({
   isOpen,
   suppliers,
   onClose,
   onSelect,
-}: SupplierChooseModalProps) => {
+}) => {
   const { t } = useTranslation();
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');

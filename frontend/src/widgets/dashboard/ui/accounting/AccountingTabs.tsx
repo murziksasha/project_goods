@@ -1,7 +1,8 @@
+import type React from 'react';
 import { useTranslation } from 'react-i18next';
 import type { AccountingTab } from '../../model/accounting';
 
-type AccountingTabsProps = {
+export interface AccountingTabsProps {
   activeTab: AccountingTab;
   canManageCashboxes: boolean;
   isFinanceSettingsOpen: boolean;
@@ -17,13 +18,13 @@ const accountingTabs: Array<[AccountingTab, string]> = [
   ['reports', 'accounting.tabs.reports'],
 ];
 
-export const AccountingTabs = ({
+export const AccountingTabs: React.FC<AccountingTabsProps> = ({
   activeTab,
   canManageCashboxes,
   isFinanceSettingsOpen,
   onOpenSettings,
   onTabChange,
-}: AccountingTabsProps) => {
+}) => {
   const { t } = useTranslation();
 
   return (

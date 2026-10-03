@@ -1,26 +1,27 @@
+import type React from 'react';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import i18n from '../../../../shared/i18n/config';
-import type { Employee } from '../../../../entities/employee/model/types';
-import type { ClientDevice } from '../../../../entities/client-device/model/types';
-import type { ClientDeviceFormValues } from '../../../../entities/client-device/model/types';
+import type { Employee } from '../../../../entities/employee';
+import type { ClientDevice } from '../../../../entities/client-device';
+import type { ClientDeviceFormValues } from '../../../../entities/client-device';
 import type {
   CatalogProduct,
   CatalogProductFormValues,
-} from '../../../../entities/catalog-product/model/types';
+} from '../../../../entities/catalog-product';
 import type {
   Supplier,
   SupplierFormValues,
-} from '../../../../entities/supplier/model/types';
+} from '../../../../entities/supplier';
 import type {
   Product,
   ProductFormValues,
-} from '../../../../entities/product/model/types';
+} from '../../../../entities/product';
 import type {
   ServiceCatalogFormValues,
   ServiceCatalogItem,
-} from '../../../../entities/service-catalog/model/types';
-import { ServiceCatalogForm } from '../../../../features/manage-service-catalog/ui/ServiceCatalogForm';
+} from '../../../../entities/service-catalog';
+import { ServiceCatalogForm } from '../../../../features/manage-service-catalog';
 import {
   CompactPaginationPanel,
   PaginationPanel,
@@ -40,6 +41,8 @@ import {
   ClientDeviceModal,
   SupplierModal,
 } from './ProductCatalogModals';
+import { CatalogRecordMergeModal } from '../../../../features/catalog-duplicate-merge';
+import { formatCurrency } from '../../../../shared/lib/format';
 import {
   catalogTabStorageKey,
   catalogActiveFiltersStorageKey,
@@ -65,12 +68,12 @@ import {
   createSavedFilter as createSavedFilterRequest,
   deleteSavedFilter as deleteSavedFilterRequest,
   listSavedFilters,
-} from '../../../../entities/saved-filter/api/savedFilterApi';
+} from '../../../../entities/saved-filter';
 import { SavedFiltersPanel } from '../orders/workspace/SavedFiltersPanel';
 
 export { CatalogProductModal } from './ProductCatalogModals';
 
-type ProductCatalogPanelProps = {
+export interface ProductCatalogPanelProps {
   currentEmployee: Employee | null;
   products: Product[];
   clientDevices: ClientDevice[];
@@ -154,9 +157,11 @@ type ProductCatalogPanelProps = {
     sourceSupplierId: string,
     draftNote?: string,
   ) => Promise<boolean>;
-};
+}
 
-export const ProductCatalogPanel = ({
+export const ProductCatalogPanel: React.FC<
+  ProductCatalogPanelProps
+> = ({
   currentEmployee,
   products,
   clientDevices,
@@ -201,7 +206,7 @@ export const ProductCatalogPanel = ({
   onMergeCatalogProduct,
   onMergeService,
   onMergeSupplier,
-}: ProductCatalogPanelProps) => {
+}) => {
   void productForm;
   void isProductSaving;
   void isProductEditing;
@@ -246,6 +251,7 @@ export const ProductCatalogPanel = ({
     useState<CatalogProduct | null>(null);
   const [isServiceFormOpen, setIsServiceFormOpen] = useState(false);
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
+  const [isMergeModalOpen, setIsMergeModalOpen] = useState(false);
   const [draftFiltersByTab, setDraftFiltersByTab] = useState<
     Record<CatalogTab, CatalogFilters>
   >(readCatalogActiveFilters);
@@ -956,37 +962,75 @@ export const ProductCatalogPanel = ({
         </div>
         <div className='catalog-toolbar-actions'>
           {isProductsTab ? (
-            <button
-              type='button'
-              className='orders-create-button'
-              onClick={() => setIsCreateDeviceModalOpen(true)}
-            >
-              {t('catalog.toolbar.createDevice')}
-            </button>
+            <>
+              <button
+                type='button'
+                className='toolbar-filter-button'
+                onClick={() => setIsMergeModalOpen(true)}
+              >
+                {t('catalog.toolbar.merge')}
+              </button>
+              <button
+                type='button'
+                className='orders-create-button'
+                onClick={() => setIsCreateDeviceModalOpen(true)}
+              >
+                {t('catalog.toolbar.createDevice')}
+              </button>
+            </>
           ) : isSuppliersTab ? (
-            <button
-              type='button'
-              className='orders-create-button'
-              onClick={() => setIsCreateSupplierModalOpen(true)}
-            >
-              {t('catalog.toolbar.createSupplier')}
-            </button>
+            <>
+              <button
+                type='button'
+                className='toolbar-filter-button'
+                onClick={() => setIsMergeModalOpen(true)}
+              >
+                {t('catalog.toolbar.merge')}
+              </button>
+              <button
+                type='button'
+                className='orders-create-button'
+                onClick={() => setIsCreateSupplierModalOpen(true)}
+              >
+                {t('catalog.toolbar.createSupplier')}
+              </button>
+            </>
           ) : isCatalogProductsTab ? (
-            <button
-              type='button'
-              className='orders-create-button'
-              onClick={() => setIsCreateCatalogProductModalOpen(true)}
-            >
-              {t('catalog.toolbar.createProduct')}
-            </button>
+            <>
+              <button
+                type='button'
+                className='toolbar-filter-button'
+                onClick={() => setIsMergeModalOpen(true)}
+              >
+                {t('catalog.toolbar.merge')}
+              </button>
+              <button
+                type='button'
+                className='orders-create-button'
+                onClick={() =>
+                  setIsCreateCatalogProductModalOpen(true)
+                }
+              >
+                {t('catalog.toolbar.createProduct')}
+              </button>
+            </>
           ) : (
-            <button
-              type='button'
-              className='orders-create-button'
-              onClick={openServiceForm}
-            >
-              {t('catalog.toolbar.createService')}
-            </button>
+            <>
+              <button
+                type='button'
+                className='toolbar-filter-button'
+                onClick={() => setIsMergeModalOpen(true)}
+              >
+                {t('catalog.toolbar.merge')}
+              </button>
+              <button
+                type='button'
+                className='orders-create-button'
+                onClick={openServiceForm}
+              >
+                {t('catalog.toolbar.createService')}
+              </button>
+            </>
           )}
         </div>
       </div>
@@ -1469,11 +1513,92 @@ export const ProductCatalogPanel = ({
           </label>
         </Modal>
       ) : null}
+
+      {isMergeModalOpen && isProductsTab ? (
+        <CatalogRecordMergeModal<ClientDevice>
+          isOpen={isMergeModalOpen}
+          title={t('catalog.recordMergeModal.titleDevice')}
+          records={clientDevices}
+          onClose={() => setIsMergeModalOpen(false)}
+          onMerge={async (targetId, sourceId) => {
+            if (onMergeClientDevice) {
+              return onMergeClientDevice(targetId, sourceId);
+            }
+          }}
+          getRecordId={(device) => device.id}
+          getRecordName={(device) => device.name}
+          getRecordSecondaryText={(device) =>
+            device.clientName || device.clientPhone || undefined
+          }
+          getRecordNote={(device) => device.note}
+        />
+      ) : null}
+
+      {isMergeModalOpen && isCatalogProductsTab ? (
+        <CatalogRecordMergeModal<CatalogProduct>
+          isOpen={isMergeModalOpen}
+          title={t('catalog.recordMergeModal.titleProduct')}
+          records={catalogProducts}
+          onClose={() => setIsMergeModalOpen(false)}
+          onMerge={async (targetId, sourceId) => {
+            if (onMergeCatalogProduct) {
+              return onMergeCatalogProduct(targetId, sourceId);
+            }
+          }}
+          getRecordId={(product) => product.id}
+          getRecordName={(product) => product.name}
+          getRecordNote={(product) => product.note}
+        />
+      ) : null}
+
+      {isMergeModalOpen && isSuppliersTab ? (
+        <CatalogRecordMergeModal<Supplier>
+          isOpen={isMergeModalOpen}
+          title={t('catalog.recordMergeModal.titleSupplier')}
+          records={suppliers}
+          searchPlaceholder={t(
+            'catalog.recordMergeModal.searchSupplierPlaceholder',
+          )}
+          onClose={() => setIsMergeModalOpen(false)}
+          onMerge={async (targetId, sourceId) => {
+            if (onMergeSupplier) {
+              return onMergeSupplier(targetId, sourceId);
+            }
+          }}
+          getRecordId={(supplier) => supplier.id}
+          getRecordName={(supplier) => supplier.name}
+          getRecordSecondaryText={(supplier) => supplier.phone}
+          getRecordNote={(supplier) => supplier.note}
+        />
+      ) : null}
+
+      {isMergeModalOpen &&
+      !isProductsTab &&
+      !isCatalogProductsTab &&
+      !isSuppliersTab ? (
+        <CatalogRecordMergeModal<ServiceCatalogItem>
+          isOpen={isMergeModalOpen}
+          title={t('catalog.recordMergeModal.titleService')}
+          records={services}
+          onClose={() => setIsMergeModalOpen(false)}
+          onMerge={async (targetId, sourceId) => {
+            if (onMergeService) {
+              return onMergeService(targetId, sourceId);
+            }
+          }}
+          getRecordId={(service) => service.id}
+          getRecordName={(service) => service.name}
+          getRecordSecondaryText={(service) =>
+            formatCurrency(Number(service.price) || 0)
+          }
+          getRecordNote={(service) => service.note}
+        />
+      ) : null}
     </section>
   );
 };
 
-type CatalogFilterPanelProps = {
+export interface CatalogFilterPanelProps {
   activeTab: CatalogTab;
   canSave: boolean;
   draftFilters: CatalogFilters;
@@ -1492,9 +1617,9 @@ type CatalogFilterPanelProps = {
     field: K,
     value: CatalogFilters[K],
   ) => void;
-};
+}
 
-const CatalogFilterPanel = ({
+const CatalogFilterPanel: React.FC<CatalogFilterPanelProps> = ({
   activeTab,
   canSave,
   draftFilters,
@@ -1510,7 +1635,7 @@ const CatalogFilterPanel = ({
   onNameChange,
   onSave,
   onUpdate,
-}: CatalogFilterPanelProps) => {
+}) => {
   const { t } = useTranslation();
   const isServicesTab = activeTab === 'services';
   const queryLabel =

@@ -1,31 +1,32 @@
+import type React from 'react';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { ProfitMarginRow } from '../../../../entities/finance/model/types';
+import type { ProfitMarginRow } from '../../../../entities/finance';
 import {
   updateProductModelByName,
   useProductsQuery,
-} from '../../../../entities/product/api/productApi';
-import type { Sale } from '../../../../entities/sale/model/types';
+} from '../../../../entities/product';
+import type { Sale } from '../../../../entities/sale';
 import {
   archiveServiceCatalogItem,
   updateServiceCatalogItem,
-} from '../../../../entities/service-catalog/api/serviceCatalogApi';
+} from '../../../../entities/service-catalog';
 import {
   initialServiceCatalogForm,
   toServiceCatalogForm,
-} from '../../../../entities/service-catalog/model/forms';
+} from '../../../../entities/service-catalog';
 import type {
   ServiceCatalogFormValues,
   ServiceCatalogItem,
-} from '../../../../entities/service-catalog/model/types';
-import type { SupplierOrder } from '../../../../entities/supplier-order/model/types';
-import { useWarehouseSettingsQuery } from '../../../../entities/warehouse-settings/api/warehouseSettingsApi';
+} from '../../../../entities/service-catalog';
+import type { SupplierOrder } from '../../../../entities/supplier-order';
+import { useWarehouseSettingsQuery } from '../../../../entities/warehouse-settings';
 import { queryClient, queryKeys } from '../../../../shared/api/queryClient';
 import { ProductModelModal } from '../orders/modals/ProductModelModal';
 import { CatalogServiceModal } from '../product-catalog/ProductCatalogModals';
 import { resolveProfitReportCatalogTarget } from '../../model/profit-report';
 
-type ProfitReportCatalogModalHostProps = {
+export interface ProfitReportCatalogModalHostProps {
   row: ProfitMarginRow | null;
   services: ServiceCatalogItem[];
   sales: Sale[];
@@ -44,7 +45,7 @@ const invalidateCatalogQueries = async () => {
   ]);
 };
 
-export const ProfitReportCatalogModalHost = ({
+export const ProfitReportCatalogModalHost: React.FC<ProfitReportCatalogModalHostProps> = ({
   row,
   services,
   sales,
@@ -54,7 +55,7 @@ export const ProfitReportCatalogModalHost = ({
   onError,
   onSuccess,
   onOpenSupplierOrder,
-}: ProfitReportCatalogModalHostProps) => {
+}) => {
   const { t } = useTranslation();
   const target = useMemo(
     () => (row ? resolveProfitReportCatalogTarget(row, services) : null),

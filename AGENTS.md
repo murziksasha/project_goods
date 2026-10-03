@@ -1,5 +1,12 @@
 # Agent Profile: Minimalist
 
+## Plan Mode Discipline
+
+- When creating an implementation plan (or in Plan mode):
+  - Always create the plan artifact with `RequestFeedback: true`.
+  - **Halt immediately** upon creating the plan. Never start executing tasks or editing code automatically.
+  - Explicitly ask the user for approval to proceed with the implementation.
+
 ## Core Principles
 
 - **No Fillers:** Skip "Sure," "I can help," or "As an AI."
@@ -23,18 +30,25 @@
 3. Use markdown symbols (e.g., "->" instead of "leads to").
 4. Core logic first for complex tasks.
 
-## Build Discipline
+## Build Discipline & Anti-Loop Rules
 
-- If build fails, fix it immediately in the same task until build passes.
+- If build fails, fix it directly without entering infinite repair loops.
+- **Circuit Breaker:** Max 2 automated fix attempts per failure. If an edit introduces syntax or parse errors twice, halt immediately, revert corrupted edits to git HEAD, and report instead of looping.
+- **No Polling Timers:** Never use `schedule` or timer loops to wait for background commands. Stop calling tools and wait for reactive system wakeup.
+- **Sync Command Execution:** Set `WaitMsBeforeAsync: 10000` on verification commands to avoid backgrounding.
+- **Scoped Verification:** Run targeted checks on modified packages only (`--prefix frontend` or `--prefix backend`), not root sweeps, during iterations.
+- **Atomic Writes on Windows:** On Windows CRLF environments, prefer `write_to_file` over chained partial-line edits on large TSX files to avoid line duplication.
 - Don't stop at reporting errors; install missing deps and resolve TS/Vite issues before final response.
-- After code changes, run `npm run typecheck` and `npm run lint`. Fix all issues before responding.
+- **Verification Offloading:** Delegate post-implementation test, lint, and fix cycles to a subagent to save main context tokens.
 
 ## Architecture: Feature-Sliced Design (Frontend)
 
 ### Layer Hierarchy (top -> bottom)
+
 `pages` -> `widgets` -> `features` -> `entities` -> `shared`
 
 ### Rules
+
 - **Import direction:** Upper layers import from lower layers only. Never import upward.
 - **No cross-slice imports:** Slices within the same layer must not import from each other.
 - **Public API:** Each slice exports through `index.ts` barrel file only. No deep imports into slice internals.
@@ -44,7 +58,9 @@
 ## Architecture: Domain-Driven (Backend)
 
 ### Module Structure
+
 Each backend domain module follows:
+
 ```
 domain/{module}/
   ├── controller.ts    # Request handling
@@ -57,17 +73,20 @@ domain/{module}/
 ## Tech Stack & Conventions
 
 ### Frontend
+
 - **Server state:** `@tanstack/react-query` — no other data-fetching libs.
 - **UI state:** Zustand or React Context — no Redux.
 - **Forms:** React Hook Form.
 - **Build:** Vite + React.
 
 ### Backend
+
 - **Framework:** Express 5.
 - **ORM:** Mongoose 9.
 - **Runtime:** Node.js + TypeScript.
 
 ### Error Handling
+
 - **Backend:** Throw typed errors (`AppError` / `HttpError`). Centralized error middleware catches all.
 - **Frontend:** `ErrorBoundary` for component-level. `react-query` `onError` for API-level.
 
@@ -76,3 +95,12 @@ domain/{module}/
 - Write **Vitest** tests for all new logic.
 - Co-locate test files as `*.test.ts(x)` next to source.
 - Backend coverage target: **100%**.
+- **Post-Feature Verification Subagent:**
+  - After implementing a feature, invoke a single subagent to run scoped tests, typechecks, and linting.
+  - Subagent fixes any failures directly in its own context to preserve main conversation tokens.
+
+## Subagent Delegation
+
+- **Test & Lint Fixes:** Delegate all post-implementation test/lint runs and iterative error resolution to a subagent.
+- **Deep Research:** Use research subagents for large-scale codebase exploration or heavy documentation lookups.
+- **Compact Reporting:** Subagent returns only high-level status, modified files, and test results -> main agent continues without log pollution.

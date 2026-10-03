@@ -1,8 +1,9 @@
+import type React from 'react';
 import { useTranslation } from 'react-i18next';
 import { Modal } from '../../../../../shared/ui/Modal';
 import { Button } from '../../../../../shared/ui/Button';
 
-type CreateOrderDeviceModalProps = {
+export interface CreateOrderDeviceModalProps {
   name: string;
   isActive: boolean;
   isSaving: boolean;
@@ -13,7 +14,7 @@ type CreateOrderDeviceModalProps = {
   onSave: () => void;
 };
 
-export const CreateOrderDeviceModal = ({
+export const CreateOrderDeviceModal: React.FC<CreateOrderDeviceModalProps> = ({
   name,
   isActive,
   isSaving,
@@ -22,7 +23,7 @@ export const CreateOrderDeviceModal = ({
   onIsActiveChange,
   onClose,
   onSave,
-}: CreateOrderDeviceModalProps) => {
+}) => {
   const { t } = useTranslation();
 
   return (

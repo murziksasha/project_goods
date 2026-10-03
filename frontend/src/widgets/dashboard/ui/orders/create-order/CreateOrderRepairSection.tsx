@@ -1,8 +1,9 @@
+import type React from 'react';
 import { useTranslation } from 'react-i18next';
-import type { ClientDevice } from '../../../../../entities/client-device/model/types';
+import type { ClientDevice } from '../../../../../entities/client-device';
 import { useDismissibleSuggestions } from '../../../../../shared/lib/useDismissibleSuggestions';
 
-type CreateOrderRepairSectionProps = {
+export interface CreateOrderRepairSectionProps {
   deviceName: string;
   deviceSerialNumber: string;
   deviceColor: string;
@@ -29,7 +30,7 @@ type CreateOrderRepairSectionProps = {
   onApplyDevice: (device: ClientDevice) => void;
 };
 
-export const CreateOrderRepairSection = ({
+export const CreateOrderRepairSection: React.FC<CreateOrderRepairSectionProps> = ({
   deviceName,
   deviceSerialNumber,
   deviceColor,
@@ -54,7 +55,7 @@ export const CreateOrderRepairSection = ({
   onEnsureClientForDevice,
   onOpenCreateDevice,
   onApplyDevice,
-}: CreateOrderRepairSectionProps) => {
+}) => {
   const { t } = useTranslation();
   const { rootRef: deviceSuggestionsRootRef, isVisible: showDeviceSuggestions } =
     useDismissibleSuggestions({

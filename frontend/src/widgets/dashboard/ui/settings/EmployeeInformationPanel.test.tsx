@@ -1,8 +1,8 @@
 import { cleanup, render, screen } from '@testing-library/react';
 import { I18nextProvider } from 'react-i18next';
 import { afterEach, describe, expect, it } from 'vitest';
-import type { Employee } from '../../../../entities/employee/model/types';
-import type { Sale } from '../../../../entities/sale/model/types';
+import type { Employee } from '../../../../entities/employee';
+import type { Sale } from '../../../../entities/sale';
 import i18n from '../../../../shared/i18n/config';
 import { EmployeeInformationPanel } from './EmployeeInformationPanel';
 

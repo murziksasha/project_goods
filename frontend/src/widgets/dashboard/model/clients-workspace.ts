@@ -1,19 +1,21 @@
 import type {
   Client,
   ClientFormValues,
+  ClientStats,
   ClientStatus,
-} from '../../../entities/client/model/types';
-import { getClientPhones, getPrimaryClientPhone } from '../../../entities/client/model/forms';
+} from '../../../entities/client';
+import { defaultClientStats } from '../../../entities/client';
+import { getClientPhones, getPrimaryClientPhone } from '../../../entities/client';
 import {
   clientMatchesPhoneQuery,
   normalizeClientPhoneIdentity,
-} from '../../../entities/client/lib/phone-match';
-import type { Sale } from '../../../entities/sale/model/types';
+} from '../../../entities/client';
+import type { Sale } from '../../../entities/sale';
 import {
   getSaleProductName,
   getSaleProductSerialNumber,
-} from '../../../entities/sale/lib/sale-product';
-import { getEffectiveClientStatusLogic } from '../../../entities/client/model/constants';
+} from '../../../entities/sale';
+import { getEffectiveClientStatusLogic } from '../../../entities/client';
 import { formatCurrency } from '../../../shared/lib/format';
 import i18n from '../../../shared/i18n/config';
 import { getSaleTotal } from './sales-analytics';
@@ -40,13 +42,7 @@ export type ClientCardTab =
   | 'devices'
   | 'information';
 
-export type ClientStats = {
-  visits: number;
-  income: number;
-  serviceCount: number;
-  salesCount: number;
-  orderNumbers: string[];
-};
+export type { ClientStats };
 
 export type ClientDraft = {
   phone: string;
@@ -93,13 +89,7 @@ export const emptyClientDraft: ClientDraft = {
   note: '',
 };
 
-export const defaultClientStats: ClientStats = {
-  visits: 0,
-  income: 0,
-  serviceCount: 0,
-  salesCount: 0,
-  orderNumbers: [],
-};
+export { defaultClientStats };
 
 export const normalizeText = (value: string) => value.trim().toLowerCase();
 

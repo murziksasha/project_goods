@@ -1,5 +1,5 @@
 import { vi } from 'vitest';
-import { createDefaultSettingsForm } from '../../../../entities/settings/model/printForms';
+import { createDefaultSettingsForm } from '../../../../entities/settings';
 
 export const useDashboardPage = vi.fn(() => ({
   state: {
@@ -50,6 +50,8 @@ export const useDashboardPage = vi.fn(() => ({
     isClientSaving: false,
     isClientImporting: false,
     isClientExporting: false,
+    isSupplierImporting: false,
+    isSupplierExporting: false,
     isSaleSaving: false,
     isEmployeeSaving: false,
     isSettingsSaving: false,
@@ -75,6 +77,8 @@ export const useDashboardPage = vi.fn(() => ({
     createClientCard: vi.fn(),
     importClientsFromFile: vi.fn(),
     exportClients: vi.fn(),
+    importSuppliersFromFile: vi.fn(),
+    exportSuppliers: vi.fn(),
     mergeClients: vi.fn(),
     mergeSuppliers: vi.fn(),
     mergeSupplierCard: vi.fn(),

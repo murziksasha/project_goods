@@ -1,10 +1,8 @@
+import type React from 'react';
 import type { FocusEventHandler } from 'react';
-import {
-  normalizeDecimalInput,
-  parseDecimal,
-} from '../lib/decimal';
+import { normalizeDecimalInput, parseDecimal } from '../lib/decimal';
 
-type NumberStepperProps = {
+export interface NumberStepperProps {
   value: string;
   onChange: (value: string) => void;
   min?: number;
@@ -17,7 +15,7 @@ type NumberStepperProps = {
   className?: string;
   onFocus?: () => void;
   onBlur?: FocusEventHandler<HTMLInputElement>;
-};
+}
 
 const getDecimalLength = (value: string) => {
   const normalizedValue = value.replace(',', '.');
@@ -39,7 +37,7 @@ const clamp = (value: number, min?: number, max?: number) => {
   return value;
 };
 
-export const NumberStepper = ({
+export const NumberStepper: React.FC<NumberStepperProps> = ({
   value,
   onChange,
   min,
@@ -52,18 +50,23 @@ export const NumberStepper = ({
   className,
   onFocus,
   onBlur,
-}: NumberStepperProps) => {
+}) => {
   const updateValue = (direction: 1 | -1) => {
     const normalizedValue = normalizeDecimalInput(value);
     const currentValue = parseDecimal(
       normalizedValue.replace(/[,.]$/, '') || '0',
     );
     const decimalLength =
-      precision ?? (step !== undefined ? getDecimalLength(String(step)) : getDecimalLength(normalizedValue));
+      precision ??
+      (step !== undefined
+        ? getDecimalLength(String(step))
+        : getDecimalLength(normalizedValue));
     const stepValue =
       step ?? (decimalLength > 0 ? 1 / 10 ** decimalLength : 1);
     const nextValue = clamp(
-      Math.round((currentValue + direction * stepValue) * 10 ** decimalLength) /
+      Math.round(
+        (currentValue + direction * stepValue) * 10 ** decimalLength,
+      ) /
         10 ** decimalLength,
       min,
       max,
@@ -74,31 +77,47 @@ export const NumberStepper = ({
   const parsedValue = parseDecimal(value || '0');
 
   return (
-    <div className={className ? `number-stepper ${className}` : 'number-stepper'}>
+    <div
+      className={
+        className ? `number-stepper ${className}` : 'number-stepper'
+      }
+    >
       <input
-        type="text"
-        inputMode="decimal"
+        type='text'
+        inputMode='decimal'
         value={value}
-        onChange={(event) => onChange(normalizeDecimalInput(event.target.value))}
+        onChange={(event) =>
+          onChange(normalizeDecimalInput(event.target.value))
+        }
         placeholder={placeholder}
         disabled={disabled}
         aria-label={ariaLabel}
         onFocus={onFocus}
         onBlur={onBlur}
       />
-      <div className="number-stepper-controls" aria-hidden="true">
+      <div className='number-stepper-controls' aria-hidden='true'>
         <button
-          type="button"
+          type='button'
           onClick={() => updateValue(1)}
-          disabled={disabled || (max !== undefined && Number.isFinite(parsedValue) && parsedValue >= max)}
+          disabled={
+            disabled ||
+            (max !== undefined &&
+              Number.isFinite(parsedValue) &&
+              parsedValue >= max)
+          }
           tabIndex={-1}
         >
           +
         </button>
         <button
-          type="button"
+          type='button'
           onClick={() => updateValue(-1)}
-          disabled={disabled || (min !== undefined && Number.isFinite(parsedValue) && parsedValue <= min)}
+          disabled={
+            disabled ||
+            (min !== undefined &&
+              Number.isFinite(parsedValue) &&
+              parsedValue <= min)
+          }
           tabIndex={-1}
         >
           -

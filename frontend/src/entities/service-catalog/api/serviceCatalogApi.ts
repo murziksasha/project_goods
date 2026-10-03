@@ -121,3 +121,18 @@ export const mergeServices = async (
     throw new Error(getApiErrorMessage(error));
   }
 };
+
+export const reorderServiceCatalog = async (
+  items: Array<{ id: string; sortOrder: number }>,
+) => {
+  try {
+    const response = await apiClient.patch<{
+      success: boolean;
+      updatedCount: number;
+    }>('/services/reorder', { items });
+
+    return response.data;
+  } catch (error) {
+    throw new Error(getApiErrorMessage(error));
+  }
+};

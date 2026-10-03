@@ -1,9 +1,10 @@
-type WeatherSceneSnowProps = {
+import type React from 'react';
+export interface WeatherSceneSnowProps {
   flakeCount: number;
   intensity?: string;
 };
 
-export const WeatherSceneSnow = ({ flakeCount, intensity }: WeatherSceneSnowProps) => (
+export const WeatherSceneSnow: React.FC<WeatherSceneSnowProps> = ({ flakeCount, intensity }) => (
   <div className="weather-scene-snow">
     {Array.from({ length: flakeCount }, (_, index) => (
       <span

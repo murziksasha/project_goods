@@ -1,39 +1,35 @@
-import {
-  useEffect,
-  useMemo,
-  useState,
-} from 'react';
+import type React from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { formatDateTime } from '../../../../shared/lib/format';
 import {
   CompactPaginationPanel,
   PaginationPanel,
 } from '../../../../shared/ui/PaginationPanel';
-import type { Sale } from '../../../../entities/sale/model/types';
+import type { Sale } from '../../../../entities/sale';
 import type {
   Client,
   ClientFormValues,
   ClientHistory,
-} from '../../../../entities/client/model/types';
+} from '../../../../entities/client';
 import type {
   ClientDevice,
   ClientDeviceFormValues,
-} from '../../../../entities/client-device/model/types';
+} from '../../../../entities/client-device';
 import type {
   Supplier,
   SupplierFormValues,
-} from '../../../../entities/supplier/model/types';
+} from '../../../../entities/supplier';
 import {
   getPrimarySupplierPhone,
   getSupplierPhones,
   mapSupplierFormToPayload,
   toSupplierForm,
   type SupplierFormState,
-} from '../../../../entities/supplier/model/forms';
-import type { Employee } from '../../../../entities/employee/model/types';
-import { useDismissibleSuggestions } from '../../../../shared/lib/useDismissibleSuggestions';
+} from '../../../../entities/supplier';
+import type { Employee } from '../../../../entities/employee';
+import { CatalogRecordMergeModal } from '../../../../features/catalog-duplicate-merge';
 import { Button } from '../../../../shared/ui/Button';
-import { Modal } from '../../../../shared/ui/Modal';
 import { PageHeader } from '../../../../shared/ui/PageHeader';
 import { StatusBadge } from '../../../../shared/ui/StatusBadge';
 import { CopyableValue } from '../../../../shared/ui/CopyableValue';
@@ -53,11 +49,10 @@ import {
   createSavedFilter as createSavedFilterRequest,
   deleteSavedFilter as deleteSavedFilterRequest,
   listSavedFilters,
-} from '../../../../entities/saved-filter/api/savedFilterApi';
+} from '../../../../entities/saved-filter';
 import { SavedFiltersPanel } from '../orders/workspace/SavedFiltersPanel';
 
 type TabKey = 'clients' | 'suppliers';
-type SupplierSuggestionField = 'target' | 'source';
 type SupplierStatusFilter = 'all' | 'active' | 'inactive';
 type SupplierFilters = {
   query: string;
@@ -68,8 +63,10 @@ type SupplierFilters = {
   note: string;
 };
 
-const clientsSuppliersTabStorageKey = 'project-goods.clients-suppliers-tab';
-const supplierFiltersStorageKey = 'project-goods.suppliers-active-filters';
+const clientsSuppliersTabStorageKey =
+  'project-goods.clients-suppliers-tab';
+const supplierFiltersStorageKey =
+  'project-goods.suppliers-active-filters';
 const defaultSupplierForm: SupplierFormState = {
   name: '',
   phone: '+380',
@@ -78,10 +75,11 @@ const defaultSupplierForm: SupplierFormState = {
   note: '',
   isActive: true,
 };
-const clientsSuppliersTabs: Array<{ key: TabKey; labelKey: string }> = [
-  { key: 'clients', labelKey: 'clients.tabs.clients' },
-  { key: 'suppliers', labelKey: 'clients.tabs.suppliers' },
-];
+const clientsSuppliersTabs: Array<{ key: TabKey; labelKey: string }> =
+  [
+    { key: 'clients', labelKey: 'clients.tabs.clients' },
+    { key: 'suppliers', labelKey: 'clients.tabs.suppliers' },
+  ];
 const emptySupplierFilters: SupplierFilters = {
   query: '',
   supplierId: '',
@@ -93,7 +91,9 @@ const emptySupplierFilters: SupplierFilters = {
 
 const getStoredClientsSuppliersTab = (): TabKey => {
   try {
-    const storedTab = window.localStorage.getItem(clientsSuppliersTabStorageKey);
+    const storedTab = window.localStorage.getItem(
+      clientsSuppliersTabStorageKey,
+    );
     return storedTab === 'clients' || storedTab === 'suppliers'
       ? storedTab
       : 'clients';
@@ -122,7 +122,8 @@ const readSupplierFilters = () => {
   try {
     return normalizeSupplierFilters(
       JSON.parse(
-        window.localStorage.getItem(supplierFiltersStorageKey) ?? '{}',
+        window.localStorage.getItem(supplierFiltersStorageKey) ??
+          '{}',
       ) as Partial<SupplierFilters>,
     );
   } catch {
@@ -149,8 +150,9 @@ const getActiveSupplierFiltersCount = (filters: SupplierFilters) =>
   (filters.dateTo ? 1 : 0) +
   (filters.note ? 1 : 0);
 
-const toSupplierPayload = (form: SupplierFormState): SupplierFormValues =>
-  mapSupplierFormToPayload(form);
+const toSupplierPayload = (
+  form: SupplierFormState,
+): SupplierFormValues => mapSupplierFormToPayload(form);
 
 const getSearchText = (supplier: Supplier) =>
   [
@@ -162,26 +164,8 @@ const getSearchText = (supplier: Supplier) =>
     .join(' ')
     .toLowerCase();
 
-const getSupplierLabel = (supplier: Supplier) =>
-  `${supplier.name} (${getPrimarySupplierPhone(supplier)})`;
-
-const getSupplierMergeOptions = (
-  suppliers: Supplier[],
-  query: string,
-) => {
-  const normalized = query.trim().toLowerCase();
-  if (!normalized) return [];
-
-  return suppliers
-    .filter((supplier) =>
-      `${supplier.name} ${getSupplierPhones(supplier).join(' ')}`
-        .toLowerCase()
-        .includes(normalized),
-    )
-    .slice(0, 6);
-};
-
-const normalizeSupplierPhoneDigits = (phone: string) => phone.replace(/\D/g, '');
+const normalizeSupplierPhoneDigits = (phone: string) =>
+  phone.replace(/\D/g, '');
 
 const findDuplicateSupplier = (
   suppliers: Supplier[],
@@ -189,7 +173,9 @@ const findDuplicateSupplier = (
   editingSupplierId: string | null,
 ) => {
   const name = form.name.trim().toLowerCase();
-  const formPhoneDigits = (form.phones?.length ? form.phones : [form.phone])
+  const formPhoneDigits = (
+    form.phones?.length ? form.phones : [form.phone]
+  )
     .map((phone) => normalizeSupplierPhoneDigits(phone || ''))
     .filter((phone) => phone.length > 0);
 
@@ -200,8 +186,8 @@ const findDuplicateSupplier = (
 
     const sameName =
       name.length > 0 && supplier.name.trim().toLowerCase() === name;
-    const supplierPhoneDigits = getSupplierPhones(supplier).map((phone) =>
-      normalizeSupplierPhoneDigits(phone),
+    const supplierPhoneDigits = getSupplierPhones(supplier).map(
+      (phone) => normalizeSupplierPhoneDigits(phone),
     );
     const samePhone = formPhoneDigits.some((phoneDigits) =>
       supplierPhoneDigits.includes(phoneDigits),
@@ -211,7 +197,7 @@ const findDuplicateSupplier = (
   });
 };
 
-type Props = {
+export interface ClientsSuppliersWorkspaceProps {
   currentEmployee: Employee | null;
   clients: Client[];
   sales: Sale[];
@@ -223,11 +209,15 @@ type Props = {
   isSaving: boolean;
   isClientImporting: boolean;
   isClientExporting: boolean;
+  isSupplierImporting?: boolean;
+  isSupplierExporting?: boolean;
   onSelectClient: (clientId: string | null) => void;
   onDeleteClient: (client: Client) => Promise<void>;
   onCreateClient: (payload: ClientFormValues) => Promise<boolean>;
   onImportClients: (file: File) => Promise<boolean>;
   onExportClients: () => Promise<void>;
+  onImportSuppliers?: (file: File) => Promise<boolean>;
+  onExportSuppliers?: () => Promise<void>;
   onMergeClients: (
     targetClientId: string,
     sourceClientId: string,
@@ -254,9 +244,11 @@ type Props = {
     payload: ClientDeviceFormValues,
   ) => Promise<boolean>;
   onDeleteClientDevice: (deviceId: string) => Promise<boolean>;
-};
+}
 
-export const ClientsSuppliersWorkspace = ({
+export const ClientsSuppliersWorkspace: React.FC<
+  ClientsSuppliersWorkspaceProps
+> = ({
   currentEmployee,
   clients,
   sales,
@@ -268,11 +260,15 @@ export const ClientsSuppliersWorkspace = ({
   isSaving,
   isClientImporting,
   isClientExporting,
+  isSupplierImporting = false,
+  isSupplierExporting = false,
   onSelectClient,
   onDeleteClient,
   onCreateClient,
   onImportClients,
   onExportClients,
+  onImportSuppliers,
+  onExportSuppliers,
   onMergeClients,
   onUpdateClient,
   onOpenSaleCard,
@@ -284,11 +280,13 @@ export const ClientsSuppliersWorkspace = ({
   clientDevices,
   onUpdateClientDevice,
   onDeleteClientDevice,
-}: Props) => {
+}) => {
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<TabKey>(
     getStoredClientsSuppliersTab,
   );
-  const [isSupplierFilterOpen, setIsSupplierFilterOpen] = useState(false);
+  const [isSupplierFilterOpen, setIsSupplierFilterOpen] =
+    useState(false);
   const [draftSupplierFilters, setDraftSupplierFilters] =
     useState<SupplierFilters>(readSupplierFilters);
   const [appliedSupplierFilters, setAppliedSupplierFilters] =
@@ -296,26 +294,35 @@ export const ClientsSuppliersWorkspace = ({
   const [savedFilters, setSavedFilters] = useState<
     Array<SavedFilter<ClientFilters | SupplierFilters, TabKey>>
   >([]);
-  const [newSupplierFilterName, setNewSupplierFilterName] = useState('');
+  const [newSupplierFilterName, setNewSupplierFilterName] =
+    useState('');
   const [newSupplierFilterIcon, setNewSupplierFilterIcon] = useState(
     filterIconOptions[0],
   );
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [editingSupplierId, setEditingSupplierId] = useState<string | null>(
-    null,
-  );
+  const [editingSupplierId, setEditingSupplierId] = useState<
+    string | null
+  >(null);
   const [isMergeModalOpen, setIsMergeModalOpen] = useState(false);
   const [suppliersPage, setSuppliersPage] = useState(1);
   const [suppliersPageSize, setSuppliersPageSize] = useState(30);
-  const [mergeTargetQuery, setMergeTargetQuery] = useState('');
-  const [mergeSourceQuery, setMergeSourceQuery] = useState('');
-  const [showMergeTargetSuggestions, setShowMergeTargetSuggestions] =
-    useState(false);
-  const [showMergeSourceSuggestions, setShowMergeSourceSuggestions] =
-    useState(false);
-  const [mergeTargetId, setMergeTargetId] = useState('');
-  const [mergeSourceId, setMergeSourceId] = useState('');
-  const [form, setForm] = useState<SupplierFormState>(defaultSupplierForm);
+  const [form, setForm] = useState<SupplierFormState>(
+    defaultSupplierForm,
+  );
+  const supplierImportInputRef = useRef<HTMLInputElement | null>(
+    null,
+  );
+
+  const handleSupplierImportFileSelect = async (
+    file: File | null,
+  ) => {
+    if (!file || !onImportSuppliers) return;
+
+    const isSuccess = await onImportSuppliers(file);
+    if (isSuccess) {
+      setSuppliersPage(1);
+    }
+  };
 
   const filteredSuppliers = useMemo(() => {
     const filters = appliedSupplierFilters;
@@ -327,15 +334,24 @@ export const ClientsSuppliersWorkspace = ({
     );
 
     return sortedSuppliers.filter((supplier) => {
-      if (normalized && !getSearchText(supplier).includes(normalized)) {
+      if (
+        normalized &&
+        !getSearchText(supplier).includes(normalized)
+      ) {
         return false;
       }
-      if (supplierId && !supplier.id.toLowerCase().includes(supplierId)) {
+      if (
+        supplierId &&
+        !supplier.id.toLowerCase().includes(supplierId)
+      ) {
         return false;
       }
-      if (note && !supplier.note.toLowerCase().includes(note)) return false;
-      if (filters.status === 'active' && !supplier.isActive) return false;
-      if (filters.status === 'inactive' && supplier.isActive) return false;
+      if (note && !supplier.note.toLowerCase().includes(note))
+        return false;
+      if (filters.status === 'active' && !supplier.isActive)
+        return false;
+      if (filters.status === 'inactive' && supplier.isActive)
+        return false;
       if (
         !isSupplierDateInRange(
           supplier.createdAt,
@@ -358,14 +374,6 @@ export const ClientsSuppliersWorkspace = ({
     [editingSupplierId, form, suppliers],
   );
 
-  const mergeTargetOptions = useMemo(
-    () => getSupplierMergeOptions(suppliers, mergeTargetQuery),
-    [mergeTargetQuery, suppliers],
-  );
-  const mergeSourceOptions = useMemo(
-    () => getSupplierMergeOptions(suppliers, mergeSourceQuery),
-    [mergeSourceQuery, suppliers],
-  );
   const visibleSupplierSavedFilters = useMemo(
     () =>
       currentEmployee?.id
@@ -399,16 +407,6 @@ export const ClientsSuppliersWorkspace = ({
     setIsCreateModalOpen(true);
   };
 
-  const resetMergeModal = () => {
-    setIsMergeModalOpen(false);
-    setMergeTargetQuery('');
-    setMergeSourceQuery('');
-    setMergeTargetId('');
-    setMergeSourceId('');
-    setShowMergeTargetSuggestions(false);
-    setShowMergeSourceSuggestions(false);
-  };
-
   const handleSaveSupplier = async () => {
     const payload = toSupplierPayload(form);
 
@@ -422,51 +420,10 @@ export const ClientsSuppliersWorkspace = ({
     setIsCreateModalOpen(false);
   };
 
-  const handleMergeSuppliers = async () => {
-    if (!mergeTargetId || !mergeSourceId || mergeTargetId === mergeSourceId) {
-      return;
-    }
-
-    const isSuccess = await onMergeSuppliers(mergeTargetId, mergeSourceId);
-    if (!isSuccess) return;
-
-    resetMergeModal();
-  };
-
-  const handleMergeQueryChange = (
-    field: SupplierSuggestionField,
-    value: string,
-  ) => {
-    if (field === 'target') {
-      setMergeTargetQuery(value);
-      setMergeTargetId('');
-      setShowMergeTargetSuggestions(true);
-      return;
-    }
-
-    setMergeSourceQuery(value);
-    setMergeSourceId('');
-    setShowMergeSourceSuggestions(true);
-  };
-
-  const handleMergeSupplierSelect = (
-    field: SupplierSuggestionField,
-    supplier: Supplier,
-  ) => {
-    if (field === 'target') {
-      setMergeTargetId(supplier.id);
-      setMergeTargetQuery(getSupplierLabel(supplier));
-      setShowMergeTargetSuggestions(false);
-      return;
-    }
-
-    setMergeSourceId(supplier.id);
-    setMergeSourceQuery(getSupplierLabel(supplier));
-    setShowMergeSourceSuggestions(false);
-  };
-
   const applySupplierFilters = () => {
-    const nextFilters = normalizeSupplierFilters(draftSupplierFilters);
+    const nextFilters = normalizeSupplierFilters(
+      draftSupplierFilters,
+    );
     setDraftSupplierFilters(nextFilters);
     setAppliedSupplierFilters(nextFilters);
     setSuppliersPage(1);
@@ -529,7 +486,9 @@ export const ClientsSuppliersWorkspace = ({
                 name: created.name,
                 icon: created.icon,
                 tab: created.tab as TabKey,
-                filters: created.filters as ClientFilters | SupplierFilters,
+                filters: created.filters as
+                  | ClientFilters
+                  | SupplierFilters,
                 createdAt: created.createdAt,
               });
             } catch {
@@ -564,7 +523,9 @@ export const ClientsSuppliersWorkspace = ({
               name: item.name,
               icon: item.icon,
               tab: item.tab as TabKey,
-              filters: item.filters as ClientFilters | SupplierFilters,
+              filters: item.filters as
+                | ClientFilters
+                | SupplierFilters,
               createdAt: item.createdAt,
             })),
           );
@@ -612,7 +573,9 @@ export const ClientsSuppliersWorkspace = ({
   };
 
   const applySupplierSavedFilter = (filterId: string) => {
-    const savedFilter = savedFilters.find((item) => item.id === filterId);
+    const savedFilter = savedFilters.find(
+      (item) => item.id === filterId,
+    );
     if (!savedFilter || savedFilter.tab !== 'suppliers') return;
     const nextFilters = normalizeSupplierFilters(
       savedFilter.filters as SupplierFilters,
@@ -647,7 +610,10 @@ export const ClientsSuppliersWorkspace = ({
 
   useEffect(() => {
     try {
-      window.localStorage.setItem(clientsSuppliersTabStorageKey, activeTab);
+      window.localStorage.setItem(
+        clientsSuppliersTabStorageKey,
+        activeTab,
+      );
     } catch {
       // Ignore localStorage write errors.
     }
@@ -701,6 +667,9 @@ export const ClientsSuppliersWorkspace = ({
           canSaveFilter={Boolean(currentEmployee?.id)}
           draftFilters={draftSupplierFilters}
           isFilterOpen={isSupplierFilterOpen}
+          isImporting={isSupplierImporting}
+          isExporting={isSupplierExporting}
+          isBusy={isSaving}
           newFilterIcon={newSupplierFilterIcon}
           newFilterName={newSupplierFilterName}
           query={appliedSupplierFilters.query}
@@ -727,6 +696,10 @@ export const ClientsSuppliersWorkspace = ({
           onQueryChange={updateSupplierQuery}
           onOpenCreateModal={openCreateModal}
           onOpenEditModal={openEditModal}
+          onOpenImport={() => supplierImportInputRef.current?.click()}
+          onOpenExport={() => {
+            void onExportSuppliers?.();
+          }}
           onOpenMergeModal={() => setIsMergeModalOpen(true)}
           onSaveFilter={saveSupplierFilter}
           onToggleFilters={() =>
@@ -735,6 +708,18 @@ export const ClientsSuppliersWorkspace = ({
           onUpdateFilters={setDraftSupplierFilters}
         />
       )}
+
+      <input
+        ref={supplierImportInputRef}
+        type='file'
+        className='clients-import-input'
+        accept='.xls,.xlsx,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        onChange={(event) => {
+          const file = event.target.files?.[0] ?? null;
+          event.target.value = '';
+          void handleSupplierImportFileSelect(file);
+        }}
+      />
 
       {isCreateModalOpen ? (
         <SupplierEditorModal
@@ -749,20 +734,31 @@ export const ClientsSuppliersWorkspace = ({
       ) : null}
 
       {isMergeModalOpen ? (
-        <SupplierMergeModal
+        <CatalogRecordMergeModal<Supplier>
+          isOpen={isMergeModalOpen}
+          title={t('clients.suppliers.merge.title')}
+          records={suppliers}
+          searchPlaceholder={t(
+            'catalog.recordMergeModal.searchSupplierPlaceholder',
+          )}
           isSaving={isSaving}
-          sourceId={mergeSourceId}
-          sourceOptions={mergeSourceOptions}
-          sourceQuery={mergeSourceQuery}
-          targetId={mergeTargetId}
-          targetOptions={mergeTargetOptions}
-          targetQuery={mergeTargetQuery}
-          showSourceSuggestions={showMergeSourceSuggestions}
-          showTargetSuggestions={showMergeTargetSuggestions}
-          onClose={resetMergeModal}
-          onQueryChange={handleMergeQueryChange}
-          onSelectSupplier={handleMergeSupplierSelect}
-          onMerge={() => void handleMergeSuppliers()}
+          onClose={() => setIsMergeModalOpen(false)}
+          onMerge={async (targetId, sourceId) => {
+            return onMergeSuppliers(targetId, sourceId);
+          }}
+          getRecordId={(supplier) => supplier.id}
+          getRecordName={(supplier) => supplier.name}
+          getRecordSecondaryText={(supplier) =>
+            getPrimarySupplierPhone(supplier) || supplier.phone
+          }
+          getRecordNote={(supplier) => supplier.note}
+          matchesRecord={(supplier, query) => {
+            const normalized = query.trim().toLowerCase();
+            if (!normalized) return true;
+            return `${supplier.name} ${getSupplierPhones(supplier).join(' ')}`
+              .toLowerCase()
+              .includes(normalized);
+          }}
         />
       ) : null}
     </section>
@@ -820,6 +816,9 @@ const SuppliersWorkspace = ({
   canSaveFilter,
   draftFilters,
   isFilterOpen,
+  isImporting,
+  isExporting,
+  isBusy,
   newFilterIcon,
   newFilterName,
   query,
@@ -839,6 +838,8 @@ const SuppliersWorkspace = ({
   onQueryChange,
   onOpenCreateModal,
   onOpenEditModal,
+  onOpenImport,
+  onOpenExport,
   onOpenMergeModal,
   onSaveFilter,
   onToggleFilters,
@@ -848,6 +849,9 @@ const SuppliersWorkspace = ({
   canSaveFilter: boolean;
   draftFilters: SupplierFilters;
   isFilterOpen: boolean;
+  isImporting: boolean;
+  isExporting: boolean;
+  isBusy: boolean;
   newFilterIcon: string;
   newFilterName: string;
   query: string;
@@ -867,6 +871,8 @@ const SuppliersWorkspace = ({
   onQueryChange: (value: string) => void;
   onOpenCreateModal: () => void;
   onOpenEditModal: (supplier: Supplier) => void;
+  onOpenImport: () => void;
+  onOpenExport: () => void;
   onOpenMergeModal: () => void;
   onSaveFilter: () => void;
   onToggleFilters: () => void;
@@ -876,6 +882,9 @@ const SuppliersWorkspace = ({
     <SuppliersToolbar
       activeFiltersCount={activeFiltersCount}
       isFilterOpen={isFilterOpen}
+      isImporting={isImporting}
+      isExporting={isExporting}
+      isBusy={isBusy}
       query={query}
       totalSuppliersCount={totalSuppliersCount}
       page={page}
@@ -883,6 +892,8 @@ const SuppliersWorkspace = ({
       onPageChange={onPageChange}
       onQueryChange={onQueryChange}
       onOpenCreateModal={onOpenCreateModal}
+      onOpenImport={onOpenImport}
+      onOpenExport={onOpenExport}
       onOpenMergeModal={onOpenMergeModal}
       onToggleFilters={onToggleFilters}
     />
@@ -902,7 +913,10 @@ const SuppliersWorkspace = ({
       onFilterNameChange={onFilterNameChange}
       onSaveFilter={onSaveFilter}
     />
-    <SuppliersTable suppliers={suppliers} onOpenEditModal={onOpenEditModal} />
+    <SuppliersTable
+      suppliers={suppliers}
+      onOpenEditModal={onOpenEditModal}
+    />
     <PaginationPanel
       totalItems={totalSuppliersCount}
       page={page}
@@ -916,6 +930,9 @@ const SuppliersWorkspace = ({
 const SuppliersToolbar = ({
   activeFiltersCount,
   isFilterOpen,
+  isImporting,
+  isExporting,
+  isBusy,
   query,
   totalSuppliersCount,
   page,
@@ -923,11 +940,16 @@ const SuppliersToolbar = ({
   onPageChange,
   onQueryChange,
   onOpenCreateModal,
+  onOpenImport,
+  onOpenExport,
   onOpenMergeModal,
   onToggleFilters,
 }: {
   activeFiltersCount: number;
   isFilterOpen: boolean;
+  isImporting: boolean;
+  isExporting: boolean;
+  isBusy: boolean;
   query: string;
   totalSuppliersCount: number;
   page: number;
@@ -935,6 +957,8 @@ const SuppliersToolbar = ({
   onPageChange: (page: number) => void;
   onQueryChange: (value: string) => void;
   onOpenCreateModal: () => void;
+  onOpenImport: () => void;
+  onOpenExport: () => void;
   onOpenMergeModal: () => void;
   onToggleFilters: () => void;
 }) => {
@@ -949,66 +973,95 @@ const SuppliersToolbar = ({
           defaultValue: '{{count}} records',
         })}
       />
-    <div className='orders-toolbar clients-toolbar'>
-      <div className='orders-toolbar-left'>
-        <CompactPaginationPanel
-          totalItems={totalSuppliersCount}
-          page={page}
-          pageSize={pageSize}
-          onPageChange={onPageChange}
-        />
-        <button
-          type='button'
-          className='toolbar-filter-button toolbar-filter-toggle-button'
-          aria-expanded={isFilterOpen}
-          onClick={onToggleFilters}
-        >
-          {t('clients.suppliers.toolbar.filter')}
-          {activeFiltersCount > 0 ? (
-            <span className='toolbar-filter-count'>
-              {activeFiltersCount}
-            </span>
-          ) : null}
-        </button>
-        <div className='orders-search-group orders-search-group-clearable clients-search-group'>
-          <input
-            value={query}
-            onChange={(event) => onQueryChange(event.target.value)}
-            placeholder={t('clients.suppliers.toolbar.searchPlaceholder')}
-            aria-label={t('clients.suppliers.toolbar.searchAriaLabel')}
+      <div className='orders-toolbar clients-toolbar'>
+        <div className='orders-toolbar-left'>
+          <CompactPaginationPanel
+            totalItems={totalSuppliersCount}
+            page={page}
+            pageSize={pageSize}
+            onPageChange={onPageChange}
           />
-          {query ? (
-            <span
-              role='button'
-              tabIndex={0}
-              className='orders-search-clear'
-              aria-label={t('clients.suppliers.toolbar.clearSearchAriaLabel')}
-              onClick={() => onQueryChange('')}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter' || event.key === ' ') {
-                  event.preventDefault();
-                  onQueryChange('');
-                }
-              }}
-            >
-              x
-            </span>
-          ) : null}
+          <button
+            type='button'
+            className='toolbar-filter-button toolbar-filter-toggle-button'
+            aria-expanded={isFilterOpen}
+            onClick={onToggleFilters}
+          >
+            {t('clients.suppliers.toolbar.filter')}
+            {activeFiltersCount > 0 ? (
+              <span className='toolbar-filter-count'>
+                {activeFiltersCount}
+              </span>
+            ) : null}
+          </button>
+          <div className='orders-search-group orders-search-group-clearable clients-search-group'>
+            <input
+              value={query}
+              onChange={(event) => onQueryChange(event.target.value)}
+              placeholder={t(
+                'clients.suppliers.toolbar.searchPlaceholder',
+              )}
+              aria-label={t(
+                'clients.suppliers.toolbar.searchAriaLabel',
+              )}
+            />
+            {query ? (
+              <span
+                role='button'
+                tabIndex={0}
+                className='orders-search-clear'
+                aria-label={t(
+                  'clients.suppliers.toolbar.clearSearchAriaLabel',
+                )}
+                onClick={() => onQueryChange('')}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    onQueryChange('');
+                  }
+                }}
+              >
+                x
+              </span>
+            ) : null}
+          </div>
+        </div>
+        <div className='orders-toolbar-actions clients-toolbar-actions'>
+          <Button
+            variant='success'
+            onClick={onOpenImport}
+            disabled={isBusy || isImporting || isExporting}
+          >
+            {isImporting
+              ? t('clients.suppliers.toolbar.importing')
+              : t('clients.suppliers.toolbar.importXls')}
+          </Button>
+          <Button
+            variant='secondary'
+            onClick={onOpenExport}
+            disabled={isBusy || isImporting || isExporting}
+          >
+            {isExporting
+              ? t('clients.suppliers.toolbar.exporting')
+              : t('clients.suppliers.toolbar.exportXls')}
+          </Button>
+          <Button
+            variant='ghost'
+            onClick={onOpenMergeModal}
+            disabled={isBusy || isImporting}
+          >
+            {t('clients.suppliers.toolbar.merge')}
+          </Button>
+          <Button
+            variant='success'
+            className='orders-create-button'
+            onClick={onOpenCreateModal}
+            disabled={isBusy || isImporting}
+          >
+            {t('clients.suppliers.toolbar.createSupplier')}
+          </Button>
         </div>
       </div>
-      <div className='orders-toolbar-actions clients-toolbar-actions'>
-        <Button variant='ghost' onClick={onOpenMergeModal}>
-          {t('clients.suppliers.toolbar.merge')}
-        </Button>
-        <Button
-          variant='success'
-          className='orders-create-button'
-          onClick={onOpenCreateModal}
-        >
-          {t('clients.suppliers.toolbar.createSupplier')}
-        </Button>
-      </div>
-    </div>
     </div>
   );
 };
@@ -1067,7 +1120,9 @@ const SuppliersFilterPanel = ({
         saveTitle={
           canSaveFilter
             ? t('clients.suppliers.filters.saveFilter')
-            : t('clients.suppliers.filters.saveFilterRequiresEmployee')
+            : t(
+                'clients.suppliers.filters.saveFilterRequiresEmployee',
+              )
         }
         onApply={onApplySavedFilter}
         onDelete={onDeleteSavedFilter}
@@ -1077,12 +1132,18 @@ const SuppliersFilterPanel = ({
       />
       <div className='orders-filter-grid'>
         <label className='orders-filter-field'>
-          <span>{t('clients.suppliers.filters.namePhoneOrOrder')}</span>
+          <span>
+            {t('clients.suppliers.filters.namePhoneOrOrder')}
+          </span>
           <input
             type='text'
             value={draftFilters.query}
-            onChange={(event) => updateFilter('query', event.target.value)}
-            placeholder={t('clients.suppliers.filters.namePhoneOrOrderPlaceholder')}
+            onChange={(event) =>
+              updateFilter('query', event.target.value)
+            }
+            placeholder={t(
+              'clients.suppliers.filters.namePhoneOrOrderPlaceholder',
+            )}
           />
         </label>
         <label className='orders-filter-field'>
@@ -1093,7 +1154,9 @@ const SuppliersFilterPanel = ({
             onChange={(event) =>
               updateFilter('supplierId', event.target.value)
             }
-            placeholder={t('clients.suppliers.filters.supplierIdPlaceholder')}
+            placeholder={t(
+              'clients.suppliers.filters.supplierIdPlaceholder',
+            )}
           />
         </label>
         <label className='orders-filter-field'>
@@ -1107,9 +1170,15 @@ const SuppliersFilterPanel = ({
               )
             }
           >
-            <option value='all'>{t('clients.suppliers.filters.statusAll')}</option>
-            <option value='active'>{t('clients.suppliers.filters.statusActive')}</option>
-            <option value='inactive'>{t('clients.suppliers.filters.statusInactive')}</option>
+            <option value='all'>
+              {t('clients.suppliers.filters.statusAll')}
+            </option>
+            <option value='active'>
+              {t('clients.suppliers.filters.statusActive')}
+            </option>
+            <option value='inactive'>
+              {t('clients.suppliers.filters.statusInactive')}
+            </option>
           </select>
         </label>
         <label className='orders-filter-field'>
@@ -1117,7 +1186,9 @@ const SuppliersFilterPanel = ({
           <input
             type='date'
             value={draftFilters.dateFrom}
-            onChange={(event) => updateFilter('dateFrom', event.target.value)}
+            onChange={(event) =>
+              updateFilter('dateFrom', event.target.value)
+            }
           />
         </label>
         <label className='orders-filter-field'>
@@ -1125,7 +1196,9 @@ const SuppliersFilterPanel = ({
           <input
             type='date'
             value={draftFilters.dateTo}
-            onChange={(event) => updateFilter('dateTo', event.target.value)}
+            onChange={(event) =>
+              updateFilter('dateTo', event.target.value)
+            }
           />
         </label>
         <label className='orders-filter-field'>
@@ -1133,8 +1206,12 @@ const SuppliersFilterPanel = ({
           <input
             type='text'
             value={draftFilters.note}
-            onChange={(event) => updateFilter('note', event.target.value)}
-            placeholder={t('clients.suppliers.filters.notePlaceholder')}
+            onChange={(event) =>
+              updateFilter('note', event.target.value)
+            }
+            placeholder={t(
+              'clients.suppliers.filters.notePlaceholder',
+            )}
           />
         </label>
       </div>
@@ -1208,7 +1285,9 @@ const SuppliersTable = ({
                       label={
                         supplier.isActive
                           ? t('clients.suppliers.table.statusActive')
-                          : t('clients.suppliers.table.statusInactive')
+                          : t(
+                              'clients.suppliers.table.statusInactive',
+                            )
                       }
                     />
                   </td>
@@ -1238,151 +1317,3 @@ const SuppliersTable = ({
     </div>
   );
 };
-
-const SupplierMergeModal = ({
-  isSaving,
-  sourceId,
-  sourceOptions,
-  sourceQuery,
-  targetId,
-  targetOptions,
-  targetQuery,
-  showSourceSuggestions,
-  showTargetSuggestions,
-  onClose,
-  onQueryChange,
-  onSelectSupplier,
-  onMerge,
-}: {
-  isSaving: boolean;
-  sourceId: string;
-  sourceOptions: Supplier[];
-  sourceQuery: string;
-  targetId: string;
-  targetOptions: Supplier[];
-  targetQuery: string;
-  showSourceSuggestions: boolean;
-  showTargetSuggestions: boolean;
-  onClose: () => void;
-  onQueryChange: (field: SupplierSuggestionField, value: string) => void;
-  onSelectSupplier: (
-    field: SupplierSuggestionField,
-    supplier: Supplier,
-  ) => void;
-  onMerge: () => void;
-}) => {
-  const { t } = useTranslation();
-  const canMerge =
-    !isSaving && Boolean(targetId) && Boolean(sourceId) && targetId !== sourceId;
-
-  return (
-    <Modal
-      isOpen
-      title={t('clients.suppliers.merge.title')}
-      onClose={onClose}
-      closeLabel={t('common.close')}
-      closeOnBackdrop={!isSaving}
-      closeOnEscape={!isSaving}
-      className='clients-modal'
-      bodyClassName='clients-modal-body'
-      footer={
-        <footer className='catalog-edit-footer clients-modal-footer'>
-          <Button variant='secondary' onClick={onClose} disabled={isSaving}>
-            {t('common.cancel')}
-          </Button>
-          <Button variant='primary' disabled={!canMerge} onClick={onMerge}>
-            {isSaving
-              ? t('clients.suppliers.merge.merging')
-              : t('clients.suppliers.merge.mergeSuppliers')}
-          </Button>
-        </footer>
-      }
-    >
-      <p className='muted-copy'>
-        {t('clients.suppliers.merge.description')}
-      </p>
-      <SupplierMergeField
-        label={t('clients.suppliers.merge.supplier1')}
-        options={targetOptions}
-        query={targetQuery}
-        showSuggestions={showTargetSuggestions}
-        onQueryChange={(value) => onQueryChange('target', value)}
-        onSelectSupplier={(supplier) => onSelectSupplier('target', supplier)}
-      />
-      <SupplierMergeField
-        label={t('clients.suppliers.merge.supplier2')}
-        options={sourceOptions}
-        query={sourceQuery}
-        showSuggestions={showSourceSuggestions}
-        onQueryChange={(value) => onQueryChange('source', value)}
-        onSelectSupplier={(supplier) => onSelectSupplier('source', supplier)}
-      />
-    </Modal>
-  );
-};
-
-const SupplierMergeField = ({
-  label,
-  options,
-  query,
-  showSuggestions,
-  onQueryChange,
-  onSelectSupplier,
-}: {
-  label: string;
-  options: Supplier[];
-  query: string;
-  showSuggestions: boolean;
-  onQueryChange: (value: string) => void;
-  onSelectSupplier: (supplier: Supplier) => void;
-}) => {
-  const { t } = useTranslation();
-  const { rootRef, isVisible } = useDismissibleSuggestions({
-    query,
-    isActive: showSuggestions && options.length > 0,
-  });
-
-  return (
-    <label
-      ref={rootRef}
-      className='field field-wide modal-suggestions-anchor'
-    >
-      <span>{label}</span>
-      <input
-        value={query}
-        placeholder={t('clients.suppliers.merge.searchPlaceholder')}
-        onChange={(event) => onQueryChange(event.target.value)}
-      />
-      {isVisible ? (
-        <SupplierSuggestions
-          options={options}
-          onSelectSupplier={onSelectSupplier}
-        />
-      ) : null}
-    </label>
-  );
-};
-
-const SupplierSuggestions = ({
-  options,
-  onSelectSupplier,
-}: {
-  options: Supplier[];
-  onSelectSupplier: (supplier: Supplier) => void;
-}) => (
-  <div className='suggestions-panel'>
-    {options.map((supplier) => (
-      <button
-        key={supplier.id}
-        type='button'
-        className='suggestion-item'
-        onClick={() => onSelectSupplier(supplier)}
-      >
-        <strong>{supplier.name}</strong>
-        <span>{getPrimarySupplierPhone(supplier)}</span>
-      </button>
-    ))}
-  </div>
-);
-
-

@@ -1,13 +1,14 @@
+import type React from 'react';
 import { useTranslation } from 'react-i18next';
 import { formatCurrencyMetric, formatMetric } from '../../model/sales-analytics';
 
-type AnalyticsTodayStripProps = {
+export interface AnalyticsTodayStripProps {
   sales: number;
   repairs: number;
   billed: number;
 };
 
-export const AnalyticsTodayStrip = ({ sales, repairs, billed }: AnalyticsTodayStripProps) => {
+export const AnalyticsTodayStrip: React.FC<AnalyticsTodayStripProps> = ({ sales, repairs, billed }) => {
   const { t } = useTranslation();
 
   return (

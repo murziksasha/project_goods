@@ -1,4 +1,4 @@
-import type { SalesListParams } from '../../../../../entities/sale/api/saleApi';
+import type { SalesListParams } from '../../../../../entities/sale';
 import { kanbanVisibleRepairStatuses } from './orders-workspace-shared';
 import type { OrdersFilters, OrdersTab } from './orders-workspace-shared';
 

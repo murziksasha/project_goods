@@ -1,13 +1,14 @@
+import type React from 'react';
 import { useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { ClientHistory } from '../../../../entities/client/model/types';
-import type { Sale } from '../../../../entities/sale/model/types';
-import { SalesList } from '../../../../entities/sale/ui/SalesList';
+import type { ClientHistory } from '../../../../entities/client';
+import type { Sale } from '../../../../entities/sale';
+import { SalesList } from '../../../../entities/sale';
 import { formatCurrency } from '../../../../shared/lib/format';
 import { getClientSaleIncome } from '../../model/clients-workspace';
 
-type ClientHistoryPanelProps = {
+export interface ClientHistoryPanelProps {
   history: ClientHistory | null;
   isLoading: boolean;
 };
@@ -146,10 +147,10 @@ const HistoryStatsGrid = ({ stats }: { stats: HistoryStats }) => {
   );
 };
 
-export const ClientHistoryPanel = ({
+export const ClientHistoryPanel: React.FC<ClientHistoryPanelProps> = ({
   history,
   isLoading,
-}: ClientHistoryPanelProps) => {
+}) => {
   const { t } = useTranslation();
   const [period, setPeriod] = useState<HistoryPeriod>('all');
   const filteredSales = useMemo(

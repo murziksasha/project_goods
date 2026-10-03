@@ -1,13 +1,14 @@
+import type React from 'react';
 import { useTranslation } from 'react-i18next';
 
-type PaginationPanelProps = {
+export interface PaginationPanelProps {
   totalItems: number;
   page: number;
   pageSize: number;
   onPageChange: (page: number) => void;
   onPageSizeChange: (pageSize: number) => void;
   pageSizeOptions?: number[];
-};
+}
 
 const clamp = (value: number, min: number, max: number) =>
   Math.min(Math.max(value, min), max);
@@ -93,14 +94,14 @@ export const CompactPaginationPanel = ({
   );
 };
 
-export const PaginationPanel = ({
+export const PaginationPanel: React.FC<PaginationPanelProps> = ({
   totalItems,
   page,
   pageSize,
   onPageChange,
   onPageSizeChange,
   pageSizeOptions = defaultPageSizeOptions,
-}: PaginationPanelProps) => {
+}) => {
   const { t } = useTranslation();
   const pageCount = Math.max(1, Math.ceil(totalItems / pageSize));
   const currentPage = clamp(page, 1, pageCount);
@@ -113,7 +114,9 @@ export const PaginationPanel = ({
       <select
         className='pagination-size-select'
         value={pageSize}
-        onChange={(event) => onPageSizeChange(Number(event.target.value))}
+        onChange={(event) =>
+          onPageSizeChange(Number(event.target.value))
+        }
         aria-label={t('common.pagination.rowsPerPage')}
       >
         {pageSizeOptions.map((option) => (

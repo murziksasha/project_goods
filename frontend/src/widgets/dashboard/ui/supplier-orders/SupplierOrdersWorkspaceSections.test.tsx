@@ -7,9 +7,9 @@ import {
   within,
 } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { CatalogProduct } from '../../../../entities/catalog-product/model/types';
-import type { Supplier } from '../../../../entities/supplier/model/types';
-import type { SupplierOrder } from '../../../../entities/supplier-order/model/types';
+import type { CatalogProduct } from '../../../../entities/catalog-product';
+import type { Supplier } from '../../../../entities/supplier';
+import type { SupplierOrder } from '../../../../entities/supplier-order';
 import type { SupplierOrdersColumnKey } from '../../model/supplier-orders-workspace';
 import * as clipboard from '../../../../shared/lib/clipboard';
 import { SupplierOrdersTable } from './SupplierOrdersWorkspaceSections';

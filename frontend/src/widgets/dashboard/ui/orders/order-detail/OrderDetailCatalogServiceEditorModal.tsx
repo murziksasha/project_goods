@@ -1,6 +1,7 @@
+import type React from 'react';
 import { useTranslation } from 'react-i18next';
-import type { ServiceCatalogItem } from '../../../../../entities/service-catalog/model/types';
-import { initialServiceCatalogForm } from '../../../../../entities/service-catalog/model/forms';
+import type { ServiceCatalogItem } from '../../../../../entities/service-catalog';
+import { initialServiceCatalogForm } from '../../../../../entities/service-catalog';
 import {
   PRICE_STEPPER_PRECISION,
   PRICE_STEPPER_STEP,
@@ -9,7 +10,7 @@ import { NumberStepper } from '../../../../../shared/ui/NumberStepper';
 import { Modal } from '../../../../../shared/ui/Modal';
 import { Button } from '../../../../../shared/ui/Button';
 
-export type OrderDetailCatalogServiceEditorModalProps = {
+export interface OrderDetailCatalogServiceEditorModalProps {
   title: string;
   service?: ServiceCatalogItem;
   form: typeof initialServiceCatalogForm;
@@ -23,7 +24,7 @@ export type OrderDetailCatalogServiceEditorModalProps = {
   onClose: () => void;
 };
 
-export const OrderDetailCatalogServiceEditorModal = ({
+export const OrderDetailCatalogServiceEditorModal: React.FC<OrderDetailCatalogServiceEditorModalProps> = ({
   title,
   service,
   form,
@@ -32,7 +33,7 @@ export const OrderDetailCatalogServiceEditorModal = ({
   onChange,
   onSubmit,
   onClose,
-}: OrderDetailCatalogServiceEditorModalProps) => {
+}) => {
   const { t } = useTranslation();
 
   return (

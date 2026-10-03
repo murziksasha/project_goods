@@ -106,6 +106,7 @@ const formatServiceCatalogItem = (
   salePriceOptions: service.salePriceOptions ?? [],
   note: service.note ?? '',
   isActive: service.isActive ?? true,
+  sortOrder: service.sortOrder ?? 0,
   createdAt: service.createdAt.toISOString(),
   updatedAt: service.updatedAt.toISOString(),
 });
@@ -398,6 +399,7 @@ export const listServiceCatalogItems = async (
     ? { $and: [searchQuery, { isActive: { $ne: false } }] }
     : searchQuery;
   const finder = ServiceCatalog.find(dbQuery).sort({
+    sortOrder: 1,
     createdAt: -1,
   });
   if (query) {
@@ -653,4 +655,33 @@ export const mergeServices = async (
       relinkedSalesCount: matchingSales.length,
     };
   });
+};
+
+export const reorderServiceCatalogItems = async (
+  items: Array<{ id: string; sortOrder: number }>,
+) => {
+  if (!Array.isArray(items) || items.length === 0) {
+    throw new HttpError(400, 'Invalid items array.');
+  }
+
+  const bulkOps = items
+    .filter(
+      (item) =>
+        item &&
+        typeof item.id === 'string' &&
+        item.id.trim().length > 0 &&
+        Number.isFinite(item.sortOrder),
+    )
+    .map((item) => ({
+      updateOne: {
+        filter: { _id: item.id.trim() },
+        update: { $set: { sortOrder: item.sortOrder } },
+      },
+    }));
+
+  if (bulkOps.length > 0) {
+    await ServiceCatalog.bulkWrite(bulkOps);
+  }
+
+  return { success: true, updatedCount: bulkOps.length };
 };

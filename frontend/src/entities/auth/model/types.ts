@@ -1,4 +1,4 @@
-import type { Employee } from '../../employee/model/types';
+import type { Employee } from '../../../shared/types/domain';
 
 export type AuthSession = {
   token: string;

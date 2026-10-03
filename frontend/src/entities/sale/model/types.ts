@@ -1,90 +1,11 @@
-import type { Client } from '../../client/model/types';
-import type { Product } from '../../product/model/types';
+import type {
+  Client,
+  Product,
+  Sale,
+  SaleProductSnapshot,
+} from '../../../shared/types/domain';
 
-export type SaleProductSnapshot = {
-  id: string;
-  article: string;
-  name: string;
-  serialNumber: string;
-};
-
-export type Sale = {
-  id: string;
-  recordNumber: string | null;
-  saleDate: string;
-  quantity: number;
-  salePrice: number;
-  kind: 'repair' | 'sale';
-  status: string;
-  paidAmount: number;
-  isFavorite?: boolean;
-  isRapidSale?: boolean;
-  note: string;
-  userNote?: string;
-  timeline: Array<{
-    id: string;
-    kind?: 'manual' | 'system';
-    author: string;
-    message: string;
-    createdAt: string;
-  }>;
-  paymentHistory: Array<{
-    id: string;
-    type: 'deposit' | 'refund';
-    paymentMethod: 'cash' | 'non-cash';
-    amount: number;
-    cashboxId: string;
-    cashboxName: string;
-    author: string;
-    createdAt: string;
-  }>;
-  lineItems: Array<{
-    id: string;
-    kind: 'product' | 'service';
-    productId?: string;
-    catalogProductId?: string;
-    serviceId?: string;
-    name: string;
-    price: number;
-    quantity: number;
-    warrantyPeriod: number;
-    serialNumbers?: string[];
-  }>;
-  discount?: {
-    mode: 'percent' | 'amount';
-    value: number;
-  };
-  client: {
-    id: string;
-    name: string;
-    phone: string;
-    phones?: string[];
-    status: string;
-    email?: string;
-    address?: string;
-    registrationId?: string;
-    iban?: string;
-  };
-  product: SaleProductSnapshot | null;
-  manager: {
-    id: string;
-    name: string;
-    role: string;
-  } | null;
-  master: {
-    id: string;
-    name: string;
-    role: string;
-  } | null;
-  issuedBy: {
-    id: string;
-    name: string;
-    role: string;
-  } | null;
-  createdAt: string;
-  updatedAt: string;
-  kanbanRank?: number;
-};
+export type { Client, Product, Sale, SaleProductSnapshot };
 
 export type SaleFormValues = {
   saleDate: string;

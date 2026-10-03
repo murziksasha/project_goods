@@ -17,7 +17,9 @@ export const useDismissibleSuggestions = ({
 }: UseDismissibleSuggestionsOptions) => {
   const rootNodeRef = useRef<HTMLElement | null>(null);
   const panelNodeRef = useRef<HTMLElement | null>(null);
-  const [dismissedQuery, setDismissedQuery] = useState<string | null>(null);
+  const [dismissedQuery, setDismissedQuery] = useState<string | null>(
+    null,
+  );
 
   const isVisible = isActive && dismissedQuery !== query;
 
@@ -36,7 +38,7 @@ export const useDismissibleSuggestions = ({
       if (!(target instanceof Node)) return false;
       return Boolean(
         rootNodeRef.current?.contains(target) ||
-          panelNodeRef.current?.contains(target),
+        panelNodeRef.current?.contains(target),
       );
     };
 
@@ -60,5 +62,9 @@ export const useDismissibleSuggestions = ({
     };
   }, [isVisible, query]);
 
-  return { rootRef, panelRef, isVisible };
+  const resetDismissed = useCallback(() => {
+    setDismissedQuery(null);
+  }, []);
+
+  return { rootRef, panelRef, isVisible, resetDismissed };
 };

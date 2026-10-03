@@ -1,4 +1,4 @@
-import type { PageKey } from '../../../pages/dashboard/model/types';
+import type { PageKey } from '../../../shared/config/routing';
 
 export type DashboardSidebarItem = {
   key: PageKey | 'other';

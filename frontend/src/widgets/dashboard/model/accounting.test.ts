@@ -3,7 +3,7 @@ import type {
   Cashbox,
   FinanceTransaction,
   SupplierOrderPaymentQueueItem,
-} from '../../../entities/finance/model/types';
+} from '../../../entities/finance';
 import {
   canCancelAccountingTransaction,
   canCancelAccountingTransferTransaction,

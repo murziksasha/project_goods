@@ -1,6 +1,6 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { Supplier } from '../../../../entities/supplier/model/types';
+import type { Supplier } from '../../../../entities/supplier';
 import * as clipboard from '../../../../shared/lib/clipboard';
 import { SuppliersTable } from './ProductCatalogTables';
 

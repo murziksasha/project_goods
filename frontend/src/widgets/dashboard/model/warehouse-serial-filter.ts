@@ -1,5 +1,5 @@
-import type { Product } from '../../../entities/product/model/types';
-import type { WarehouseItem } from '../../../entities/warehouse-settings/model/types';
+import type { Product } from '../../../entities/product';
+import type { WarehouseItem } from '../../../entities/warehouse-settings';
 
 const normalizeWarehouseText = (value: string | null | undefined) =>
   String(value ?? '').trim().toLowerCase();

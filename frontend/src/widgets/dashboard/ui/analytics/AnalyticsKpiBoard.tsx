@@ -1,3 +1,4 @@
+import type React from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   formatCurrencyMetric,
@@ -7,7 +8,7 @@ import {
 } from '../../model/sales-analytics';
 import { AnalyticsSparkline } from './AnalyticsSparkline';
 
-type AnalyticsKpiBoardProps = {
+export interface AnalyticsKpiBoardProps {
   analytics: DashboardAnalyticsView;
   previousLabel: string;
 };
@@ -19,7 +20,7 @@ const DeltaChip = ({ value }: { value: number | null | undefined }) => {
   return <span className={`analytics-delta analytics-delta-${tone}`}>{formatted}</span>;
 };
 
-export const AnalyticsKpiBoard = ({ analytics, previousLabel }: AnalyticsKpiBoardProps) => {
+export const AnalyticsKpiBoard: React.FC<AnalyticsKpiBoardProps> = ({ analytics, previousLabel }) => {
   const { t } = useTranslation();
   const { metrics } = analytics;
   const billedValues = analytics.revenueSnapshots[0]?.values ?? [];

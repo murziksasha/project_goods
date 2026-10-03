@@ -1,14 +1,13 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
 import { hardReloadApp } from '../shared/lib/hardReload';
 import i18n from '../shared/i18n/config';
-
-type AppErrorBoundaryProps = {
+export interface AppErrorBoundaryProps {
   children: ReactNode;
-};
+}
 
-type AppErrorBoundaryState = {
+export interface AppErrorBoundaryState {
   error: Error | null;
-};
+}
 
 const isDevelopment = import.meta.env.DEV;
 
@@ -18,7 +17,9 @@ export class AppErrorBoundary extends Component<
 > {
   state: AppErrorBoundaryState = { error: null };
 
-  static getDerivedStateFromError(error: Error): AppErrorBoundaryState {
+  static getDerivedStateFromError(
+    error: Error,
+  ): AppErrorBoundaryState {
     return { error };
   }
 
@@ -36,25 +37,30 @@ export class AppErrorBoundary extends Component<
     }
 
     return (
-      <main className="dashboard-shell">
-        <section className="dashboard-main">
-          <div className="page-shell">
-            <section className="panel">
-              <div className="panel-header">
+      <main className='dashboard-shell'>
+        <section className='dashboard-main'>
+          <div className='page-shell'>
+            <section className='panel'>
+              <div className='panel-header'>
                 <div>
-                  <p className="section-label">{i18n.t('app.errorBoundary.recovery')}</p>
+                  <p className='section-label'>
+                    {i18n.t('app.errorBoundary.recovery')}
+                  </p>
                   <h2>{i18n.t('app.errorBoundary.title')}</h2>
                 </div>
               </div>
-              <p className="empty-state">{i18n.t('app.errorBoundary.message')}</p>
+              <p className='empty-state'>
+                {i18n.t('app.errorBoundary.message')}
+              </p>
               {isDevelopment && this.state.error.message ? (
-                <p className="empty-state">
-                  {i18n.t('app.errorBoundary.errorPrefix')} {this.state.error.message}
+                <p className='empty-state'>
+                  {i18n.t('app.errorBoundary.errorPrefix')}{' '}
+                  {this.state.error.message}
                 </p>
               ) : null}
               <button
-                type="button"
-                className="primary-button"
+                type='button'
+                className='primary-button'
                 onClick={() => void this.reloadApp()}
               >
                 {i18n.t('app.errorBoundary.refreshApp')}

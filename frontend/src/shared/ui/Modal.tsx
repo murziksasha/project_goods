@@ -1,3 +1,4 @@
+import type React from 'react';
 import {
   useEffect,
   useId,
@@ -8,7 +9,7 @@ import {
 import { useModalBackgroundScrollLock } from '../lib/useModalBackgroundScrollLock';
 import { Button } from './Button';
 
-export type ModalProps = {
+export interface ModalProps {
   isOpen: boolean;
   title: string;
   subtitle?: ReactNode;
@@ -35,7 +36,7 @@ export type ModalProps = {
   closeOnEscape?: boolean;
   initialFocusSelector?: string;
   role?: 'dialog' | 'alertdialog';
-};
+}
 
 const FOCUSABLE_SELECTOR = [
   'a[href]',
@@ -58,14 +59,16 @@ const MODAL_SCROLL_LOCK_SELECTORS = [
 ] as const;
 
 const getFocusableElements = (container: HTMLElement) =>
-  Array.from(container.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)).filter(
+  Array.from(
+    container.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR),
+  ).filter(
     (element) =>
       !element.hasAttribute('disabled') &&
       element.getAttribute('aria-hidden') !== 'true' &&
       element.tabIndex !== -1,
   );
 
-export const Modal = ({
+export const Modal: React.FC<ModalProps> = ({
   isOpen,
   title,
   subtitle,
@@ -89,7 +92,7 @@ export const Modal = ({
   closeOnEscape = true,
   initialFocusSelector,
   role = 'dialog',
-}: ModalProps) => {
+}) => {
   const titleId = useId();
   const dialogRef = useRef<HTMLDivElement>(null);
   const previouslyFocusedRef = useRef<HTMLElement | null>(null);
@@ -116,7 +119,9 @@ export const Modal = ({
 
     const focusInitial = () => {
       if (initialFocusSelector) {
-        const preferred = dialog.querySelector<HTMLElement>(initialFocusSelector);
+        const preferred = dialog.querySelector<HTMLElement>(
+          initialFocusSelector,
+        );
         if (preferred) {
           preferred.focus();
           return;
@@ -125,7 +130,8 @@ export const Modal = ({
 
       const focusable = getFocusableElements(dialog);
       const firstContentFocusable = focusable.find(
-        (element) => !element.classList.contains('modal-close-button'),
+        (element) =>
+          !element.classList.contains('modal-close-button'),
       );
       (firstContentFocusable ?? focusable[0] ?? dialog).focus();
     };
@@ -189,7 +195,9 @@ export const Modal = ({
 
   if (!isOpen) return null;
 
-  const handleBackdropMouseDown = (event: ReactMouseEvent<HTMLDivElement>) => {
+  const handleBackdropMouseDown = (
+    event: ReactMouseEvent<HTMLDivElement>,
+  ) => {
     if (!closeOnBackdrop) return;
     if (event.target === event.currentTarget) {
       onClose();
@@ -198,15 +206,15 @@ export const Modal = ({
 
   return (
     <div
-      className="modal-backdrop"
-      role="presentation"
+      className='modal-backdrop'
+      role='presentation'
       onMouseDown={handleBackdropMouseDown}
     >
       <div
         ref={dialogRef}
         className={`${shellClassName} ${className}`.trim()}
         role={role}
-        aria-modal="true"
+        aria-modal='true'
         aria-labelledby={titleId}
         tabIndex={-1}
       >
@@ -215,33 +223,35 @@ export const Modal = ({
         >
           {headerExtra ? (
             <>
-              <div className="catalog-edit-header-main">
-                <div className="catalog-edit-title">
+              <div className='catalog-edit-header-main'>
+                <div className='catalog-edit-title'>
                   {subtitle ? <span>{subtitle}</span> : null}
                   <h2 id={titleId}>{title}</h2>
                 </div>
                 {headerActions}
                 <Button
-                  variant="ghost"
-                  className="modal-close-button"
+                  variant='ghost'
+                  className='modal-close-button'
                   onClick={onClose}
                   aria-label={closeLabel}
                 >
                   &times;
                 </Button>
               </div>
-              <div className="catalog-edit-header-extra">{headerExtra}</div>
+              <div className='catalog-edit-header-extra'>
+                {headerExtra}
+              </div>
             </>
           ) : (
             <>
-              <div className="catalog-edit-title">
+              <div className='catalog-edit-title'>
                 {subtitle ? <span>{subtitle}</span> : null}
                 <h2 id={titleId}>{title}</h2>
               </div>
               {headerActions}
               <Button
-                variant="ghost"
-                className="modal-close-button"
+                variant='ghost'
+                className='modal-close-button'
                 onClick={onClose}
                 aria-label={closeLabel}
               >
@@ -258,11 +268,11 @@ export const Modal = ({
             <footer
               className={`catalog-edit-footer ${footerClassName}`.trim()}
             >
-              <Button variant="secondary" onClick={onClose}>
+              <Button variant='secondary' onClick={onClose}>
                 {cancelLabel}
               </Button>
               <Button
-                variant="primary"
+                variant='primary'
                 onClick={onSubmit}
                 disabled={!canSubmit}
               >

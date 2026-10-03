@@ -52,7 +52,7 @@ const installSpies = () => {
     get: () => 0,
   });
   vi.spyOn(SupplierOrder, 'findById').mockImplementation(
-    async () => state.supplierOrder as never,
+    (() => state.supplierOrder) as never,
   );
   vi.spyOn(Supplier, 'find').mockReturnValue({
     select: () =>

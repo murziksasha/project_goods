@@ -6,15 +6,23 @@ import {
 import type {
   Employee,
   EmployeeUiPreferences,
-} from '../../employee/model/types';
-import type { AuthSession, InvitationDetails, LoginPayload } from '../model/types';
+} from '../../../shared/types/domain';
+import type {
+  AuthSession,
+  InvitationDetails,
+  LoginPayload,
+} from '../model/types';
 
 export const authTokenStorageKey = 'project-goods.auth-token';
-export const employeeSnapshotStorageKey = 'project-goods.employee-snapshot';
+export const employeeSnapshotStorageKey =
+  'project-goods.employee-snapshot';
 
 export const login = async (payload: LoginPayload) => {
   try {
-    const response = await apiClient.post<AuthSession>('/auth/login', payload);
+    const response = await apiClient.post<AuthSession>(
+      '/auth/login',
+      payload,
+    );
     return response.data;
   } catch (error) {
     throw createApiRequestError(error);
@@ -54,16 +62,24 @@ export const logout = async () => {
 
 export const getInvitationDetails = async (token: string) => {
   try {
-    const response = await apiClient.get<InvitationDetails>(`/auth/invitations/${token}`);
+    const response = await apiClient.get<InvitationDetails>(
+      `/auth/invitations/${token}`,
+    );
     return response.data;
   } catch (error) {
     throw new Error(getApiErrorMessage(error));
   }
 };
 
-export const acceptInvitation = async (token: string, payload: LoginPayload) => {
+export const acceptInvitation = async (
+  token: string,
+  payload: LoginPayload,
+) => {
   try {
-    const response = await apiClient.post<AuthSession>(`/auth/invitations/${token}/register`, payload);
+    const response = await apiClient.post<AuthSession>(
+      `/auth/invitations/${token}/register`,
+      payload,
+    );
     return response.data;
   } catch (error) {
     throw new Error(getApiErrorMessage(error));

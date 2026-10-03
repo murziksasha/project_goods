@@ -1,6 +1,6 @@
-import type { Sale } from '../../../../entities/sale/model/types';
-import { isProductSale, isRepairOrder } from '../../../../entities/sale/lib/sale-kind';
-import type { PageKey } from '../../../../pages/dashboard/model/types';
+import type { Sale } from '../../../../entities/sale';
+import { isProductSale, isRepairOrder } from '../../../../entities/sale';
+import type { PageKey } from '../../../../shared/config/routing';
 import { buildOrderNumber } from '../orders/workspace/orders-workspace-shared';
 
 export type CommandPaletteAction =

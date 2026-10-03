@@ -1,3 +1,4 @@
+import type React from 'react';
 import type { Dispatch, ReactNode, RefObject, SetStateAction } from 'react';
 import { useTranslation } from 'react-i18next';
 import { PageHeader } from '../../../../shared/ui/PageHeader';
@@ -18,7 +19,7 @@ import {
 } from '../../model/warehouse-panel';
 import { PrinterIcon } from '../orders/modals/PrinterIcon';
 
-type WarehouseToolbarProps = {
+export interface WarehouseToolbarProps {
   activeTab: WarehouseTab;
   stockSummaryText: string;
   headerActions?: ReactNode;
@@ -53,7 +54,7 @@ type WarehouseToolbarProps = {
   setCurrentPage: Dispatch<SetStateAction<number>>;
 };
 
-export const WarehouseToolbar = ({
+export const WarehouseToolbar: React.FC<WarehouseToolbarProps> = ({
   activeTab,
   stockSummaryText,
   headerActions,
@@ -84,7 +85,7 @@ export const WarehouseToolbar = ({
   setQuery,
   setSearchMode,
   setCurrentPage,
-}: WarehouseToolbarProps) => {
+}) => {
   const { t } = useTranslation();
 
   const getColumnLabel = (

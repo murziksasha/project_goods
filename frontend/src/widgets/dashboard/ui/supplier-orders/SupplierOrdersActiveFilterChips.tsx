@@ -1,3 +1,4 @@
+import type React from 'react';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -7,19 +8,19 @@ import {
   type SupplierOrdersFilters,
 } from '../../model/supplier-orders-workspace';
 
-type SupplierOrdersActiveFilterChipsProps = {
+export interface SupplierOrdersActiveFilterChipsProps {
   filters: SupplierOrdersFilters;
   supplierLabelById: Map<string, string>;
   onChangeFilters: (next: SupplierOrdersFilters) => void;
   onClearAll: () => void;
 };
 
-export const SupplierOrdersActiveFilterChips = ({
+export const SupplierOrdersActiveFilterChips: React.FC<SupplierOrdersActiveFilterChipsProps> = ({
   filters,
   supplierLabelById,
   onChangeFilters,
   onClearAll,
-}: SupplierOrdersActiveFilterChipsProps) => {
+}) => {
   const { t } = useTranslation();
 
   const chips = useMemo(

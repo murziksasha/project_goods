@@ -3,7 +3,7 @@ import type {
   SupplierOrderItem,
   SupplierOrderStatus,
   SupplierPaymentStatus,
-} from '../../../entities/supplier-order/model/types';
+} from '../../../entities/supplier-order';
 import i18n from '../../../shared/i18n/config';
 import {
   buildSupplierOrderItemNumber,

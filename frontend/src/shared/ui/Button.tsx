@@ -1,3 +1,4 @@
+import type React from 'react';
 import type { ButtonHTMLAttributes, ReactNode } from 'react';
 
 export type ButtonVariant =
@@ -17,12 +18,12 @@ const variantClassName: Record<ButtonVariant, string> = {
   danger: 'danger-button',
 };
 
-export type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
+export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: ButtonVariant;
   children: ReactNode;
-};
+}
 
-export const Button = ({
+export const Button: React.FC<ButtonProps> = ({
   variant = 'primary',
   className = '',
   type = 'button',

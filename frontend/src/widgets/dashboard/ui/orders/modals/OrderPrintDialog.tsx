@@ -1,6 +1,12 @@
-import { useEffect, useRef, useState, type CSSProperties } from 'react';
+import type React from 'react';
+import {
+  useEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+} from 'react';
 import { useTranslation } from 'react-i18next';
-import type { PrintForm } from '../../../../../entities/settings/model/types';
+import type { PrintForm } from '../../../../../entities/settings';
 import {
   customLabelSizePresetId,
   defaultPrintForms,
@@ -8,7 +14,7 @@ import {
   labelSizePresets,
   normalizeLabelSize,
   normalizePrintFormsForView,
-} from '../../../../../entities/settings/model/printForms';
+} from '../../../../../entities/settings';
 import { Modal } from '../../../../../shared/ui/Modal';
 import { Button } from '../../../../../shared/ui/Button';
 import { PrinterIcon } from './PrinterIcon';
@@ -22,21 +28,26 @@ import {
   type PrintCompanySettings,
 } from '../workspace/orders-workspace-shared';
 
-export const OrderPrintPreview = ({
-  html,
-  orderNumber,
-  pageSize,
-  labelSize,
-  orientation,
-}: {
+export interface OrderPrintPreviewProps {
   html: string;
   orderNumber: string;
   pageSize: PrintForm['pageSize'];
   labelSize: NonNullable<PrintForm['labelSize']>;
   orientation: PrintForm['orientation'];
+}
+
+export const OrderPrintPreview: React.FC<OrderPrintPreviewProps> = ({
+  html,
+  orderNumber,
+  pageSize,
+  labelSize,
+  orientation,
 }) => {
   const previewRef = useRef<HTMLDivElement | null>(null);
-  const orientedLabelSize = getOrientedLabelSize(labelSize, orientation);
+  const orientedLabelSize = getOrientedLabelSize(
+    labelSize,
+    orientation,
+  );
   const previewStyle =
     pageSize === 'label'
       ? ({
@@ -67,28 +78,31 @@ export const OrderPrintPreview = ({
   );
 };
 
-export type OrderPrintDialogProps = {
+export interface OrderPrintDialogProps {
   request: OrderPrintRequest;
   printForms: PrintForm[];
   companySettings: PrintCompanySettings;
   onClose: () => void;
-};
+}
 
-export const OrderPrintDialog = ({
+export const OrderPrintDialog: React.FC<OrderPrintDialogProps> = ({
   request,
   printForms,
   companySettings,
   onClose,
-}: OrderPrintDialogProps) => {
+}) => {
   const { t } = useTranslation();
   const availablePrintForms = normalizePrintFormsForView(
     printForms.length > 0 ? printForms : defaultPrintForms,
   ).filter((form) => form.isActive);
-  const [selectedFormIds, setSelectedFormIds] = useState<string[]>([]);
+  const [selectedFormIds, setSelectedFormIds] = useState<string[]>(
+    [],
+  );
   const selectedForms = availablePrintForms.filter((form) =>
     selectedFormIds.includes(form.id),
   );
-  const firstSelectedForm = selectedForms[0] ?? availablePrintForms[0];
+  const firstSelectedForm =
+    selectedForms[0] ?? availablePrintForms[0];
   const firstSelectedFormId = firstSelectedForm?.id;
   const firstSelectedFormPageSize = firstSelectedForm?.pageSize;
   const firstSelectedFormLabelSize = firstSelectedForm?.labelSize;
@@ -96,19 +110,20 @@ export const OrderPrintDialog = ({
   const [pageSize, setPageSize] = useState<PrintForm['pageSize']>(
     firstSelectedFormPageSize ?? 'A4',
   );
-  const [labelSize, setLabelSize] = useState<NonNullable<PrintForm['labelSize']>>(
-    normalizeLabelSize(firstSelectedFormLabelSize),
-  );
-  const [orientation, setOrientation] = useState<PrintForm['orientation']>(
-    firstSelectedFormOrientation ?? 'portrait',
-  );
+  const [labelSize, setLabelSize] = useState<
+    NonNullable<PrintForm['labelSize']>
+  >(normalizeLabelSize(firstSelectedFormLabelSize));
+  const [orientation, setOrientation] = useState<
+    PrintForm['orientation']
+  >(firstSelectedFormOrientation ?? 'portrait');
 
   // Resolve from selected form (esp. auto for Barcode label forms) to prevent A4+label mismatch
   const resolvedPageSize = firstSelectedForm?.pageSize ?? pageSize;
   const resolvedLabelSize = firstSelectedForm
     ? normalizeLabelSize(firstSelectedForm.labelSize)
     : labelSize;
-  const resolvedOrientation = firstSelectedForm?.orientation ?? orientation;
+  const resolvedOrientation =
+    firstSelectedForm?.orientation ?? orientation;
   const [copies, setCopies] = useState(1);
   const [autoClose, setAutoClose] = useState(true);
   const templateData = getPrintTemplateData(
@@ -147,7 +162,9 @@ export const OrderPrintDialog = ({
   };
 
   const updateLabelPreset = (presetId: string) => {
-    const preset = labelSizePresets.find((item) => item.id === presetId);
+    const preset = labelSizePresets.find(
+      (item) => item.id === presetId,
+    );
     setLabelSize(
       preset
         ? {
@@ -162,7 +179,10 @@ export const OrderPrintDialog = ({
     );
   };
 
-  const updateLabelSize = (field: 'widthMm' | 'heightMm', value: number) => {
+  const updateLabelSize = (
+    field: 'widthMm' | 'heightMm',
+    value: number,
+  ) => {
     setLabelSize((current) => ({
       ...current,
       presetId: customLabelSizePresetId,
@@ -205,24 +225,24 @@ export const OrderPrintDialog = ({
       subtitle={t('orders.print.sectionPreview')}
       onClose={onClose}
       closeLabel={t('orders.print.closePreview')}
-      shellClassName="order-print-dialog modal-dialog"
-      headerClassName="order-print-dialog-header"
-      bodyClassName="order-print-dialog-body"
+      shellClassName='order-print-dialog modal-dialog'
+      headerClassName='order-print-dialog-header'
+      bodyClassName='order-print-dialog-body'
       footer={
-        <footer className="order-print-dialog-footer">
-          <Button variant="secondary" onClick={onClose}>
+        <footer className='order-print-dialog-footer'>
+          <Button variant='secondary' onClick={onClose}>
             {t('common.cancel')}
           </Button>
           <Button
-            variant="secondary"
+            variant='secondary'
             onClick={() => void openPreviewWindow()}
             disabled={!canPrint}
           >
             {t('orders.print.preview')}
           </Button>
           <button
-            type="button"
-            className="primary-button print-action-button"
+            type='button'
+            className='primary-button print-action-button'
             onClick={() => void printSelectedForms()}
             disabled={!canPrint}
           >
@@ -232,134 +252,164 @@ export const OrderPrintDialog = ({
         </footer>
       }
     >
-        <div className='order-print-dialog-grid'>
-          <aside className='order-print-settings'>
-            <h3>{t('orders.print.forms')}</h3>
-            <div className='order-print-form-list'>
-              {availablePrintForms.map((form) => (
-                <label key={form.id} className='payment-print-option'>
-                  <input
-                    type='checkbox'
-                    checked={selectedFormIds.includes(form.id)}
-                    onChange={() => togglePrintForm(form.id)}
-                  />
-                  <span>{form.title}</span>
-                </label>
-              ))}
-            </div>
+      <div className='order-print-dialog-grid'>
+        <aside className='order-print-settings'>
+          <h3>{t('orders.print.forms')}</h3>
+          <div className='order-print-form-list'>
+            {availablePrintForms.map((form) => (
+              <label key={form.id} className='payment-print-option'>
+                <input
+                  type='checkbox'
+                  checked={selectedFormIds.includes(form.id)}
+                  onChange={() => togglePrintForm(form.id)}
+                />
+                <span>{form.title}</span>
+              </label>
+            ))}
+          </div>
 
-            <h3>{t('orders.print.settings')}</h3>
-            <label className='field'>
-              <span>{t('orders.print.pageSize')}</span>
-              <select
-                value={pageSize}
-                onChange={(event) =>
-                  setPageSize(event.target.value === 'label' ? 'label' : 'A4')
-                }
-              >
-                <option value='A4'>{t('orders.print.pageSizeA4')}</option>
-                <option value='label'>{t('orders.print.pageSizeLabel')}</option>
-              </select>
-            </label>
-            {pageSize === 'label' ? (
-              <>
-                <label className='field'>
-                  <span>{t('orders.print.labelSize')}</span>
-                  <select
-                    value={labelSize.presetId}
-                    onChange={(event) => updateLabelPreset(event.target.value)}
-                  >
-                    {labelSizePresets.map((preset) => (
-                      <option key={preset.id} value={preset.id}>
-                        {preset.label}
-                      </option>
-                    ))}
-                    <option value={customLabelSizePresetId}>
-                      {t('orders.print.custom')}
+          <h3>{t('orders.print.settings')}</h3>
+          <label className='field'>
+            <span>{t('orders.print.pageSize')}</span>
+            <select
+              value={pageSize}
+              onChange={(event) =>
+                setPageSize(
+                  event.target.value === 'label' ? 'label' : 'A4',
+                )
+              }
+            >
+              <option value='A4'>
+                {t('orders.print.pageSizeA4')}
+              </option>
+              <option value='label'>
+                {t('orders.print.pageSizeLabel')}
+              </option>
+            </select>
+          </label>
+          {pageSize === 'label' ? (
+            <>
+              <label className='field'>
+                <span>{t('orders.print.labelSize')}</span>
+                <select
+                  value={labelSize.presetId}
+                  onChange={(event) =>
+                    updateLabelPreset(event.target.value)
+                  }
+                >
+                  {labelSizePresets.map((preset) => (
+                    <option key={preset.id} value={preset.id}>
+                      {preset.label}
                     </option>
-                  </select>
-                </label>
-                <label className='field'>
-                  <span>{t('orders.print.widthMm')}</span>
-                  <input
-                    type='number'
-                    min={10}
-                    max={120}
-                    step={1}
-                    value={labelSize.widthMm}
-                    disabled={labelSize.presetId !== customLabelSizePresetId}
-                    onChange={(event) =>
-                      updateLabelSize('widthMm', Number(event.target.value))
-                    }
-                  />
-                </label>
-                <label className='field'>
-                  <span>{t('orders.print.heightMm')}</span>
-                  <input
-                    type='number'
-                    min={10}
-                    max={120}
-                    step={1}
-                    value={labelSize.heightMm}
-                    disabled={labelSize.presetId !== customLabelSizePresetId}
-                    onChange={(event) =>
-                      updateLabelSize('heightMm', Number(event.target.value))
-                    }
-                  />
-                </label>
-              </>
-            ) : null}
-            <label className='field'>
-              <span>{t('orders.print.orientation')}</span>
-              <select
-                value={orientation}
-                onChange={(event) =>
-                  setOrientation(
-                    event.target.value === 'landscape' ? 'landscape' : 'portrait',
-                  )
-                }
-              >
-                <option value='portrait'>{t('orders.print.portrait')}</option>
-                <option value='landscape'>{t('orders.print.landscape')}</option>
-              </select>
-            </label>
-            <label className='field'>
-              <span>{t('orders.print.copies')}</span>
-              <input
-                type='number'
-                min={1}
-                max={10}
-                value={copies}
-                onChange={(event) =>
-                  setCopies(Math.min(Math.max(Number(event.target.value) || 1, 1), 10))
-                }
-              />
-            </label>
-            <label className='settings-check'>
-              <input
-                type='checkbox'
-                checked={autoClose}
-                onChange={(event) => setAutoClose(event.target.checked)}
-              />
-              <span>{t('orders.print.autoClose')}</span>
-            </label>
-          </aside>
+                  ))}
+                  <option value={customLabelSizePresetId}>
+                    {t('orders.print.custom')}
+                  </option>
+                </select>
+              </label>
+              <label className='field'>
+                <span>{t('orders.print.widthMm')}</span>
+                <input
+                  type='number'
+                  min={10}
+                  max={120}
+                  step={1}
+                  value={labelSize.widthMm}
+                  disabled={
+                    labelSize.presetId !== customLabelSizePresetId
+                  }
+                  onChange={(event) =>
+                    updateLabelSize(
+                      'widthMm',
+                      Number(event.target.value),
+                    )
+                  }
+                />
+              </label>
+              <label className='field'>
+                <span>{t('orders.print.heightMm')}</span>
+                <input
+                  type='number'
+                  min={10}
+                  max={120}
+                  step={1}
+                  value={labelSize.heightMm}
+                  disabled={
+                    labelSize.presetId !== customLabelSizePresetId
+                  }
+                  onChange={(event) =>
+                    updateLabelSize(
+                      'heightMm',
+                      Number(event.target.value),
+                    )
+                  }
+                />
+              </label>
+            </>
+          ) : null}
+          <label className='field'>
+            <span>{t('orders.print.orientation')}</span>
+            <select
+              value={orientation}
+              onChange={(event) =>
+                setOrientation(
+                  event.target.value === 'landscape'
+                    ? 'landscape'
+                    : 'portrait',
+                )
+              }
+            >
+              <option value='portrait'>
+                {t('orders.print.portrait')}
+              </option>
+              <option value='landscape'>
+                {t('orders.print.landscape')}
+              </option>
+            </select>
+          </label>
+          <label className='field'>
+            <span>{t('orders.print.copies')}</span>
+            <input
+              type='number'
+              min={1}
+              max={10}
+              value={copies}
+              onChange={(event) =>
+                setCopies(
+                  Math.min(
+                    Math.max(Number(event.target.value) || 1, 1),
+                    10,
+                  ),
+                )
+              }
+            />
+          </label>
+          <label className='settings-check'>
+            <input
+              type='checkbox'
+              checked={autoClose}
+              onChange={(event) => setAutoClose(event.target.checked)}
+            />
+            <span>{t('orders.print.autoClose')}</span>
+          </label>
+        </aside>
 
-          <main className='order-print-preview'>
-            {canPrint ? (
-              <OrderPrintPreview
-                html={previewBody}
-                orderNumber={request.orderNumber}
-                pageSize={resolvedPageSize}
-                labelSize={resolvedLabelSize}
-                orientation={resolvedOrientation}
-              />
-            ) : (
-              <p className='empty-state'>{t('orders.print.selectForm')}</p>
-            )}
-          </main>
-        </div>
+        <main className='order-print-preview'>
+          {canPrint ? (
+            <OrderPrintPreview
+              html={previewBody}
+              orderNumber={request.orderNumber}
+              pageSize={resolvedPageSize}
+              labelSize={resolvedLabelSize}
+              orientation={resolvedOrientation}
+            />
+          ) : (
+            <p className='empty-state'>
+              {t('orders.print.selectForm')}
+            </p>
+          )}
+        </main>
+      </div>
     </Modal>
   );
 };
-

@@ -1,7 +1,7 @@
 import type { ComponentProps } from 'react';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { Cashbox, CreateFinanceTransactionPayload } from '../../../../entities/finance/model/types';
+import type { Cashbox, CreateFinanceTransactionPayload } from '../../../../entities/finance';
 import {
   accountingHideEmptyCashboxesStorageKey,
   type CashboxCurrencyRow,

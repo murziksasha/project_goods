@@ -1,3 +1,4 @@
+import type React from 'react';
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Sale } from '../model/types';
@@ -8,26 +9,26 @@ import {
   getSaleProductSerialNumber,
 } from '../lib/sale-product';
 
-interface SerialNumber {
+export interface SerialNumber {
   id: string;
   serialNumber: string;
   warehouse: string;
   isAvailable: boolean;
 }
 
-interface SerialNumberModalProps {
+export interface SerialNumberModalProps {
   sale: Sale;
   isOpen: boolean;
   onClose: () => void;
   onConfirm: (selectedSerials: string[]) => void;
 }
 
-export const SerialNumberModal = ({
+export const SerialNumberModal: React.FC<SerialNumberModalProps> = ({
   sale,
   isOpen,
   onClose,
   onConfirm,
-}: SerialNumberModalProps) => {
+}) => {
   const { t } = useTranslation();
   const [selectedSerials, setSelectedSerials] = useState<string[]>(
     [],
@@ -43,7 +44,8 @@ export const SerialNumberModal = ({
     t('warehouse.serialModal.productFallback'),
   );
   const productArticle = getSaleProductArticle(sale);
-  const productSerialNumber = getSaleProductSerialNumber(sale) || sale.id;
+  const productSerialNumber =
+    getSaleProductSerialNumber(sale) || sale.id;
 
   // Mock data - in real app, this would come from API
   useEffect(() => {
@@ -245,7 +247,9 @@ export const SerialNumberModal = ({
 
               {selectedSerials.length > 0 && (
                 <div className='selected-summary'>
-                  <h4>{t('warehouse.serialModal.selectedSerialNumbers')}</h4>
+                  <h4>
+                    {t('warehouse.serialModal.selectedSerialNumbers')}
+                  </h4>
                   <div className='selected-list'>
                     {selectedSerials.map((serial, index) => (
                       <div key={index} className='selected-item'>

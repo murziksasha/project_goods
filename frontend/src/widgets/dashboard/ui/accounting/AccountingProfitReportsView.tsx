@@ -1,16 +1,17 @@
+import type React from 'react';
 import { Fragment, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { hasEmployeePermission } from '../../../../entities/employee/model/permissions';
-import type { Employee } from '../../../../entities/employee/model/types';
-import { useFinanceProfitReportQuery } from '../../../../entities/finance/api/financeApi';
+import { hasEmployeePermission } from '../../../../entities/employee';
+import type { Employee } from '../../../../entities/employee';
+import { useFinanceProfitReportQuery } from '../../../../entities/finance';
 import type {
   ProfitMarginRow,
   ProfitReportPeriod,
   ProfitReportSource,
-} from '../../../../entities/finance/model/types';
-import type { Sale } from '../../../../entities/sale/model/types';
-import { useServicesQuery } from '../../../../entities/service-catalog/api/serviceCatalogApi';
-import type { SupplierOrder } from '../../../../entities/supplier-order/model/types';
+} from '../../../../entities/finance';
+import type { Sale } from '../../../../entities/sale';
+import { useServicesQuery } from '../../../../entities/service-catalog';
+import type { SupplierOrder } from '../../../../entities/supplier-order';
 import { PaginationPanel } from '../../../../shared/ui/PaginationPanel';
 import { CopyableValue } from '../../../../shared/ui/CopyableValue';
 import type { AnalyticsDateRange } from '../../model/analytics-date-range';
@@ -61,7 +62,7 @@ const signedClass = (value: number | null) => {
     : 'finance-profit-kpi-positive';
 };
 
-type AccountingProfitReportsViewProps = {
+export interface AccountingProfitReportsViewProps {
   currentEmployee?: Employee | null;
   sales?: Sale[];
   supplierOrders?: SupplierOrder[];
@@ -70,14 +71,14 @@ type AccountingProfitReportsViewProps = {
   onOpenSupplierOrder?: (supplierOrderId: string, itemIndex: number) => void;
 };
 
-export const AccountingProfitReportsView = ({
+export const AccountingProfitReportsView: React.FC<AccountingProfitReportsViewProps> = ({
   currentEmployee = null,
   sales = [],
   supplierOrders = [],
   onError,
   onSuccess,
   onOpenSupplierOrder,
-}: AccountingProfitReportsViewProps) => {
+}) => {
   const { t } = useTranslation();
   const stored = useMemo(() => getStoredProfitReportFilters(), []);
   const storedVisual = useMemo(() => getStoredProfitReportVisualSettings(), []);

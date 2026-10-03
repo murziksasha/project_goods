@@ -1,5 +1,5 @@
 import { apiClient, getApiErrorMessage } from '../../../shared/api/http';
-import type { SeedResponse } from '../../../entities/sale/model/types';
+import type { SeedResponse } from '../../../entities/sale';
 
 export type DemoSeedKind = 'all' | 'sales' | 'repairs';
 

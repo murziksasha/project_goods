@@ -1,4 +1,4 @@
-import type { PageKey } from '../../../pages/dashboard/model/types';
+import type { PageKey } from '../../../shared/config/routing';
 
 export type MobileNavItem = {
   key: PageKey | 'other';

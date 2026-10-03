@@ -1,5 +1,6 @@
 import XLSX from 'xlsx';
 import { Product, type ProductDocument } from './model';
+import { CatalogProduct } from '../catalog-product/model';
 import { Sale } from '../sale/model';
 import { formatProduct } from '../../shared/lib/formatters';
 import { normalizeProductPayload, toNumber } from '../../shared/lib/parsers';
@@ -310,4 +311,50 @@ export const ensureProductArticleIsNotUnique = async () => {
   });
   if (!articleUniqueIndex?.name) return;
   await Product.collection.dropIndex(articleUniqueIndex.name);
+};
+
+export const reorderProducts = async (
+  items: Array<{ name: string; sortOrder: number }>,
+) => {
+  if (!Array.isArray(items) || items.length === 0) {
+    throw new HttpError(400, 'Invalid items array.');
+  }
+
+  const validItems = items.filter(
+    (item) =>
+      item &&
+      typeof item.name === 'string' &&
+      item.name.trim().length > 0 &&
+      Number.isFinite(item.sortOrder),
+  );
+
+  if (validItems.length === 0) {
+    return { success: true, updatedCount: 0 };
+  }
+
+  const productOps = validItems.map((item) => ({
+    updateMany: {
+      filter: getExactProductModelNameQuery(item.name.trim()),
+      update: { $set: { sortOrder: item.sortOrder } },
+    },
+  }));
+
+  const catalogOps = validItems.map((item) => ({
+    updateMany: {
+      filter: {
+        name: {
+          $regex: `^\\s*${escapeRegExp(item.name.trim())}\\s*$`,
+          $options: 'i',
+        },
+      },
+      update: { $set: { sortOrder: item.sortOrder } },
+    },
+  }));
+
+  await Promise.all([
+    Product.bulkWrite(productOps),
+    CatalogProduct.bulkWrite(catalogOps),
+  ]);
+
+  return { success: true, updatedCount: validItems.length };
 };
