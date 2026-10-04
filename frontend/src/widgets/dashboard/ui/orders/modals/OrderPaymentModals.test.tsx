@@ -346,10 +346,172 @@ describe('ReturnSaleModal layout and behavior', () => {
     fireEvent.change(cashboxSelect, { target: { value: 'cashbox-1' } });
     expect(onCashboxChange).toHaveBeenCalledWith('cashbox-1');
 
+    // Refund amount is read-only
+    const refundInput = screen.getByDisplayValue('4000');
+    expect(refundInput).toHaveAttribute('readonly');
+
+    // Click 'Full amount' button calls onAmountChange with paidAmount
+    const fullAmountBtn = screen.getByRole('button', { name: 'Full amount' });
+    fireEvent.click(fullAmountBtn);
+    expect(onAmountChange).toHaveBeenCalledWith('4000');
+
     fireEvent.click(
       screen.getByRole('button', { name: 'Return sale' }),
     );
     expect(onSubmit).toHaveBeenCalled();
+  });
+
+  it('disables submit button when refund amount is invalid (neither goods-only nor full)', () => {
+    render(
+      <ReturnSaleModal
+        sale={sale({ recordNumber: 'r000777' })}
+        lineItems={[
+          {
+            id: 'line-1',
+            kind: 'product',
+            name: 'Tablet 10.1',
+            price: 4000,
+            quantity: 1,
+            warrantyPeriod: 12,
+          },
+        ]}
+        cashboxes={[cashbox]}
+        selectedCashboxId="cashbox-1"
+        amount="3000"
+        warehouse="Service center"
+        paidAmount={4000}
+        isLoading={false}
+        isSaving={false}
+        onCashboxChange={vi.fn()}
+        onAmountChange={vi.fn()}
+        onWarehouseChange={vi.fn()}
+        onClose={vi.fn()}
+        onSubmit={vi.fn()}
+      />,
+    );
+
+    const submitBtn = screen.getByRole('button', { name: 'Return sale' });
+    expect(submitBtn).toBeDisabled();
+  });
+
+  it('enables submit button with goods-only amount and allows toggling to full amount and back', () => {
+    const onAmountChange = vi.fn();
+    const onSubmit = vi.fn();
+
+    const mixedLineItems = [
+      {
+        id: 'line-1',
+        kind: 'product' as const,
+        name: 'Mi Box S',
+        price: 4300,
+        quantity: 1,
+        warrantyPeriod: 12,
+      },
+      {
+        id: 'line-2',
+        kind: 'service' as const,
+        name: 'Diagnostics',
+        price: 700,
+        quantity: 1,
+        warrantyPeriod: 0,
+      },
+    ];
+
+    // 1. Initial state: amount is goods-only (4300)
+    const { rerender } = render(
+      <ReturnSaleModal
+        sale={sale({ recordNumber: 'r000964' })}
+        lineItems={mixedLineItems}
+        cashboxes={[cashbox]}
+        selectedCashboxId="cashbox-1"
+        amount="4300"
+        warehouse="Service center"
+        paidAmount={5000}
+        isLoading={false}
+        isSaving={false}
+        onCashboxChange={vi.fn()}
+        onAmountChange={onAmountChange}
+        onWarehouseChange={vi.fn()}
+        onClose={vi.fn()}
+        onSubmit={onSubmit}
+      />,
+    );
+
+    // Submit button is enabled with goods-only amount
+    const submitBtn = screen.getByRole('button', { name: 'Return sale' });
+    expect(submitBtn).toBeEnabled();
+
+    // Button shows 'Full amount'
+    const fullAmountBtn = screen.getByRole('button', { name: 'Full amount' });
+    fireEvent.click(fullAmountBtn);
+    expect(onAmountChange).toHaveBeenCalledWith('5000');
+
+    // 2. Updated state: amount is full (5000)
+    rerender(
+      <ReturnSaleModal
+        sale={sale({ recordNumber: 'r000964' })}
+        lineItems={mixedLineItems}
+        cashboxes={[cashbox]}
+        selectedCashboxId="cashbox-1"
+        amount="5000"
+        warehouse="Service center"
+        paidAmount={5000}
+        isLoading={false}
+        isSaving={false}
+        onCashboxChange={vi.fn()}
+        onAmountChange={onAmountChange}
+        onWarehouseChange={vi.fn()}
+        onClose={vi.fn()}
+        onSubmit={onSubmit}
+      />,
+    );
+
+    // Submit button is still enabled
+    expect(screen.getByRole('button', { name: 'Return sale' })).toBeEnabled();
+
+    // Button now shows 'Goods only'
+    const goodsOnlyBtn = screen.getByRole('button', { name: 'Goods only' });
+    fireEvent.click(goodsOnlyBtn);
+    expect(onAmountChange).toHaveBeenCalledWith('4300');
+  });
+  it('disables submit button when refund amount is arbitrary for an order with services', () => {
+    render(
+      <ReturnSaleModal
+        sale={sale({ recordNumber: 'r000964' })}
+        lineItems={[
+          {
+            id: 'line-1',
+            kind: 'product' as const,
+            name: 'Mi Box S',
+            price: 4300,
+            quantity: 1,
+            warrantyPeriod: 12,
+          },
+          {
+            id: 'line-2',
+            kind: 'service' as const,
+            name: 'Diagnostics',
+            price: 700,
+            quantity: 1,
+            warrantyPeriod: 0,
+          },
+        ]}
+        cashboxes={[cashbox]}
+        selectedCashboxId="cashbox-1"
+        amount="2500"
+        warehouse="Service center"
+        paidAmount={5000}
+        isLoading={false}
+        isSaving={false}
+        onCashboxChange={vi.fn()}
+        onAmountChange={vi.fn()}
+        onWarehouseChange={vi.fn()}
+        onClose={vi.fn()}
+        onSubmit={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole('button', { name: 'Return sale' })).toBeDisabled();
   });
 });
 

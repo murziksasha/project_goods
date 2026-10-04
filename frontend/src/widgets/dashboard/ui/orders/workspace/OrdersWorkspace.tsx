@@ -2383,21 +2383,15 @@ export const OrdersWorkspace: React.FC<OrdersWorkspaceProps> = ({
     const productTotal = getLineItemsTotal(
       lineItems.filter((item) => item.kind === 'product'),
     );
-    const serviceTotal = getLineItemsTotal(
-      lineItems.filter((item) => item.kind !== 'product'),
-    );
     const paidAmount = getPaidAmount(sale);
-    const suggestedRefund = Math.min(
-      productTotal,
-      Math.max(paidAmount - serviceTotal, 0),
-    );
+    const goodsOnlyAmount = Math.max(0, Math.min(productTotal, paidAmount));
 
     if (productTotal <= 0) {
       onError(t('orders.messages.errors.noProductsToReturn'));
       return;
     }
 
-    if (suggestedRefund <= 0) {
+    if (paidAmount <= 0) {
       onError(t('orders.messages.errors.cannotReturnUnpaid'));
       return;
     }
@@ -2410,7 +2404,7 @@ export const OrdersWorkspace: React.FC<OrdersWorkspaceProps> = ({
 
     setFullReturnSale(sale);
     setReturnRefundAmount(
-      String(Math.round(suggestedRefund * 100) / 100),
+      String(Math.round(goodsOnlyAmount * 100) / 100),
     );
     setReturnWarehouse(initialWarehouse);
     setIsFullReturnModalLoading(true);
@@ -2921,10 +2915,14 @@ export const OrdersWorkspace: React.FC<OrdersWorkspaceProps> = ({
       }
 
       onSaleUpdate(updatedSale);
-      await syncReceivedBy(
-        updatedSale,
-        updatedSale.status as OrderStatus,
-      );
+      try {
+        await syncReceivedBy(
+          updatedSale,
+          updatedSale.status as OrderStatus,
+        );
+      } catch (syncError) {
+        console.warn('Failed to sync receivedBy after product return:', syncError);
+      }
       onSuccess(t('orders.messages.success.productReturned'));
       setReturnSale(null);
       setReturnLineItem(null);
@@ -2947,21 +2945,21 @@ export const OrdersWorkspace: React.FC<OrdersWorkspaceProps> = ({
     }
 
     const refundAmountValue = parseMoney(returnRefundAmount);
+    const paidAmount = getPaidAmount(fullReturnSale);
     const lineItems = getLineItems(fullReturnSale);
     const productTotal = getLineItemsTotal(
       lineItems.filter((item) => item.kind === 'product'),
     );
-    const serviceTotal = getLineItemsTotal(
-      lineItems.filter((item) => item.kind !== 'product'),
-    );
-    const paidAmount = getPaidAmount(fullReturnSale);
+    const goodsOnlyAmount = Math.max(0, Math.min(productTotal, paidAmount));
+    const isAllowedRefund =
+      Math.abs(refundAmountValue - goodsOnlyAmount) < 0.005 ||
+      Math.abs(refundAmountValue - paidAmount) < 0.005;
 
     if (
       !Number.isFinite(refundAmountValue) ||
       refundAmountValue <= 0 ||
-      refundAmountValue > productTotal ||
       refundAmountValue > paidAmount ||
-      paidAmount - refundAmountValue > serviceTotal ||
+      !isAllowedRefund ||
       !returnWarehouse.trim()
     ) {
       onError(t('orders.messages.errors.invalidReturnRefund'));
@@ -2978,10 +2976,14 @@ export const OrdersWorkspace: React.FC<OrdersWorkspaceProps> = ({
         author: currentEmployeeName,
       });
       onSaleUpdate(updatedSale);
-      await syncReceivedBy(
-        updatedSale,
-        updatedSale.status as OrderStatus,
-      );
+      try {
+        await syncReceivedBy(
+          updatedSale,
+          updatedSale.status as OrderStatus,
+        );
+      } catch (syncError) {
+        console.warn('Failed to sync receivedBy after sale return:', syncError);
+      }
       setCashboxes(await getCashboxes());
       window.dispatchEvent(
         new CustomEvent('project-goods:finance-updated'),

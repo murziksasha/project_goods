@@ -6,6 +6,16 @@
   - Always create the plan artifact with `RequestFeedback: true`.
   - **Halt immediately** upon creating the plan. Never start executing tasks or editing code automatically.
   - Explicitly ask the user for approval to proceed with the implementation.
+  - Require explicit manual user sign-off before executing any plan tasks.
+
+## Execution Mode (YOLO Mode)
+
+- **Default Execution:** Autonomous (YOLO) mode is **active** for all regular development workflows, task completions, bug fixes, refactorings, test runs, and non-plan tool calls:
+  - Execute tool calls, writes, edits, and commands directly without prompting for permission or pauses.
+  - Bypass confirmations for routine file edits, command execution, and test runs.
+- **Strict Plan Mode Exclusion:**
+  - When Plan mode is active or when generating/evaluating a plan, YOLO execution is **strictly disabled**.
+  - Always halt and wait for user review on plans as mandated by the Plan Mode Discipline.
 
 ## Core Principles
 

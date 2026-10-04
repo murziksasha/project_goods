@@ -821,6 +821,8 @@
       "productsToStock": "Products to stock",
       "productTotal": "Product total",
       "returnBadge": "Return",
+      "fullAmount": "Full amount",
+      "goodsOnly": "Goods only",
       "receiveToWarehouse": "Receive to warehouse",
       "refundFromCashbox": "Refund from cashbox",
       "suggestedCashbox": "Suggested cashbox: {{name}}",

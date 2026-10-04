@@ -609,4 +609,116 @@ describe('updateSaleWorkspace line items', () => {
     expect(updateCalls[0].userNote).toBe('Call client before pickup');
     expect(updateCalls[0].note).toBeUndefined();
   });
+
+  it('allows returned status when products are returned and only services remain paid', async () => {
+    const serviceItem = {
+      id: 'li-srv',
+      kind: 'service',
+      name: 'Diagnostics',
+      price: 700,
+      quantity: 1,
+    };
+    currentSale = withFormatSaleFields({
+      ...buildExistingSale('sale'),
+      status: 'returned',
+      paidAmount: 700,
+      lineItems: [serviceItem],
+    });
+    vi.spyOn(parsers, 'normalizeSalePayload').mockReturnValue({
+      kind: 'sale',
+      status: 'returned',
+      paidAmount: 700,
+      deviceName: '',
+      serialNumber: '',
+      discount: { mode: 'amount', value: 0 },
+      timeline: [],
+      paymentHistory: [],
+      lineItems: [serviceItem],
+      masterId: '',
+      issuedById: '',
+    } as never);
+
+    await updateSaleWorkspace(currentSale._id, {
+      kind: 'sale',
+      status: 'returned',
+      paidAmount: 700,
+      lineItems: [serviceItem],
+    });
+
+    expect(updateCalls[0].status).toBe('returned');
+    expect(updateCalls[0].paidAmount).toBe(700);
+  });
+
+  it('rejects returned status when product line items remain', async () => {
+    currentSale = withFormatSaleFields({
+      ...buildExistingSale('sale'),
+      status: 'returned',
+      paidAmount: 0,
+      lineItems: [lineItem],
+    });
+    vi.spyOn(parsers, 'normalizeSalePayload').mockReturnValue({
+      kind: 'sale',
+      status: 'returned',
+      paidAmount: 0,
+      deviceName: '',
+      serialNumber: '',
+      discount: { mode: 'amount', value: 0 },
+      timeline: [],
+      paymentHistory: [],
+      lineItems: [lineItem],
+      masterId: '',
+      issuedById: '',
+    } as never);
+
+    await expect(
+      updateSaleWorkspace(currentSale._id, {
+        kind: 'sale',
+        status: 'returned',
+        paidAmount: 0,
+        lineItems: [lineItem],
+      }),
+    ).rejects.toThrow(
+      'Sale can be marked returned only after products are returned to stock and client payment is fully refunded.',
+    );
+  });
+
+  it('rejects returned status when paidAmount exceeds remaining services total', async () => {
+    const serviceItem = {
+      id: 'li-srv',
+      kind: 'service',
+      name: 'Diagnostics',
+      price: 700,
+      quantity: 1,
+    };
+    currentSale = withFormatSaleFields({
+      ...buildExistingSale('sale'),
+      status: 'returned',
+      paidAmount: 1000,
+      lineItems: [serviceItem],
+    });
+    vi.spyOn(parsers, 'normalizeSalePayload').mockReturnValue({
+      kind: 'sale',
+      status: 'returned',
+      paidAmount: 1000,
+      deviceName: '',
+      serialNumber: '',
+      discount: { mode: 'amount', value: 0 },
+      timeline: [],
+      paymentHistory: [],
+      lineItems: [serviceItem],
+      masterId: '',
+      issuedById: '',
+    } as never);
+
+    await expect(
+      updateSaleWorkspace(currentSale._id, {
+        kind: 'sale',
+        status: 'returned',
+        paidAmount: 1000,
+        lineItems: [serviceItem],
+      }),
+    ).rejects.toThrow(
+      'Sale can be marked returned only after products are returned to stock and client payment is fully refunded.',
+    );
+  });
 });

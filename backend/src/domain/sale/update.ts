@@ -30,6 +30,7 @@ import {
   assertSalePayload,
   assertWorkspaceState,
   buildClientSnapshot,
+  calculateTotalAfterDiscount,
   getFallbackLineItems,
   normalizeDiscount,
   resolveActiveEmployee,
@@ -372,11 +373,16 @@ export const updateSaleWorkspace = async (
     'repairs.execute',
   );
 
+  const remainingTotal = calculateTotalAfterDiscount(
+    normalizedLineItems,
+    nextDiscount,
+  );
+
   if (
     nextKind === 'sale' &&
     nextStatus === 'returned' &&
     (normalizedLineItems.some((item) => item.kind === 'product') ||
-      nextPaidAmount > 0)
+      Math.round(nextPaidAmount * 100) > Math.round(remainingTotal * 100))
   ) {
     throw new HttpError(
       404,

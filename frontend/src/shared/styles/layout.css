@@ -4192,6 +4192,21 @@ button.payment-summary-discount-badge:hover:not(:disabled) {
   cursor: pointer;
 }
 
+.payment-cash-button {
+  transition: opacity 0.15s ease, transform 0.1s ease;
+  user-select: none;
+}
+
+.payment-cash-button:hover:not(:disabled) {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+.payment-cash-button:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
 .payment-cash-badge:disabled {
   cursor: default;
   opacity: 0.7;
