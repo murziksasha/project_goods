@@ -32,7 +32,8 @@ export interface OrdersWorkspaceModalsProps {
   printCompanySettings: PrintCompanySettings;
   paymentSale: Sale | null;
   paymentTargetStatus: PaymentTargetStatus;
-  cashboxes: Cashbox[];
+  paymentCashboxes: Cashbox[];
+  refundCashboxes: Cashbox[];
   selectedCashboxId: string;
   paymentMethod: PaymentMethod;
   paymentAmount: string;
@@ -86,7 +87,8 @@ export const OrdersWorkspaceModals: React.FC<OrdersWorkspaceModalsProps> = ({
   printCompanySettings,
   paymentSale,
   paymentTargetStatus,
-  cashboxes,
+  paymentCashboxes,
+  refundCashboxes,
   selectedCashboxId,
   paymentMethod,
   paymentAmount,
@@ -140,7 +142,7 @@ export const OrdersWorkspaceModals: React.FC<OrdersWorkspaceModalsProps> = ({
           sale={paymentSale}
           paymentTargetStatus={paymentTargetStatus}
           printForms={printForms}
-          cashboxes={cashboxes}
+          cashboxes={paymentCashboxes}
           selectedCashboxId={selectedCashboxId}
           paymentMethod={paymentMethod}
           amount={paymentAmount}
@@ -196,7 +198,7 @@ export const OrdersWorkspaceModals: React.FC<OrdersWorkspaceModalsProps> = ({
 
       {refundSale ? (
         <RefundModal
-          cashboxes={cashboxes}
+          cashboxes={refundCashboxes}
           selectedCashboxId={selectedRefundCashboxId}
           amount={refundAmount}
           paidAmount={getPaidAmount(refundSale)}
@@ -228,7 +230,7 @@ export const OrdersWorkspaceModals: React.FC<OrdersWorkspaceModalsProps> = ({
         <ReturnSaleModal
           sale={fullReturnSale}
           lineItems={getLineItems(fullReturnSale)}
-          cashboxes={cashboxes}
+          cashboxes={refundCashboxes}
           selectedCashboxId={selectedRefundCashboxId}
           amount={returnRefundAmount}
           warehouse={returnWarehouse}

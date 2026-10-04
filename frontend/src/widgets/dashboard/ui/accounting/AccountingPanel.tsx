@@ -384,6 +384,26 @@ export const AccountingPanel: React.FC<AccountingPanelProps> = ({
     );
   };
 
+  const toggleCashboxNonCash = async (cashbox: Cashbox) => {
+    if (!canManageCashboxes) {
+      onError(i18n.t('accounting.messages.errors.noPermissionManageCashboxes'));
+      return;
+    }
+    const nextNonCash = !cashbox.isNonCash;
+    await runFinanceAction(
+      () =>
+        updateCashboxMutation.mutateAsync({
+          cashboxId: cashbox.id,
+          payload: { isNonCash: nextNonCash },
+        }),
+      i18n.t('accounting.messages.success.cashboxUpdated'),
+      {
+        skipRefresh: true,
+        errorFallback: i18n.t('accounting.messages.errors.failedUpdateCashboxStatus'),
+      },
+    );
+  };
+
   const addCurrencyCode = async () => {
     const normalized = newCurrencyCode.trim().toUpperCase();
     if (!/^[A-Z]{3,6}$/.test(normalized)) {
@@ -819,6 +839,7 @@ export const AccountingPanel: React.FC<AccountingPanelProps> = ({
           onToggleCard={toggleFinanceSettingsCard}
           onToggleCashboxArchived={toggleCashboxArchived}
           onToggleCashboxCurrencyActivity={toggleCashboxCurrencyActivity}
+          onToggleCashboxNonCash={toggleCashboxNonCash}
           onToggleCurrencyActivity={toggleCurrencyActivity}
           categories={categories}
           onCreateCategory={(name) => handleCreateCategory(name)}

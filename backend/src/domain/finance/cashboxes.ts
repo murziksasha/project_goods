@@ -209,6 +209,9 @@ export const updateCashbox = async (
     }
     patch.isArchived = nextArchived;
   }
+  if (payload.isNonCash !== undefined) {
+    patch.isNonCash = Boolean(payload.isNonCash);
+  }
   if (payload.enabledCurrencies !== undefined) {
     const normalized = normalizeEnabledCurrencies(payload.enabledCurrencies);
     const existingEnabled = mapLikeToRecord<boolean>(existing.enabledCurrencies);
