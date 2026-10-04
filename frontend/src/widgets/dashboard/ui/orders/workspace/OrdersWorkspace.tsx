@@ -295,6 +295,10 @@ export const OrdersWorkspace: React.FC<OrdersWorkspaceProps> = ({
   const [selectedCashboxId, setSelectedCashboxId] = useState('');
   const [paymentMethod, setPaymentMethod] =
     useState<PaymentMethod>('cash');
+  const paymentModalCashboxes = useMemo(() => {
+    if (paymentMethod !== 'non-cash') return cashboxes;
+    return cashboxes.filter((c) => c.isNonCash);
+  }, [cashboxes, paymentMethod]);
   const [paymentAmount, setPaymentAmount] = useState('');
   const [selectedRefundCashboxId, setSelectedRefundCashboxId] =
     useState('');
@@ -2218,17 +2222,24 @@ export const OrdersWorkspace: React.FC<OrdersWorkspaceProps> = ({
       setPaymentSale(sale);
       setPaymentTargetStatus(targetStatus);
       setPaymentAmount(String(remainingPayment));
-      setPaymentMethod(getLatestDepositPaymentMethod(sale) ?? 'cash');
+      const initialMethod = getLatestDepositPaymentMethod(sale) ?? 'cash';
       setIsPaymentModalLoading(true);
 
       try {
         const cashboxData = await getCashboxes();
         setCashboxes(cashboxData);
-        setSelectedCashboxId(
-          cashboxData.find((cashbox) => cashbox.isDefault)?.id ??
-            cashboxData[0]?.id ??
-            '',
-        );
+        const nonCashOptions = cashboxData.filter((c) => c.isNonCash);
+        if (initialMethod === 'non-cash' && nonCashOptions.length > 0) {
+          setPaymentMethod('non-cash');
+          setSelectedCashboxId(nonCashOptions[0].id);
+        } else {
+          setPaymentMethod('cash');
+          setSelectedCashboxId(
+            cashboxData.find((cashbox) => cashbox.isDefault)?.id ??
+              cashboxData[0]?.id ??
+              '',
+          );
+        }
       } catch (error) {
         onError(
           error instanceof Error
@@ -2241,6 +2252,26 @@ export const OrdersWorkspace: React.FC<OrdersWorkspaceProps> = ({
       }
     },
     [canAcceptFinanceDeposit, getOrderRemainingPayment, onError, t],
+  );
+
+  const handlePaymentMethodChange = useCallback(
+    (method: PaymentMethod) => {
+      if (method === 'non-cash') {
+        const nonCashOptions = cashboxes.filter((c) => c.isNonCash);
+        if (nonCashOptions.length === 0) {
+          onError(t('orders.messages.errors.noNonCashCashbox'));
+          return;
+        }
+        setPaymentMethod('non-cash');
+        setSelectedCashboxId(nonCashOptions[0].id);
+      } else {
+        setPaymentMethod('cash');
+        const defaultCashbox =
+          cashboxes.find((c) => c.isDefault) ?? cashboxes[0];
+        if (defaultCashbox) setSelectedCashboxId(defaultCashbox.id);
+      }
+    },
+    [cashboxes, onError, t],
   );
 
   useEffect(() => {
@@ -3433,7 +3464,8 @@ export const OrdersWorkspace: React.FC<OrdersWorkspaceProps> = ({
         printCompanySettings={printCompanySettings}
         paymentSale={paymentSale}
         paymentTargetStatus={paymentTargetStatus}
-        cashboxes={cashboxes}
+        paymentCashboxes={paymentModalCashboxes}
+        refundCashboxes={cashboxes}
         selectedCashboxId={selectedCashboxId}
         paymentMethod={paymentMethod}
         paymentAmount={paymentAmount}
@@ -3468,7 +3500,7 @@ export const OrdersWorkspace: React.FC<OrdersWorkspaceProps> = ({
         onPrintRequestClose={() => setPrintRequest(null)}
         onWarningClose={() => setWarningMessage(null)}
         onCashboxChange={setSelectedCashboxId}
-        onPaymentMethodChange={setPaymentMethod}
+        onPaymentMethodChange={handlePaymentMethodChange}
         onPaymentAmountChange={setPaymentAmount}
         onRefundCashboxChange={setSelectedRefundCashboxId}
         onRefundAmountChange={setRefundAmount}

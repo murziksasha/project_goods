@@ -359,6 +359,7 @@ const seedCashbox = (id: string, patch: Record<string, unknown> = {}) => {
     balances: { UAH: 0, USD: 0 },
     enabledCurrencies: { UAH: true, USD: false },
     isDefault: id === defaultCashboxId,
+    isNonCash: false,
     isArchived: false,
     createdAt: new Date('2026-06-01T10:00:00.000Z'),
     updatedAt: new Date('2026-06-01T10:00:00.000Z'),
@@ -668,5 +669,21 @@ describe('cashbox currency settings', () => {
     expect(ok).toBe(1);
     expect(fail).toBe(1);
     expect(store.cashboxes.get(defaultCashboxId).balances.UAH).toBe(10);
+  });
+
+  it('updates isNonCash flag and allows multiple cashboxes to be non-cash', async () => {
+    installFinanceModelSpies();
+    seedCashbox(defaultCashboxId);
+    seedCashbox(reserveCashboxId);
+
+    const updated1 = await updateCashbox(defaultCashboxId, { isNonCash: true });
+    expect(updated1.isNonCash).toBe(true);
+
+    const updated2 = await updateCashbox(reserveCashboxId, { isNonCash: true });
+    expect(updated2.isNonCash).toBe(true);
+
+    const list = await listCashboxes();
+    const nonCashBoxes = list.filter((c) => c.isNonCash);
+    expect(nonCashBoxes).toHaveLength(2);
   });
 });

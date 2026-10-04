@@ -274,6 +274,7 @@ const cashbox = {
   balances: { UAH: 5000, USD: 0 },
   enabledCurrencies: { UAH: true, USD: false },
   isDefault: true,
+  isNonCash: false,
   isArchived: false,
   createdAt: '2026-01-01T00:00:00.000Z',
   updatedAt: '2026-01-01T00:00:00.000Z',
@@ -904,6 +905,7 @@ describe('OrdersWorkspace', () => {
         balances: { UAH: 500, USD: 0 },
         enabledCurrencies: { UAH: true, USD: false },
         isDefault: true,
+        isNonCash: false,
         isArchived: false,
         createdAt: '2026-01-01T00:00:00.000Z',
         updatedAt: '2026-01-01T00:00:00.000Z',
@@ -1001,6 +1003,7 @@ describe('OrdersWorkspace', () => {
         balances: { UAH: 5000, USD: 0 },
         enabledCurrencies: { UAH: true, USD: false },
         isDefault: true,
+        isNonCash: false,
         isArchived: false,
         createdAt: '2026-01-01T00:00:00.000Z',
         updatedAt: '2026-01-01T00:00:00.000Z',
@@ -1087,6 +1090,7 @@ describe('OrdersWorkspace', () => {
         balances: { UAH: 5000, USD: 0 },
         enabledCurrencies: { UAH: true, USD: false },
         isDefault: true,
+        isNonCash: false,
         isArchived: false,
         createdAt: '2026-01-01T00:00:00.000Z',
         updatedAt: '2026-01-01T00:00:00.000Z',
@@ -2377,5 +2381,175 @@ describe('OrdersWorkspace', () => {
     expect(priceCells.length).toBe(2);
     expect(priceCells[0].textContent).toContain('250');
     expect(priceCells[1].textContent).toContain('250');
+  });
+
+  it('filters cashboxes to non-cash cashboxes and selects the first one when toggling Non-cash', async () => {
+    const cashboxA = {
+      id: 'cashbox-a',
+      name: 'Non-cash A',
+      balances: { UAH: 100, USD: 0 },
+      enabledCurrencies: { UAH: true, USD: false },
+      isDefault: false,
+      isNonCash: true,
+      isArchived: false,
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    };
+    const cashboxB = {
+      id: 'cashbox-b',
+      name: 'Non-cash B',
+      balances: { UAH: 200, USD: 0 },
+      enabledCurrencies: { UAH: true, USD: false },
+      isDefault: false,
+      isNonCash: true,
+      isArchived: false,
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    };
+    const defaultCashbox = {
+      id: 'cashbox-main',
+      name: 'Main Cash',
+      balances: { UAH: 500, USD: 0 },
+      enabledCurrencies: { UAH: true, USD: false },
+      isDefault: true,
+      isNonCash: false,
+      isArchived: false,
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    };
+
+    getCashboxesMock.mockResolvedValue([
+      defaultCashbox,
+      cashboxA,
+      cashboxB,
+    ]);
+
+    renderWorkspace({
+      activeTab: 'sales',
+      sales: [
+        {
+          ...sale,
+          kind: 'sale',
+          status: 'reserved',
+          salePrice: 200,
+        },
+      ],
+      currentEmployee: {
+        ...employee,
+        permissions: [
+          'orders.view',
+          'orders.manage',
+          'finance.transactions.deposit',
+        ],
+      },
+    });
+
+    fireEvent.click(screen.getByRole('link', { name: /r000001/i }));
+    await clickHeaderAcceptPayment();
+
+    let cashboxSelect: HTMLSelectElement | undefined;
+    await waitFor(() => {
+      cashboxSelect = screen
+        .getAllByRole('combobox')
+        .find((select) =>
+          Array.from(select.querySelectorAll('option')).some(
+            (option) => option.value === 'cashbox-main',
+          ),
+        ) as HTMLSelectElement;
+      expect(cashboxSelect).toBeTruthy();
+    });
+
+    // Initial state: default cashbox selected, all 3 cashboxes present
+    expect(cashboxSelect?.value).toBe('cashbox-main');
+    expect(cashboxSelect?.options.length).toBe(3);
+
+    // Toggle to Non-cash
+    const paymentMethodBadge = screen.getByRole('button', {
+      name: 'Cash',
+    });
+    fireEvent.click(paymentMethodBadge);
+
+    // Now filtered to Non-cash A and Non-cash B, with Non-cash A auto-selected
+    expect(
+      screen.getByRole('button', { name: 'Non-cash' }),
+    ).toBeInTheDocument();
+    expect(cashboxSelect?.options.length).toBe(2);
+    expect(cashboxSelect?.value).toBe('cashbox-a');
+
+    // Switch to Non-cash B freely
+    fireEvent.change(cashboxSelect as HTMLSelectElement, {
+      target: { value: 'cashbox-b' },
+    });
+    expect(cashboxSelect?.value).toBe('cashbox-b');
+
+    // Toggle back to Cash -> restores full list and reverts to default cashbox
+    const nonCashBadge = screen.getByRole('button', {
+      name: 'Non-cash',
+    });
+    fireEvent.click(nonCashBadge);
+
+    expect(
+      screen.getByRole('button', { name: 'Cash' }),
+    ).toBeInTheDocument();
+    expect(cashboxSelect?.options.length).toBe(3);
+    expect(cashboxSelect?.value).toBe('cashbox-main');
+  });
+
+  it('shows toast error and stays cash when clicking Non-cash with no non-cash cashboxes configured', async () => {
+    const onError = vi.fn();
+    const defaultCashbox = {
+      id: 'cashbox-main',
+      name: 'Main Cash',
+      balances: { UAH: 500, USD: 0 },
+      enabledCurrencies: { UAH: true, USD: false },
+      isDefault: true,
+      isNonCash: false,
+      isArchived: false,
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    };
+
+    getCashboxesMock.mockResolvedValue([defaultCashbox]);
+
+    renderWorkspace({
+      activeTab: 'sales',
+      sales: [
+        {
+          ...sale,
+          kind: 'sale',
+          status: 'reserved',
+          salePrice: 200,
+        },
+      ],
+      currentEmployee: {
+        ...employee,
+        permissions: [
+          'orders.view',
+          'orders.manage',
+          'finance.transactions.deposit',
+        ],
+      },
+      onError,
+    });
+
+    fireEvent.click(screen.getByRole('link', { name: /r000001/i }));
+    await clickHeaderAcceptPayment();
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole('button', { name: 'Cash' }),
+      ).toBeInTheDocument();
+    });
+
+    // Click Cash badge to try switching to non-cash
+    fireEvent.click(screen.getByRole('button', { name: 'Cash' }));
+
+    expect(onError).toHaveBeenCalledWith(
+      'No non-cash cashbox configured. Go to Settings to set one.',
+    );
+    // Method stays cash
+    expect(
+      screen.getByRole('button', { name: 'Cash' }),
+    ).toBeInTheDocument();
   });
 });

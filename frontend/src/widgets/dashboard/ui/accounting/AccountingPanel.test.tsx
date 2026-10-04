@@ -1,8 +1,27 @@
-import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react';
+import {
+  QueryClient,
+  QueryClientProvider,
+} from '@tanstack/react-query';
 import type { ComponentProps, ReactElement } from 'react';
 import { I18nextProvider } from 'react-i18next';
-import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from 'vitest';
 import * as financeApi from '../../../../entities/finance';
 import i18n from '../../../../shared/i18n/config';
 import { AccountingPanel } from './AccountingPanel';
@@ -53,16 +72,18 @@ const {
 }));
 
 vi.mock('../../../../entities/finance', async (importOriginal) => {
-  const actual = await importOriginal<
-    typeof import('../../../../entities/finance')
-  >();
+  const actual =
+    await importOriginal<
+      typeof import('../../../../entities/finance')
+    >();
   return {
     ...actual,
     cancelFinanceTransaction: cancelFinanceTransactionMock,
     createCashbox: createCashboxMock,
     createFinanceCurrency: createFinanceCurrencyMock,
     createFinanceTransaction: createFinanceTransactionMock,
-    issueSupplierOrderWithoutPayment: issueSupplierOrderWithoutPaymentMock,
+    issueSupplierOrderWithoutPayment:
+      issueSupplierOrderWithoutPaymentMock,
     paySupplierOrder: paySupplierOrderMock,
     updateCashbox: updateCashboxMock,
     updateFinanceCurrency: updateFinanceCurrencyMock,
@@ -70,7 +91,9 @@ vi.mock('../../../../entities/finance', async (importOriginal) => {
     useCancelFinanceTransactionMutation: () => ({
       mutateAsync: cancelFinanceTransactionMock,
     }),
-    useCreateCashboxMutation: () => ({ mutateAsync: createCashboxMock }),
+    useCreateCashboxMutation: () => ({
+      mutateAsync: createCashboxMock,
+    }),
     useCreateFinanceCurrencyMutation: () => ({
       mutateAsync: createFinanceCurrencyMock,
     }),
@@ -117,16 +140,22 @@ vi.mock('../../../../entities/finance', async (importOriginal) => {
       }) => updateFinanceCurrencyMock(currencyCode, payload),
     }),
     useUpdateFinanceTransactionMutation: () => ({
-      mutateAsync: ({ transactionId, payload }: { transactionId: string; payload: any }) =>
-        updateFinanceTransactionMock(transactionId, payload),
+      mutateAsync: ({
+        transactionId,
+        payload,
+      }: {
+        transactionId: string;
+        payload: any;
+      }) => updateFinanceTransactionMock(transactionId, payload),
     }),
   };
 });
 
 vi.mock('./useAccountingFinanceData', async (importOriginal) => {
-  const actual = await importOriginal<
-    typeof import('./useAccountingFinanceData')
-  >();
+  const actual =
+    await importOriginal<
+      typeof import('./useAccountingFinanceData')
+    >();
   return {
     ...actual,
     useAccountingFinanceData: useAccountingFinanceDataMock,
@@ -138,9 +167,10 @@ vi.mock('./useTransactionFilters', () => ({
 }));
 
 vi.mock('./useAccountingPreferences', async (importOriginal) => {
-  const actual = await importOriginal<
-    typeof import('./useAccountingPreferences')
-  >();
+  const actual =
+    await importOriginal<
+      typeof import('./useAccountingPreferences')
+    >();
   return {
     ...actual,
     useAccountingPreferences: useAccountingPreferencesMock,
@@ -149,7 +179,10 @@ vi.mock('./useAccountingPreferences', async (importOriginal) => {
 
 const now = '2026-06-16T10:00:00.000Z';
 
-const employee = (role: Employee['role'] = 'owner', permissions: Employee['permissions'] = []): Employee => ({
+const employee = (
+  role: Employee['role'] = 'owner',
+  permissions: Employee['permissions'] = [],
+): Employee => ({
   id: 'employee-1',
   name: 'Owner',
   phone: '',
@@ -170,13 +203,16 @@ const cashbox = (patch: Partial<Cashbox> = {}): Cashbox => ({
   balances: { UAH: 100, USD: 10 },
   enabledCurrencies: { UAH: true, USD: true },
   isDefault: true,
+  isNonCash: false,
   isArchived: false,
   createdAt: now,
   updatedAt: now,
   ...patch,
 });
 
-const currency = (patch: Partial<FinanceCurrencyConfig> = {}): FinanceCurrencyConfig => ({
+const currency = (
+  patch: Partial<FinanceCurrencyConfig> = {},
+): FinanceCurrencyConfig => ({
   id: 'currency-usd',
   code: 'USD',
   isSystem: false,
@@ -186,7 +222,9 @@ const currency = (patch: Partial<FinanceCurrencyConfig> = {}): FinanceCurrencyCo
   ...patch,
 });
 
-const transfer = (patch: Partial<FinanceTransaction> = {}): FinanceTransaction => ({
+const transfer = (
+  patch: Partial<FinanceTransaction> = {},
+): FinanceTransaction => ({
   id: 'tx-1',
   type: 'transfer',
   amount: 10,
@@ -220,27 +258,26 @@ const queueItem = (): SupplierOrderPaymentQueueItem => ({
   createdAt: now,
 });
 
-const supplierOrder = (): SupplierOrder =>
-  ({
-    id: 'supplier-order-1',
-    orderBaseId: 'base-1',
-    supplierId: 'supplier-1',
-    number: 'SO-1',
-    supplierName: 'Supplier',
-    supplyType: 'stock',
-    note: '',
-    createdBy: 'employee-1',
-    items: [],
-    status: 'ordered',
-    paymentStatus: 'pending',
-    receiptStatus: 'new',
-    total: 50,
-    paid: 0,
-    isFavorite: false,
-    deliveryDate: '2026-06-16',
-    createdAt: now,
-    updatedAt: now,
-  });
+const supplierOrder = (): SupplierOrder => ({
+  id: 'supplier-order-1',
+  orderBaseId: 'base-1',
+  supplierId: 'supplier-1',
+  number: 'SO-1',
+  supplierName: 'Supplier',
+  supplyType: 'stock',
+  note: '',
+  createdBy: 'employee-1',
+  items: [],
+  status: 'ordered',
+  paymentStatus: 'pending',
+  receiptStatus: 'new',
+  total: 50,
+  paid: 0,
+  isFavorite: false,
+  deliveryDate: '2026-06-16',
+  createdAt: now,
+  updatedAt: now,
+});
 
 const mutableState = {
   activeTab: 'cashboxes' as
@@ -251,25 +288,37 @@ const mutableState = {
     | 'reports',
   isFinanceSettingsOpen: false,
   expandedFinanceSettingsCard: null as string | null,
-  financeSettingsTab: 'cashboxes' as 'cashboxes' | 'currencies' | 'categories',
+  financeSettingsTab: 'cashboxes' as
+    | 'cashboxes'
+    | 'currencies'
+    | 'categories',
 };
 
 let panelRerender: (() => void) | null = null;
 let cryptoUuidCounter = 0;
 
 const buildFinanceDataState = (
-  patch: Partial<ReturnType<typeof useAccountingFinanceDataMock>> = {},
+  patch: Partial<
+    ReturnType<typeof useAccountingFinanceDataMock>
+  > = {},
 ) => {
   const cashboxes = [
     cashbox(),
-    cashbox({ id: 'cashbox-2', name: 'Reserve', balances: { UAH: 0, USD: 0 } }),
+    cashbox({
+      id: 'cashbox-2',
+      name: 'Reserve',
+      balances: { UAH: 0, USD: 0 },
+    }),
   ];
 
   return {
     allCashboxes: cashboxes,
     cashboxes,
     categories: [],
-    currencies: [{ ...currency(), code: 'UAH', isSystem: true }, currency()],
+    currencies: [
+      { ...currency(), code: 'UAH', isSystem: true },
+      currency(),
+    ],
     isCashboxesOrderHydrated: true,
     isLoading: false,
     refreshFinance: vi.fn(async () => undefined),
@@ -342,17 +391,22 @@ const setupHooks = (
   useTransactionFiltersMock.mockReturnValue(
     buildTransactionFiltersState(
       transactions ?? state.recentTransactions,
-      transactionsTotal ?? transactions?.length ?? state.recentTransactions.length,
+      transactionsTotal ??
+        transactions?.length ??
+        state.recentTransactions.length,
     ),
   );
 };
 
 const setupPreferences = (
-  patch: Partial<ReturnType<typeof useAccountingPreferencesMock>> = {},
+  patch: Partial<
+    ReturnType<typeof useAccountingPreferencesMock>
+  > = {},
 ) => {
   const implementation = () => ({
     activeTab: mutableState.activeTab,
-    expandedFinanceSettingsCard: mutableState.expandedFinanceSettingsCard,
+    expandedFinanceSettingsCard:
+      mutableState.expandedFinanceSettingsCard,
     financeSettingsTab: mutableState.financeSettingsTab,
     isFinanceSettingsOpen: mutableState.isFinanceSettingsOpen,
     lastOperationByCashbox: {},
@@ -376,7 +430,9 @@ const setupPreferences = (
     }),
     setIsFinanceSettingsOpen: vi.fn((updater) => {
       if (typeof updater === 'function') {
-        mutableState.isFinanceSettingsOpen = updater(mutableState.isFinanceSettingsOpen);
+        mutableState.isFinanceSettingsOpen = updater(
+          mutableState.isFinanceSettingsOpen,
+        );
       } else {
         mutableState.isFinanceSettingsOpen = updater;
       }
@@ -393,44 +449,67 @@ const setupPreferences = (
 };
 
 const restoreApiMocks = () => {
-  vi.spyOn(financeApi, 'cancelFinanceTransaction').mockImplementation((transactionId) =>
-    cancelFinanceTransactionMock(transactionId),
+  vi.spyOn(financeApi, 'cancelFinanceTransaction').mockImplementation(
+    (transactionId) => cancelFinanceTransactionMock(transactionId),
   );
-  vi.spyOn(financeApi, 'createCashbox').mockImplementation((payload) =>
-    createCashboxMock(payload),
+  vi.spyOn(financeApi, 'createCashbox').mockImplementation(
+    (payload) => createCashboxMock(payload),
   );
-  vi.spyOn(financeApi, 'createFinanceCurrency').mockImplementation((payload) =>
-    createFinanceCurrencyMock(payload),
+  vi.spyOn(financeApi, 'createFinanceCurrency').mockImplementation(
+    (payload) => createFinanceCurrencyMock(payload),
   );
-  vi.spyOn(financeApi, 'createFinanceTransaction').mockImplementation((payload) =>
-    createFinanceTransactionMock(payload),
+  vi.spyOn(financeApi, 'createFinanceTransaction').mockImplementation(
+    (payload) => createFinanceTransactionMock(payload),
   );
-  vi.spyOn(financeApi, 'issueSupplierOrderWithoutPayment').mockImplementation((supplierOrderId) =>
+  vi.spyOn(
+    financeApi,
+    'issueSupplierOrderWithoutPayment',
+  ).mockImplementation((supplierOrderId) =>
     issueSupplierOrderWithoutPaymentMock(supplierOrderId),
   );
-  vi.spyOn(financeApi, 'paySupplierOrder').mockImplementation((supplierOrderId, payload) =>
-    paySupplierOrderMock(supplierOrderId, payload),
+  vi.spyOn(financeApi, 'paySupplierOrder').mockImplementation(
+    (supplierOrderId, payload) =>
+      paySupplierOrderMock(supplierOrderId, payload),
   );
-  vi.spyOn(financeApi, 'updateCashbox').mockImplementation((cashboxId, payload) =>
-    updateCashboxMock(cashboxId, payload),
+  vi.spyOn(financeApi, 'updateCashbox').mockImplementation(
+    (cashboxId, payload) => updateCashboxMock(cashboxId, payload),
   );
-  vi.spyOn(financeApi, 'updateFinanceCurrency').mockImplementation((currencyCode, payload) =>
-    updateFinanceCurrencyMock(currencyCode, payload),
+  vi.spyOn(financeApi, 'updateFinanceCurrency').mockImplementation(
+    (currencyCode, payload) =>
+      updateFinanceCurrencyMock(currencyCode, payload),
   );
-  vi.spyOn(financeApi, 'updateFinanceTransaction').mockImplementation((transactionId, payload) =>
-    updateFinanceTransactionMock(transactionId, payload),
+  vi.spyOn(financeApi, 'updateFinanceTransaction').mockImplementation(
+    (transactionId, payload) =>
+      updateFinanceTransactionMock(transactionId, payload),
   );
   vi.spyOn(financeApi, 'useCreateCashboxMutation').mockReturnValue({
     mutateAsync: createCashboxMock,
-  } as unknown as ReturnType<typeof financeApi.useCreateCashboxMutation>);
+  } as unknown as ReturnType<
+    typeof financeApi.useCreateCashboxMutation
+  >);
   vi.spyOn(financeApi, 'useUpdateCashboxMutation').mockReturnValue({
-    mutateAsync: ({ cashboxId, payload }: { cashboxId: string; payload: Partial<Cashbox> }) =>
-      updateCashboxMock(cashboxId, payload),
-  } as unknown as ReturnType<typeof financeApi.useUpdateCashboxMutation>);
-  vi.spyOn(financeApi, 'useCreateFinanceCurrencyMutation').mockReturnValue({
+    mutateAsync: ({
+      cashboxId,
+      payload,
+    }: {
+      cashboxId: string;
+      payload: Partial<Cashbox>;
+    }) => updateCashboxMock(cashboxId, payload),
+  } as unknown as ReturnType<
+    typeof financeApi.useUpdateCashboxMutation
+  >);
+  vi.spyOn(
+    financeApi,
+    'useCreateFinanceCurrencyMutation',
+  ).mockReturnValue({
     mutateAsync: createFinanceCurrencyMock,
-  } as unknown as ReturnType<typeof financeApi.useCreateFinanceCurrencyMutation>);
-  vi.spyOn(financeApi, 'useUpdateFinanceCurrencyMutation').mockReturnValue({
+  } as unknown as ReturnType<
+    typeof financeApi.useCreateFinanceCurrencyMutation
+  >);
+  vi.spyOn(
+    financeApi,
+    'useUpdateFinanceCurrencyMutation',
+  ).mockReturnValue({
     mutateAsync: ({
       currencyCode,
       payload,
@@ -438,34 +517,68 @@ const restoreApiMocks = () => {
       currencyCode: string;
       payload: { isArchived?: boolean };
     }) => updateFinanceCurrencyMock(currencyCode, payload),
-  } as unknown as ReturnType<typeof financeApi.useUpdateFinanceCurrencyMutation>);
-  vi.spyOn(financeApi, 'useCreateFinanceTransactionMutation').mockReturnValue({
+  } as unknown as ReturnType<
+    typeof financeApi.useUpdateFinanceCurrencyMutation
+  >);
+  vi.spyOn(
+    financeApi,
+    'useCreateFinanceTransactionMutation',
+  ).mockReturnValue({
     mutateAsync: createFinanceTransactionMock,
-  } as unknown as ReturnType<typeof financeApi.useCreateFinanceTransactionMutation>);
-  vi.spyOn(financeApi, 'useCancelFinanceTransactionMutation').mockReturnValue({
+  } as unknown as ReturnType<
+    typeof financeApi.useCreateFinanceTransactionMutation
+  >);
+  vi.spyOn(
+    financeApi,
+    'useCancelFinanceTransactionMutation',
+  ).mockReturnValue({
     mutateAsync: cancelFinanceTransactionMock,
-  } as unknown as ReturnType<typeof financeApi.useCancelFinanceTransactionMutation>);
-  vi.spyOn(financeApi, 'usePaySupplierOrderMutation').mockReturnValue({
-    mutateAsync: ({
-      payload,
-      supplierOrderId,
-    }: {
-      payload: { cashboxId: string; note?: string };
-      supplierOrderId: string;
-    }) => paySupplierOrderMock(supplierOrderId, payload),
-  } as unknown as ReturnType<typeof financeApi.usePaySupplierOrderMutation>);
-  vi.spyOn(financeApi, 'useIssueSupplierOrderWithoutPaymentMutation').mockReturnValue({
+  } as unknown as ReturnType<
+    typeof financeApi.useCancelFinanceTransactionMutation
+  >);
+  vi.spyOn(financeApi, 'usePaySupplierOrderMutation').mockReturnValue(
+    {
+      mutateAsync: ({
+        payload,
+        supplierOrderId,
+      }: {
+        payload: { cashboxId: string; note?: string };
+        supplierOrderId: string;
+      }) => paySupplierOrderMock(supplierOrderId, payload),
+    } as unknown as ReturnType<
+      typeof financeApi.usePaySupplierOrderMutation
+    >,
+  );
+  vi.spyOn(
+    financeApi,
+    'useIssueSupplierOrderWithoutPaymentMutation',
+  ).mockReturnValue({
     mutateAsync: issueSupplierOrderWithoutPaymentMock,
-  } as unknown as ReturnType<typeof financeApi.useIssueSupplierOrderWithoutPaymentMutation>);
-  vi.spyOn(financeApi, 'useUpdateFinanceTransactionMutation').mockReturnValue({
-    mutateAsync: ({ transactionId, payload }: { transactionId: string; payload: unknown }) =>
-      updateFinanceTransactionMock(transactionId, payload),
-  } as unknown as ReturnType<typeof financeApi.useUpdateFinanceTransactionMutation>);
+  } as unknown as ReturnType<
+    typeof financeApi.useIssueSupplierOrderWithoutPaymentMutation
+  >);
+  vi.spyOn(
+    financeApi,
+    'useUpdateFinanceTransactionMutation',
+  ).mockReturnValue({
+    mutateAsync: ({
+      transactionId,
+      payload,
+    }: {
+      transactionId: string;
+      payload: unknown;
+    }) => updateFinanceTransactionMock(transactionId, payload),
+  } as unknown as ReturnType<
+    typeof financeApi.useUpdateFinanceTransactionMutation
+  >);
 };
 
 const renderWithProviders = (ui: ReactElement) => {
   const queryClient = new QueryClient({
-    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    defaultOptions: {
+      queries: { retry: false },
+      mutations: { retry: false },
+    },
   });
 
   return render(
@@ -475,9 +588,14 @@ const renderWithProviders = (ui: ReactElement) => {
   );
 };
 
-const renderPanel = (props: Partial<ComponentProps<typeof AccountingPanel>> = {}) => {
+const renderPanel = (
+  props: Partial<ComponentProps<typeof AccountingPanel>> = {},
+) => {
   const queryClient = new QueryClient({
-    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    defaultOptions: {
+      queries: { retry: false },
+      mutations: { retry: false },
+    },
   });
   const panelProps: ComponentProps<typeof AccountingPanel> = {
     currentEmployee: employee(),
@@ -506,20 +624,32 @@ const renderPanel = (props: Partial<ComponentProps<typeof AccountingPanel>> = {}
   return result;
 };
 
-const accountingTablist = () => screen.getByRole('tablist', { name: 'Accounting sections' });
+const accountingTablist = () =>
+  screen.getByRole('tablist', { name: 'Accounting sections' });
 
-const clickTab = (tab: 'Cashboxes' | 'Transactions' | 'Orders' | 'Information') => {
-  fireEvent.click(within(accountingTablist()).getByRole('tab', { name: tab }));
+const clickTab = (
+  tab: 'Cashboxes' | 'Transactions' | 'Orders' | 'Information',
+) => {
+  fireEvent.click(
+    within(accountingTablist()).getByRole('tab', { name: tab }),
+  );
 };
 
 const clickFirstCashboxAction = async (
   action: 'Withdraw' | 'Deposit' | 'Transfer',
 ) => {
-  const operationButtons = screen.queryAllByRole('button', { name: 'Operation' });
-  if (operationButtons.length > 0 && !screen.queryByLabelText('Type', { selector: 'select' })) {
+  const operationButtons = screen.queryAllByRole('button', {
+    name: 'Operation',
+  });
+  if (
+    operationButtons.length > 0 &&
+    !screen.queryByLabelText('Type', { selector: 'select' })
+  ) {
     fireEvent.click(operationButtons[0]);
   }
-  const typeSelect = screen.queryByLabelText('Type', { selector: 'select' });
+  const typeSelect = screen.queryByLabelText('Type', {
+    selector: 'select',
+  });
   if (typeSelect) {
     await act(async () => {
       fireEvent.change(typeSelect, {
@@ -531,17 +661,23 @@ const clickFirstCashboxAction = async (
 
 const setTransactionAmount = async (amount: string) => {
   await act(async () => {
-    fireEvent.change(screen.getByLabelText('Amount', { selector: 'input' }), {
-      target: { value: amount },
-    });
+    fireEvent.change(
+      screen.getByLabelText('Amount', { selector: 'input' }),
+      {
+        target: { value: amount },
+      },
+    );
   });
 };
 
 const setTransactionType = async (type: FinanceTransactionType) => {
   await act(async () => {
-    fireEvent.change(screen.getByLabelText('Type', { selector: 'select' }), {
-      target: { value: type },
-    });
+    fireEvent.change(
+      screen.getByLabelText('Type', { selector: 'select' }),
+      {
+        target: { value: type },
+      },
+    );
   });
 };
 
@@ -553,12 +689,15 @@ const saveTransaction = async () => {
 
 const waitForCashboxesView = async () => {
   await waitFor(() => {
-    expect(screen.getByPlaceholderText('Search cashboxes')).toBeInTheDocument();
+    expect(
+      screen.getByPlaceholderText('Search cashboxes'),
+    ).toBeInTheDocument();
   });
 };
 
 const expandSettingsCard = async (title: string | RegExp) => {
-  const pattern = typeof title === 'string' ? new RegExp(title, 'i') : title;
+  const pattern =
+    typeof title === 'string' ? new RegExp(title, 'i') : title;
   const toggle = screen.getByRole('button', { name: pattern });
   if (toggle.getAttribute('aria-expanded') !== 'true') {
     await act(async () => {
@@ -569,23 +708,28 @@ const expandSettingsCard = async (title: string | RegExp) => {
 
 const setSettingsCashboxName = async (name: string) => {
   await act(async () => {
-    fireEvent.change(screen.getByPlaceholderText('Enter cashbox name'), {
-      target: { value: name },
-    });
+    fireEvent.change(
+      screen.getByPlaceholderText('Enter cashbox name'),
+      {
+        target: { value: name },
+      },
+    );
   });
 };
 
 const createCashboxInSettings = async () => {
   await act(async () => {
-    const createButtons = screen.getAllByRole('button', { name: 'Create' });
+    const createButtons = screen.getAllByRole('button', {
+      name: 'Create',
+    });
     fireEvent.click(createButtons[createButtons.length - 1]!);
   });
 };
 
 const clickSettingsTab = (tab: 'Cashboxes' | 'Currencies') => {
-  const target = Array.from(document.querySelectorAll('.warehouse-settings-tab')).find(
-    (element) => element.textContent === tab,
-  );
+  const target = Array.from(
+    document.querySelectorAll('.warehouse-settings-tab'),
+  ).find((element) => element.textContent === tab);
   if (target) {
     fireEvent.click(target);
   }
@@ -654,7 +798,9 @@ describe('AccountingPanel', () => {
 
     renderPanel();
 
-    expect(screen.getByText(i18n.t('accounting.transactions.loading'))).toBeInTheDocument();
+    expect(
+      screen.getByText(i18n.t('accounting.transactions.loading')),
+    ).toBeInTheDocument();
   });
 
   it('drives cashbox operations from the cashboxes view', async () => {
@@ -667,7 +813,9 @@ describe('AccountingPanel', () => {
     clickTab('Information');
     clickTab('Cashboxes');
 
-    fireEvent.click(screen.getByRole('button', { name: 'Add cashbox' }));
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Add cashbox' }),
+    );
     fireEvent.change(screen.getByPlaceholderText('New cashbox'), {
       target: { value: 'Desk' },
     });
@@ -692,13 +840,21 @@ describe('AccountingPanel', () => {
     await setTransactionAmount('25');
     await saveTransaction();
 
-    await waitFor(() => expect(createFinanceTransactionMock).toHaveBeenCalled());
-    expect(onSuccess).toHaveBeenCalledWith('Finance transaction saved.');
+    await waitFor(() =>
+      expect(createFinanceTransactionMock).toHaveBeenCalled(),
+    );
+    expect(onSuccess).toHaveBeenCalledWith(
+      'Finance transaction saved.',
+    );
 
     await setTransactionType('transfer');
-    fireEvent.click(screen.getAllByRole('button', { name: 'Transactions' })[0]);
+    fireEvent.click(
+      screen.getAllByRole('button', { name: 'Transactions' })[0],
+    );
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: 'Filter' })).toBeInTheDocument();
+      expect(
+        screen.getByRole('button', { name: 'Filter' }),
+      ).toBeInTheDocument();
     });
   });
 
@@ -763,14 +919,18 @@ describe('AccountingPanel', () => {
     setupPreferences();
     renderPanel();
 
-    expect(screen.queryByRole('button', { name: 'Deposit' })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Deposit' }),
+    ).not.toBeInTheDocument();
   });
 
   it('reports cashbox and transaction validation failures', async () => {
     const onError = vi.fn();
     renderPanel({ currentEmployee: employee('support'), onError });
 
-    expect(screen.queryByRole('button', { name: 'Deposit' })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Deposit' }),
+    ).not.toBeInTheDocument();
 
     cleanup();
     await preparePanelTest();
@@ -797,24 +957,34 @@ describe('AccountingPanel', () => {
       'Transaction amount must be greater than 0.',
     );
 
-    createFinanceTransactionMock.mockRejectedValueOnce(new Error('transaction failed'));
+    createFinanceTransactionMock.mockRejectedValueOnce(
+      new Error('transaction failed'),
+    );
     await setTransactionAmount('25');
     await saveTransaction();
-    await waitFor(() => expect(onError).toHaveBeenCalledWith('transaction failed'));
+    await waitFor(() =>
+      expect(onError).toHaveBeenCalledWith('transaction failed'),
+    );
 
     createFinanceTransactionMock.mockRejectedValueOnce('nope');
     await clickFirstCashboxAction('Withdraw');
     await setTransactionAmount('25');
     await saveTransaction();
     await waitFor(() =>
-      expect(onError).toHaveBeenCalledWith('Failed to save transaction.'),
+      expect(onError).toHaveBeenCalledWith(
+        'Failed to save transaction.',
+      ),
     );
 
-    createFinanceTransactionMock.mockResolvedValueOnce(transfer({ type: 'withdraw' }));
+    createFinanceTransactionMock.mockResolvedValueOnce(
+      transfer({ type: 'withdraw' }),
+    );
     await clickFirstCashboxAction('Withdraw');
     await setTransactionAmount('25');
     await saveTransaction();
-    await waitFor(() => expect(createFinanceTransactionMock).toHaveBeenCalled());
+    await waitFor(() =>
+      expect(createFinanceTransactionMock).toHaveBeenCalled(),
+    );
   });
 
   it('creates transfer without crashing even if crypto.randomUUID is unavailable', async () => {
@@ -829,12 +999,16 @@ describe('AccountingPanel', () => {
     await setTransactionAmount('25');
     await saveTransaction();
 
-    await waitFor(() => expect(createFinanceTransactionMock).toHaveBeenCalled());
-    const lastCall = createFinanceTransactionMock.mock.calls.at(-1)?.[0] as
-      | CreateFinanceTransactionPayload
-      | undefined;
+    await waitFor(() =>
+      expect(createFinanceTransactionMock).toHaveBeenCalled(),
+    );
+    const lastCall = createFinanceTransactionMock.mock.calls.at(
+      -1,
+    )?.[0] as CreateFinanceTransactionPayload | undefined;
     expect(lastCall?.idempotencyKey).toBeTruthy();
-    expect(onSuccess).toHaveBeenCalledWith('Finance transaction saved.');
+    expect(onSuccess).toHaveBeenCalledWith(
+      'Finance transaction saved.',
+    );
   });
 
   it('handles settings actions and validation failures', async () => {
@@ -855,55 +1029,87 @@ describe('AccountingPanel', () => {
 
     await expandSettingsCard(/Edit cashbox Main/i);
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: 'Edit cashbox' }));
+      fireEvent.click(
+        screen.getByRole('button', { name: 'Edit cashbox' }),
+      );
     });
     await act(async () => {
-      fireEvent.change(screen.getByDisplayValue('Main'), { target: { value: 'Renamed' } });
+      fireEvent.change(screen.getByDisplayValue('Main'), {
+        target: { value: 'Renamed' },
+      });
     });
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: 'Save' }));
     });
     await waitFor(() =>
-      expect(updateCashboxMock).toHaveBeenCalledWith('cashbox-1', { name: 'Renamed' }),
+      expect(updateCashboxMock).toHaveBeenCalledWith('cashbox-1', {
+        name: 'Renamed',
+      }),
     );
 
     clickSettingsTab('Currencies');
     await expandSettingsCard('Create currency');
     await act(async () => {
-      fireEvent.change(screen.getByPlaceholderText('EUR'), { target: { value: 'eur' } });
+      fireEvent.change(screen.getByPlaceholderText('EUR'), {
+        target: { value: 'eur' },
+      });
     });
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: 'Add currency' }));
-    });
-    await waitFor(() => expect(createFinanceCurrencyMock).toHaveBeenCalledWith({ code: 'EUR' }));
-
-    await act(async () => {
-      fireEvent.change(screen.getByPlaceholderText('EUR'), { target: { value: '12X' } });
-    });
-    await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: 'Add currency' }));
+      fireEvent.click(
+        screen.getByRole('button', { name: 'Add currency' }),
+      );
     });
     await waitFor(() =>
-      expect(onError).toHaveBeenCalledWith('Currency code must be 3-6 latin letters.'),
+      expect(createFinanceCurrencyMock).toHaveBeenCalledWith({
+        code: 'EUR',
+      }),
     );
 
     await act(async () => {
-      fireEvent.change(screen.getByPlaceholderText('EUR'), { target: { value: 'usd' } });
+      fireEvent.change(screen.getByPlaceholderText('EUR'), {
+        target: { value: '12X' },
+      });
     });
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: 'Add currency' }));
+      fireEvent.click(
+        screen.getByRole('button', { name: 'Add currency' }),
+      );
     });
     await waitFor(() =>
-      expect(onError).toHaveBeenCalledWith('Currency already exists.'),
+      expect(onError).toHaveBeenCalledWith(
+        'Currency code must be 3-6 latin letters.',
+      ),
+    );
+
+    await act(async () => {
+      fireEvent.change(screen.getByPlaceholderText('EUR'), {
+        target: { value: 'usd' },
+      });
+    });
+    await act(async () => {
+      fireEvent.click(
+        screen.getByRole('button', { name: 'Add currency' }),
+      );
+    });
+    await waitFor(() =>
+      expect(onError).toHaveBeenCalledWith(
+        'Currency already exists.',
+      ),
     );
 
     await expandSettingsCard('Currency activity');
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: 'Archive' }));
+      fireEvent.click(
+        screen.getByRole('button', { name: 'Archive' }),
+      );
     });
     const usdToggle = screen
       .getAllByRole('checkbox')
-      .find((input) => input.closest('.finance-currency-activity-item')?.textContent?.includes('USD'));
+      .find((input) =>
+        input
+          .closest('.finance-currency-activity-item')
+          ?.textContent?.includes('USD'),
+      );
     if (usdToggle) {
       await act(async () => {
         fireEvent.click(usdToggle);
@@ -915,13 +1121,17 @@ describe('AccountingPanel', () => {
     const mainActiveToggle = screen
       .getAllByRole('checkbox')
       .find((input) =>
-        input.closest('.catalog-edit-body')?.textContent?.includes('Active (default)'),
+        input
+          .closest('.catalog-edit-body')
+          ?.textContent?.includes('Active (default)'),
       );
     if (mainActiveToggle) {
       fireEvent.click(mainActiveToggle);
     }
 
-    await waitFor(() => expect(updateFinanceCurrencyMock).toHaveBeenCalled());
+    await waitFor(() =>
+      expect(updateFinanceCurrencyMock).toHaveBeenCalled(),
+    );
     await waitFor(() => expect(updateCashboxMock).toHaveBeenCalled());
     expect(onSuccess).toHaveBeenCalled();
   });
@@ -947,7 +1157,9 @@ describe('AccountingPanel', () => {
       .getAllByRole('checkbox')
       .find(
         (input) =>
-          input.closest('.finance-currency-activity-item')?.textContent?.includes('USD') &&
+          input
+            .closest('.finance-currency-activity-item')
+            ?.textContent?.includes('USD') &&
           input.closest('.finance-settings-cashbox'),
       );
 
@@ -970,7 +1182,9 @@ describe('AccountingPanel', () => {
     renderPanel({ currentEmployee: employee('support'), onError });
     await expandSettingsCard(/Edit cashbox Main/i);
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: 'Edit cashbox' }));
+      fireEvent.click(
+        screen.getByRole('button', { name: 'Edit cashbox' }),
+      );
     });
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: 'Save' }));
@@ -978,7 +1192,9 @@ describe('AccountingPanel', () => {
     const mainActiveToggle = screen
       .getAllByRole('checkbox')
       .find((input) =>
-        input.closest('.catalog-edit-body')?.textContent?.includes('Active (default)'),
+        input
+          .closest('.catalog-edit-body')
+          ?.textContent?.includes('Active (default)'),
       );
     if (mainActiveToggle) {
       fireEvent.click(mainActiveToggle);
@@ -1000,15 +1216,37 @@ describe('AccountingPanel', () => {
     await expandSettingsCard(/Edit cashbox Main/i);
     const archivedActiveToggle = screen
       .getAllByRole('checkbox')
-      .find((input) => input.closest('.catalog-edit-body')?.textContent?.includes('Active'));
+      .find((input) =>
+        input
+          .closest('.catalog-edit-body')
+          ?.textContent?.includes('Active'),
+      );
     if (archivedActiveToggle) {
       fireEvent.click(archivedActiveToggle);
     }
-    await waitFor(() => expect(onSuccess).toHaveBeenCalledWith('Cashbox reactivated.'));
+    await waitFor(() =>
+      expect(onSuccess).toHaveBeenCalledWith('Cashbox reactivated.'),
+    );
+
+    const nonCashToggle = screen
+      .getAllByRole('checkbox')
+      .find((input) =>
+        input.closest('label')?.textContent?.includes('Non-cash'),
+      );
+    if (nonCashToggle) {
+      fireEvent.click(nonCashToggle);
+    }
+    await waitFor(() =>
+      expect(updateCashboxMock).toHaveBeenCalledWith('cashbox-1', {
+        isNonCash: true,
+      }),
+    );
 
     updateCashboxMock.mockRejectedValueOnce(new Error('save failed'));
     await expandSettingsCard(/Edit cashbox Main/i);
-    const editCashboxButton = screen.queryByRole('button', { name: 'Edit cashbox' });
+    const editCashboxButton = screen.queryByRole('button', {
+      name: 'Edit cashbox',
+    });
     if (editCashboxButton) {
       await act(async () => {
         fireEvent.click(editCashboxButton);
@@ -1017,65 +1255,101 @@ describe('AccountingPanel', () => {
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: 'Save' }));
     });
-    await waitFor(() => expect(onError).toHaveBeenCalledWith('save failed'));
+    await waitFor(() =>
+      expect(onError).toHaveBeenCalledWith('save failed'),
+    );
 
     updateCashboxMock.mockRejectedValueOnce('save failed generic');
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: 'Save' }));
     });
     await waitFor(() =>
-      expect(onError).toHaveBeenCalledWith('Failed to update cashbox.'),
+      expect(onError).toHaveBeenCalledWith(
+        'Failed to update cashbox.',
+      ),
     );
 
-    updateCashboxMock.mockRejectedValueOnce(new Error('status failed'));
+    updateCashboxMock.mockRejectedValueOnce(
+      new Error('status failed'),
+    );
     if (archivedActiveToggle) {
       fireEvent.click(archivedActiveToggle);
     }
-    await waitFor(() => expect(onError).toHaveBeenCalledWith('status failed'));
+    await waitFor(() =>
+      expect(onError).toHaveBeenCalledWith('status failed'),
+    );
 
     updateCashboxMock.mockRejectedValueOnce('bad status');
     if (archivedActiveToggle) {
       fireEvent.click(archivedActiveToggle);
     }
     await waitFor(() =>
-      expect(onError).toHaveBeenCalledWith('Failed to update cashbox status.'),
+      expect(onError).toHaveBeenCalledWith(
+        'Failed to update cashbox status.',
+      ),
     );
 
     clickSettingsTab('Currencies');
     await expandSettingsCard('Create currency');
-    createFinanceCurrencyMock.mockRejectedValueOnce(new Error('currency failed'));
+    createFinanceCurrencyMock.mockRejectedValueOnce(
+      new Error('currency failed'),
+    );
     await act(async () => {
-      fireEvent.change(screen.getByPlaceholderText('EUR'), { target: { value: 'eur' } });
+      fireEvent.change(screen.getByPlaceholderText('EUR'), {
+        target: { value: 'eur' },
+      });
     });
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: 'Add currency' }));
-    });
-    await waitFor(() => expect(onError).toHaveBeenCalledWith('currency failed'));
-
-    createFinanceCurrencyMock.mockRejectedValueOnce('currency failed generic');
-    await act(async () => {
-      fireEvent.change(screen.getByPlaceholderText('EUR'), { target: { value: 'eur' } });
-    });
-    await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: 'Add currency' }));
+      fireEvent.click(
+        screen.getByRole('button', { name: 'Add currency' }),
+      );
     });
     await waitFor(() =>
-      expect(onError).toHaveBeenCalledWith('Failed to create currency.'),
+      expect(onError).toHaveBeenCalledWith('currency failed'),
+    );
+
+    createFinanceCurrencyMock.mockRejectedValueOnce(
+      'currency failed generic',
+    );
+    await act(async () => {
+      fireEvent.change(screen.getByPlaceholderText('EUR'), {
+        target: { value: 'eur' },
+      });
+    });
+    await act(async () => {
+      fireEvent.click(
+        screen.getByRole('button', { name: 'Add currency' }),
+      );
+    });
+    await waitFor(() =>
+      expect(onError).toHaveBeenCalledWith(
+        'Failed to create currency.',
+      ),
     );
 
     await expandSettingsCard('Currency activity');
-    updateFinanceCurrencyMock.mockRejectedValueOnce(new Error('archive failed'));
+    updateFinanceCurrencyMock.mockRejectedValueOnce(
+      new Error('archive failed'),
+    );
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: 'Archive' }));
+      fireEvent.click(
+        screen.getByRole('button', { name: 'Archive' }),
+      );
     });
-    await waitFor(() => expect(onError).toHaveBeenCalledWith('archive failed'));
+    await waitFor(() =>
+      expect(onError).toHaveBeenCalledWith('archive failed'),
+    );
 
     updateFinanceCurrencyMock.mockRejectedValueOnce('archive failed');
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: 'Archive' }));
+      fireEvent.click(
+        screen.getByRole('button', { name: 'Archive' }),
+      );
     });
     await waitFor(() =>
-      expect(onError).toHaveBeenCalledWith('Failed to archive currency.'),
+      expect(onError).toHaveBeenCalledWith(
+        'Failed to archive currency.',
+      ),
     );
 
     cleanup();
@@ -1107,30 +1381,44 @@ describe('AccountingPanel', () => {
     await expandSettingsCard('Currency activity');
     const usdToggle = screen
       .getAllByRole('checkbox')
-      .find((input) => input.closest('.finance-currency-activity-item')?.textContent?.includes('USD'));
-    if (usdToggle) {
-      await act(async () => {
-        fireEvent.click(usdToggle);
-      });
-    }
-    await waitFor(() => expect(onSuccess).toHaveBeenCalledWith('Currency restored.'));
-
-    updateFinanceCurrencyMock.mockRejectedValueOnce(new Error('toggle failed'));
-    if (usdToggle) {
-      await act(async () => {
-        fireEvent.click(usdToggle);
-      });
-    }
-    await waitFor(() => expect(onError).toHaveBeenCalledWith('toggle failed'));
-
-    updateFinanceCurrencyMock.mockRejectedValueOnce('toggle failed generic');
+      .find((input) =>
+        input
+          .closest('.finance-currency-activity-item')
+          ?.textContent?.includes('USD'),
+      );
     if (usdToggle) {
       await act(async () => {
         fireEvent.click(usdToggle);
       });
     }
     await waitFor(() =>
-      expect(onError).toHaveBeenCalledWith('Failed to update currency.'),
+      expect(onSuccess).toHaveBeenCalledWith('Currency restored.'),
+    );
+
+    updateFinanceCurrencyMock.mockRejectedValueOnce(
+      new Error('toggle failed'),
+    );
+    if (usdToggle) {
+      await act(async () => {
+        fireEvent.click(usdToggle);
+      });
+    }
+    await waitFor(() =>
+      expect(onError).toHaveBeenCalledWith('toggle failed'),
+    );
+
+    updateFinanceCurrencyMock.mockRejectedValueOnce(
+      'toggle failed generic',
+    );
+    if (usdToggle) {
+      await act(async () => {
+        fireEvent.click(usdToggle);
+      });
+    }
+    await waitFor(() =>
+      expect(onError).toHaveBeenCalledWith(
+        'Failed to update currency.',
+      ),
     );
 
     clickSettingsTab('Cashboxes');
@@ -1139,14 +1427,20 @@ describe('AccountingPanel', () => {
       .getAllByRole('checkbox')
       .find(
         (input) =>
-          input.closest('.finance-currency-activity-item')?.textContent?.includes('USD') &&
+          input
+            .closest('.finance-currency-activity-item')
+            ?.textContent?.includes('USD') &&
           input.closest('.finance-settings-cashbox'),
       );
-    updateCashboxMock.mockRejectedValueOnce(new Error('box currency failed'));
+    updateCashboxMock.mockRejectedValueOnce(
+      new Error('box currency failed'),
+    );
     if (boxUsdToggle) {
       fireEvent.click(boxUsdToggle);
     }
-    await waitFor(() => expect(onError).toHaveBeenCalledWith('box currency failed'));
+    await waitFor(() =>
+      expect(onError).toHaveBeenCalledWith('box currency failed'),
+    );
 
     updateCashboxMock.mockRejectedValueOnce('box currency failed');
     if (boxUsdToggle) {
@@ -1163,13 +1457,19 @@ describe('AccountingPanel', () => {
     await setSettingsCashboxName('Desk');
     await createCashboxInSettings();
     await waitFor(() =>
-      expect(onError).toHaveBeenCalledWith('Failed to create cashbox.'),
+      expect(onError).toHaveBeenCalledWith(
+        'Failed to create cashbox.',
+      ),
     );
 
-    createCashboxMock.mockRejectedValueOnce(new Error('create failed'));
+    createCashboxMock.mockRejectedValueOnce(
+      new Error('create failed'),
+    );
     await setSettingsCashboxName('Desk');
     await createCashboxInSettings();
-    await waitFor(() => expect(onError).toHaveBeenCalledWith('create failed'));
+    await waitFor(() =>
+      expect(onError).toHaveBeenCalledWith('create failed'),
+    );
   });
 
   it('handles transactions tab modals and cancellation', async () => {
@@ -1190,7 +1490,12 @@ describe('AccountingPanel', () => {
       deviceModel: '',
       serialNumber: '',
       note: '',
-      client: { id: 'c1', name: 'Client', phone: '', status: 'active' },
+      client: {
+        id: 'c1',
+        name: 'Client',
+        phone: '',
+        status: 'active',
+      },
       discount: { mode: 'amount', value: 0 },
       paidAmount: 0,
       lineItems: [],
@@ -1227,51 +1532,95 @@ describe('AccountingPanel', () => {
     renderPanel({
       onError,
       sales: [sampleSale],
-      currentEmployee: employee('owner', ['finance.transactions.transfer']),
+      currentEmployee: employee('owner', [
+        'finance.transactions.transfer',
+      ]),
     });
 
     fireEvent.click(screen.getByRole('button', { name: 'Filter' }));
     fireEvent.click(screen.getByRole('button', { name: 'Date' }));
-    fireEvent.click(screen.getByLabelText('Filter transactions by cashbox'));
-    fireEvent.change(screen.getByLabelText('Rows per page'), { target: { value: '10' } });
+    fireEvent.click(
+      screen.getByLabelText('Filter transactions by cashbox'),
+    );
+    fireEvent.change(screen.getByLabelText('Rows per page'), {
+      target: { value: '10' },
+    });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Payment for order s001' }));
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Payment for order s001' }),
+    );
     expect(openSpy).toHaveBeenCalled();
 
     expect(screen.queryByText('01.01.2020')).not.toBeNull();
-    expect(screen.getAllByRole('button', { name: 'Cancel transfer' })).toHaveLength(1);
+    expect(
+      screen.getAllByRole('button', { name: 'Cancel transfer' }),
+    ).toHaveLength(1);
 
-    cancelFinanceTransactionMock.mockRejectedValueOnce(new Error('cancel failed'));
-    fireEvent.click(screen.getAllByRole('button', { name: 'Cancel transfer' })[0]);
-    fireEvent.click(screen.getByRole('button', { name: 'Confirm cancellation' }));
-    await waitFor(() => expect(onError).toHaveBeenCalledWith('cancel failed'));
-
-    cancelFinanceTransactionMock.mockRejectedValueOnce('cancel failed');
-    fireEvent.click(screen.getAllByRole('button', { name: 'Cancel transfer' })[0]);
-    fireEvent.click(screen.getByRole('button', { name: 'Confirm cancellation' }));
+    cancelFinanceTransactionMock.mockRejectedValueOnce(
+      new Error('cancel failed'),
+    );
+    fireEvent.click(
+      screen.getAllByRole('button', { name: 'Cancel transfer' })[0],
+    );
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Confirm cancellation' }),
+    );
     await waitFor(() =>
-      expect(onError).toHaveBeenCalledWith('Failed to cancel transaction.'),
+      expect(onError).toHaveBeenCalledWith('cancel failed'),
     );
 
-    fireEvent.click(screen.getAllByRole('button', { name: 'Cancel transfer' })[0]);
+    cancelFinanceTransactionMock.mockRejectedValueOnce(
+      'cancel failed',
+    );
+    fireEvent.click(
+      screen.getAllByRole('button', { name: 'Cancel transfer' })[0],
+    );
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Confirm cancellation' }),
+    );
+    await waitFor(() =>
+      expect(onError).toHaveBeenCalledWith(
+        'Failed to cancel transaction.',
+      ),
+    );
+
+    fireEvent.click(
+      screen.getAllByRole('button', { name: 'Cancel transfer' })[0],
+    );
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
-    expect(screen.queryByRole('heading', { name: 'Cancel transfer' })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('heading', { name: 'Cancel transfer' }),
+    ).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getAllByRole('button', { name: 'Cancel transfer' })[0]);
-    fireEvent.click(screen.getByRole('button', { name: 'Confirm cancellation' }));
-    await waitFor(() => expect(cancelFinanceTransactionMock).toHaveBeenCalledWith('tx-1'));
+    fireEvent.click(
+      screen.getAllByRole('button', { name: 'Cancel transfer' })[0],
+    );
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Confirm cancellation' }),
+    );
+    await waitFor(() =>
+      expect(cancelFinanceTransactionMock).toHaveBeenCalledWith(
+        'tx-1',
+      ),
+    );
 
-    fireEvent.click(screen.getByRole('button', { name: 'Payment for order SO-1' }));
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Payment for order SO-1' }),
+    );
     const supplierDialog = screen.getByRole('dialog');
     expect(supplierDialog).toBeInTheDocument();
     await act(async () => {
       fireEvent.click(
-        within(within(supplierDialog).getByRole('contentinfo')).getByRole('button', {
+        within(
+          within(supplierDialog).getByRole('contentinfo'),
+        ).getByRole('button', {
           name: 'Close',
         }),
       );
     });
-    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument(),
+    );
 
     window.open = origOpen;
   });
@@ -1282,19 +1631,28 @@ describe('AccountingPanel', () => {
     renderPanel({ onError });
 
     await act(async () => {
-      fireEvent.change(screen.getByLabelText('Cashbox', { selector: 'select' }), {
-        target: { value: 'cashbox-2' },
-      });
+      fireEvent.change(
+        screen.getByLabelText('Cashbox', { selector: 'select' }),
+        {
+          target: { value: 'cashbox-2' },
+        },
+      );
     });
 
     cleanup();
     await preparePanelTest();
     mutableState.activeTab = 'orders';
-    setupHooks({ allCashboxes: [], cashboxes: [], supplierOrdersQueue: [queueItem()] });
+    setupHooks({
+      allCashboxes: [],
+      cashboxes: [],
+      supplierOrdersQueue: [queueItem()],
+    });
     setupPreferences();
     renderPanel({ onError });
 
-    expect(screen.getByRole('button', { name: 'Pay' })).toBeDisabled();
+    expect(
+      screen.getByRole('button', { name: 'Pay' }),
+    ).toBeDisabled();
     expect(paySupplierOrderMock).not.toHaveBeenCalled();
 
     cleanup();
@@ -1304,10 +1662,14 @@ describe('AccountingPanel', () => {
     setupPreferences();
     renderPanel({ onError });
 
-    paySupplierOrderMock.mockRejectedValueOnce(new Error('pay failed'));
+    paySupplierOrderMock.mockRejectedValueOnce(
+      new Error('pay failed'),
+    );
     fireEvent.click(screen.getByRole('button', { name: 'Pay' }));
     fireEvent.click(screen.getByRole('button', { name: 'Confirm' }));
-    await waitFor(() => expect(onError).toHaveBeenCalledWith('pay failed'));
+    await waitFor(() =>
+      expect(onError).toHaveBeenCalledWith('pay failed'),
+    );
 
     paySupplierOrderMock.mockRejectedValueOnce('pay failed generic');
     fireEvent.click(screen.getByRole('button', { name: 'Pay' }));
@@ -1326,31 +1688,55 @@ describe('AccountingPanel', () => {
       }),
     );
 
-    issueSupplierOrderWithoutPaymentMock.mockRejectedValueOnce(new Error('issue failed'));
-    fireEvent.click(screen.getByRole('button', { name: 'Issue without payment' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Confirm' }));
-    await waitFor(() => expect(onError).toHaveBeenCalledWith('issue failed'));
-
-    issueSupplierOrderWithoutPaymentMock.mockRejectedValueOnce('issue failed');
-    fireEvent.click(screen.getByRole('button', { name: 'Issue without payment' }));
+    issueSupplierOrderWithoutPaymentMock.mockRejectedValueOnce(
+      new Error('issue failed'),
+    );
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Issue without payment' }),
+    );
     fireEvent.click(screen.getByRole('button', { name: 'Confirm' }));
     await waitFor(() =>
-      expect(onError).toHaveBeenCalledWith('Failed to issue order without payment.'),
+      expect(onError).toHaveBeenCalledWith('issue failed'),
     );
 
-    fireEvent.click(screen.getByRole('button', { name: 'Issue without payment' }));
+    issueSupplierOrderWithoutPaymentMock.mockRejectedValueOnce(
+      'issue failed',
+    );
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Issue without payment' }),
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm' }));
+    await waitFor(() =>
+      expect(onError).toHaveBeenCalledWith(
+        'Failed to issue order without payment.',
+      ),
+    );
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Issue without payment' }),
+    );
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
     expect(
-      screen.queryByRole('heading', { name: 'Confirm issue without payment' }),
+      screen.queryByRole('heading', {
+        name: 'Confirm issue without payment',
+      }),
     ).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Issue without payment' }));
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Issue without payment' }),
+    );
     fireEvent.click(screen.getByRole('button', { name: 'Confirm' }));
     await waitFor(() =>
-      expect(issueSupplierOrderWithoutPaymentMock).toHaveBeenCalledWith('queue-1'),
+      expect(
+        issueSupplierOrderWithoutPaymentMock,
+      ).toHaveBeenCalledWith('queue-1'),
     );
 
-    fireEvent.click(screen.getByRole('button', { name: 'Open supplier order SO-1' }));
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: 'Open supplier order SO-1',
+      }),
+    );
     expect(screen.getByRole('dialog')).toBeInTheDocument();
   });
 
@@ -1358,8 +1744,12 @@ describe('AccountingPanel', () => {
     mutableState.activeTab = 'information';
     renderPanel();
 
-    expect(screen.getByText('Accounting information')).toBeInTheDocument();
-    const summaryCards = document.querySelectorAll('.finance-report-grid .analytics-summary-card');
+    expect(
+      screen.getByText('Accounting information'),
+    ).toBeInTheDocument();
+    const summaryCards = document.querySelectorAll(
+      '.finance-report-grid .analytics-summary-card',
+    );
     expect(summaryCards[0]?.textContent).toContain('1');
   });
 });
@@ -1367,9 +1757,9 @@ describe('AccountingPanel', () => {
 describe('AccountingTransactionsView note navigation (real component)', () => {
   beforeAll(async () => {
     ({ AccountingTransactionsView: RealAccountingTransactionsView } =
-      await vi.importActual<typeof import('./AccountingTransactionsView')>(
-        './AccountingTransactionsView',
-      ));
+      await vi.importActual<
+        typeof import('./AccountingTransactionsView')
+      >('./AccountingTransactionsView'));
   });
 
   afterEach(() => {
@@ -1409,7 +1799,12 @@ describe('AccountingTransactionsView note navigation (real component)', () => {
     createdAt: '2026',
     updatedAt: '2026',
   } as any as Sale;
-  const sampleSaleSaleKind: Sale = { ...sampleSale, id: 'sale-sale', kind: 'sale', recordNumber: 's999' };
+  const sampleSaleSaleKind: Sale = {
+    ...sampleSale,
+    id: 'sale-sale',
+    kind: 'sale',
+    recordNumber: 's999',
+  };
 
   const sampleSupplier = {
     id: 'sup-1',
@@ -1427,14 +1822,28 @@ describe('AccountingTransactionsView note navigation (real component)', () => {
     updatedAt: '2026',
   } as any as import('../../../../entities/supplier-order').SupplierOrder;
 
-  const minimalProps = (txNote: string, salesList: Sale[] = [], suppliersList: any[] = []) => ({
+  const minimalProps = (
+    txNote: string,
+    salesList: Sale[] = [],
+    suppliersList: any[] = [],
+  ) => ({
     activeFiltersCount: 0,
     allCurrencyCodes: ['UAH'],
     categories: [],
-    appliedFilters: { note: '', type: null, sortBy: 'date', sortDirection: 'desc' } as any,
+    appliedFilters: {
+      note: '',
+      type: null,
+      sortBy: 'date',
+      sortDirection: 'desc',
+    } as any,
     balanceAfterByTransactionId: {},
     cashboxes: [],
-    draftFilters: { note: '', type: null, sortBy: 'date', sortDirection: 'desc' } as any,
+    draftFilters: {
+      note: '',
+      type: null,
+      sortBy: 'date',
+      sortDirection: 'desc',
+    } as any,
     isDateFilterOpen: false,
     isFilterOpen: false,
     page: 1,
@@ -1462,10 +1871,18 @@ describe('AccountingTransactionsView note navigation (real component)', () => {
     const origOpen = window.open;
     window.open = openSpy;
 
-    const props = minimalProps('Payment for order r000066', [sampleSale], []);
-    renderWithProviders(<RealAccountingTransactionsView {...props} />);
+    const props = minimalProps(
+      'Payment for order r000066',
+      [sampleSale],
+      [],
+    );
+    renderWithProviders(
+      <RealAccountingTransactionsView {...props} />,
+    );
 
-    const noteBtn = screen.getByRole('button', { name: 'Payment for order r000066' });
+    const noteBtn = screen.getByRole('button', {
+      name: 'Payment for order r000066',
+    });
     fireEvent.click(noteBtn);
 
     expect(openSpy).toHaveBeenCalledTimes(1);
@@ -1482,11 +1899,22 @@ describe('AccountingTransactionsView note navigation (real component)', () => {
     const origOpen = window.open;
     window.open = openSpy;
 
-    const saleForRefund = { ...sampleSaleSaleKind, recordNumber: 's999' };
-    const props = minimalProps('Refund for order s999', [saleForRefund], []);
-    renderWithProviders(<RealAccountingTransactionsView {...props} />);
+    const saleForRefund = {
+      ...sampleSaleSaleKind,
+      recordNumber: 's999',
+    };
+    const props = minimalProps(
+      'Refund for order s999',
+      [saleForRefund],
+      [],
+    );
+    renderWithProviders(
+      <RealAccountingTransactionsView {...props} />,
+    );
 
-    const noteBtn = screen.getByRole('button', { name: 'Refund for order s999' });
+    const noteBtn = screen.getByRole('button', {
+      name: 'Refund for order s999',
+    });
     fireEvent.click(noteBtn);
 
     expect(openSpy).toHaveBeenCalled();
@@ -1499,12 +1927,20 @@ describe('AccountingTransactionsView note navigation (real component)', () => {
   it('Supplier-order note still opens read-only supplier modal via onSelectedSupplierOrderChange', async () => {
     const onSelect = vi.fn();
     const props = {
-      ...minimalProps('Payment for order SUP-77', [], [sampleSupplier]),
+      ...minimalProps(
+        'Payment for order SUP-77',
+        [],
+        [sampleSupplier],
+      ),
       onSelectedSupplierOrderChange: onSelect,
     };
-    renderWithProviders(<RealAccountingTransactionsView {...props} />);
+    renderWithProviders(
+      <RealAccountingTransactionsView {...props} />,
+    );
 
-    const noteBtn = screen.getByRole('button', { name: /Payment for order SUP-77/i });
+    const noteBtn = screen.getByRole('button', {
+      name: /Payment for order SUP-77/i,
+    });
     fireEvent.click(noteBtn);
 
     expect(onSelect).toHaveBeenCalledWith(sampleSupplier);
@@ -1518,7 +1954,15 @@ describe('AccountingTransactionsView note navigation (real component)', () => {
       number: 'SO-1',
       orderBaseId: 'SO-1',
       supplierName: 'Supplier One',
-      items: [{ lineId: 'l1', itemIndex: 0, productName: 'Widget A', quantity: 1, price: 10 }],
+      items: [
+        {
+          lineId: 'l1',
+          itemIndex: 0,
+          productName: 'Widget A',
+          quantity: 1,
+          price: 10,
+        },
+      ],
     };
     const supplierFive = {
       ...sampleSupplier,
@@ -1526,7 +1970,15 @@ describe('AccountingTransactionsView note navigation (real component)', () => {
       number: 'SO-5',
       orderBaseId: 'SO-5',
       supplierName: 'Supplier Five',
-      items: [{ lineId: 'l2', itemIndex: 0, productName: 'Widget B', quantity: 2, price: 20 }],
+      items: [
+        {
+          lineId: 'l2',
+          itemIndex: 0,
+          productName: 'Widget B',
+          quantity: 2,
+          price: 20,
+        },
+      ],
     };
     const onSelect = vi.fn();
     const txOne = {
@@ -1538,17 +1990,27 @@ describe('AccountingTransactionsView note navigation (real component)', () => {
       id: 'tx-so-5',
     };
     const props = {
-      ...minimalProps('Payment for order SO-1', [], [supplierOne, supplierFive]),
+      ...minimalProps(
+        'Payment for order SO-1',
+        [],
+        [supplierOne, supplierFive],
+      ),
       totalItems: 2,
       transactions: [txOne, txFive] as any[],
       onSelectedSupplierOrderChange: onSelect,
     };
-    renderWithProviders(<RealAccountingTransactionsView {...props} />);
+    renderWithProviders(
+      <RealAccountingTransactionsView {...props} />,
+    );
 
-    fireEvent.click(screen.getByRole('button', { name: 'Payment for order SO-5' }));
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Payment for order SO-5' }),
+    );
     expect(onSelect).toHaveBeenLastCalledWith(supplierFive);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Payment for order SO-1' }));
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Payment for order SO-1' }),
+    );
     expect(onSelect).toHaveBeenLastCalledWith(supplierOne);
     expect(onSelect).toHaveBeenCalledTimes(2);
   });
@@ -1557,13 +2019,21 @@ describe('AccountingTransactionsView note navigation (real component)', () => {
     const onSelect = vi.fn();
     const onEdit = vi.fn();
     const props = {
-      ...minimalProps('Supplier order payment: base-77', [], [sampleSupplier]),
+      ...minimalProps(
+        'Supplier order payment: base-77',
+        [],
+        [sampleSupplier],
+      ),
       onSelectedSupplierOrderChange: onSelect,
       onEditTransactionNote: onEdit,
     };
-    renderWithProviders(<RealAccountingTransactionsView {...props} />);
+    renderWithProviders(
+      <RealAccountingTransactionsView {...props} />,
+    );
 
-    const noteBtn = screen.getByRole('button', { name: 'Supplier order payment: base-77' });
+    const noteBtn = screen.getByRole('button', {
+      name: 'Supplier order payment: base-77',
+    });
     fireEvent.click(noteBtn);
 
     expect(onSelect).toHaveBeenCalledWith(sampleSupplier);
@@ -1581,9 +2051,13 @@ describe('AccountingTransactionsView note navigation (real component)', () => {
       <RealAccountingTransactionsView {...props} />,
     );
 
-    expect(container.textContent).toContain('Payment for order MISSING-1');
+    expect(container.textContent).toContain(
+      'Payment for order MISSING-1',
+    );
     expect(
-      screen.queryByRole('button', { name: 'Payment for order MISSING-1' }),
+      screen.queryByRole('button', {
+        name: 'Payment for order MISSING-1',
+      }),
     ).not.toBeInTheDocument();
     expect(onEdit).not.toHaveBeenCalled();
   });
@@ -1592,13 +2066,21 @@ describe('AccountingTransactionsView note navigation (real component)', () => {
     const onSelect = vi.fn();
     const onEdit = vi.fn();
     const props = {
-      ...minimalProps('Оплата за замовлення SUP-77', [], [sampleSupplier]),
+      ...minimalProps(
+        'Оплата за замовлення SUP-77',
+        [],
+        [sampleSupplier],
+      ),
       onSelectedSupplierOrderChange: onSelect,
       onEditTransactionNote: onEdit,
     };
-    renderWithProviders(<RealAccountingTransactionsView {...props} />);
+    renderWithProviders(
+      <RealAccountingTransactionsView {...props} />,
+    );
 
-    const noteBtn = screen.getByRole('button', { name: 'Оплата за замовлення SUP-77' });
+    const noteBtn = screen.getByRole('button', {
+      name: 'Оплата за замовлення SUP-77',
+    });
     fireEvent.click(noteBtn);
 
     expect(onSelect).toHaveBeenCalledWith(sampleSupplier);
@@ -1614,11 +2096,17 @@ describe('AccountingTransactionsView note navigation (real component)', () => {
       onSelectedSupplierOrderChange: onSelect,
       onEditTransactionNote: onEdit,
     };
-    const { container } = renderWithProviders(<RealAccountingTransactionsView {...props} />);
+    const { container } = renderWithProviders(
+      <RealAccountingTransactionsView {...props} />,
+    );
 
-    const noteBtn = screen.getByRole('button', { name: 'Manual cash deposit from client' });
+    const noteBtn = screen.getByRole('button', {
+      name: 'Manual cash deposit from client',
+    });
     expect(noteBtn).toBeInTheDocument();
-    expect(container.textContent).toContain('Manual cash deposit from client');
+    expect(container.textContent).toContain(
+      'Manual cash deposit from client',
+    );
     expect(onSelect).not.toHaveBeenCalled();
 
     fireEvent.click(noteBtn);
@@ -1633,7 +2121,11 @@ describe('AccountingTransactionsView note navigation (real component)', () => {
     txToday.toCashbox = { id: 'c2', name: 'B' };
     txToday.transactionDate = '2026-06-18T10:00:00.000Z';
 
-    const txOld = { ...txToday, id: 'tx-old', transactionDate: '2026-06-01T10:00:00.000Z' };
+    const txOld = {
+      ...txToday,
+      id: 'tx-old',
+      transactionDate: '2026-06-01T10:00:00.000Z',
+    };
 
     const propsToday = {
       ...minimalProps('', [], []),
@@ -1688,9 +2180,15 @@ describe('AccountingPanel transaction note editing', () => {
     setupPreferences();
     renderPanel();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Manual deposit note text' }));
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: 'Manual deposit note text',
+      }),
+    );
     expect(screen.getByText('Transaction note')).toBeInTheDocument();
-    expect(screen.getByPlaceholderText('Enter note...')).toHaveValue('Manual deposit note text');
+    expect(screen.getByPlaceholderText('Enter note...')).toHaveValue(
+      'Manual deposit note text',
+    );
   });
 
   it('editing and saving calls PATCH API via updateFinanceTransaction and closes modal', async () => {
@@ -1711,23 +2209,35 @@ describe('AccountingPanel transaction note editing', () => {
     renderPanel({ onSuccess });
 
     fireEvent.click(screen.getByRole('button', { name: 'Old note' }));
-    const dialog = screen.getByRole('dialog', { name: 'Transaction note' });
-    const textarea = within(dialog).getByPlaceholderText('Enter note...');
+    const dialog = screen.getByRole('dialog', {
+      name: 'Transaction note',
+    });
+    const textarea =
+      within(dialog).getByPlaceholderText('Enter note...');
 
     await act(async () => {
-      fireEvent.change(textarea, { target: { value: 'Updated manual note' } });
-    });
-    await act(async () => {
-      fireEvent.click(within(dialog).getByRole('button', { name: 'Save' }));
-    });
-
-    await waitFor(() => {
-      expect(updateFinanceTransactionMock).toHaveBeenCalledWith('tx2', {
-        note: 'Updated manual note',
+      fireEvent.change(textarea, {
+        target: { value: 'Updated manual note' },
       });
     });
+    await act(async () => {
+      fireEvent.click(
+        within(dialog).getByRole('button', { name: 'Save' }),
+      );
+    });
+
     await waitFor(() => {
-      expect(screen.queryByText('Transaction note')).not.toBeInTheDocument();
+      expect(updateFinanceTransactionMock).toHaveBeenCalledWith(
+        'tx2',
+        {
+          note: 'Updated manual note',
+        },
+      );
+    });
+    await waitFor(() => {
+      expect(
+        screen.queryByText('Transaction note'),
+      ).not.toBeInTheDocument();
     });
     expect(onSuccess).toHaveBeenCalledWith('Note updated.');
   });
@@ -1748,9 +2258,13 @@ describe('AccountingPanel transaction note editing', () => {
     setupPreferences();
     renderPanel();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Something' }));
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Something' }),
+    );
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
     expect(updateFinanceTransactionMock).not.toHaveBeenCalled();
-    expect(screen.queryByText('Transaction note')).not.toBeInTheDocument();
+    expect(
+      screen.queryByText('Transaction note'),
+    ).not.toBeInTheDocument();
   });
 });
