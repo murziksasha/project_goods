@@ -72,6 +72,7 @@ export const formatCashbox = (
     {},
   ),
   isDefault: cashbox.isDefault,
+  isNonCash: cashbox.isNonCash ?? false,
   isArchived: cashbox.isArchived,
   createdAt: cashbox.createdAt.toISOString(),
   updatedAt: cashbox.updatedAt.toISOString(),

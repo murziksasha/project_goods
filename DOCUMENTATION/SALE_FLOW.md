@@ -530,3 +530,24 @@ Shown only on **Orders → Sales** (not the repair Orders tab) when `lineItems.l
   - client paid amount is fully refunded (`paidAmount = 0`).
 - Backend workspace update mirrors this guard and rejects direct `returned` saves that bypass the UI.
 
+## Return Sale Modal Layout and Adaptive Behavior
+
+- When returning a sale via `Return sale` modal (`ReturnSaleModal`):
+  - Form layout uses a 2-row adaptive grid (`.return-sale-form`):
+    - Row 1: `Receive to warehouse` dropdown menu spans full width (`.return-sale-warehouse-field`), presenting actual active warehouses in the app.
+    - Row 2: `Refund from cashbox` select and `Refund amount` read-only field display side-by-side (`minmax(0, 1fr)` each) on desktop/tablet.
+  - Cashbox field uses a stacked label-above-select pattern, eliminating horizontal squeezing so the selected cashbox name remains clearly visible.
+  - The `Refund amount` field is read-only (`readOnly`, `aria-readonly="true"`).
+  - **Goods-Only Default & Amount Toggle:**
+    - Opening the modal pre-fills `Refund amount` with `goodsOnlyAmount = Math.max(0, Math.min(productTotal, paidAmount))`.
+    - When `paidAmount !== goodsOnlyAmount`:
+      - If current refund amount equals `goodsOnlyAmount`: button displays **`Full amount`** (`orders.payment.fullAmount`); clicking it switches refund amount to `paidAmount`.
+      - If current refund amount equals `paidAmount`: button displays **`Goods only`** (`orders.payment.goodsOnly`); clicking it toggles refund amount back to `goodsOnlyAmount`.
+    - When `paidAmount === goodsOnlyAmount`: button remains **`Full amount`** and reapplies `paidAmount`.
+  - **Validation & Return Handling:**
+    - Submit is enabled when refund amount matches either `goodsOnlyAmount` or `paidAmount` (and `> 0`, `<= paidAmount`). Arbitrary partial amounts are rejected client-side and server-side.
+    - Full-sale return with goods-only refund returns product lines to stock, refunds the product total, and leaves any non-product services with remaining paid amount on the returned order.
+    - Full-sale return with full refund returns product lines to stock and closes client payment (`paidAmount = 0`).
+  - On mobile/small screens (<= 720px), all fields collapse into a single vertical column (`grid-template-columns: 1fr`); `.payment-cash-button` maintains a touch-friendly min-height of 38px.
+
+

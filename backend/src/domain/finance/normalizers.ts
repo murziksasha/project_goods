@@ -15,6 +15,7 @@ export type CashboxPayload = {
 export type UpdateCashboxPayload = {
   name?: unknown;
   isArchived?: unknown;
+  isNonCash?: unknown;
   enabledCurrencies?: unknown;
 };
 

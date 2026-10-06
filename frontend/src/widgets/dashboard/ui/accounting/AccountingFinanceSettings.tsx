@@ -38,6 +38,7 @@ export interface AccountingFinanceSettingsProps {
   onToggleCard: (cardId: string) => void;
   onToggleCashboxArchived: (cashbox: Cashbox) => void;
   onToggleCashboxCurrencyActivity: (cashboxId: string, currencyCode: string) => void;
+  onToggleCashboxNonCash: (cashbox: Cashbox) => void;
   onToggleCurrencyActivity: (currencyCode: string) => void;
   categories: FinanceCategory[];
   onCreateCategory: (name: string) => Promise<unknown>;
@@ -72,6 +73,7 @@ export const AccountingFinanceSettings: React.FC<AccountingFinanceSettingsProps>
   onToggleCard,
   onToggleCashboxArchived,
   onToggleCashboxCurrencyActivity,
+  onToggleCashboxNonCash,
   onToggleCurrencyActivity,
   categories,
   onCreateCategory,
@@ -140,6 +142,7 @@ export const AccountingFinanceSettings: React.FC<AccountingFinanceSettingsProps>
           onToggleCard={onToggleCard}
           onToggleCashboxArchived={onToggleCashboxArchived}
           onToggleCashboxCurrencyActivity={onToggleCashboxCurrencyActivity}
+          onToggleCashboxNonCash={onToggleCashboxNonCash}
         />
       ) : activeTab === 'currencies' ? (
         <CurrencySettings
@@ -188,6 +191,7 @@ type CashboxSettingsProps = Pick<
   | 'onToggleCard'
   | 'onToggleCashboxArchived'
   | 'onToggleCashboxCurrencyActivity'
+  | 'onToggleCashboxNonCash'
 >;
 
 const CashboxSettings = ({
@@ -210,6 +214,7 @@ const CashboxSettings = ({
   onToggleCard,
   onToggleCashboxArchived,
   onToggleCashboxCurrencyActivity,
+  onToggleCashboxNonCash,
 }: CashboxSettingsProps) => {
   const { t } = useTranslation();
   const [createEnabledCurrencies, setCreateEnabledCurrencies] = useState<
@@ -301,6 +306,7 @@ const CashboxSettings = ({
           onToggleCard={onToggleCard}
           onToggleCashboxArchived={onToggleCashboxArchived}
           onToggleCashboxCurrencyActivity={onToggleCashboxCurrencyActivity}
+          onToggleCashboxNonCash={onToggleCashboxNonCash}
         />
       ))}
     </div>
@@ -331,6 +337,7 @@ const CashboxSettingsCard = ({
   onToggleCard,
   onToggleCashboxArchived,
   onToggleCashboxCurrencyActivity,
+  onToggleCashboxNonCash,
 }: CashboxSettingsCardProps) => {
   const { t } = useTranslation();
   const cardId = `cashbox-${cashbox.id}`;
@@ -368,6 +375,15 @@ const CashboxSettingsCard = ({
               ? t('accounting.financeSettings.activeDefault')
               : t('accounting.financeSettings.active')}
           </span>
+        </label>
+        <label className='field-inline'>
+          <input
+            type='checkbox'
+            checked={cashbox.isNonCash}
+            disabled={isSaving}
+            onChange={() => onToggleCashboxNonCash(cashbox)}
+          />
+          <span>{t('accounting.financeSettings.nonCash')}</span>
         </label>
         <div className='finance-currency-activity-list'>
           {allCurrencyCodes.map((currencyCode) => (

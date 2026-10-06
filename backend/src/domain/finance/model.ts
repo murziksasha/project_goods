@@ -134,6 +134,12 @@ export const cashboxSchema = new mongoose.Schema(
       default: false,
       index: true,
     },
+    isNonCash: {
+      type: Boolean,
+      required: true,
+      default: false,
+      index: true,
+    },
     isArchived: {
       type: Boolean,
       required: true,

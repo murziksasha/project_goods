@@ -70,6 +70,7 @@ export type Cashbox = {
   enabledCurrencies: Record<FinanceCurrency, boolean>;
   hasCurrencyOperations?: Record<FinanceCurrency, boolean>;
   isDefault: boolean;
+  isNonCash: boolean;
   isArchived: boolean;
   createdAt: string;
   updatedAt: string;
@@ -160,6 +161,7 @@ export type UpdateFinanceCurrencyPayload = {
 export type UpdateCashboxPayload = {
   name?: string;
   isArchived?: boolean;
+  isNonCash?: boolean;
   enabledCurrencies?: Record<FinanceCurrency, boolean>;
 };
 

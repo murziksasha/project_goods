@@ -14,6 +14,7 @@ const cashbox = (patch: Partial<Cashbox> = {}): Cashbox => ({
   balances: { UAH: 1250, USD: 40 },
   enabledCurrencies: { UAH: true, USD: true },
   isDefault: false,
+  isNonCash: false,
   isArchived: false,
   createdAt: '2026-06-01T10:00:00.000Z',
   updatedAt: '2026-06-01T10:00:00.000Z',
