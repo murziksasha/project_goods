@@ -223,7 +223,12 @@ const employee: Employee = {
   email: '',
   username: 'manager',
   role: 'manager',
-  permissions: ['orders.view', 'orders.manage'],
+  permissions: [
+    'orders.view',
+    'orders.manage',
+    'finance.orders.pay',
+    'finance.sales.pay',
+  ],
   isActive: true,
   isRegistered: true,
   note: '',
@@ -939,6 +944,7 @@ describe('OrdersWorkspace', () => {
         permissions: [
           'orders.view',
           'orders.manage',
+          'finance.sales.pay',
           'finance.transactions.deposit',
           'finance.transactions.withdraw',
         ],
@@ -1032,6 +1038,7 @@ describe('OrdersWorkspace', () => {
         permissions: [
           'orders.view',
           'orders.manage',
+          'finance.orders.pay',
           'finance.transactions.deposit',
         ],
       },
@@ -1121,6 +1128,7 @@ describe('OrdersWorkspace', () => {
         permissions: [
           'orders.view',
           'orders.manage',
+          'finance.orders.pay',
           'finance.transactions.deposit',
         ],
       },
@@ -1200,6 +1208,7 @@ describe('OrdersWorkspace', () => {
         permissions: [
           'orders.view',
           'orders.manage',
+          'finance.orders.pay',
           'finance.transactions.deposit',
         ],
       },
@@ -1266,6 +1275,7 @@ describe('OrdersWorkspace', () => {
         permissions: [
           'orders.view',
           'orders.manage',
+          'finance.orders.pay',
           'finance.transactions.deposit',
         ],
       },
@@ -1388,6 +1398,7 @@ describe('OrdersWorkspace', () => {
         permissions: [
           'orders.view',
           'orders.manage',
+          'finance.orders.pay',
           'finance.transactions.deposit',
         ],
       },
@@ -2049,6 +2060,7 @@ describe('OrdersWorkspace', () => {
         permissions: [
           'orders.view',
           'orders.manage',
+          'finance.sales.pay',
           'finance.transactions.deposit',
         ],
       },
@@ -2432,6 +2444,18 @@ describe('OrdersWorkspace', () => {
           kind: 'sale',
           status: 'reserved',
           salePrice: 200,
+          lineItems: [
+            {
+              id: 'li-1',
+              kind: 'product',
+              productId: 'product-1',
+              name: 'Item',
+              price: 200,
+              quantity: 1,
+              warrantyPeriod: 0,
+              serialNumbers: [],
+            },
+          ],
         },
       ],
       currentEmployee: {
@@ -2439,6 +2463,7 @@ describe('OrdersWorkspace', () => {
         permissions: [
           'orders.view',
           'orders.manage',
+          'finance.sales.pay',
           'finance.transactions.deposit',
         ],
       },
@@ -2519,6 +2544,18 @@ describe('OrdersWorkspace', () => {
           kind: 'sale',
           status: 'reserved',
           salePrice: 200,
+          lineItems: [
+            {
+              id: 'li-1',
+              kind: 'product',
+              productId: 'product-1',
+              name: 'Item',
+              price: 200,
+              quantity: 1,
+              warrantyPeriod: 0,
+              serialNumbers: [],
+            },
+          ],
         },
       ],
       currentEmployee: {
@@ -2526,6 +2563,7 @@ describe('OrdersWorkspace', () => {
         permissions: [
           'orders.view',
           'orders.manage',
+          'finance.sales.pay',
           'finance.transactions.deposit',
         ],
       },
@@ -2551,5 +2589,95 @@ describe('OrdersWorkspace', () => {
     expect(
       screen.getByRole('button', { name: 'Cash' }),
     ).toBeInTheDocument();
+  });
+
+  it('blocks accepting payment on repair orders when employee lacks finance.orders.pay', async () => {
+    renderWorkspace({
+      activeTab: 'orders',
+      sales: [
+        {
+          ...sale,
+          kind: 'repair',
+          status: 'new',
+          salePrice: 500,
+          lineItems: [
+            {
+              id: 'service-1',
+              kind: 'service',
+              name: 'Diagnostics',
+              price: 500,
+              quantity: 1,
+              warrantyPeriod: 0,
+            },
+          ],
+        },
+      ],
+      currentEmployee: {
+        ...employee,
+        role: 'support',
+        permissions: [
+          'orders.view',
+          'orders.manage',
+          'finance.sales.pay',
+          'finance.transactions.deposit',
+        ],
+      },
+    });
+
+    fireEvent.click(screen.getByRole('link', { name: /r000001/i }));
+
+    const payButtons = await screen.findAllByRole('button', {
+      name: 'Accept payment',
+    });
+    expect(payButtons.length).toBeGreaterThan(0);
+    payButtons.forEach((btn) => {
+      expect(btn).toBeDisabled();
+    });
+  });
+
+  it('blocks accepting payment on sales when employee lacks finance.sales.pay', async () => {
+    renderWorkspace({
+      activeTab: 'sales',
+      sales: [
+        {
+          ...sale,
+          kind: 'sale',
+          status: 'reserved',
+          salePrice: 200,
+          lineItems: [
+            {
+              id: 'li-1',
+              kind: 'product',
+              productId: 'product-1',
+              name: 'Item',
+              price: 200,
+              quantity: 1,
+              warrantyPeriod: 0,
+              serialNumbers: [],
+            },
+          ],
+        },
+      ],
+      currentEmployee: {
+        ...employee,
+        role: 'support',
+        permissions: [
+          'orders.view',
+          'orders.manage',
+          'finance.orders.pay',
+          'finance.transactions.deposit',
+        ],
+      },
+    });
+
+    fireEvent.click(screen.getByRole('link', { name: /r000001/i }));
+
+    const payButtons = await screen.findAllByRole('button', {
+      name: 'Accept payment',
+    });
+    expect(payButtons.length).toBeGreaterThan(0);
+    payButtons.forEach((btn) => {
+      expect(btn).toBeDisabled();
+    });
   });
 });

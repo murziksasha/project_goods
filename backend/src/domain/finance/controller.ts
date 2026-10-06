@@ -40,7 +40,12 @@ const transactionPermissionByType: Record<TransactionType, EmployeePermission> =
 };
 
 export const listCashboxes = async (req: Request, res: Response): Promise<void> => {
-  await requireAnyPermission(req, ['finance.cashboxes.view', 'finance.view']);
+  await requireAnyPermission(req, [
+    'finance.cashboxes.view',
+    'finance.view',
+    'finance.orders.pay',
+    'finance.sales.pay',
+  ]);
   const includeArchived = String(req.query.includeArchived ?? '').toLowerCase();
   res.json(await listCashboxesService({ includeArchived: includeArchived === '1' || includeArchived === 'true' }));
 };

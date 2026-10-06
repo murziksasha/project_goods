@@ -29,6 +29,8 @@ export const employeePermissions = [
   'finance.transactions.transfer',
   'finance.supplierOrders.pay',
   'finance.supplierOrders.issueWithoutPayment',
+  'finance.orders.pay',
+  'finance.sales.pay',
   'employees.manage',
   'printForms.manage',
   'system.backups.manage',
@@ -62,6 +64,8 @@ export const defaultEmployeePermissionsByRole: Record<
     'inventory.manage',
     'finance.cashboxes.view',
     'finance.transactions.deposit',
+    'finance.orders.pay',
+    'finance.sales.pay',
   ],
   master: ['orders.view', 'orders.chat', 'repairs.execute', 'kanban.use'],
   accountant: [
@@ -77,6 +81,8 @@ export const defaultEmployeePermissionsByRole: Record<
     'finance.transactions.transfer',
     'finance.supplierOrders.pay',
     'finance.supplierOrders.issueWithoutPayment',
+    'finance.orders.pay',
+    'finance.sales.pay',
   ],
   warehouse: [
     'orders.view',
@@ -90,6 +96,7 @@ export const defaultEmployeePermissionsByRole: Record<
     'clients.manage',
     'finance.cashboxes.view',
     'finance.transactions.deposit',
+    'finance.sales.pay',
   ],
   support: ['orders.view'],
 };

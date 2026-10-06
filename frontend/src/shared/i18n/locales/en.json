@@ -3030,6 +3030,12 @@
         "supplierOrders": {
           "pay": "Pay supplier orders",
           "issueWithoutPayment": "Issue supplier orders without payment"
+        },
+        "orders": {
+          "pay": "Pay orders"
+        },
+        "sales": {
+          "pay": "Pay sales"
         }
       },
       "employees": {

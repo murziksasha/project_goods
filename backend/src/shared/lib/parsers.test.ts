@@ -88,6 +88,8 @@ describe('normalizeEmployeePayload', () => {
         'inventory.manage',
         'finance.cashboxes.view',
         'finance.transactions.deposit',
+        'finance.orders.pay',
+        'finance.sales.pay',
       ],
       isActive: true,
       note: 'hi',
