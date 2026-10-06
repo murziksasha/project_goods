@@ -68,6 +68,8 @@ export type EmployeePermission =
   | 'finance.transactions.transfer'
   | 'finance.supplierOrders.pay'
   | 'finance.supplierOrders.issueWithoutPayment'
+  | 'finance.orders.pay'
+  | 'finance.sales.pay'
   | 'employees.manage'
   | 'printForms.manage'
   | 'system.backups.manage';

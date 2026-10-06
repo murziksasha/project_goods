@@ -122,10 +122,25 @@ export const updateWorkspace = async (req: Request, res: Response): Promise<void
 };
 
 export const acceptPayment = async (req: Request, res: Response): Promise<void> => {
-  if ((req.body as { action?: unknown }).action !== 'issueWithoutPayment') {
-    await requirePermission(req, 'finance.transactions.deposit');
+  const saleId = routeParam(req, 'saleId');
+  const existingSale = await Sale.findById(saleId).lean();
+  if (!existingSale) {
+    throw new HttpError(404, 'Sale not found.');
   }
-  res.json(await acceptSalePayment(routeParam(req, 'saleId'), req.body));
+  const isRepair = existingSale.kind !== 'sale';
+
+  if ((req.body as { action?: unknown }).action !== 'issueWithoutPayment') {
+    await requirePermission(
+      req,
+      isRepair ? 'finance.orders.pay' : 'finance.sales.pay',
+    );
+  } else {
+    await requirePermission(
+      req,
+      isRepair ? 'orders.manage' : 'sales.manage',
+    );
+  }
+  res.json(await acceptSalePayment(saleId, req.body));
 };
 
 export const refundPayment = async (req: Request, res: Response): Promise<void> => {

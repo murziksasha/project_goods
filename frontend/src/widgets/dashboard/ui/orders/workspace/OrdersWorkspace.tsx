@@ -224,9 +224,17 @@ export const OrdersWorkspace: React.FC<OrdersWorkspaceProps> = ({
   const currentEmployeeName =
     currentEmployee?.name ??
     t('orders.messages.errors.unknownEmployee');
-  const canAcceptFinanceDeposit = hasEmployeePermission(
+  const canPayOrders = hasEmployeePermission(
     currentEmployee,
-    'finance.transactions.deposit',
+    'finance.orders.pay',
+  );
+  const canPaySales = hasEmployeePermission(
+    currentEmployee,
+    'finance.sales.pay',
+  );
+  const canPaySaleItem = useCallback(
+    (sale: Sale) => (isRepairOrder(sale) ? canPayOrders : canPaySales),
+    [canPayOrders, canPaySales],
   );
   const canCreateFinanceWithdraw = hasEmployeePermission(
     currentEmployee,
@@ -2211,7 +2219,7 @@ export const OrdersWorkspace: React.FC<OrdersWorkspaceProps> = ({
       sale: Sale,
       targetStatus: PaymentTargetStatus = 'issued',
     ) => {
-      if (!canAcceptFinanceDeposit) {
+      if (!canPaySaleItem(sale)) {
         onError(
           t('orders.messages.errors.noAcceptPaymentPermission'),
         );
@@ -2251,7 +2259,7 @@ export const OrdersWorkspace: React.FC<OrdersWorkspaceProps> = ({
         setIsPaymentModalLoading(false);
       }
     },
-    [canAcceptFinanceDeposit, getOrderRemainingPayment, onError, t],
+    [canPaySaleItem, getOrderRemainingPayment, onError, t],
   );
 
   const handlePaymentMethodChange = useCallback(
@@ -2713,7 +2721,7 @@ export const OrdersWorkspace: React.FC<OrdersWorkspaceProps> = ({
       return;
     if (
       action !== 'issueWithoutPayment' &&
-      !canAcceptFinanceDeposit
+      !canPaySaleItem(paymentSale)
     ) {
       onError(t('orders.messages.errors.noAcceptPaymentPermission'));
       return;
@@ -3206,7 +3214,7 @@ export const OrdersWorkspace: React.FC<OrdersWorkspaceProps> = ({
                 ))
             }
             canAddComment={canChatInOrders}
-            canAcceptPayment={canAcceptFinanceDeposit}
+            canAcceptPayment={canPaySaleItem(selectedSale)}
             canRefundPayment={canCreateFinanceWithdraw}
             canCreateOrders={canCreateOrders}
             canManageOrders={hasAnyEmployeePermission(
