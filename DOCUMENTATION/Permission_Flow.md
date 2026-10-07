@@ -147,7 +147,7 @@ All `/api/*` routes except health, login, and invitation flows require a valid B
 ### Finance
 | Endpoint | Required access |
 | --- | --- |
-| `GET /finance/cashboxes` | `finance.cashboxes.view` or `finance.view`. |
+| `GET /finance/cashboxes` | `finance.cashboxes.view`, `finance.view`, `finance.orders.pay`, `finance.sales.pay`, or `employees.manage`. |
 | `POST /finance/cashboxes` | `finance.cashboxes.manage`. |
 | `PATCH /finance/cashboxes/:cashboxId` | `finance.cashboxes.manage`. |
 | `GET /finance/currencies` | `finance.view`. |
@@ -172,10 +172,18 @@ All `/api/*` routes except health, login, and invitation flows require a valid B
 ### Cross-Module Finance Mutations
 | Flow | Required access |
 | --- | --- |
-| Orders: accept client payment to cashbox | `finance.transactions.deposit`. |
-| Orders: refund client payment | `finance.transactions.withdraw`. |
-| Sales return flows that create finance withdraw transaction | `finance.transactions.withdraw`. |
+| Orders: accept client payment to cashbox | `finance.orders.pay` (for repair orders) or `finance.sales.pay` (for sales). Authorized cashbox from `allowedCashboxIds` required for non-owners. |
+| Orders: refund client payment | `finance.transactions.withdraw`. Authorized cashbox from `allowedCashboxIds` required for non-owners. |
+| Sales return flows that create finance withdraw transaction | `finance.transactions.withdraw`. Authorized cashbox from `allowedCashboxIds` required for non-owners. |
 | Supplier-order fallback `POST /supplier-orders/:supplierOrderId/issue-without-payment` | `finance.supplierOrders.issueWithoutPayment`. |
+
+### Allowed Cashboxes Authorization
+- Non-owner employees can be configured with an explicit list of allowed cashboxes (`allowedCashboxIds`).
+- In `EmployeeFormModal`, within the **Finance** permissions block, administrators select permitted cashboxes via `EmployeeCashboxMultiselect`.
+- This control is configurable only when `finance.orders.pay` (`Pay orders`) or `finance.sales.pay` (`Pay sales`) is enabled (or if the employee role is `owner`).
+- If an employee has no allowed cashboxes assigned, payment and refund modals show "No cashboxes available" and submitting is disabled.
+- In backend authorization, `acceptPayment`, `refundPayment`, and return endpoints verify that non-owner employees only transact using cashboxes in their `allowedCashboxIds` (rejecting unauthorized cashboxes with `403`).
+- Accounts with role `owner` bypass cashbox restrictions and always access all cashboxes.
 
 ### Supplier Orders
 | Endpoint | Required access |
