@@ -24,6 +24,7 @@ export type OrderDetailCardProps = {
   sales: Sale[];
   supplierOrders: SupplierOrder[];
   employees: Employee[];
+  currentEmployee?: Employee | null;
   status: OrderStatus;
   statusOptions: Array<{ key: OrderStatus; labelKey: string }>;
   comments: TimelineEntry[];

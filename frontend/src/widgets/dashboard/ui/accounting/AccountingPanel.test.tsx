@@ -2267,4 +2267,62 @@ describe('AccountingPanel transaction note editing', () => {
       screen.queryByText('Transaction note'),
     ).not.toBeInTheDocument();
   });
+
+  describe('Employee cashbox access restrictions', () => {
+    it('restricts cashbox operations and dropdowns for non-owner employee', async () => {
+      mutableState.activeTab = 'cashboxes';
+      setupHooks();
+      setupPreferences();
+      const nonOwner = {
+        ...employee('manager', [
+          'finance.view',
+          'finance.transactions.deposit',
+          'finance.transactions.withdraw',
+        ]),
+        allowedCashboxIds: ['cashbox-1'],
+      };
+      renderPanel({ currentEmployee: nonOwner });
+
+      // cashbox-1 is allowed, so it has an Operation button
+      const mainCard = screen.getByText('Main').closest('article')!;
+      expect(
+        within(mainCard).getByRole('button', { name: 'Operation' }),
+      ).toBeInTheDocument();
+
+      // cashbox-2 (Reserve) is not allowed, so Operation button is not rendered
+      const reserveCard = screen.getByText('Reserve').closest('article')!;
+      expect(
+        within(reserveCard).queryByRole('button', { name: 'Operation' }),
+      ).not.toBeInTheDocument();
+
+      // Open operation from Main
+      fireEvent.click(
+        within(mainCard).getByRole('button', { name: 'Operation' }),
+      );
+      const fromSelect = screen.getByLabelText('From cashbox', {
+        selector: 'select',
+      });
+      const options = within(fromSelect).getAllByRole('option');
+      expect(options.map((o) => o.textContent)).toContain('Main');
+      expect(options.map((o) => o.textContent)).not.toContain('Reserve');
+    });
+
+    it('displays No cashboxes available and disables pay in supplier orders queue when allowedCashboxIds is empty', async () => {
+      mutableState.activeTab = 'orders';
+      setupHooks();
+      setupPreferences();
+      const restrictedEmployee = {
+        ...employee('manager', [
+          'finance.view',
+          'finance.supplierOrders.pay',
+        ]),
+        allowedCashboxIds: [],
+      };
+      renderPanel({ currentEmployee: restrictedEmployee });
+
+      expect(screen.getByText('No cashboxes available')).toBeInTheDocument();
+      const payButton = screen.getByRole('button', { name: 'Pay' });
+      expect(payButton).toBeDisabled();
+    });
+  });
 });

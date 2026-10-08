@@ -121,6 +121,7 @@ export type EmployeeFormValues = {
   password: string;
   role: EmployeeRole;
   permissions: EmployeePermission[];
+  allowedCashboxIds?: string[];
   isActive: boolean;
   note: string;
 };

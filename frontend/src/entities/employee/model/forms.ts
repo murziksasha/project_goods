@@ -8,6 +8,7 @@ export const initialEmployeeForm: EmployeeFormValues = {
   password: '',
   role: 'manager',
   permissions: defaultEmployeePermissionsByRole.manager,
+  allowedCashboxIds: [],
   isActive: true,
   note: '',
 };
@@ -20,6 +21,7 @@ export const toEmployeeForm = (employee: Employee): EmployeeFormValues => ({
   password: '',
   role: employee.role,
   permissions: employee.permissions,
+  allowedCashboxIds: employee.allowedCashboxIds ?? [],
   isActive: employee.isActive,
   note: employee.note,
 });

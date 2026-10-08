@@ -98,6 +98,7 @@ export type EmployeePayload = {
   password?: unknown;
   role?: unknown;
   permissions?: unknown;
+  allowedCashboxIds?: unknown;
   isActive?: unknown;
   note?: unknown;
 };

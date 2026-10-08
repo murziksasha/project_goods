@@ -2235,16 +2235,21 @@ export const OrdersWorkspace: React.FC<OrdersWorkspaceProps> = ({
 
       try {
         const cashboxData = await getCashboxes();
-        setCashboxes(cashboxData);
-        const nonCashOptions = cashboxData.filter((c) => c.isNonCash);
+        const isOwner = currentEmployee?.role === 'owner';
+        const allowedIds = currentEmployee?.allowedCashboxIds ?? [];
+        const accessibleCashboxes = isOwner
+          ? cashboxData
+          : cashboxData.filter((c) => allowedIds.includes(c.id));
+        setCashboxes(accessibleCashboxes);
+        const nonCashOptions = accessibleCashboxes.filter((c) => c.isNonCash);
         if (initialMethod === 'non-cash' && nonCashOptions.length > 0) {
           setPaymentMethod('non-cash');
           setSelectedCashboxId(nonCashOptions[0].id);
         } else {
           setPaymentMethod('cash');
           setSelectedCashboxId(
-            cashboxData.find((cashbox) => cashbox.isDefault)?.id ??
-              cashboxData[0]?.id ??
+            accessibleCashboxes.find((cashbox) => cashbox.isDefault)?.id ??
+              accessibleCashboxes[0]?.id ??
               '',
           );
         }
@@ -2259,7 +2264,14 @@ export const OrdersWorkspace: React.FC<OrdersWorkspaceProps> = ({
         setIsPaymentModalLoading(false);
       }
     },
-    [canPaySaleItem, getOrderRemainingPayment, onError, t],
+    [
+      canPaySaleItem,
+      currentEmployee?.allowedCashboxIds,
+      currentEmployee?.role,
+      getOrderRemainingPayment,
+      onError,
+      t,
+    ],
   );
 
   const handlePaymentMethodChange = useCallback(
@@ -2322,11 +2334,21 @@ export const OrdersWorkspace: React.FC<OrdersWorkspaceProps> = ({
 
     try {
       const cashboxData = await getCashboxes();
-      setCashboxes(cashboxData);
+      const isOwner = currentEmployee?.role === 'owner';
+      const allowedIds = currentEmployee?.allowedCashboxIds ?? [];
+      const accessibleCashboxes = isOwner
+        ? cashboxData
+        : cashboxData.filter((c) => allowedIds.includes(c.id));
+      setCashboxes(accessibleCashboxes);
+      const matchedLastDeposit = accessibleCashboxes.some(
+        (c) => c.id === lastDepositCashboxId,
+      )
+        ? lastDepositCashboxId
+        : '';
       setSelectedRefundCashboxId(
-        lastDepositCashboxId ||
-          cashboxData.find((cashbox) => cashbox.isDefault)?.id ||
-          cashboxData[0]?.id ||
+        matchedLastDeposit ||
+          accessibleCashboxes.find((cashbox) => cashbox.isDefault)?.id ||
+          accessibleCashboxes[0]?.id ||
           '',
       );
     } catch (error) {
@@ -3196,6 +3218,7 @@ export const OrdersWorkspace: React.FC<OrdersWorkspaceProps> = ({
             sales={sales}
             supplierOrders={supplierOrders}
             employees={employees}
+            currentEmployee={currentEmployee}
             status={selectedSaleStatus}
             statusOptions={selectedSaleStatusOptions}
             comments={selectedSale.timeline ?? []}

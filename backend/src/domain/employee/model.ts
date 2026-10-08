@@ -94,6 +94,10 @@ export const employeeSchema = new mongoose.Schema(
       enum: employeePermissions,
       default: ['orders.view'],
     },
+    allowedCashboxIds: {
+      type: [String],
+      default: [],
+    },
     isActive: {
       type: Boolean,
       default: true,

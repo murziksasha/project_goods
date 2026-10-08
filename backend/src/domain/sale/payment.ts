@@ -6,6 +6,8 @@ import { isValidObjectIdOrThrow } from '../../shared/lib/query';
 import { createFinanceTransaction } from '../finance/service';
 import { HttpError } from '../../shared/lib/errors';
 import {
+  assertEmployeeCanTransactWithCashbox,
+  type EmployeeCashboxActor,
   assertStockDeltasAvailable,
   applyStockDeltas,
   assertWorkspaceState,
@@ -109,6 +111,7 @@ export const acceptSalePayment = async (
     author?: unknown;
     issuedById?: unknown;
   },
+  actor?: EmployeeCashboxActor | null,
 ) => {
   isValidObjectIdOrThrow(saleId, 'saleId');
 
@@ -135,6 +138,8 @@ export const acceptSalePayment = async (
       : normalizeMoneyAmount(payload.amount, 'Payment amount');
 
   if (action !== 'issueWithoutPayment') {
+    const cashboxId = String(payload.cashboxId ?? '').trim();
+    assertEmployeeCanTransactWithCashbox(actor, cashboxId);
     if (amount <= 0 || amount > currentRemaining) {
       throw new HttpError(400, 'Payment amount cannot exceed the remaining balance.');
     }
@@ -287,6 +292,7 @@ export const refundSalePayment = async (
     author?: unknown;
     issuedById?: unknown;
   },
+  actor?: EmployeeCashboxActor | null,
 ) => {
   isValidObjectIdOrThrow(saleId, 'saleId');
 
@@ -303,6 +309,7 @@ export const refundSalePayment = async (
 
   const author = String(payload.author ?? '').trim() || 'System';
   const cashboxId = String(payload.cashboxId ?? '').trim();
+  assertEmployeeCanTransactWithCashbox(actor, cashboxId);
   const createdAt = new Date();
   const lineItems = getSaleWorkspaceLineItems(sale);
   const orderTotal = calculateTotalAfterDiscount(lineItems, sale.discount);
