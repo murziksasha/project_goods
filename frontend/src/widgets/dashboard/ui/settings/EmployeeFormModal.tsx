@@ -161,9 +161,9 @@ export const EmployeeFormModal: React.FC<EmployeeFormModalProps> = ({
           ? t('employees.form.editTitle')
           : t('employees.form.createTitle')
       }
-      shellClassName="employees-form-modal modal-dialog"
+      className="employees-form-modal"
       footer={
-        <div className="card-actions">
+        <footer className="catalog-edit-footer">
           <Button variant="secondary" onClick={onClose} disabled={isSaving}>
             {t('common.cancel')}
           </Button>
@@ -174,10 +174,10 @@ export const EmployeeFormModal: React.FC<EmployeeFormModalProps> = ({
           >
             {isEditing ? t('common.save') : t('common.create')}
           </Button>
-        </div>
+        </footer>
       }
     >
-      <div className="two-columns">
+      <div className="form-grid">
         <label className="field">
           <span>* {t('employees.form.name')}</span>
           <input
