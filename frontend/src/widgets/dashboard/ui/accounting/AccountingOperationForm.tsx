@@ -68,9 +68,13 @@ export const AccountingOperationForm: React.FC<AccountingOperationFormProps> = (
     Number.isFinite(availableBalance) &&
     Number.isFinite(parsedAmount) &&
     parsedAmount > availableBalance;
+  const hasNoCashboxes = cashboxes.length === 0;
   const confirmDisabled =
     saveDisabled ||
     insufficient ||
+    hasNoCashboxes ||
+    (showFrom && !transactionForm.fromCashboxId) ||
+    (showTo && !transactionForm.toCashboxId) ||
     (transactionForm.type === 'transfer' &&
       !canPerformTransferBetweenCashboxes(
         transactionForm.fromCashboxId,
@@ -169,6 +173,7 @@ export const AccountingOperationForm: React.FC<AccountingOperationFormProps> = (
             >
               <select
                 value={transactionForm.fromCashboxId}
+                disabled={isSaving || hasNoCashboxes}
                 onChange={(event) => {
                   onTransactionFormChange((current) => {
                     const newFrom = event.target.value;
@@ -187,12 +192,18 @@ export const AccountingOperationForm: React.FC<AccountingOperationFormProps> = (
                   });
                 }}
               >
-                <option value=''>{t('accounting.cashboxes.emptyOption')}</option>
-                {cashboxes.map((cashbox) => (
-                  <option key={cashbox.id} value={cashbox.id}>
-                    {cashbox.name}
-                  </option>
-                ))}
+                {hasNoCashboxes ? (
+                  <option value=''>{t('orders.modals.noCashboxesAvailable')}</option>
+                ) : (
+                  <>
+                    <option value=''>{t('accounting.cashboxes.emptyOption')}</option>
+                    {cashboxes.map((cashbox) => (
+                      <option key={cashbox.id} value={cashbox.id}>
+                        {cashbox.name}
+                      </option>
+                    ))}
+                  </>
+                )}
               </select>
             </TruncatedTextTooltip>
           </label>
@@ -225,6 +236,7 @@ export const AccountingOperationForm: React.FC<AccountingOperationFormProps> = (
             >
               <select
                 value={transactionForm.toCashboxId}
+                disabled={isSaving || hasNoCashboxes}
                 onChange={(event) => {
                   onTransactionFormChange((current) => {
                     const newTo = event.target.value;
@@ -243,20 +255,26 @@ export const AccountingOperationForm: React.FC<AccountingOperationFormProps> = (
                   });
                 }}
               >
-                <option value=''>{t('accounting.cashboxes.emptyOption')}</option>
-                {cashboxes
-                  .filter(
-                    (cashbox) =>
-                      !(
-                        transactionForm.type === 'transfer' &&
-                        cashbox.id === transactionForm.fromCashboxId
-                      ),
-                  )
-                  .map((cashbox) => (
-                    <option key={cashbox.id} value={cashbox.id}>
-                      {cashbox.name}
-                    </option>
-                  ))}
+                {hasNoCashboxes ? (
+                  <option value=''>{t('orders.modals.noCashboxesAvailable')}</option>
+                ) : (
+                  <>
+                    <option value=''>{t('accounting.cashboxes.emptyOption')}</option>
+                    {cashboxes
+                      .filter(
+                        (cashbox) =>
+                          !(
+                            transactionForm.type === 'transfer' &&
+                            cashbox.id === transactionForm.fromCashboxId
+                          ),
+                      )
+                      .map((cashbox) => (
+                        <option key={cashbox.id} value={cashbox.id}>
+                          {cashbox.name}
+                        </option>
+                      ))}
+                  </>
+                )}
               </select>
             </TruncatedTextTooltip>
           </label>

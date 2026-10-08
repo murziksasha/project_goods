@@ -242,6 +242,34 @@ describe('normalizeEmployeePayload', () => {
 
     expect(parsed.permissions).toEqual(['orders.view', 'employees.manage']);
   });
+
+  it('normalizes allowedCashboxIds from array and comma-separated string', () => {
+    const fromArray = normalizeEmployeePayload({
+      name: 'Manager',
+      username: 'manager',
+      password: 'pass',
+      role: 'manager',
+      allowedCashboxIds: ['cb-1', '  cb-2  ', '', 'cb-1'],
+    });
+    expect(fromArray.allowedCashboxIds).toEqual(['cb-1', 'cb-2']);
+
+    const fromString = normalizeEmployeePayload({
+      name: 'Manager',
+      username: 'manager',
+      password: 'pass',
+      role: 'manager',
+      allowedCashboxIds: 'cb-1, cb-2 , cb-1',
+    });
+    expect(fromString.allowedCashboxIds).toEqual(['cb-1', 'cb-2']);
+
+    const empty = normalizeEmployeePayload({
+      name: 'Manager',
+      username: 'manager',
+      password: 'pass',
+      role: 'manager',
+    });
+    expect(empty.allowedCashboxIds).toEqual([]);
+  });
 });
 
 describe('normalizeClientPayload', () => {

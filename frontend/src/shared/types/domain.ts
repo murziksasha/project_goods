@@ -93,6 +93,7 @@ export type Employee = {
   username: string;
   role: EmployeeRole;
   permissions: EmployeePermission[];
+  allowedCashboxIds?: string[];
   isActive: boolean;
   isRegistered: boolean;
   note: string;

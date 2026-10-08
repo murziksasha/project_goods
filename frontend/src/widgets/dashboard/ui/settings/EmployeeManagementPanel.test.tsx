@@ -1,9 +1,11 @@
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { I18nextProvider } from 'react-i18next';
+import { QueryClientProvider } from '@tanstack/react-query';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { initialEmployeeForm } from '../../../../entities/employee';
 import type { Employee } from '../../../../entities/employee';
 import i18n from '../../../../shared/i18n/config';
+import { queryClient } from '../../../../shared/api/queryClient';
 import { EmployeeManagementPanel } from './EmployeeManagementPanel';
 
 afterEach(() => {
@@ -47,24 +49,26 @@ const renderPanel = (
   const onEdit = vi.fn();
   const onCancelEdit = vi.fn();
   render(
-    <I18nextProvider i18n={i18n}>
-      <EmployeeManagementPanel
-        employees={employees}
-        form={initialEmployeeForm}
-        isLoading={false}
-        isSaving={false}
-        isEditing={false}
-        canManageEmployees
-        canManageOwnerAccounts
-        currentEmployeeId="owner-id"
-        onChange={vi.fn()}
-        onSubmit={vi.fn()}
-        onCancelEdit={onCancelEdit}
-        onEdit={onEdit}
-        onDelete={vi.fn()}
-        {...overrides}
-      />
-    </I18nextProvider>,
+    <QueryClientProvider client={queryClient}>
+      <I18nextProvider i18n={i18n}>
+        <EmployeeManagementPanel
+          employees={employees}
+          form={initialEmployeeForm}
+          isLoading={false}
+          isSaving={false}
+          isEditing={false}
+          canManageEmployees
+          canManageOwnerAccounts
+          currentEmployeeId="owner-id"
+          onChange={vi.fn()}
+          onSubmit={vi.fn()}
+          onCancelEdit={onCancelEdit}
+          onEdit={onEdit}
+          onDelete={vi.fn()}
+          {...overrides}
+        />
+      </I18nextProvider>
+    </QueryClientProvider>,
   );
   return { onEdit, onCancelEdit };
 };

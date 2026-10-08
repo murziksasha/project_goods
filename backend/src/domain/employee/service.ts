@@ -102,6 +102,7 @@ export const createEmployee = async (payload: EmployeePayload, actor?: EmployeeA
     inviteExpiresAt: null,
     role: normalizedPayload.role,
     permissions: normalizedPayload.permissions,
+    allowedCashboxIds: normalizedPayload.allowedCashboxIds,
     isActive: normalizedPayload.isActive,
     note: normalizedPayload.note,
   });
@@ -140,6 +141,7 @@ export const updateEmployee = async (
     username: normalizedPayload.username,
     role: normalizedPayload.role,
     permissions: normalizedPayload.permissions,
+    allowedCashboxIds: normalizedPayload.allowedCashboxIds,
     isActive: normalizedPayload.isActive,
     note: normalizedPayload.note,
   };

@@ -7,6 +7,8 @@ import { isValidObjectIdOrThrow } from '../../shared/lib/query';
 import { createFinanceTransaction } from '../finance/service';
 import { HttpError } from '../../shared/lib/errors';
 import {
+  assertEmployeeCanTransactWithCashbox,
+  type EmployeeCashboxActor,
   assertWorkspaceState,
   calculateLineItemRefundableAmount,
   calculateLineItemsTotal,
@@ -23,6 +25,7 @@ export const returnSaleLineItem = async (
     warehouse?: unknown;
     author?: unknown;
   },
+  actor?: EmployeeCashboxActor | null,
 ) => {
   isValidObjectIdOrThrow(saleId, 'saleId');
 
@@ -58,6 +61,7 @@ export const returnSaleLineItem = async (
   }
 
   const cashboxId = String(payload.cashboxId ?? '').trim();
+  assertEmployeeCanTransactWithCashbox(actor, cashboxId);
   const warehouse = String(payload.warehouse ?? '').trim() || 'Warehouse';
   const author = String(payload.author ?? '').trim() || 'System';
   const createdAt = new Date();
@@ -146,6 +150,7 @@ export const returnSaleLineItemBySerials = async (
     warehouse?: unknown;
     author?: unknown;
   },
+  actor?: EmployeeCashboxActor | null,
 ) => {
   isValidObjectIdOrThrow(saleId, 'saleId');
 
@@ -222,6 +227,7 @@ export const returnSaleLineItemBySerials = async (
   }
 
   const cashboxId = String(payload.cashboxId ?? '').trim();
+  assertEmployeeCanTransactWithCashbox(actor, cashboxId);
   const warehouse = String(payload.warehouse ?? '').trim() || 'Warehouse';
   const author = String(payload.author ?? '').trim() || 'System';
   const createdAt = new Date();
@@ -424,6 +430,7 @@ export const returnSale = async (
     warehouse?: unknown;
     author?: unknown;
   },
+  actor?: EmployeeCashboxActor | null,
 ) => {
   isValidObjectIdOrThrow(saleId, 'saleId');
 
@@ -477,6 +484,7 @@ export const returnSale = async (
   );
 
   const cashboxId = String(payload.cashboxId ?? '').trim();
+  assertEmployeeCanTransactWithCashbox(actor, cashboxId);
   const warehouse = String(payload.warehouse ?? '').trim() || 'Warehouse';
   const author = String(payload.author ?? '').trim() || 'System';
   const createdAt = new Date();
