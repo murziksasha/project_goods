@@ -44,6 +44,7 @@ const createCashbox = (
   balances,
   enabledCurrencies: { UAH: true, USD: false },
   isDefault: id === 'cash-1',
+  isNonCash: false,
   isArchived,
   createdAt: '2026-01-01T00:00:00.000Z',
   updatedAt: '2026-01-01T00:00:00.000Z',

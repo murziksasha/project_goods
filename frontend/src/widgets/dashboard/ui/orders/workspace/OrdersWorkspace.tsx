@@ -49,6 +49,7 @@ import {
   invalidateSupplierOrderQueries,
   useSupplierOrdersQuery,
 } from '../../../../../entities/supplier-order';
+import { useWarehouseSettingsQuery } from '../../../../../entities/warehouse-settings';
 import type { Cashbox } from '../../../../../entities/finance';
 import {
   isKanbanVisibleSale,
@@ -294,10 +295,19 @@ export const OrdersWorkspace: React.FC<OrdersWorkspaceProps> = ({
   const [selectedCashboxId, setSelectedCashboxId] = useState('');
   const [paymentMethod, setPaymentMethod] =
     useState<PaymentMethod>('cash');
+  const paymentModalCashboxes = useMemo(() => {
+    if (paymentMethod !== 'non-cash') return cashboxes;
+    return cashboxes.filter((c) => c.isNonCash);
+  }, [cashboxes, paymentMethod]);
   const [paymentAmount, setPaymentAmount] = useState('');
   const [selectedRefundCashboxId, setSelectedRefundCashboxId] =
     useState('');
   const [refundAmount, setRefundAmount] = useState('');
+  const warehouseSettingsQuery = useWarehouseSettingsQuery();
+  const warehouses = useMemo(
+    () => warehouseSettingsQuery.data?.warehouses ?? [],
+    [warehouseSettingsQuery.data?.warehouses],
+  );
   const [returnRefundAmount, setReturnRefundAmount] = useState('');
   const [returnWarehouse, setReturnWarehouse] = useState(() =>
     i18n.t('orders.columns.serviceCenter'),
@@ -2212,17 +2222,24 @@ export const OrdersWorkspace: React.FC<OrdersWorkspaceProps> = ({
       setPaymentSale(sale);
       setPaymentTargetStatus(targetStatus);
       setPaymentAmount(String(remainingPayment));
-      setPaymentMethod(getLatestDepositPaymentMethod(sale) ?? 'cash');
+      const initialMethod = getLatestDepositPaymentMethod(sale) ?? 'cash';
       setIsPaymentModalLoading(true);
 
       try {
         const cashboxData = await getCashboxes();
         setCashboxes(cashboxData);
-        setSelectedCashboxId(
-          cashboxData.find((cashbox) => cashbox.isDefault)?.id ??
-            cashboxData[0]?.id ??
-            '',
-        );
+        const nonCashOptions = cashboxData.filter((c) => c.isNonCash);
+        if (initialMethod === 'non-cash' && nonCashOptions.length > 0) {
+          setPaymentMethod('non-cash');
+          setSelectedCashboxId(nonCashOptions[0].id);
+        } else {
+          setPaymentMethod('cash');
+          setSelectedCashboxId(
+            cashboxData.find((cashbox) => cashbox.isDefault)?.id ??
+              cashboxData[0]?.id ??
+              '',
+          );
+        }
       } catch (error) {
         onError(
           error instanceof Error
@@ -2235,6 +2252,26 @@ export const OrdersWorkspace: React.FC<OrdersWorkspaceProps> = ({
       }
     },
     [canAcceptFinanceDeposit, getOrderRemainingPayment, onError, t],
+  );
+
+  const handlePaymentMethodChange = useCallback(
+    (method: PaymentMethod) => {
+      if (method === 'non-cash') {
+        const nonCashOptions = cashboxes.filter((c) => c.isNonCash);
+        if (nonCashOptions.length === 0) {
+          onError(t('orders.messages.errors.noNonCashCashbox'));
+          return;
+        }
+        setPaymentMethod('non-cash');
+        setSelectedCashboxId(nonCashOptions[0].id);
+      } else {
+        setPaymentMethod('cash');
+        const defaultCashbox =
+          cashboxes.find((c) => c.isDefault) ?? cashboxes[0];
+        if (defaultCashbox) setSelectedCashboxId(defaultCashbox.id);
+      }
+    },
+    [cashboxes, onError, t],
   );
 
   useEffect(() => {
@@ -2352,9 +2389,15 @@ export const OrdersWorkspace: React.FC<OrdersWorkspaceProps> = ({
       return;
     }
 
+    const activeWarehouses = warehouses.filter((w) => w.isActive);
+    const initialWarehouse =
+      activeWarehouses[0]?.name ??
+      warehouses[0]?.name ??
+      t('orders.columns.serviceCenter');
+
     setReturnSale(sale);
     setReturnLineItem(item);
-    setReturnWarehouse(t('orders.columns.serviceCenter'));
+    setReturnWarehouse(initialWarehouse);
     setIsReturnModalLoading(false);
   };
 
@@ -2371,30 +2414,30 @@ export const OrdersWorkspace: React.FC<OrdersWorkspaceProps> = ({
     const productTotal = getLineItemsTotal(
       lineItems.filter((item) => item.kind === 'product'),
     );
-    const serviceTotal = getLineItemsTotal(
-      lineItems.filter((item) => item.kind !== 'product'),
-    );
     const paidAmount = getPaidAmount(sale);
-    const suggestedRefund = Math.min(
-      productTotal,
-      Math.max(paidAmount - serviceTotal, 0),
-    );
+    const goodsOnlyAmount = Math.max(0, Math.min(productTotal, paidAmount));
 
     if (productTotal <= 0) {
       onError(t('orders.messages.errors.noProductsToReturn'));
       return;
     }
 
-    if (suggestedRefund <= 0) {
+    if (paidAmount <= 0) {
       onError(t('orders.messages.errors.cannotReturnUnpaid'));
       return;
     }
 
+    const activeWarehouses = warehouses.filter((w) => w.isActive);
+    const initialWarehouse =
+      activeWarehouses[0]?.name ??
+      warehouses[0]?.name ??
+      t('orders.columns.serviceCenter');
+
     setFullReturnSale(sale);
     setReturnRefundAmount(
-      String(Math.round(suggestedRefund * 100) / 100),
+      String(Math.round(goodsOnlyAmount * 100) / 100),
     );
-    setReturnWarehouse(t('orders.columns.serviceCenter'));
+    setReturnWarehouse(initialWarehouse);
     setIsFullReturnModalLoading(true);
 
     try {
@@ -2903,10 +2946,14 @@ export const OrdersWorkspace: React.FC<OrdersWorkspaceProps> = ({
       }
 
       onSaleUpdate(updatedSale);
-      await syncReceivedBy(
-        updatedSale,
-        updatedSale.status as OrderStatus,
-      );
+      try {
+        await syncReceivedBy(
+          updatedSale,
+          updatedSale.status as OrderStatus,
+        );
+      } catch (syncError) {
+        console.warn('Failed to sync receivedBy after product return:', syncError);
+      }
       onSuccess(t('orders.messages.success.productReturned'));
       setReturnSale(null);
       setReturnLineItem(null);
@@ -2929,21 +2976,21 @@ export const OrdersWorkspace: React.FC<OrdersWorkspaceProps> = ({
     }
 
     const refundAmountValue = parseMoney(returnRefundAmount);
+    const paidAmount = getPaidAmount(fullReturnSale);
     const lineItems = getLineItems(fullReturnSale);
     const productTotal = getLineItemsTotal(
       lineItems.filter((item) => item.kind === 'product'),
     );
-    const serviceTotal = getLineItemsTotal(
-      lineItems.filter((item) => item.kind !== 'product'),
-    );
-    const paidAmount = getPaidAmount(fullReturnSale);
+    const goodsOnlyAmount = Math.max(0, Math.min(productTotal, paidAmount));
+    const isAllowedRefund =
+      Math.abs(refundAmountValue - goodsOnlyAmount) < 0.005 ||
+      Math.abs(refundAmountValue - paidAmount) < 0.005;
 
     if (
       !Number.isFinite(refundAmountValue) ||
       refundAmountValue <= 0 ||
-      refundAmountValue > productTotal ||
       refundAmountValue > paidAmount ||
-      paidAmount - refundAmountValue > serviceTotal ||
+      !isAllowedRefund ||
       !returnWarehouse.trim()
     ) {
       onError(t('orders.messages.errors.invalidReturnRefund'));
@@ -2960,10 +3007,14 @@ export const OrdersWorkspace: React.FC<OrdersWorkspaceProps> = ({
         author: currentEmployeeName,
       });
       onSaleUpdate(updatedSale);
-      await syncReceivedBy(
-        updatedSale,
-        updatedSale.status as OrderStatus,
-      );
+      try {
+        await syncReceivedBy(
+          updatedSale,
+          updatedSale.status as OrderStatus,
+        );
+      } catch (syncError) {
+        console.warn('Failed to sync receivedBy after sale return:', syncError);
+      }
       setCashboxes(await getCashboxes());
       window.dispatchEvent(
         new CustomEvent('project-goods:finance-updated'),
@@ -3413,7 +3464,8 @@ export const OrdersWorkspace: React.FC<OrdersWorkspaceProps> = ({
         printCompanySettings={printCompanySettings}
         paymentSale={paymentSale}
         paymentTargetStatus={paymentTargetStatus}
-        cashboxes={cashboxes}
+        paymentCashboxes={paymentModalCashboxes}
+        refundCashboxes={cashboxes}
         selectedCashboxId={selectedCashboxId}
         paymentMethod={paymentMethod}
         paymentAmount={paymentAmount}
@@ -3427,6 +3479,7 @@ export const OrdersWorkspace: React.FC<OrdersWorkspaceProps> = ({
         returnSale={returnSale}
         returnLineItem={returnLineItem}
         returnWarehouse={returnWarehouse}
+        warehouses={warehouses}
         isReturnModalLoading={isReturnModalLoading}
         isReturnSaving={isReturnSaving}
         fullReturnSale={fullReturnSale}
@@ -3447,7 +3500,7 @@ export const OrdersWorkspace: React.FC<OrdersWorkspaceProps> = ({
         onPrintRequestClose={() => setPrintRequest(null)}
         onWarningClose={() => setWarningMessage(null)}
         onCashboxChange={setSelectedCashboxId}
-        onPaymentMethodChange={setPaymentMethod}
+        onPaymentMethodChange={handlePaymentMethodChange}
         onPaymentAmountChange={setPaymentAmount}
         onRefundCashboxChange={setSelectedRefundCashboxId}
         onRefundAmountChange={setRefundAmount}

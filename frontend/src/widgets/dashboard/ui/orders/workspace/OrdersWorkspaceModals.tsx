@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import type { Cashbox } from '../../../../../entities/finance';
 import type { Sale } from '../../../../../entities/sale';
 import type { PrintForm } from '../../../../../entities/settings';
+import type { WarehouseItem } from '../../../../../entities/warehouse-settings';
 import {
   MessageModal,
   PaymentModal,
@@ -31,7 +32,8 @@ export interface OrdersWorkspaceModalsProps {
   printCompanySettings: PrintCompanySettings;
   paymentSale: Sale | null;
   paymentTargetStatus: PaymentTargetStatus;
-  cashboxes: Cashbox[];
+  paymentCashboxes: Cashbox[];
+  refundCashboxes: Cashbox[];
   selectedCashboxId: string;
   paymentMethod: PaymentMethod;
   paymentAmount: string;
@@ -45,6 +47,7 @@ export interface OrdersWorkspaceModalsProps {
   returnSale: Sale | null;
   returnLineItem: OrderLineItem | null;
   returnWarehouse: string;
+  warehouses?: WarehouseItem[];
   isReturnModalLoading: boolean;
   isReturnSaving: boolean;
   fullReturnSale: Sale | null;
@@ -84,7 +87,8 @@ export const OrdersWorkspaceModals: React.FC<OrdersWorkspaceModalsProps> = ({
   printCompanySettings,
   paymentSale,
   paymentTargetStatus,
-  cashboxes,
+  paymentCashboxes,
+  refundCashboxes,
   selectedCashboxId,
   paymentMethod,
   paymentAmount,
@@ -98,6 +102,7 @@ export const OrdersWorkspaceModals: React.FC<OrdersWorkspaceModalsProps> = ({
   returnSale,
   returnLineItem,
   returnWarehouse,
+  warehouses,
   isReturnModalLoading,
   isReturnSaving,
   fullReturnSale,
@@ -137,7 +142,7 @@ export const OrdersWorkspaceModals: React.FC<OrdersWorkspaceModalsProps> = ({
           sale={paymentSale}
           paymentTargetStatus={paymentTargetStatus}
           printForms={printForms}
-          cashboxes={cashboxes}
+          cashboxes={paymentCashboxes}
           selectedCashboxId={selectedCashboxId}
           paymentMethod={paymentMethod}
           amount={paymentAmount}
@@ -193,7 +198,7 @@ export const OrdersWorkspaceModals: React.FC<OrdersWorkspaceModalsProps> = ({
 
       {refundSale ? (
         <RefundModal
-          cashboxes={cashboxes}
+          cashboxes={refundCashboxes}
           selectedCashboxId={selectedRefundCashboxId}
           amount={refundAmount}
           paidAmount={getPaidAmount(refundSale)}
@@ -212,6 +217,7 @@ export const OrdersWorkspaceModals: React.FC<OrdersWorkspaceModalsProps> = ({
           sale={returnSale}
           item={returnLineItem}
           warehouse={returnWarehouse}
+          warehouses={warehouses}
           isLoading={isReturnModalLoading}
           isSaving={isReturnSaving}
           onWarehouseChange={onReturnWarehouseChange}
@@ -224,10 +230,11 @@ export const OrdersWorkspaceModals: React.FC<OrdersWorkspaceModalsProps> = ({
         <ReturnSaleModal
           sale={fullReturnSale}
           lineItems={getLineItems(fullReturnSale)}
-          cashboxes={cashboxes}
+          cashboxes={refundCashboxes}
           selectedCashboxId={selectedRefundCashboxId}
           amount={returnRefundAmount}
           warehouse={returnWarehouse}
+          warehouses={warehouses}
           paidAmount={getPaidAmount(fullReturnSale)}
           isLoading={isFullReturnModalLoading}
           isSaving={isFullReturnSaving}

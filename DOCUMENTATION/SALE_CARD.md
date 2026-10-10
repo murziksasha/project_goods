@@ -229,3 +229,23 @@ Related: [SALE_FLOW.md](./SALE_FLOW.md) · [ORDER_CARD.md](./ORDER_CARD.md) · [
   - order is not paid (`paidAmount = 0`)
   - card status is editable (`new`, `reserved`, `paid`, `away`)
 - In paid orders, service removal is blocked until refund is completed.
+
+## Return Sale Modal Layout and Behavior
+
+- When returning a sale via the `Return sale` modal (`ReturnSaleModal`):
+  - Form layout uses a 2-row adaptive grid (`.return-sale-form`):
+    - **Row 1:** `Receive to warehouse` dropdown menu spans full width (`.return-sale-warehouse-field`), populated dynamically with actual active warehouses configured in the app (fallback to default service center if none configured).
+    - **Row 2:** `Refund from cashbox` dropdown and `Refund amount` read-only field display side-by-side (`minmax(0, 1fr)` each) on desktop/tablet.
+  - Cashbox field uses a stacked label-above-select pattern (not inline 90px grid) to ensure full visibility of selected cashbox names.
+  - **Refund Amount & Amount Toggle:**
+    - The `Refund amount` field is read-only (`readOnly`, `aria-readonly="true"`).
+    - Opening the modal pre-fills `Refund amount` with goods-only total (`goodsOnlyAmount = Math.max(0, Math.min(productTotal, paidAmount))`).
+    - The green badge is an interactive action button (`.payment-cash-button`):
+      - When `paidAmount !== goodsOnlyAmount`:
+        - If current refund amount equals `goodsOnlyAmount`, the button displays **`Full amount`** (`orders.payment.fullAmount`); clicking it switches refund amount to `paidAmount`.
+        - If current refund amount equals `paidAmount`, the button displays **`Goods only`** (`orders.payment.goodsOnly`); clicking it toggles refund amount back to `goodsOnlyAmount`.
+      - When `paidAmount === goodsOnlyAmount`, the button remains **`Full amount`** and reapplies `paidAmount`.
+    - Submit is enabled when refund amount matches either `goodsOnlyAmount` or `paidAmount` (and `> 0`, `<= paidAmount`). Arbitrary amounts are rejected.
+    - Full-sale return with goods-only refund returns product lines to stock and leaves non-product services on the returned order; full refund returns product lines and zeroes client payment.
+  - Responsive behavior (<= 720px): collapses to a single column where all fields stack vertically at full width; `.payment-cash-button` maintains a touch-friendly min-height of 38px.
+
