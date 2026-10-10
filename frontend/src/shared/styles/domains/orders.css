@@ -2825,6 +2825,8 @@
   display: flex;
   gap: 12px;
   align-items: stretch;
+  min-width: 0;
+  max-width: 100%;
   overflow-x: auto;
   padding: 8px 2px 16px;
   -webkit-overflow-scrolling: touch;
@@ -3023,6 +3025,7 @@
   display: flex;
   align-items: baseline;
   justify-content: space-between;
+  flex-wrap: wrap;
   gap: 8px;
   min-width: 0;
 }
@@ -3335,6 +3338,22 @@
 
   .repair-kanban-column {
     flex: 0 0 100%;
+  }
+}
+
+/* Wide monitors: columns share the row and stay at least 200px so the rest scroll. */
+@media (min-width: 1600px) {
+  .repair-kanban-column {
+    flex: 1 1 0;
+    width: auto;
+    min-width: 200px;
+  }
+
+  .repair-kanban-column-collapsed {
+    flex: 0 0 72px;
+    width: 72px;
+    min-width: 72px;
+    max-width: 72px;
   }
 }
 
