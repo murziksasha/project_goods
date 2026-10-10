@@ -22,3 +22,4 @@ backups/
 backend/backups/
 backend/backend-dev.log
 frontend/frontend-dev.log
+.grill/

@@ -1,8 +1,9 @@
 export const FUNNEL_STATUSES = [
   'new',
   'diagnostics',
-  'waitingParts',
+  'pendingApproval',
   'clientApproved',
+  'waitingParts',
   'inRepair',
   'refinement',
   'ready',

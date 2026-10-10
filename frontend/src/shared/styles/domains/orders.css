@@ -2454,6 +2454,10 @@
   background: #ac8a8d;
 }
 
+.order-status-pendingApproval {
+  background: #9d174d;
+}
+
 .order-status-inRepair {
   background: rgb(215, 215, 64);
 }
@@ -2844,6 +2848,7 @@
 
 .repair-kanban-column[data-status='new'] { --kanban-status-accent: #94a3b8; }
 .repair-kanban-column[data-status='diagnostics'] { --kanban-status-accent: #38bdf8; }
+.repair-kanban-column[data-status='pendingApproval'] { --kanban-status-accent: #db2777; }
 .repair-kanban-column[data-status='waitingParts'] { --kanban-status-accent: #f59e0b; }
 .repair-kanban-column[data-status='clientApproved'] { --kanban-status-accent: #818cf8; }
 .repair-kanban-column[data-status='inRepair'] { --kanban-status-accent: #2d8ae3; }
@@ -2854,8 +2859,12 @@
 
 .repair-kanban-column-collapsed {
   flex-basis: 72px;
+  width: 72px;
+  min-width: 72px;
+  max-width: 72px;
   min-height: 120px;
   max-height: none;
+  overflow: hidden;
 }
 
 .repair-kanban-column-over {
@@ -2878,10 +2887,28 @@
 
 .repair-kanban-column-title {
   margin: 0;
+  min-width: 0;
   font-size: 0.92rem;
   font-weight: 700;
   color: var(--color-text-heading);
   flex: 1;
+}
+
+.repair-kanban-column-collapsed .repair-kanban-column-header {
+  flex-direction: column;
+  align-items: center;
+  padding: 8px 4px;
+  gap: 6px;
+}
+
+.repair-kanban-column-collapsed .repair-kanban-column-title {
+  flex: 0 0 auto;
+  writing-mode: vertical-rl;
+  max-height: 160px;
+  min-width: 1.2em;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .repair-kanban-column-count {
@@ -3160,6 +3187,7 @@
 
 .repair-kanban-nav-chip[data-status='new'] { --kanban-status-accent: #94a3b8; }
 .repair-kanban-nav-chip[data-status='diagnostics'] { --kanban-status-accent: #38bdf8; }
+.repair-kanban-nav-chip[data-status='pendingApproval'] { --kanban-status-accent: #db2777; }
 .repair-kanban-nav-chip[data-status='waitingParts'] { --kanban-status-accent: #f59e0b; }
 .repair-kanban-nav-chip[data-status='clientApproved'] { --kanban-status-accent: #818cf8; }
 .repair-kanban-nav-chip[data-status='inRepair'] { --kanban-status-accent: #2d8ae3; }
@@ -3170,6 +3198,7 @@
 
 .repair-kanban-move-option[data-status='new'] { --kanban-status-accent: #94a3b8; }
 .repair-kanban-move-option[data-status='diagnostics'] { --kanban-status-accent: #38bdf8; }
+.repair-kanban-move-option[data-status='pendingApproval'] { --kanban-status-accent: #db2777; }
 .repair-kanban-move-option[data-status='waitingParts'] { --kanban-status-accent: #f59e0b; }
 .repair-kanban-move-option[data-status='clientApproved'] { --kanban-status-accent: #818cf8; }
 .repair-kanban-move-option[data-status='inRepair'] { --kanban-status-accent: #2d8ae3; }
@@ -3256,6 +3285,29 @@
     flex: 0 0 calc(50% - 6px);
     scroll-snap-align: start;
     max-height: calc(100dvh - var(--kanban-chrome-offset));
+  }
+
+  .repair-kanban-column-collapsed {
+    width: auto;
+    min-width: 0;
+    max-width: none;
+    overflow: visible;
+  }
+
+  .repair-kanban-column-collapsed .repair-kanban-column-header {
+    flex-direction: row;
+    align-items: center;
+    padding: 10px 12px;
+    gap: 8px;
+  }
+
+  .repair-kanban-column-collapsed .repair-kanban-column-title {
+    flex: 1;
+    writing-mode: horizontal-tb;
+    min-width: 0;
+    max-height: none;
+    white-space: normal;
+    text-overflow: unset;
   }
 
   .repair-kanban-column-toggle {

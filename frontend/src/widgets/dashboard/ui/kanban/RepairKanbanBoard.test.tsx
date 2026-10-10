@@ -36,6 +36,27 @@ describe('RepairKanbanBoard', () => {
     expect(
       screen.getByTestId('repair-kanban-board'),
     ).toBeInTheDocument();
+    expect(
+      [...container.querySelectorAll('.repair-kanban-column')].map(
+        (column) => column.getAttribute('data-status'),
+      ),
+    ).toEqual([
+      'new',
+      'diagnostics',
+      'pendingApproval',
+      'clientApproved',
+      'waitingParts',
+      'inRepair',
+      'refinement',
+      'ready',
+      'paid',
+      'away',
+    ]);
+    expect(
+      container.querySelector(
+        '.repair-kanban-column[data-status="pendingApproval"]',
+      ),
+    ).toBeTruthy();
     expect(screen.getByText('#r0001')).toBeInTheDocument();
     expect(screen.getByLabelText(/new|нове/i)).toBeInTheDocument();
     expect(

@@ -1442,6 +1442,7 @@
         "paid": "Paid",
         "new": "New repair",
         "diagnostics": "Diagnostics",
+        "pendingApproval": "Pending approval",
         "inRepair": "In repair",
         "refinement": "Refinement",
         "waitingParts": "Waiting parts",

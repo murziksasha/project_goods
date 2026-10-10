@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  FUNNEL_STATUSES,
   getCashSplit,
   getConsecutivePreviousBounds,
   getDeltaPct,
@@ -50,6 +51,23 @@ describe('analytics aggregates', () => {
     expect(funnel.find((item) => item.status === 'ready')?.count).toBe(1);
     expect(funnel.find((item) => item.status === 'other')?.count).toBe(1);
     expect(funnel.find((item) => item.status === 'issued')).toBeUndefined();
+  });
+
+  it('counts pending approval as its own open slice before waiting parts', () => {
+    const isFinal = (sale: { status?: string }) => sale.status === 'issued';
+    const funnel = getRepairFunnel(
+      [{ status: 'pendingApproval' }, { status: 'clientApproved' }, { status: 'waitingParts' }],
+      isFinal,
+    );
+
+    expect(funnel.find((item) => item.status === 'pendingApproval')?.count).toBe(1);
+    expect(funnel.find((item) => item.status === 'other')).toBeUndefined();
+    expect(FUNNEL_STATUSES.indexOf('clientApproved')).toBeLessThan(
+      FUNNEL_STATUSES.indexOf('waitingParts'),
+    );
+    expect(FUNNEL_STATUSES.indexOf('pendingApproval')).toBe(
+      FUNNEL_STATUSES.indexOf('diagnostics') + 1,
+    );
   });
 
   it('counts away as its own open funnel slice', () => {

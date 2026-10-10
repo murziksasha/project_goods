@@ -1442,6 +1442,7 @@
         "paid": "Оплачено",
         "new": "Новий ремонт",
         "diagnostics": "Діагностика",
+        "pendingApproval": "На Узгодженні",
         "inRepair": "В ремонті",
         "refinement": "Опрацювання",
         "waitingParts": "Очікує запчастини",
