@@ -6,6 +6,7 @@ import {
   kanbanHiddenRepairStatuses,
   kanbanVisibleRepairStatuses,
   normalizeOrderStatus,
+  repairEditableStatuses,
   repairStatuses,
   shouldCaptureReceivedBy,
   stockLockedRepairStatuses,
@@ -53,12 +54,23 @@ describe('repair kanban status model', () => {
     expect(normalizeOrderStatus('Not picked up')).toBe('notPickedUp');
   });
 
+  it('normalizes pendingApproval aliases and keeps the card editable', () => {
+    expect(normalizeOrderStatus('pendingApproval')).toBe('pendingApproval');
+    expect(normalizeOrderStatus('pending_approval')).toBe('pendingApproval');
+    expect(normalizeOrderStatus('Pending approval')).toBe('pendingApproval');
+    expect(repairEditableStatuses.has('pendingApproval')).toBe(true);
+    expect(finalRepairStatuses).not.toContain('pendingApproval');
+    expect(stockLockedRepairStatuses.has('pendingApproval')).toBe(false);
+    expect(handoffRepairStatuses).not.toContain('pendingApproval');
+  });
+
   it('defines visible, hidden, and collapsed kanban columns', () => {
     expect(kanbanVisibleRepairStatuses).toEqual([
       'new',
       'diagnostics',
-      'waitingParts',
+      'pendingApproval',
       'clientApproved',
+      'waitingParts',
       'inRepair',
       'refinement',
       'ready',

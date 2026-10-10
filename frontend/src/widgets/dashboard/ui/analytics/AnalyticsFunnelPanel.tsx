@@ -5,6 +5,7 @@ import { formatMetric, type DashboardAnalyticsView } from '../../model/sales-ana
 const FUNNEL_COLORS: Record<string, string> = {
   new: '#94a3b8',
   diagnostics: '#38bdf8',
+  pendingApproval: '#db2777',
   waitingParts: '#f59e0b',
   clientApproved: '#818cf8',
   inRepair: '#2d8ae3',

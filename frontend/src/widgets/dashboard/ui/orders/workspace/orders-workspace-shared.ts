@@ -141,6 +141,7 @@ export type RepairStatus =
   | 'paid'
   | 'away'
   | 'diagnostics'
+  | 'pendingApproval'
   | 'inRepair'
   | 'refinement'
   | 'waitingParts'
@@ -524,6 +525,10 @@ export const repairStatuses: Array<{
     key: 'diagnostics',
     labelKey: 'orders.status.repair.diagnostics',
   },
+  {
+    key: 'pendingApproval',
+    labelKey: 'orders.status.repair.pendingApproval',
+  },
   { key: 'inRepair', labelKey: 'orders.status.repair.inRepair' },
   { key: 'refinement', labelKey: 'orders.status.repair.refinement' },
   {
@@ -575,8 +580,9 @@ export const handoffRepairStatuses: RepairStatus[] = [
 export const kanbanVisibleRepairStatuses: RepairStatus[] = [
   'new',
   'diagnostics',
-  'waitingParts',
+  'pendingApproval',
   'clientApproved',
+  'waitingParts',
   'inRepair',
   'refinement',
   'ready',
@@ -707,6 +713,7 @@ export const normalizeOrderStatus = (
     paid: 'paid',
     away: 'away',
     diagnostics: 'diagnostics',
+    pendingapproval: 'pendingApproval',
     inrepair: 'inRepair',
     refinement: 'refinement',
     waitingparts: 'waitingParts',
@@ -1137,6 +1144,7 @@ export const repairEditableStatuses = new Set<RepairStatus>([
   'paid',
   'away',
   'diagnostics',
+  'pendingApproval',
   'inRepair',
   'refinement',
   'waitingParts',

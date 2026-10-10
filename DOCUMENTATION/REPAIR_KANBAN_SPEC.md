@@ -25,13 +25,14 @@ Visible pipeline (left → right):
 
 1. `new`
 2. `diagnostics`
-3. `waitingParts`
+3. `pendingApproval`
 4. `clientApproved`
-5. `inRepair`
-6. `refinement`
-7. `ready`
-8. `paid`
-9. `away`
+5. `waitingParts`
+6. `inRepair`
+7. `refinement`
+8. `ready`
+9. `paid`
+10. `away`
 
 Hidden (no column): `issued`, `issuedWithoutRepair`, `clientRejected`, `notPickedUp`.
 
@@ -51,11 +52,11 @@ Hidden (no column): `issued`, `issuedWithoutRepair`, `clientRejected`, `notPicke
 - **Drag & drop** between visible columns (no transition matrix; no confirm dialog). Cards are column drop targets, not a sortable list: overlay follows the pointer, the source stays as a hidden spacer, the hover column shows a placeholder, and the card lands in the target column immediately (reverts if status did not persist, e.g. Paid opening the payment modal).
 - **Drag & drop** between visible columns (no transition matrix; no confirm dialog) and within the same column. Cards are orderable within a column: drag to any position or use ↑/↓ buttons. Order persists via `kanbanRank` on the sale. Overlay follows the pointer, the source stays as a hidden spacer, the hover column shows a placeholder (when dragging between columns), and the card lands in the target column/position immediately (reverts if status did not persist, e.g. Paid opening the payment modal).
 - **Drag & drop** between visible columns (no transition matrix; no confirm dialog) and within the same column. Cards are orderable within a column: drag to any position or use ↑/↓ buttons. Order persists via `kanbanRank` on the sale. When dragging between columns, the hover column shows a placeholder at the bottom, and the card lands at the end of the target column immediately (reverts if status did not persist, e.g. Paid opening the payment modal).
-- **Desktop (fine pointer):** whole-card drag, `distance: 6`. Empty columns can collapse to a 72px rail (header toggle); a column auto-expands if a card lands in it. Collapse set persists in `localStorage` (`project-goods.kanban-collapsed-columns`).
+- **Desktop (fine pointer):** whole-card drag, `distance: 6`. Empty columns can collapse to a 72px rail (header toggle). The collapsed title is vertical so the rail stays 72px. Below 1024px the rail constraint is lifted and columns return to the tablet/phone tracks. A column auto-expands if a card lands in it. Collapse set persists in `localStorage` (`project-goods.kanban-collapsed-columns`).
 - **Touch / coarse pointer:** drag **only** from the 44px handle (`touch-action: none` on the handle, not the card). The card body pans the board/column and tap still opens the order. Activation: delay 120ms / tolerance 12px.
 - **≤1024 navigator:** sticky status chips with counts. Tap jumps the board to that column. While dragging, chips are droppables (`rail:{status}`) and win collision over a peeking column body. `scroll-snap` is disabled for the duration of the drag (`data-dragging`). Horizontal auto-scroll is limited to `.repair-kanban-board`.
-- **Move sheet:** every card with `canUpdateStatus` has **Move**. Opens a bottom sheet of the 9 visible statuses and calls the same `onStatusChange` path as a drop.
-- **Move sheet:** every card with `canUpdateStatus` has **Move**. Opens a bottom sheet of the 9 visible statuses and calls the same `onStatusChange` path as a drop, placing the card at the end of the destination column.
+- **Move sheet:** every card with `canUpdateStatus` has **Move**. Opens a bottom sheet of the 10 visible statuses and calls the same `onStatusChange` path as a drop.
+- **Move sheet:** every card with `canUpdateStatus` has **Move**. Opens a bottom sheet of the 10 visible statuses and calls the same `onStatusChange` path as a drop, placing the card at the end of the destination column.
 - **Layout:** phone ≤720 one full-width column (no 86vw peek); tablet 721–1024 two 50% columns; desktop ~260px columns. Column height uses `--kanban-chrome-offset` so the last card clears the mobile bottom nav.
 - **Click** card (outside master, handle, and Move) opens the existing Order Detail panel/modal while staying on the Kanban tab.
 - **Device name** on the card uses primary-blue (`--color-primary-strong`) so the appliance is scannable.
@@ -73,6 +74,26 @@ Hidden (no column): `issued`, `issuedWithoutRepair`, `clientRejected`, `notPicke
 - Moving or dropping a card into another column automatically places it at the end of that column (`kanbanRank = max(destColumnRanks) + 1000`).
 - Cross-column drop placeholder renders at the bottom of the destination column.
 - Rank changes do not create timeline entries.
+
+## Status `pendingApproval`
+
+Open repair status for a quote that is with the client and not yet agreed. Column sits immediately after `diagnostics` and immediately before `clientApproved`.
+
+| Concern | Rule |
+|---|---|
+| API/DB | Ordinary string status on sale (same as other repair statuses; no separate enum collection) |
+| UI lists / filters / status select / i18n | Included like other repair statuses. EN `Pending approval` / UK `На Узгодженні` |
+| Kanban order | `new`, `diagnostics`, `pendingApproval`, `clientApproved`, `waitingParts`, `inRepair`, `refinement`, `ready`, `paid`, `away` |
+| Orders status menu | Today's menu order, with `pendingApproval` inserted immediately after `diagnostics`. `clientApproved` stays after `waitingParts` in that menu |
+| Who can set it | Same people who can set `diagnostics`. Board drag, Move sheet, and rank: `kanban.use`. Orders list and order-card status menu: `orders.manage` or `kanban.use`. Drops stay free between any visible columns |
+| `finalRepairStatuses` | No |
+| `stockLockedRepairStatuses` | No |
+| Issued / received-by capture | No |
+| Yearly archive `SALES_TERMINAL_STATUSES` | No |
+| Payment modal | No |
+| Card editable | Yes (quote, prices, discount, master) |
+| Badge / Kanban accent | Badge `#9d174d` / accent `#db2777` |
+| Funnel | Own open slice. Counts as in-progress, not Waiting parts and not Ready |
 
 ## Status `away`
 
@@ -144,3 +165,4 @@ Shared parking status for repair orders and product sales. On Kanban it is the l
 - 2026-08-28: Touch/tablet board: no 86vw peek, drag handle, sticky navigator + rail droppables, Move sheet, auto-scroll, empty-column collapse on desktop, status accent colors.
 - 2026-09-15: Added shared `away` status as the last Kanban column (after `paid`). Any sale-read employee can set it.
 - 2026-09-20: Added within-column card up/down reordering (drag-and-drop + Up/Down buttons) persisting via `kanbanRank`.
+- 2026-10-10: Added open status `pendingApproval` (EN Pending approval / UK На Узгодженні) as the column after `diagnostics`. Moved `clientApproved` to sit before `waitingParts` on the board and in the Home funnel. Same drop permission as `diagnostics`. Card stays editable.
