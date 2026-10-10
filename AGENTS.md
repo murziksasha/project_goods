@@ -1,116 +1,89 @@
-# Agent Profile: Minimalist
+# Agent Profile
 
-## Plan Mode Discipline
+Precedence: user message + system harness > this file > improvisation.  
+Do not restyle answers to “fewest words / code only.” Architecture and safety here still apply.
 
-- When creating an implementation plan (or in Plan mode):
-  - Always create the plan artifact with `RequestFeedback: true`.
-  - **Halt immediately** upon creating the plan. Never start executing tasks or editing code automatically.
-  - Explicitly ask the user for approval to proceed with the implementation.
-  - Require explicit manual user sign-off before executing any plan tasks.
+Code, comments, and UI strings: **English**. File writes: **UTF-8** (never UTF-16).
 
-## Execution Mode (YOLO Mode)
+## Plan vs execute
 
-- **Default Execution:** Autonomous (YOLO) mode is **active** for all regular development workflows, task completions, bug fixes, refactorings, test runs, and non-plan tool calls:
-  - Execute tool calls, writes, edits, and commands directly without prompting for permission or pauses.
-  - Bypass confirmations for routine file edits, command execution, and test runs.
-- **Strict Plan Mode Exclusion:**
-  - When Plan mode is active or when generating/evaluating a plan, YOLO execution is **strictly disabled**.
-  - Always halt and wait for user review on plans as mandated by the Plan Mode Discipline.
+- **Plan** (user asks for a plan, or Plan mode): use `enter_plan_mode` / `exit_plan_mode`. Write the plan, **stop**. Do not edit code until the user approves.
+- **Execute** (default after a concrete implementation request, or after plan approval): run tools and edits without asking permission for routine file changes, tests, and installs.
 
-## Core Principles
+**Always confirm with the user before:** `git push` / force-push, merge, changing shared permissions, deleting branches, dropping or wiping Mongo, rewriting `backend/backups/`, editing `.env` secrets, running destructive scripts (`clear-sales`, password resets, demo seed overwrite), or production Docker changes.
 
-- **No Fillers:** Skip "Sure," "I can help," or "As an AI."
-- **Directness:** Start answers immediately. No intros/outros.
-- **Precision:** Use fewest words possible.
-- **Formatting:** Use lists and bolding. No walls of text.
-- **UTF-8 Only:** Force **UTF-8** encoding for all file outputs/TSX writes; strictly avoid UTF-16.
-- **Language:** All code, comments, and UI strings in **English**.
+## Source of truth
 
-## Response Style
+Read the matching doc **before** changing that domain. Index: `DOCUMENTATION/README.md`. One topic → one file; do not invent parallel rules.
 
-- **Code:** Only code, no code explanation unless requested.
-- **Facts:** Single-sentence bullets.
-- **Opinion:** Only if prompted, then brief.
-- **Correction:** Fix and provide result. No apologies.
+| Work | Read first |
+| --- | --- |
+| Local run, env, scripts | `DOCUMENTATION/DEVELOPMENT.md` |
+| Tests / coverage / e2e | `DOCUMENTATION/TESTING.md` |
+| Layout / layers | `DOCUMENTATION/ARCHITECTURE.md`, `PROJECT_STRUCTURE.md` |
+| HTTP / auth matrix | `DOCUMENTATION/API.md`, `SECURITY.md`, `Permission_Flow.md` |
+| Query / SSE | `DOCUMENTATION/STATE_MANAGEMENT.md` |
+| UI tokens / copy icon | `DOCUMENTATION/UI_DESIGN_SYSTEM.md` |
+| Repair orders | `ORDER_FLOW.md`, `ORDER_CARD.md`, `REPAIR_KANBAN_SPEC.md` |
+| Sales | `SALE_FLOW.md`, `SALE_CARD.md` |
+| Warehouse / serials / bind | `WAREHOUSE_FLOW.md`, `SERIAL_NUMBER_SEQUENCE_SPEC.md` |
+| Supplier orders | `SUPPLIER_ORDER_FLOW.md` |
+| Finance | `ACCOUNTING.md` |
+| Clients | `CLIENTS_RULES.md` |
+| Employees / RBAC | `EMPLOYEES_SPEC.md`, `Permission_Flow.md` |
+| Settings / dashboard / print | `SETTINGS_SPEC.md`, `BUSINESS_DASHBOARD.md`, `PRINT_FORMS_SPEC.md` |
+| Lookups | `SPEC_SUGGESTIONS_BEHAVIOR.md` |
 
-## Token Saving Rules
+New API routes and pages inherit the same permission keys as existing siblings. Do not add unauthenticated or all-role access unless the spec says so.
 
-1. Use contractions (it's, don't).
-2. Avoid repeating user prompt.
-3. Use markdown symbols (e.g., "->" instead of "leads to").
-4. Core logic first for complex tasks.
+Invariants (details live in the docs above): serial occupancy, stock qty, sale vs repair, accounting postings, sequence `S000001`.
 
-## Build Discipline & Anti-Loop Rules
+## Frontend (FSD)
 
-- If build fails, fix it directly without entering infinite repair loops.
-- **Circuit Breaker:** Max 2 automated fix attempts per failure. If an edit introduces syntax or parse errors twice, halt immediately, revert corrupted edits to git HEAD, and report instead of looping.
-- **No Polling Timers:** Never use `schedule` or timer loops to wait for background commands. Stop calling tools and wait for reactive system wakeup.
-- **Sync Command Execution:** Set `WaitMsBeforeAsync: 10000` on verification commands to avoid backgrounding.
-- **Scoped Verification:** Run targeted checks on modified packages only (`--prefix frontend` or `--prefix backend`), not root sweeps, during iterations.
-- **Atomic Writes on Windows:** On Windows CRLF environments, prefer `write_to_file` over chained partial-line edits on large TSX files to avoid line duplication.
-- Don't stop at reporting errors; install missing deps and resolve TS/Vite issues before final response.
-- **Verification Offloading:** Delegate post-implementation test, lint, and fix cycles to a subagent to save main context tokens.
+`pages` → `widgets` → `features` → `entities` → `shared`
 
-## Architecture: Feature-Sliced Design (Frontend)
+- Upper layers import lower only. No upward imports.
+- No cross-slice imports on the same layer.
+- Public API: slice `index.ts` only. No deep imports.
+- `const Component: React.FC<Props>` with an explicit Props interface. **Named exports** only.
+- Type-only imports: `import type` (`verbatimModuleSyntax`).
+- Server state: `@tanstack/react-query` only. UI state: Zustand or React Context. Forms: React Hook Form.
+- Follow `UI_DESIGN_SYSTEM.md` tokens and existing widget patterns.
 
-### Layer Hierarchy (top -> bottom)
-
-`pages` -> `widgets` -> `features` -> `entities` -> `shared`
-
-### Rules
-
-- **Import direction:** Upper layers import from lower layers only. Never import upward.
-- **No cross-slice imports:** Slices within the same layer must not import from each other.
-- **Public API:** Each slice exports through `index.ts` barrel file only. No deep imports into slice internals.
-- **Component pattern:** `const Component: React.FC<Props>` with explicit Props type interface. Use **named exports** only.
-- **Type imports:** Always use `import type` for type-only imports (`verbatimModuleSyntax: true`).
-
-## Architecture: Domain-Driven (Backend)
-
-### Module Structure
-
-Each backend domain module follows:
+## Backend (domain modules)
 
 ```
-domain/{module}/
-  ├── controller.ts    # Request handling
-  ├── service.ts       # Business logic
-  ├── model.ts         # Mongoose schema/model
-  ├── routes.ts        # Express route definitions
-  └── *.test.ts        # Co-located tests
+backend/src/domain/{module}/
+  controller.ts
+  service.ts
+  model.ts
+  routes.ts
+  *.test.ts
 ```
 
-## Tech Stack & Conventions
+- Business logic in `service.ts`. Controllers parse HTTP and call services.
+- Throw `AppError` / `HttpError`. Centralized middleware catches them.
+- Frontend: `ErrorBoundary` + react-query errors for API failures.
 
-### Frontend
+Stack: Express 5, Mongoose 9, Node + TypeScript.
 
-- **Server state:** `@tanstack/react-query` — no other data-fetching libs.
-- **UI state:** Zustand or React Context — no Redux.
-- **Forms:** React Hook Form.
-- **Build:** Vite + React.
+## Verification
 
-### Backend
+Scoped to the package you touched:
 
-- **Framework:** Express 5.
-- **ORM:** Mongoose 9.
-- **Runtime:** Node.js + TypeScript.
+- Frontend: `npm run test --prefix frontend` and/or `npm run lint --prefix frontend`
+- Backend: `npm run test --prefix backend` and/or `npm run lint --prefix backend`
+- Types: `npm run typecheck --prefix frontend` or `--prefix backend`
+- UI behavior: exercise the flow (browser tools if available; else Playwright `npm run test:e2e` when the change is user-visible)
+- Full gate only when asked: `npm run verify` from repo root
 
-### Error Handling
+Do not claim tests/build passed without command output. Install missing deps and fix TS/Vite errors before the final reply.
 
-- **Backend:** Throw typed errors (`AppError` / `HttpError`). Centralized error middleware catches all.
-- **Frontend:** `ErrorBoundary` for component-level. `react-query` `onError` for API-level.
+**Circuit breaker:** max **2** automated fix attempts per failure. If an edit introduces syntax/parse errors twice, revert those files to `git HEAD`, stop looping, report.
 
-## Testing
+Windows: PowerShell — chain with `;`, not `&&`. Prefer `write` over many tiny patches on large TSX (CRLF duplication). Use `block_until_ms` on `run_terminal_command`; do not poll with scheduler loops.
 
-- Write **Vitest** tests for all new logic.
-- Co-locate test files as `*.test.ts(x)` next to source.
-- Backend coverage target: **100%**.
-- **Post-Feature Verification Subagent:**
-  - After implementing a feature, invoke a single subagent to run scoped tests, typechecks, and linting.
-  - Subagent fixes any failures directly in its own context to preserve main conversation tokens.
+## Subagents
 
-## Subagent Delegation
-
-- **Test & Lint Fixes:** Delegate all post-implementation test/lint runs and iterative error resolution to a subagent.
-- **Deep Research:** Use research subagents for large-scale codebase exploration or heavy documentation lookups.
-- **Compact Reporting:** Subagent returns only high-level status, modified files, and test results -> main agent continues without log pollution.
+Use a subagent for a long isolated test/lint fix cycle or a wide codebase search.  
+Do **not** spawn one for a small one-file change. The main agent owns the user-facing result and must read subagent output before saying done. Compact report: status, files, test results.
