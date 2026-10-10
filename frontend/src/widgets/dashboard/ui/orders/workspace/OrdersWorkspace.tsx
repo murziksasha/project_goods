@@ -224,9 +224,17 @@ export const OrdersWorkspace: React.FC<OrdersWorkspaceProps> = ({
   const currentEmployeeName =
     currentEmployee?.name ??
     t('orders.messages.errors.unknownEmployee');
-  const canAcceptFinanceDeposit = hasEmployeePermission(
+  const canPayOrders = hasEmployeePermission(
     currentEmployee,
-    'finance.transactions.deposit',
+    'finance.orders.pay',
+  );
+  const canPaySales = hasEmployeePermission(
+    currentEmployee,
+    'finance.sales.pay',
+  );
+  const canPaySaleItem = useCallback(
+    (sale: Sale) => (isRepairOrder(sale) ? canPayOrders : canPaySales),
+    [canPayOrders, canPaySales],
   );
   const canCreateFinanceWithdraw = hasEmployeePermission(
     currentEmployee,
@@ -2211,7 +2219,7 @@ export const OrdersWorkspace: React.FC<OrdersWorkspaceProps> = ({
       sale: Sale,
       targetStatus: PaymentTargetStatus = 'issued',
     ) => {
-      if (!canAcceptFinanceDeposit) {
+      if (!canPaySaleItem(sale)) {
         onError(
           t('orders.messages.errors.noAcceptPaymentPermission'),
         );
@@ -2227,16 +2235,21 @@ export const OrdersWorkspace: React.FC<OrdersWorkspaceProps> = ({
 
       try {
         const cashboxData = await getCashboxes();
-        setCashboxes(cashboxData);
-        const nonCashOptions = cashboxData.filter((c) => c.isNonCash);
+        const isOwner = currentEmployee?.role === 'owner';
+        const allowedIds = currentEmployee?.allowedCashboxIds ?? [];
+        const accessibleCashboxes = isOwner
+          ? cashboxData
+          : cashboxData.filter((c) => allowedIds.includes(c.id));
+        setCashboxes(accessibleCashboxes);
+        const nonCashOptions = accessibleCashboxes.filter((c) => c.isNonCash);
         if (initialMethod === 'non-cash' && nonCashOptions.length > 0) {
           setPaymentMethod('non-cash');
           setSelectedCashboxId(nonCashOptions[0].id);
         } else {
           setPaymentMethod('cash');
           setSelectedCashboxId(
-            cashboxData.find((cashbox) => cashbox.isDefault)?.id ??
-              cashboxData[0]?.id ??
+            accessibleCashboxes.find((cashbox) => cashbox.isDefault)?.id ??
+              accessibleCashboxes[0]?.id ??
               '',
           );
         }
@@ -2251,7 +2264,14 @@ export const OrdersWorkspace: React.FC<OrdersWorkspaceProps> = ({
         setIsPaymentModalLoading(false);
       }
     },
-    [canAcceptFinanceDeposit, getOrderRemainingPayment, onError, t],
+    [
+      canPaySaleItem,
+      currentEmployee?.allowedCashboxIds,
+      currentEmployee?.role,
+      getOrderRemainingPayment,
+      onError,
+      t,
+    ],
   );
 
   const handlePaymentMethodChange = useCallback(
@@ -2314,11 +2334,21 @@ export const OrdersWorkspace: React.FC<OrdersWorkspaceProps> = ({
 
     try {
       const cashboxData = await getCashboxes();
-      setCashboxes(cashboxData);
+      const isOwner = currentEmployee?.role === 'owner';
+      const allowedIds = currentEmployee?.allowedCashboxIds ?? [];
+      const accessibleCashboxes = isOwner
+        ? cashboxData
+        : cashboxData.filter((c) => allowedIds.includes(c.id));
+      setCashboxes(accessibleCashboxes);
+      const matchedLastDeposit = accessibleCashboxes.some(
+        (c) => c.id === lastDepositCashboxId,
+      )
+        ? lastDepositCashboxId
+        : '';
       setSelectedRefundCashboxId(
-        lastDepositCashboxId ||
-          cashboxData.find((cashbox) => cashbox.isDefault)?.id ||
-          cashboxData[0]?.id ||
+        matchedLastDeposit ||
+          accessibleCashboxes.find((cashbox) => cashbox.isDefault)?.id ||
+          accessibleCashboxes[0]?.id ||
           '',
       );
     } catch (error) {
@@ -2713,7 +2743,7 @@ export const OrdersWorkspace: React.FC<OrdersWorkspaceProps> = ({
       return;
     if (
       action !== 'issueWithoutPayment' &&
-      !canAcceptFinanceDeposit
+      !canPaySaleItem(paymentSale)
     ) {
       onError(t('orders.messages.errors.noAcceptPaymentPermission'));
       return;
@@ -3188,6 +3218,7 @@ export const OrdersWorkspace: React.FC<OrdersWorkspaceProps> = ({
             sales={sales}
             supplierOrders={supplierOrders}
             employees={employees}
+            currentEmployee={currentEmployee}
             status={selectedSaleStatus}
             statusOptions={selectedSaleStatusOptions}
             comments={selectedSale.timeline ?? []}
@@ -3206,7 +3237,7 @@ export const OrdersWorkspace: React.FC<OrdersWorkspaceProps> = ({
                 ))
             }
             canAddComment={canChatInOrders}
-            canAcceptPayment={canAcceptFinanceDeposit}
+            canAcceptPayment={canPaySaleItem(selectedSale)}
             canRefundPayment={canCreateFinanceWithdraw}
             canCreateOrders={canCreateOrders}
             canManageOrders={hasAnyEmployeePermission(

@@ -68,6 +68,8 @@ export type EmployeePermission =
   | 'finance.transactions.transfer'
   | 'finance.supplierOrders.pay'
   | 'finance.supplierOrders.issueWithoutPayment'
+  | 'finance.orders.pay'
+  | 'finance.sales.pay'
   | 'employees.manage'
   | 'printForms.manage'
   | 'system.backups.manage';
@@ -91,6 +93,7 @@ export type Employee = {
   username: string;
   role: EmployeeRole;
   permissions: EmployeePermission[];
+  allowedCashboxIds?: string[];
   isActive: boolean;
   isRegistered: boolean;
   note: string;

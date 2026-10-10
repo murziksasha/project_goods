@@ -46,6 +46,17 @@ Role names and permission checkboxes use i18n keys, never raw IDs:
 - `employees.roles.<role>`
 - `employees.permissions.<permission>` (nested JSON, e.g. `orders.view`)
 
+### Allowed cashboxes configuration
+
+In `EmployeeFormModal`, within the **Finance** permissions block:
+
+- An interactive multi-select dropdown (`EmployeeCashboxMultiselect`) allows selecting which cashboxes the employee may access for deposits and refunds.
+- Includes a "Select all cashboxes" toggle and individual cashbox checkboxes.
+- The control is disabled with a descriptive hint if neither `finance.orders.pay` (`Pay orders`) nor `finance.sales.pay` (`Pay sales`) is granted (and the role is not `owner`).
+- If an employee has no assigned cashboxes, payment and refund modals show "No cashboxes available" and submit is disabled.
+- Non-owner employees cannot process payments or refunds with unassigned cashboxes (`403` returned by API).
+- Accounts with role `owner` bypass cashbox restrictions and always access all cashboxes.
+
 ## Master assignment rules
 
 Inactive employees must not be assignable as repair master:

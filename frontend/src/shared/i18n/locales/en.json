@@ -1475,6 +1475,9 @@
       "repair": "Repair",
       "product": "Product",
       "device": "Device"
+    },
+    "modals": {
+      "noCashboxesAvailable": "No cashboxes available"
     }
   },
   "clients": {
@@ -3030,6 +3033,12 @@
         "supplierOrders": {
           "pay": "Pay supplier orders",
           "issueWithoutPayment": "Issue supplier orders without payment"
+        },
+        "orders": {
+          "pay": "Pay orders"
+        },
+        "sales": {
+          "pay": "Pay sales"
         }
       },
       "employees": {
@@ -3161,7 +3170,17 @@
       "note": "Note",
       "saving": "Saving...",
       "saveEmployee": "Save employee",
-      "updateEmployee": "Update employee"
+      "updateEmployee": "Update employee",
+      "cashboxes": {
+        "label": "Allowed cashboxes",
+        "placeholder": "Select cashboxes...",
+        "selectAll": "Select all",
+        "deselectAll": "Deselect all",
+        "searchPlaceholder": "Search cashboxes...",
+        "ownerNotice": "Owners have full access to all cashboxes.",
+        "permissionRequiredNotice": "Enable 'Pay orders' or 'Pay sales' to configure cashboxes.",
+        "selectedCount": "{{count}} cashboxes selected"
+      }
     },
     "permissionGroups": {
       "orders": "Orders",

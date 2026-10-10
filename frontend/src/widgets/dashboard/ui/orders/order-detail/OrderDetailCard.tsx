@@ -133,6 +133,7 @@ export const OrderDetailCard: React.FC<OrderDetailCardProps> = ({
   sales,
   supplierOrders,
   employees,
+  currentEmployee,
   status,
   statusOptions,
   comments,
@@ -992,7 +993,12 @@ export const OrderDetailCard: React.FC<OrderDetailCardProps> = ({
     setIsPayCashboxesLoading(true);
     try {
       const cashboxData = await getCashboxes();
-      setPayCashboxes(cashboxData);
+      const isOwner = !currentEmployee || currentEmployee.role === 'owner';
+      const allowedIds = currentEmployee?.allowedCashboxIds ?? [];
+      const accessibleCashboxes = isOwner
+        ? cashboxData
+        : cashboxData.filter((c) => allowedIds.includes(c.id));
+      setPayCashboxes(accessibleCashboxes);
     } catch (error) {
       onError(
         error instanceof Error

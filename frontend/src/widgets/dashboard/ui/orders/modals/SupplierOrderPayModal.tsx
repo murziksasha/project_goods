@@ -151,16 +151,19 @@ export const SupplierOrderPayModal: React.FC<SupplierOrderPayModalProps> = ({
             onChange={(event) => setSelectedCashboxId(event.target.value)}
             disabled={isLoading || isSaving || cashboxes.length === 0}
           >
-            {cashboxes.length === 0 && isLoading ? (
+            {cashboxes.length === 0 ? (
               <option value=''>
-                {t('orders.supplier.table.loading')}
+                {isLoading
+                  ? t('orders.supplier.table.loading')
+                  : t('orders.modals.noCashboxesAvailable')}
               </option>
-            ) : null}
-            {cashboxes.map((cashbox) => (
-              <option key={cashbox.id} value={cashbox.id}>
-                {cashbox.name}
-              </option>
-            ))}
+            ) : (
+              cashboxes.map((cashbox) => (
+                <option key={cashbox.id} value={cashbox.id}>
+                  {cashbox.name}
+                </option>
+              ))
+            )}
           </select>
         </label>
       </div>
