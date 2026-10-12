@@ -434,6 +434,46 @@ describe('ClientsWorkspace', () => {
     expect(screen.getAllByRole('textbox')[3]).toHaveValue('+380509999999');
   });
 
+  it('accepts a stored 12-digit phone and a second number without a format error', () => {
+    const client = createClient({
+      id: 'client-ivan',
+      name: 'Hryhoriev Oleksandr',
+      phone: '380635567090',
+      phones: ['380635567090'],
+    });
+    renderWorkspace({
+      clients: [client],
+      selectedClientId: client.id,
+    });
+
+    fireEvent.click(screen.getByText('Hryhoriev Oleksandr'));
+
+    const phonesField = screen.getByText('Phones').parentElement as HTMLElement;
+    const primaryPhone = within(phonesField).getByRole('textbox');
+    expect(primaryPhone).toHaveValue('380635567090');
+    fireEvent.blur(primaryPhone);
+
+    expect(
+      screen.queryByText('Invalid phone number format'),
+    ).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: '+ Add phone' }));
+    const phoneInputs = within(phonesField).getAllByRole('textbox');
+    fireEvent.change(phoneInputs[1], {
+      target: { value: '+380671112233' },
+    });
+    fireEvent.blur(phoneInputs[1]);
+
+    expect(
+      screen.queryByText('Invalid phone number format'),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Save client' })).toBeEnabled();
+
+    fireEvent.change(phoneInputs[1], { target: { value: '123' } });
+    fireEvent.blur(phoneInputs[1]);
+    expect(screen.getByText('Invalid phone number format')).toBeInTheDocument();
+  });
+
   it('opens a sale from the client card history', () => {
     const client = createClient({ id: 'client-ivan' });
     const sale = createSale(client);

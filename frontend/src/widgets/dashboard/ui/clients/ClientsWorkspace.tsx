@@ -23,10 +23,7 @@ import type {
   ClientDevice,
   ClientDeviceFormValues,
 } from '../../../../entities/client-device';
-import {
-  isValidUkrainianPhone,
-  normalizePhone,
-} from '../../../../shared/lib/phoneFormatter';
+import { isValidUkrainianPhone } from '../../../../shared/lib/phoneFormatter';
 import { PaginationPanel } from '../../../../shared/ui/PaginationPanel';
 import { ClientCardModal } from './ClientCardModal';
 import { ClientCreateModal } from './ClientCreateModal';
@@ -101,8 +98,6 @@ export interface ClientsWorkspaceProps {
   ) => Promise<boolean>;
   onDeleteClientDevice: (deviceId: string) => Promise<boolean>;
 }
-
-const MAX_PHONE_LENGTH = 10;
 
 const getMetaFieldFromNote = (
   note: string,
@@ -359,6 +354,7 @@ export const ClientsWorkspace: React.FC<ClientsWorkspaceProps> = ({
     if (!openClientCardRequestId) return;
     onSelectClient(openClientCardRequestId);
     setClientCardTab('main');
+    setMainTabPhoneError(null);
     setIsClientCardOpen(true);
     onOpenClientCardHandled?.();
   }, [
@@ -581,12 +577,14 @@ export const ClientsWorkspace: React.FC<ClientsWorkspaceProps> = ({
   const openClientCard = (clientId: string) => {
     onSelectClient(clientId);
     setClientCardTab('main');
+    setMainTabPhoneError(null);
     setIsClientCardOpen(true);
   };
 
   const closeClientCard = useCallback(() => {
     setIsClientCardOpen(false);
     onSelectClient(null);
+    setMainTabPhoneError(null);
     isMainTabDirtyRef.current = false;
     hydratedClientIdRef.current = null;
     hydratedUpdatedAtRef.current = null;
@@ -600,20 +598,10 @@ export const ClientsWorkspace: React.FC<ClientsWorkspaceProps> = ({
   };
 
   const validatePhone = (phone: string): boolean => {
-    const phoneFormatError = t(
-      'clients.messages.errors.invalidPhoneFormat',
-    );
-    const normalized = normalizePhone(phone);
-    if (normalized.length === 0) {
-      setMainTabPhoneError(phoneFormatError);
-      return false;
-    }
-    if (normalized.length > MAX_PHONE_LENGTH) {
-      setMainTabPhoneError(phoneFormatError);
-      return false;
-    }
     if (!isValidUkrainianPhone(phone)) {
-      setMainTabPhoneError(phoneFormatError);
+      setMainTabPhoneError(
+        t('clients.messages.errors.invalidPhoneFormat'),
+      );
       return false;
     }
     setMainTabPhoneError(null);
