@@ -1846,6 +1846,7 @@
         "status": {
           "cancelled": "Cancelled",
           "received": "Taken on charge",
+          "partially_stocked": "Partially stocked",
           "new": "New",
           "approved": "Approved"
         },

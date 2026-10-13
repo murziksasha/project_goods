@@ -155,5 +155,11 @@ describe('WarehouseToolbar serial printing', () => {
     ).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'All' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'New' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Partially stocked' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Taken on charge' }),
+    ).toBeInTheDocument();
   });
 });

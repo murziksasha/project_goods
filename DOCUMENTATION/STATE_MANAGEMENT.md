@@ -149,7 +149,7 @@ For any mutation that can affect shared screens (orders, sales, stock, client de
 - `WarehousePanel` now reads warehouse settings through `useWarehouseSettingsQuery`.
 - Warehouse settings save now uses `useUpdateWarehouseSettingsMutation` and invalidates `warehouseSettings`.
 - Receipt rows from supplier orders are derived from query data; manually created local receipt rows remain local UI/session state.
-- Warehouse receipt filters include a multi-select receipt status filter (`statuses: ReceiptStatus[]`; empty array means all statuses) and a starred-supplier-orders-only option with toolbar quick star toggle. The starred filter shows only receipts linked to supplier orders with `isFavorite = true`; manual receipt rows are excluded while this filter is active. Legacy saved filters with a single `status` field are migrated to `statuses` on load.
+- Warehouse receipt filters include a multi-select receipt status filter (`statuses: ReceiptStatus[]` of `new`, `approved`, `partially_stocked`, `received`, `cancelled`; empty array means all statuses) and a starred-supplier-orders-only option with toolbar quick star toggle. `partially_stocked` matches supplier-order header status `partially_stocked` only. `received` matches `stocked`, `partially_completed`, and `overdue`, and does not include `partially_stocked`. The starred filter shows only receipts linked to supplier orders with `isFavorite = true`; manual receipt rows are excluded while this filter is active. Legacy saved filters with a single `status` field are migrated to `statuses` on load.
 
 ## Saved named filters (server, per creator)
 
