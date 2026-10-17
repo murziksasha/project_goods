@@ -35,6 +35,21 @@ export const normalizeEmployeePayload = (payload: EmployeePayload) => {
       ? [...normalizedPermissions, 'employees.manage']
       : normalizedPermissions;
 
+  const allowedCashboxIds = Array.from(
+    new Set(
+      Array.isArray(payload.allowedCashboxIds)
+        ? payload.allowedCashboxIds
+            .map((value) => toNonEmptyString(value))
+            .filter(Boolean)
+        : typeof payload.allowedCashboxIds === 'string'
+          ? payload.allowedCashboxIds
+              .split(',')
+              .map((value) => toNonEmptyString(value))
+              .filter(Boolean)
+          : [],
+    ),
+  );
+
   return {
     name: toNonEmptyString(payload.name),
     phone: normalizePhone(payload.phone),
@@ -43,6 +58,7 @@ export const normalizeEmployeePayload = (payload: EmployeePayload) => {
     password: toNonEmptyString(payload.password),
     role,
     permissions,
+    allowedCashboxIds,
     isActive:
       payload.isActive === undefined
         ? true

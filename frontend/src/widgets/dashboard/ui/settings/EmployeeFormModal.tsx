@@ -8,9 +8,11 @@ import {
   defaultEmployeePermissionsByRole,
   employeeRoleOptions,
 } from '../../../../entities/employee';
+import { useCashboxesQuery, type Cashbox } from '../../../../entities/finance';
 import { Button } from '../../../../shared/ui/Button';
 import { Modal } from '../../../../shared/ui/Modal';
 import { employeePermissionLabelKey, employeeRoleLabelKey } from './employee-ui';
+import { EmployeeCashboxMultiselect } from './EmployeeCashboxMultiselect';
 
 const permissionGroups: Array<{
   titleKey: string;
@@ -53,6 +55,8 @@ const permissionGroups: Array<{
       'finance.transactions.transfer',
       'finance.supplierOrders.pay',
       'finance.supplierOrders.issueWithoutPayment',
+      'finance.orders.pay',
+      'finance.sales.pay',
     ],
   },
   {
@@ -72,6 +76,7 @@ export interface EmployeeFormModalProps {
   isEditing: boolean;
   canManageEmployees: boolean;
   canManageOwnerAccounts: boolean;
+  cashboxes?: Cashbox[];
   onChange: <K extends keyof EmployeeFormValues>(
     field: K,
     value: EmployeeFormValues[K],
@@ -87,12 +92,24 @@ export const EmployeeFormModal: React.FC<EmployeeFormModalProps> = ({
   isEditing,
   canManageEmployees,
   canManageOwnerAccounts,
+  cashboxes: propsCashboxes,
   onChange,
   onSubmit,
   onClose,
 }) => {
   const { t } = useTranslation();
   const isOwnerRoleSelected = form.role === 'owner';
+
+  const cashboxesQuery = useCashboxesQuery({
+    enabled: isOpen && !propsCashboxes,
+  });
+  const cashboxes = propsCashboxes ?? cashboxesQuery.data ?? [];
+
+  const canPay =
+    form.permissions.includes('finance.orders.pay') ||
+    form.permissions.includes('finance.sales.pay') ||
+    isOwnerRoleSelected;
+
   const canSubmit =
     canManageEmployees &&
     !isSaving &&
@@ -123,58 +140,50 @@ export const EmployeeFormModal: React.FC<EmployeeFormModalProps> = ({
   };
 
   const handleRoleChange = (role: EmployeeFormValues['role']) => {
-    onChange('role', role);
-    onChange('permissions', defaultEmployeePermissionsByRole[role]);
-  };
-
-  const handleSubmit = async () => {
-    if (!canSubmit) {
+    if (role === 'owner' && !canManageOwnerAccounts) {
       return;
     }
-    await onSubmit();
+    onChange('role', role);
+    const defaults = defaultEmployeePermissionsByRole[role];
+    const nextPermissions =
+      role === 'owner' && !defaults.includes('employees.manage')
+        ? [...defaults, 'employees.manage' as const]
+        : defaults;
+    onChange('permissions', nextPermissions);
   };
 
   return (
     <Modal
       isOpen={isOpen}
+      onClose={onClose}
       title={
         isEditing
           ? t('employees.form.editTitle')
           : t('employees.form.createTitle')
       }
-      onClose={onClose}
-      closeLabel={t('common.close')}
-      closeOnBackdrop={!isSaving}
-      closeOnEscape={!isSaving}
-      shellClassName="catalog-edit-modal modal-dialog employees-form-modal"
+      className="employees-form-modal"
       footer={
-        <footer className="payment-modal-footer">
-          <div className="payment-modal-actions">
-            <Button variant="secondary" onClick={onClose} disabled={isSaving}>
-              {t('common.cancel')}
-            </Button>
-            <Button
-              variant="primary"
-              onClick={() => void handleSubmit()}
-              disabled={!canSubmit}
-            >
-              {isSaving
-                ? t('employees.form.saving')
-                : isEditing
-                  ? t('employees.form.updateEmployee')
-                  : t('employees.form.saveEmployee')}
-            </Button>
-          </div>
+        <footer className="catalog-edit-footer">
+          <Button variant="secondary" onClick={onClose} disabled={isSaving}>
+            {t('common.cancel')}
+          </Button>
+          <Button
+            variant="primary"
+            onClick={onSubmit}
+            disabled={!canSubmit}
+          >
+            {isEditing ? t('common.save') : t('common.create')}
+          </Button>
         </footer>
       }
     >
       <div className="form-grid">
         <label className="field">
-          <span>{t('employees.form.name')}</span>
+          <span>* {t('employees.form.name')}</span>
           <input
             value={form.name}
             onChange={(event) => onChange('name', event.target.value)}
-            placeholder={t('employees.form.fullNamePlaceholder')}
+            placeholder={t('employees.form.namePlaceholder')}
           />
         </label>
         <label className="field">
@@ -182,16 +191,15 @@ export const EmployeeFormModal: React.FC<EmployeeFormModalProps> = ({
           <input
             value={form.phone}
             onChange={(event) => onChange('phone', event.target.value)}
-            placeholder={t('employees.form.phonePlaceholder')}
+            placeholder="+380..."
           />
         </label>
         <label className="field">
           <span>{t('employees.form.email')}</span>
           <input
-            type="email"
             value={form.email}
             onChange={(event) => onChange('email', event.target.value)}
-            placeholder={t('employees.form.emailPlaceholder')}
+            placeholder="example@mail.com"
           />
         </label>
         <label className="field">
@@ -283,6 +291,16 @@ export const EmployeeFormModal: React.FC<EmployeeFormModalProps> = ({
                 <span>{t(employeePermissionLabelKey(permission))}</span>
               </label>
             ))}
+            {group.titleKey === 'employees.permissionGroups.finance' ? (
+              <EmployeeCashboxMultiselect
+                cashboxes={cashboxes}
+                selectedCashboxIds={form.allowedCashboxIds ?? []}
+                onChange={(ids) => onChange('allowedCashboxIds', ids)}
+                disabled={isSaving}
+                isOwner={isOwnerRoleSelected}
+                canPay={canPay}
+              />
+            ) : null}
           </section>
         ))}
       </div>

@@ -122,25 +122,41 @@ export const updateWorkspace = async (req: Request, res: Response): Promise<void
 };
 
 export const acceptPayment = async (req: Request, res: Response): Promise<void> => {
-  if ((req.body as { action?: unknown }).action !== 'issueWithoutPayment') {
-    await requirePermission(req, 'finance.transactions.deposit');
+  const saleId = routeParam(req, 'saleId');
+  const existingSale = await Sale.findById(saleId).lean();
+  if (!existingSale) {
+    throw new HttpError(404, 'Sale not found.');
   }
-  res.json(await acceptSalePayment(routeParam(req, 'saleId'), req.body));
+  const isRepair = existingSale.kind !== 'sale';
+
+  let employee;
+  if ((req.body as { action?: unknown }).action !== 'issueWithoutPayment') {
+    employee = await requirePermission(
+      req,
+      isRepair ? 'finance.orders.pay' : 'finance.sales.pay',
+    );
+  } else {
+    employee = await requirePermission(
+      req,
+      isRepair ? 'orders.manage' : 'sales.manage',
+    );
+  }
+  res.json(await acceptSalePayment(saleId, req.body, employee));
 };
 
 export const refundPayment = async (req: Request, res: Response): Promise<void> => {
-  await requirePermission(req, 'finance.transactions.withdraw');
-  res.json(await refundSalePayment(routeParam(req, 'saleId'), req.body));
+  const employee = await requirePermission(req, 'finance.transactions.withdraw');
+  res.json(await refundSalePayment(routeParam(req, 'saleId'), req.body, employee));
 };
 
 export const returnLineItem = async (req: Request, res: Response): Promise<void> => {
-  await requirePermission(req, 'finance.transactions.withdraw');
-  res.json(await returnSaleLineItem(routeParam(req, 'saleId'), req.body));
+  const employee = await requirePermission(req, 'finance.transactions.withdraw');
+  res.json(await returnSaleLineItem(routeParam(req, 'saleId'), req.body, employee));
 };
 
 export const returnLineItemSerials = async (req: Request, res: Response): Promise<void> => {
-  await requirePermission(req, 'finance.transactions.withdraw');
-  res.json(await returnSaleLineItemBySerials(routeParam(req, 'saleId'), req.body));
+  const employee = await requirePermission(req, 'finance.transactions.withdraw');
+  res.json(await returnSaleLineItemBySerials(routeParam(req, 'saleId'), req.body, employee));
 };
 
 export const returnLineItemStock = async (req: Request, res: Response): Promise<void> => {
@@ -149,8 +165,8 @@ export const returnLineItemStock = async (req: Request, res: Response): Promise<
 };
 
 export const returnSaleHandler = async (req: Request, res: Response): Promise<void> => {
-  await requirePermission(req, 'finance.transactions.withdraw');
-  res.json(await returnSale(routeParam(req, 'saleId'), req.body));
+  const employee = await requirePermission(req, 'finance.transactions.withdraw');
+  res.json(await returnSale(routeParam(req, 'saleId'), req.body, employee));
 };
 
 export const remove = async (req: Request, res: Response): Promise<void> => {

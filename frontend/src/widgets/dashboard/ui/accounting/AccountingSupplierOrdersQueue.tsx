@@ -59,8 +59,26 @@ export const AccountingSupplierOrdersQueue: React.FC<AccountingSupplierOrdersQue
     null,
   );
 
-  const getRowCashboxId = (orderId: string) =>
-    cashboxByOrderId[orderId] || firstCashboxId;
+  const availableCashboxes = useMemo(
+    () =>
+      cashboxes.filter(
+        (cashbox) =>
+          cashbox.enabledCurrencies?.UAH === true ||
+          (cashbox.balances.UAH ?? 0) > 0,
+      ),
+    [cashboxes],
+  );
+
+  const getRowCashboxId = (orderId: string) => {
+    const selected = cashboxByOrderId[orderId];
+    if (selected && availableCashboxes.some((c) => c.id === selected)) {
+      return selected;
+    }
+    if (availableCashboxes.some((c) => c.id === firstCashboxId)) {
+      return firstCashboxId;
+    }
+    return availableCashboxes[0]?.id ?? '';
+  };
 
   const visibleOrders = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
@@ -219,6 +237,7 @@ export const AccountingSupplierOrdersQueue: React.FC<AccountingSupplierOrdersQue
                               <span>{t('accounting.orders.cashbox')}</span>
                               <select
                                 value={cashboxId}
+                                disabled={isSaving || availableCashboxes.length === 0}
                                 onChange={(event) =>
                                   setCashboxByOrderId((current) => ({
                                     ...current,
@@ -226,22 +245,22 @@ export const AccountingSupplierOrdersQueue: React.FC<AccountingSupplierOrdersQue
                                   }))
                                 }
                               >
-                                {cashboxes
-                                  .filter(
-                                    (cashbox) =>
-                                      cashbox.enabledCurrencies?.UAH === true ||
-                                      (cashbox.balances.UAH ?? 0) > 0,
-                                  )
-                                  .map((cashbox) => (
-                                  <option
-                                    key={cashbox.id}
-                                    value={cashbox.id}
-                                    title={cashbox.name}
-                                  >
-                                    {cashbox.name} (
-                                    {formatMoney(cashbox.balances.UAH ?? 0, 'UAH')})
+                                {availableCashboxes.length === 0 ? (
+                                  <option value=''>
+                                    {t('orders.modals.noCashboxesAvailable')}
                                   </option>
-                                ))}
+                                ) : (
+                                  availableCashboxes.map((cashbox) => (
+                                    <option
+                                      key={cashbox.id}
+                                      value={cashbox.id}
+                                      title={cashbox.name}
+                                    >
+                                      {cashbox.name} (
+                                      {formatMoney(cashbox.balances.UAH ?? 0, 'UAH')})
+                                    </option>
+                                  ))
+                                )}
                               </select>
                             </label>
                             <button
@@ -250,7 +269,8 @@ export const AccountingSupplierOrdersQueue: React.FC<AccountingSupplierOrdersQue
                               disabled={
                                 isSaving ||
                                 payingOrderId === order.id ||
-                                !cashboxId
+                                !cashboxId ||
+                                availableCashboxes.length === 0
                               }
                               onClick={() => setOrderToPay(order)}
                             >

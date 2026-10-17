@@ -303,13 +303,17 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
           <select
             value={selectedCashboxId}
             onChange={(event) => onCashboxChange(event.target.value)}
-            disabled={isLoading || isSaving}
+            disabled={isLoading || isSaving || cashboxes.length === 0}
           >
-            {cashboxes.map((cashbox) => (
-              <option key={cashbox.id} value={cashbox.id}>
-                {cashbox.name}
-              </option>
-            ))}
+            {cashboxes.length === 0 ? (
+              <option value="">{t('orders.modals.noCashboxesAvailable')}</option>
+            ) : (
+              cashboxes.map((cashbox) => (
+                <option key={cashbox.id} value={cashbox.id}>
+                  {cashbox.name}
+                </option>
+              ))
+            )}
           </select>
         </label>
         <label className="field">
@@ -442,13 +446,17 @@ export const RefundModal: React.FC<RefundModalProps> = ({
           <select
             value={selectedCashboxId}
             onChange={(event) => onCashboxChange(event.target.value)}
-            disabled={isLoading || isSaving}
+            disabled={isLoading || isSaving || cashboxes.length === 0}
           >
-            {cashboxes.map((cashbox) => (
-              <option key={cashbox.id} value={cashbox.id}>
-                {cashbox.name}
-              </option>
-            ))}
+            {cashboxes.length === 0 ? (
+              <option value="">{t('orders.modals.noCashboxesAvailable')}</option>
+            ) : (
+              cashboxes.map((cashbox) => (
+                <option key={cashbox.id} value={cashbox.id}>
+                  {cashbox.name}
+                </option>
+              ))
+            )}
           </select>
         </label>
         <label className="field">
@@ -676,13 +684,17 @@ export const ReturnSaleModal: React.FC<ReturnSaleModalProps> = ({
           <select
             value={selectedCashboxId}
             onChange={(event) => onCashboxChange(event.target.value)}
-            disabled={isLoading || isSaving}
+            disabled={isLoading || isSaving || cashboxes.length === 0}
           >
-            {cashboxes.map((cashbox) => (
-              <option key={cashbox.id} value={cashbox.id}>
-                {cashbox.name}
-              </option>
-            ))}
+            {cashboxes.length === 0 ? (
+              <option value="">{t('orders.modals.noCashboxesAvailable')}</option>
+            ) : (
+              cashboxes.map((cashbox) => (
+                <option key={cashbox.id} value={cashbox.id}>
+                  {cashbox.name}
+                </option>
+              ))
+            )}
           </select>
         </label>
         <label className="field">

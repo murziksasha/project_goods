@@ -1475,6 +1475,9 @@
       "repair": "Ремонт",
       "product": "Товар",
       "device": "Пристрій"
+    },
+    "modals": {
+      "noCashboxesAvailable": "Немає доступних кас"
     }
   },
   "clients": {
@@ -3030,6 +3033,12 @@
         "supplierOrders": {
           "pay": "Оплата замовлень постачальникам",
           "issueWithoutPayment": "Видача замовлень постачальникам без оплати"
+        },
+        "orders": {
+          "pay": "Оплата замовлень"
+        },
+        "sales": {
+          "pay": "Оплата продажів"
         }
       },
       "employees": {
@@ -3161,7 +3170,17 @@
       "note": "Примітка",
       "saving": "Збереження...",
       "saveEmployee": "Зберегти співробітника",
-      "updateEmployee": "Оновити співробітника"
+      "updateEmployee": "Оновити співробітника",
+      "cashboxes": {
+        "label": "Дозволені каси",
+        "placeholder": "Оберіть каси...",
+        "selectAll": "Обрати всі",
+        "deselectAll": "Зняти всі",
+        "searchPlaceholder": "Пошук кас...",
+        "ownerNotice": "Власники мають повний доступ до всіх кас.",
+        "permissionRequiredNotice": "Увімкніть 'Оплата замовлень' або 'Оплата продажів' для налаштування кас.",
+        "selectedCount": "Обрано {{count}} кас"
+      }
     },
     "permissionGroups": {
       "orders": "Замовлення",

@@ -17,12 +17,17 @@ export const getEffectiveEmployeePermissions = (
     return [...defaults];
   }
 
-  // kanban.use is a toggleable grant. Role defaults seed it only when the
-  // stored list is empty so unchecking it actually revokes access.
+  // kanban.use, finance.orders.pay, and finance.sales.pay are toggleable grants.
+  // Role defaults seed them only when the stored list is empty so unchecking them actually revokes access.
   return Array.from(
     new Set([
       ...employee.permissions,
-      ...defaults.filter((permission) => permission !== 'kanban.use'),
+      ...defaults.filter(
+        (permission) =>
+          permission !== 'kanban.use' &&
+          permission !== 'finance.orders.pay' &&
+          permission !== 'finance.sales.pay',
+      ),
     ]),
   );
 };

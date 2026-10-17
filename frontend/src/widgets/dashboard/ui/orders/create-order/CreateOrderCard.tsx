@@ -294,6 +294,10 @@ export const CreateOrderCard: React.FC<CreateOrderCardProps> = ({
   const canCurrentEmployeeManageOrders =
     currentEmployee?.isActive === true &&
     hasEmployeePermission(currentEmployee, 'orders.manage');
+  const canPaySales = hasEmployeePermission(
+    currentEmployee,
+    'finance.sales.pay',
+  );
 
   const phoneDigits = clientPhone.replace(/\D/g, '');
   const normalizedPhoneDigits = phoneDigits.startsWith('380')
@@ -1430,8 +1434,24 @@ export const CreateOrderCard: React.FC<CreateOrderCardProps> = ({
           {activeTab === 'sale' && onRapidSale ? (
             <button
               type='button'
-              className='secondary-button create-order-rapid-sale-button'
-              onClick={() => setIsRapidSaleModalOpen(true)}
+              className={`secondary-button create-order-rapid-sale-button${
+                !canPaySales ? ' create-order-rapid-sale-button-disabled' : ''
+              }`}
+              onClick={() => {
+                if (!canPaySales) {
+                  onError(
+                    t('orders.messages.errors.noAcceptPaymentPermission'),
+                  );
+                  return;
+                }
+                setIsRapidSaleModalOpen(true);
+              }}
+              disabled={!canPaySales}
+              title={
+                !canPaySales
+                  ? t('orders.messages.errors.noAcceptPaymentPermission')
+                  : undefined
+              }
             >
               {t('orders.rapidSale.openButton')}
             </button>
@@ -1901,7 +1921,7 @@ export const CreateOrderCard: React.FC<CreateOrderCardProps> = ({
           onClose={() => setIsCreateServiceOpen(false)}
         />
       ) : null}
-      {isRapidSaleModalOpen && onRapidSale ? (
+      {isRapidSaleModalOpen && onRapidSale && canPaySales ? (
         <RapidSaleModal
           products={products}
           sales={sales}

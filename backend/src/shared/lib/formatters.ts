@@ -144,6 +144,9 @@ export const formatEmployee = (employee: EmployeeDocument) => ({
   username: employee.username ?? '',
   role: employee.role,
   permissions: getEffectiveEmployeePermissions(employee),
+  allowedCashboxIds: Array.isArray(employee.allowedCashboxIds)
+    ? employee.allowedCashboxIds
+    : [],
   isActive: employee.isActive,
   isRegistered: Boolean(employee.username),
   note: employee.note,

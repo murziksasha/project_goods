@@ -130,4 +130,22 @@ describe('SupplierOrderPayModal', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Confirm' }));
     expect(onIssueWithoutPayment).toHaveBeenCalledTimes(1);
   });
+
+  it('shows No cashboxes available and disables pay when cashbox list is empty', () => {
+    render(
+      <SupplierOrderPayModal
+        order={order()}
+        cashboxes={[]}
+        isLoading={false}
+        isSaving={false}
+        canIssueWithoutPayment={false}
+        onClose={vi.fn()}
+        onPay={vi.fn()}
+        onIssueWithoutPayment={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText('No cashboxes available')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Pay' })).toBeDisabled();
+  });
 });

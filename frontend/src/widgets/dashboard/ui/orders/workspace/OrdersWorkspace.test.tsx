@@ -223,7 +223,20 @@ const employee: Employee = {
   email: '',
   username: 'manager',
   role: 'manager',
-  permissions: ['orders.view', 'orders.manage'],
+  permissions: [
+    'orders.view',
+    'orders.manage',
+    'finance.orders.pay',
+    'finance.sales.pay',
+  ],
+  allowedCashboxIds: [
+    'cashbox-1',
+    'cashbox-2',
+    'cashbox-main',
+    'cashbox-non-cash',
+    'cashbox-a',
+    'cashbox-b',
+  ],
   isActive: true,
   isRegistered: true,
   note: '',
@@ -939,6 +952,7 @@ describe('OrdersWorkspace', () => {
         permissions: [
           'orders.view',
           'orders.manage',
+          'finance.sales.pay',
           'finance.transactions.deposit',
           'finance.transactions.withdraw',
         ],
@@ -1032,6 +1046,7 @@ describe('OrdersWorkspace', () => {
         permissions: [
           'orders.view',
           'orders.manage',
+          'finance.orders.pay',
           'finance.transactions.deposit',
         ],
       },
@@ -1121,6 +1136,7 @@ describe('OrdersWorkspace', () => {
         permissions: [
           'orders.view',
           'orders.manage',
+          'finance.orders.pay',
           'finance.transactions.deposit',
         ],
       },
@@ -1200,6 +1216,7 @@ describe('OrdersWorkspace', () => {
         permissions: [
           'orders.view',
           'orders.manage',
+          'finance.orders.pay',
           'finance.transactions.deposit',
         ],
       },
@@ -1266,6 +1283,7 @@ describe('OrdersWorkspace', () => {
         permissions: [
           'orders.view',
           'orders.manage',
+          'finance.orders.pay',
           'finance.transactions.deposit',
         ],
       },
@@ -1388,6 +1406,7 @@ describe('OrdersWorkspace', () => {
         permissions: [
           'orders.view',
           'orders.manage',
+          'finance.orders.pay',
           'finance.transactions.deposit',
         ],
       },
@@ -2049,6 +2068,7 @@ describe('OrdersWorkspace', () => {
         permissions: [
           'orders.view',
           'orders.manage',
+          'finance.sales.pay',
           'finance.transactions.deposit',
         ],
       },
@@ -2432,6 +2452,18 @@ describe('OrdersWorkspace', () => {
           kind: 'sale',
           status: 'reserved',
           salePrice: 200,
+          lineItems: [
+            {
+              id: 'li-1',
+              kind: 'product',
+              productId: 'product-1',
+              name: 'Item',
+              price: 200,
+              quantity: 1,
+              warrantyPeriod: 0,
+              serialNumbers: [],
+            },
+          ],
         },
       ],
       currentEmployee: {
@@ -2439,6 +2471,7 @@ describe('OrdersWorkspace', () => {
         permissions: [
           'orders.view',
           'orders.manage',
+          'finance.sales.pay',
           'finance.transactions.deposit',
         ],
       },
@@ -2519,6 +2552,18 @@ describe('OrdersWorkspace', () => {
           kind: 'sale',
           status: 'reserved',
           salePrice: 200,
+          lineItems: [
+            {
+              id: 'li-1',
+              kind: 'product',
+              productId: 'product-1',
+              name: 'Item',
+              price: 200,
+              quantity: 1,
+              warrantyPeriod: 0,
+              serialNumbers: [],
+            },
+          ],
         },
       ],
       currentEmployee: {
@@ -2526,6 +2571,7 @@ describe('OrdersWorkspace', () => {
         permissions: [
           'orders.view',
           'orders.manage',
+          'finance.sales.pay',
           'finance.transactions.deposit',
         ],
       },
@@ -2551,5 +2597,236 @@ describe('OrdersWorkspace', () => {
     expect(
       screen.getByRole('button', { name: 'Cash' }),
     ).toBeInTheDocument();
+  });
+
+  it('blocks accepting payment on repair orders when employee lacks finance.orders.pay', async () => {
+    renderWorkspace({
+      activeTab: 'orders',
+      sales: [
+        {
+          ...sale,
+          kind: 'repair',
+          status: 'new',
+          salePrice: 500,
+          lineItems: [
+            {
+              id: 'service-1',
+              kind: 'service',
+              name: 'Diagnostics',
+              price: 500,
+              quantity: 1,
+              warrantyPeriod: 0,
+            },
+          ],
+        },
+      ],
+      currentEmployee: {
+        ...employee,
+        role: 'support',
+        permissions: [
+          'orders.view',
+          'orders.manage',
+          'finance.sales.pay',
+          'finance.transactions.deposit',
+        ],
+      },
+    });
+
+    fireEvent.click(screen.getByRole('link', { name: /r000001/i }));
+
+    const payButtons = await screen.findAllByRole('button', {
+      name: 'Accept payment',
+    });
+    expect(payButtons.length).toBeGreaterThan(0);
+    payButtons.forEach((btn) => {
+      expect(btn).toBeDisabled();
+    });
+  });
+
+  it('blocks accepting payment on sales when employee lacks finance.sales.pay', async () => {
+    renderWorkspace({
+      activeTab: 'sales',
+      sales: [
+        {
+          ...sale,
+          kind: 'sale',
+          status: 'reserved',
+          salePrice: 200,
+          lineItems: [
+            {
+              id: 'li-1',
+              kind: 'product',
+              productId: 'product-1',
+              name: 'Item',
+              price: 200,
+              quantity: 1,
+              warrantyPeriod: 0,
+              serialNumbers: [],
+            },
+          ],
+        },
+      ],
+      currentEmployee: {
+        ...employee,
+        role: 'support',
+        permissions: [
+          'orders.view',
+          'orders.manage',
+          'finance.orders.pay',
+          'finance.transactions.deposit',
+        ],
+      },
+    });
+
+    fireEvent.click(screen.getByRole('link', { name: /r000001/i }));
+
+    const payButtons = await screen.findAllByRole('button', {
+      name: 'Accept payment',
+    });
+    expect(payButtons.length).toBeGreaterThan(0);
+    payButtons.forEach((btn) => {
+      expect(btn).toBeDisabled();
+    });
+  });
+
+  it('filters payment modal cashboxes by employee allowedCashboxIds for non-owner', async () => {
+    const cashbox1 = {
+      id: 'cashbox-1',
+      name: 'Cashbox 1',
+      balances: { UAH: 500, USD: 0 },
+      enabledCurrencies: { UAH: true, USD: false },
+      isDefault: true,
+      isNonCash: false,
+      isArchived: false,
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    };
+    const cashbox2 = {
+      id: 'cashbox-2',
+      name: 'Cashbox 2',
+      balances: { UAH: 500, USD: 0 },
+      enabledCurrencies: { UAH: true, USD: false },
+      isDefault: false,
+      isNonCash: false,
+      isArchived: false,
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    };
+    getCashboxesMock.mockResolvedValue([cashbox1, cashbox2]);
+
+    renderWorkspace({
+      activeTab: 'sales',
+      sales: [
+        {
+          ...sale,
+          kind: 'sale',
+          status: 'reserved',
+          paidAmount: 0,
+          salePrice: 200,
+          lineItems: [
+            {
+              id: 'li-1',
+              kind: 'product',
+              productId: 'product-1',
+              name: 'Mouse',
+              price: 200,
+              quantity: 1,
+              warrantyPeriod: 0,
+              serialNumbers: [],
+            },
+          ],
+        },
+      ],
+      currentEmployee: {
+        ...employee,
+        permissions: [
+          'orders.view',
+          'orders.manage',
+          'finance.sales.pay',
+          'finance.transactions.deposit',
+        ],
+        allowedCashboxIds: ['cashbox-2'],
+      },
+    });
+
+    fireEvent.click(screen.getByRole('link', { name: /r000001/i }));
+    await clickHeaderAcceptPayment();
+
+    let cashboxSelect: HTMLSelectElement | undefined;
+    await waitFor(() => {
+      cashboxSelect = screen
+        .getAllByRole('combobox')
+        .find((select) =>
+          Array.from(select.querySelectorAll('option')).some(
+            (option) => option.value === 'cashbox-2',
+          ),
+        ) as HTMLSelectElement;
+      expect(cashboxSelect).toBeTruthy();
+    });
+
+    expect(cashboxSelect?.options.length).toBe(1);
+    expect(cashboxSelect?.value).toBe('cashbox-2');
+  });
+
+  it('shows No cashboxes available and disables submit in payment modal when employee has 0 allowed cashboxes', async () => {
+    const cashbox1 = {
+      id: 'cashbox-1',
+      name: 'Cashbox 1',
+      balances: { UAH: 500, USD: 0 },
+      enabledCurrencies: { UAH: true, USD: false },
+      isDefault: true,
+      isNonCash: false,
+      isArchived: false,
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    };
+    getCashboxesMock.mockResolvedValue([cashbox1]);
+
+    renderWorkspace({
+      activeTab: 'sales',
+      sales: [
+        {
+          ...sale,
+          kind: 'sale',
+          status: 'reserved',
+          paidAmount: 0,
+          salePrice: 200,
+          lineItems: [
+            {
+              id: 'li-1',
+              kind: 'product',
+              productId: 'product-1',
+              name: 'Mouse',
+              price: 200,
+              quantity: 1,
+              warrantyPeriod: 0,
+              serialNumbers: [],
+            },
+          ],
+        },
+      ],
+      currentEmployee: {
+        ...employee,
+        permissions: [
+          'orders.view',
+          'orders.manage',
+          'finance.sales.pay',
+          'finance.transactions.deposit',
+        ],
+        allowedCashboxIds: [],
+      },
+    });
+
+    fireEvent.click(screen.getByRole('link', { name: /r000001/i }));
+    await clickHeaderAcceptPayment();
+
+    await waitFor(() => {
+      expect(screen.getByText('No cashboxes available')).toBeInTheDocument();
+    });
+
+    const acceptBtn = screen.getByRole('button', {
+      name: 'Accept to cashbox',
+    });
+    expect(acceptBtn).toBeDisabled();
   });
 });

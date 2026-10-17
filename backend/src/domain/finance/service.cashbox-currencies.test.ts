@@ -686,4 +686,115 @@ describe('cashbox currency settings', () => {
     const nonCashBoxes = list.filter((c) => c.isNonCash);
     expect(nonCashBoxes).toHaveLength(2);
   });
+
+  describe('cashbox authorization with actor', () => {
+    beforeEach(() => {
+      installFinanceModelSpies();
+      seedCashbox(defaultCashboxId);
+      seedCashbox(reserveCashboxId);
+    });
+
+    it('rejects deposit to unauthorized cashbox with 403', async () => {
+      await expect(
+        createFinanceTransaction(
+          {
+            type: 'deposit',
+            amount: '50',
+            currency: 'UAH',
+            toCashboxId: defaultCashboxId,
+          },
+          {
+            actor: {
+              role: 'manager',
+              allowedCashboxIds: [reserveCashboxId],
+            },
+          },
+        ),
+      ).rejects.toMatchObject({
+        statusCode: 403,
+        message: 'Forbidden: cashbox access denied',
+      });
+    });
+
+    it('rejects withdraw from unauthorized cashbox with 403', async () => {
+      await expect(
+        createFinanceTransaction(
+          {
+            type: 'withdraw',
+            amount: '20',
+            currency: 'UAH',
+            fromCashboxId: defaultCashboxId,
+          },
+          {
+            actor: {
+              role: 'manager',
+              allowedCashboxIds: [reserveCashboxId],
+            },
+          },
+        ),
+      ).rejects.toMatchObject({
+        statusCode: 403,
+        message: 'Forbidden: cashbox access denied',
+      });
+    });
+
+    it('rejects transfer if source or destination cashbox is unauthorized with 403', async () => {
+      await expect(
+        createFinanceTransaction(
+          {
+            type: 'transfer',
+            amount: '20',
+            currency: 'UAH',
+            fromCashboxId: defaultCashboxId,
+            toCashboxId: reserveCashboxId,
+          },
+          {
+            actor: {
+              role: 'manager',
+              allowedCashboxIds: [defaultCashboxId], // reserve is missing
+            },
+          },
+        ),
+      ).rejects.toMatchObject({
+        statusCode: 403,
+        message: 'Forbidden: cashbox access denied',
+      });
+    });
+
+    it('allows non-owner when all transacted cashboxes are in allowedCashboxIds', async () => {
+      const result = await createFinanceTransaction(
+        {
+          type: 'deposit',
+          amount: '50',
+          currency: 'UAH',
+          toCashboxId: defaultCashboxId,
+        },
+        {
+          actor: {
+            role: 'manager',
+            allowedCashboxIds: [defaultCashboxId],
+          },
+        },
+      );
+      expect(result).toBeDefined();
+    });
+
+    it('allows owner to transact with any cashbox', async () => {
+      const result = await createFinanceTransaction(
+        {
+          type: 'deposit',
+          amount: '50',
+          currency: 'UAH',
+          toCashboxId: defaultCashboxId,
+        },
+        {
+          actor: {
+            role: 'owner',
+            allowedCashboxIds: [],
+          },
+        },
+      );
+      expect(result).toBeDefined();
+    });
+  });
 });

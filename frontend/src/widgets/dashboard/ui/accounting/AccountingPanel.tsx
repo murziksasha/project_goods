@@ -250,6 +250,17 @@ export const AccountingPanel: React.FC<AccountingPanelProps> = ({
     isTransactionsLoading,
   } = useTransactionFilters({ enabled: activeTab === 'transactions' });
 
+  const isOwner = !currentEmployee || currentEmployee.role === 'owner';
+  const allowedCashboxes = useMemo(
+    () =>
+      isOwner
+        ? cashboxes
+        : cashboxes.filter((c) =>
+            (currentEmployee.allowedCashboxIds ?? []).includes(c.id),
+          ),
+    [cashboxes, isOwner, currentEmployee],
+  );
+
   const {
     transactionForm,
     setTransactionForm,
@@ -260,7 +271,7 @@ export const AccountingPanel: React.FC<AccountingPanelProps> = ({
     firstCashboxId: hookFirstCashboxId,
     // secondCashboxId is computed and used internally by the hook; not needed here
   } = useTransactionForm({
-    cashboxes,
+    cashboxes: allowedCashboxes,
     allCurrencyCodes,
     getCurrencyBalance,
     isCashboxCurrencyActive,
@@ -274,7 +285,7 @@ export const AccountingPanel: React.FC<AccountingPanelProps> = ({
     isSaving,
   });
 
-  const firstCashboxId = hookFirstCashboxId || cashboxes[0]?.id || '';
+  const firstCashboxId = hookFirstCashboxId || allowedCashboxes[0]?.id || '';
 
   const totals = useMemo(() => getAccountingTotals(cashboxes), [cashboxes]);
   const financeOverview = useMemo(
@@ -887,7 +898,7 @@ export const AccountingPanel: React.FC<AccountingPanelProps> = ({
             canIssueSupplierOrdersWithoutPayment
           }
           canPaySupplierOrders={canPaySupplierOrders}
-          cashboxes={cashboxes}
+          cashboxes={allowedCashboxes}
           financeOverview={financeOverview}
           firstCashboxId={firstCashboxId}
           isSaving={isSaving}
@@ -918,6 +929,7 @@ export const AccountingPanel: React.FC<AccountingPanelProps> = ({
           allCurrencyCodes={allCurrencyCodes}
           canManageCashboxes={canManageCashboxes}
           cashboxes={cashboxes}
+          allowedCashboxes={allowedCashboxes}
           cashboxCurrencyRows={cashboxCurrencyRows}
           draggedCashboxId={draggedCashboxId}
           isSaving={isSaving}

@@ -32,6 +32,9 @@
   --accent-cyan: #18b8b0;
   --line-soft: #d4dbe5;
   --shadow-soft: 0 14px 34px rgba(21, 39, 59, 0.12);
+  --bg-surface-elevated: var(--bg-card);
+  --bg-surface-hover: var(--bg-soft-muted);
+  --color-text-muted: var(--color-muted);
 
   --color-primary: #2d8ae3;
   --color-primary-hover: #0f6fc6;
@@ -134,6 +137,9 @@ html[data-theme='dark'] {
   --accent-cyan: #2dd4bf;
   --line-soft: #334155;
   --shadow-soft: 0 14px 34px rgba(0, 0, 0, 0.45);
+  --bg-surface-elevated: var(--bg-card);
+  --bg-surface-hover: var(--bg-soft-muted);
+  --color-text-muted: var(--color-muted);
 
   --color-primary: #3b9aef;
   --color-primary-hover: #60b0f5;

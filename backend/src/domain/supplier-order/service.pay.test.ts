@@ -1,6 +1,5 @@
 import mongoose from 'mongoose';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { HttpError } from '../../shared/lib/errors';
 import { leanResult } from '../../test/mongoose-mocks';
 import { createFinanceTransaction } from '../finance/service';
 import { Supplier } from '../supplier/model';
@@ -106,19 +105,39 @@ describe('paySupplierOrder', () => {
     expect(createFinanceTransactionMock).not.toHaveBeenCalled();
   });
 
-  it('rejects insufficient cashbox balance with 400', async () => {
-    createFinanceTransactionMock.mockRejectedValueOnce(
-      new HttpError(400, 'Cashbox balance is not enough for this operation.'),
-    );
-
+  it('rejects non-owner with unauthorized cashbox with 403', async () => {
     await expect(
-      paySupplierOrder('507f1f77bcf86cd799439011', {
-        cashboxId: '507f1f77bcf86cd799439013',
-      }),
+      paySupplierOrder(
+        '507f1f77bcf86cd799439011',
+        { cashboxId: '507f1f77bcf86cd799439013' },
+        { role: 'manager', allowedCashboxIds: ['507f1f77bcf86cd799439099'] },
+      ),
     ).rejects.toMatchObject({
-      statusCode: 400,
-      message: 'Cashbox balance is not enough for this operation.',
+      statusCode: 403,
+      message: 'Forbidden: cashbox access denied',
     });
+    expect(createFinanceTransactionMock).not.toHaveBeenCalled();
   });
 
+  it('allows non-owner with allowed cashbox', async () => {
+    await expect(
+      paySupplierOrder(
+        '507f1f77bcf86cd799439011',
+        { cashboxId: '507f1f77bcf86cd799439013' },
+        { role: 'manager', allowedCashboxIds: ['507f1f77bcf86cd799439013'] },
+      ),
+    ).resolves.toBeDefined();
+    expect(createFinanceTransactionMock).toHaveBeenCalled();
+  });
+
+  it('allows owner to pay with any cashbox', async () => {
+    await expect(
+      paySupplierOrder(
+        '507f1f77bcf86cd799439011',
+        { cashboxId: '507f1f77bcf86cd799439013' },
+        { role: 'owner', allowedCashboxIds: [] },
+      ),
+    ).resolves.toBeDefined();
+    expect(createFinanceTransactionMock).toHaveBeenCalled();
+  });
 });

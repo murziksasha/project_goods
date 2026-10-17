@@ -39,6 +39,10 @@ import {
 } from './list-transactions-query';
 import { HttpError } from '../../shared/lib/errors';
 import { loadTransactionsForBalanceAfter } from './period-snapshot';
+import {
+  assertEmployeeCanTransactWithCashbox,
+  type EmployeeCashboxActor,
+} from './cashbox-auth';
 
 const transactionCancellationDayError =
   'Transaction can be cancelled only during the transaction day.';
@@ -77,6 +81,7 @@ export const getFinanceTransactionTypeForCancel = async (
 const runCreateFinanceTransaction = async (
   payload: TransactionPayload,
   session?: mongoose.ClientSession,
+  actor?: EmployeeCashboxActor | null,
 ) => {
   await ensureDefaultCashbox(session);
 
@@ -119,9 +124,11 @@ const runCreateFinanceTransaction = async (
     throw new HttpError(400, 'Transfer cashboxes must be different.');
   }
   if (fromCashbox) {
+    assertEmployeeCanTransactWithCashbox(actor, fromCashbox._id.toString());
     assertCashboxCanWithdrawCurrency(fromCashbox, currency);
   }
   if (toCashbox) {
+    assertEmployeeCanTransactWithCashbox(actor, toCashbox._id.toString());
     assertCashboxCanAcceptCurrency(toCashbox, currency);
   }
 
@@ -181,13 +188,13 @@ const runCreateFinanceTransaction = async (
 
 export const createFinanceTransaction = async (
   payload: TransactionPayload,
-  options?: { session?: mongoose.ClientSession },
+  options?: { session?: mongoose.ClientSession; actor?: EmployeeCashboxActor | null },
 ) => {
   if (options?.session) {
-    return runCreateFinanceTransaction(payload, options.session);
+    return runCreateFinanceTransaction(payload, options.session, options.actor);
   }
   return withOptionalFinanceSession((session) =>
-    runCreateFinanceTransaction(payload, session),
+    runCreateFinanceTransaction(payload, session, options?.actor),
   );
 };
 

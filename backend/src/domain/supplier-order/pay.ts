@@ -9,14 +9,20 @@ import {
 } from './model';
 import { getSupplierOrderDisplayNumber } from './formatters';
 import { withSupplierName } from './internal';
+import {
+  assertEmployeeCanTransactWithCashbox,
+  type EmployeeCashboxActor,
+} from '../finance/cashbox-auth';
 
 export const paySupplierOrder = async (
   supplierOrderId: string,
   payload: { cashboxId?: unknown; note?: unknown; transactionDate?: unknown },
+  actor?: EmployeeCashboxActor | null,
 ) => {
   isValidObjectIdOrThrow(supplierOrderId, 'supplierOrderId');
   const cashboxId = toNonEmptyString(payload.cashboxId);
   isValidObjectIdOrThrow(cashboxId, 'cashboxId');
+  assertEmployeeCanTransactWithCashbox(actor, cashboxId);
 
   const paidOrder = await withOptionalMongoSession(async (session) => {
     const existing = session

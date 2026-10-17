@@ -40,7 +40,13 @@ const transactionPermissionByType: Record<TransactionType, EmployeePermission> =
 };
 
 export const listCashboxes = async (req: Request, res: Response): Promise<void> => {
-  await requireAnyPermission(req, ['finance.cashboxes.view', 'finance.view']);
+  await requireAnyPermission(req, [
+    'finance.cashboxes.view',
+    'finance.view',
+    'finance.orders.pay',
+    'finance.sales.pay',
+    'employees.manage',
+  ]);
   const includeArchived = String(req.query.includeArchived ?? '').toLowerCase();
   res.json(await listCashboxesService({ includeArchived: includeArchived === '1' || includeArchived === 'true' }));
 };
@@ -110,8 +116,8 @@ export const createTransaction = async (req: Request, res: Response): Promise<vo
   const payload = validateFinanceTransactionPayload(req.body);
   const type = String(payload.type ?? '') as TransactionType;
   const permission = transactionPermissionByType[type];
-  await requirePermission(req, permission ?? 'finance.transactions.deposit');
-  res.status(201).json(await createFinanceTransactionService(payload));
+  const employee = await requirePermission(req, permission ?? 'finance.transactions.deposit');
+  res.status(201).json(await createFinanceTransactionService(payload, { actor: employee }));
 };
 
 export const updateTransactionNote = async (req: Request, res: Response): Promise<void> => {
@@ -150,8 +156,8 @@ export const listSupplierOrders = async (req: Request, res: Response): Promise<v
 };
 
 export const paySupplierOrder = async (req: Request, res: Response): Promise<void> => {
-  await requirePermission(req, 'finance.supplierOrders.pay');
-  res.json(await paySupplierOrderService(routeParam(req, 'supplierOrderId'), req.body as { cashboxId?: unknown; note?: unknown; transactionDate?: unknown }));
+  const employee = await requirePermission(req, 'finance.supplierOrders.pay');
+  res.json(await paySupplierOrderService(routeParam(req, 'supplierOrderId'), req.body as { cashboxId?: unknown; note?: unknown; transactionDate?: unknown }, employee));
 };
 
 export const issueSupplierOrderWithoutPayment = async (req: Request, res: Response): Promise<void> => {

@@ -28,6 +28,7 @@ export interface AccountingCashboxesViewProps {
   allCurrencyCodes: string[];
   canManageCashboxes: boolean;
   cashboxes: Cashbox[];
+  allowedCashboxes?: Cashbox[];
   cashboxCurrencyRows: (cashbox: Cashbox) => CashboxCurrencyRow[];
   draggedCashboxId: string | null;
   isSaving: boolean;
@@ -71,6 +72,7 @@ export const AccountingCashboxesView: React.FC<AccountingCashboxesViewProps> = (
   allCurrencyCodes,
   canManageCashboxes,
   cashboxes,
+  allowedCashboxes,
   cashboxCurrencyRows,
   draggedCashboxId,
   isSaving,
@@ -133,7 +135,9 @@ export const AccountingCashboxesView: React.FC<AccountingCashboxesViewProps> = (
     });
   }, [cashboxCurrencyRows, cashboxes, hideEmpty, searchQuery]);
 
-  const sourceCashbox = cashboxes.find(
+  const transactionCashboxes = allowedCashboxes ?? cashboxes;
+
+  const sourceCashbox = transactionCashboxes.find(
     (cashbox) =>
       cashbox.id ===
       (transactionForm.type === 'deposit'
@@ -342,7 +346,9 @@ export const AccountingCashboxesView: React.FC<AccountingCashboxesViewProps> = (
                 )}
               </div>
               <div className='finance-cashbox-actions'>
-                {defaultOperationType ? (
+                {defaultOperationType &&
+                (!allowedCashboxes ||
+                  allowedCashboxes.some((c) => c.id === cashbox.id)) ? (
                   <button
                     type='button'
                     className='primary-button'
@@ -463,7 +469,7 @@ export const AccountingCashboxesView: React.FC<AccountingCashboxesViewProps> = (
             canCreateDeposit={canCreateDeposit}
             canCreateTransfer={canCreateTransfer}
             canCreateWithdraw={canCreateWithdraw}
-            cashboxes={cashboxes}
+            cashboxes={transactionCashboxes}
             categories={categories}
             canManageCategories={canManageCategories}
             onRequestAddCategory={() => setIsCreateCategoryOpen(true)}
@@ -471,7 +477,8 @@ export const AccountingCashboxesView: React.FC<AccountingCashboxesViewProps> = (
             saveDisabled={
               isSaving ||
               !transactionForm.amount ||
-              allowedTransactionCurrencies.length === 0
+              allowedTransactionCurrencies.length === 0 ||
+              transactionCashboxes.length === 0
             }
             transactionForm={transactionForm}
             onCreateTransaction={(closeAfter) => {

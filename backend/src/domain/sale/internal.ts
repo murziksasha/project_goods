@@ -361,3 +361,9 @@ export const resolveActiveEmployee = async (
   }
   return employee;
 };
+
+export {
+  assertEmployeeCanTransactWithCashbox,
+  type EmployeeCashboxActor,
+} from '../finance/cashbox-auth';
+
