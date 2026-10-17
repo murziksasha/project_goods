@@ -94,9 +94,9 @@ For `Create order -> Sales order`, opened **sale card**, and **repair order card
      - Catalog suggestion with matching selectable warehouse stock by `name`: always pre-fills to stock (`selectedProductId`, retail price, `priceTier: retail`); operator confirms with `Add product`; serial binding uses the `Serials` modal flow (no immediate atomic add).
    - **Create order -> Sales order**:
      - Stock suggestion with `serialNumber`: pre-fills the active product row with `productId` and bound serial (`quantity = 1`).
-     - Stock suggestion without `serialNumber`: pre-fills the active row with `productId`, name, and retail price (`getRetailSalePrice` / `formatRetailSalePrice`; fallback to purchase `product.price` when retail is missing or `<= 0`).
+     - Stock suggestion without `serialNumber`: pre-fills the active row with `productId`, name, and retail price (`getRetailSalePrice` / `formatRetailSalePrice`; fallback to purchase `product.price` when retail is missing or `<= 0`). The prefilled retail price stays the unit price when qty changes.
      - Catalog suggestion: pre-fills the active row with `catalogProductId`.
-     - Catalog suggestion with matching selectable warehouse stock by `name`: pre-fills stock price hints (`productId` for R/W toggle, retail price via `getRetailSalePrice`) but does **not** bind `serialNumber`; operator may edit `qty > 1`; save omits `productId` when serialized stock is matched and `qty > 1` until serial binding in the opened card.
+     - Catalog suggestion with matching selectable warehouse stock by `name`: pre-fills stock price hints (`productId` for R/W toggle, retail price via `getRetailSalePrice`) but does **not** bind `serialNumber`; the prefilled retail price stays the unit price when qty changes; operator may edit `qty > 1`; save omits `productId` when serialized stock is matched and `qty > 1` until serial binding in the opened card.
 
 ## Modal Layout Rule
 
