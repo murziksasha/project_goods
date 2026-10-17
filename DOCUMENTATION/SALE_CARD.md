@@ -41,6 +41,8 @@ Related: [SALE_FLOW.md](./SALE_FLOW.md) · [ORDER_CARD.md](./ORDER_CARD.md) · [
   - `Qty`
   - `Warranty`
   - `Action`
+- A sale created from `Sales order` shows that same unit price in the `Price` column (see [SALE_FLOW.md §Price Transfer From Create Form To Sale Card](./SALE_FLOW.md#price-transfer-from-create-form-to-sale-card-2026-05-20)).
+- The `Products` header `×N` amount stays `sum(price × qty)`.
 - Product and service rows use unified `Remove` action label.
 - Exception: for `issued` sale with bound serials, product row action switches to `Return`.
 

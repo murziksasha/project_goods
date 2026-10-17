@@ -1090,7 +1090,6 @@ export const CreateOrderCard: React.FC<CreateOrderCardProps> = ({
     if (item.source === 'stock' && item.serialNumber) {
       updateSaleItem(item.id, {
         quantity: '1',
-        price: item.unitPrice || item.price,
       });
       onError(t('orders.create.errors.serializedOnePerLine'));
       return;
@@ -1100,32 +1099,9 @@ export const CreateOrderCard: React.FC<CreateOrderCardProps> = ({
       1,
       Number.parseInt(value || '1', 10) || 1,
     );
-    const previousQuantity = Math.max(
-      1,
-      Number.parseInt(item.quantity || '1', 10) || 1,
-    );
-    const currentPrice = parseDecimalInput(item.price);
-    const knownUnitPrice = parseDecimalInput(item.unitPrice);
-    const resolvedUnitPrice =
-      Number.isFinite(knownUnitPrice) && knownUnitPrice > 0
-        ? knownUnitPrice
-        : Number.isFinite(currentPrice) && currentPrice > 0
-          ? currentPrice / previousQuantity
-          : 0;
 
     updateSaleItem(item.id, {
       quantity: String(nextQuantity),
-      unitPrice:
-        resolvedUnitPrice > 0
-          ? String(Math.round(resolvedUnitPrice * 100) / 100)
-          : item.unitPrice,
-      price:
-        resolvedUnitPrice > 0
-          ? String(
-              Math.round(resolvedUnitPrice * nextQuantity * 100) /
-                100,
-            )
-          : item.price,
     });
   };
 
@@ -1134,22 +1110,10 @@ export const CreateOrderCard: React.FC<CreateOrderCardProps> = ({
     value: string,
   ) => {
     const normalizedPrice = value.trim();
-    const quantity = Math.max(
-      1,
-      Number.parseInt(item.quantity || '1', 10) || 1,
-    );
-    const numericPrice = parseDecimalInput(normalizedPrice);
-    const resolvedUnitPrice =
-      Number.isFinite(numericPrice) && numericPrice >= 0
-        ? numericPrice / quantity
-        : 0;
 
     updateSaleItem(item.id, {
       price: normalizedPrice,
-      unitPrice:
-        Number.isFinite(resolvedUnitPrice) && resolvedUnitPrice >= 0
-          ? String(Math.round(resolvedUnitPrice * 100) / 100)
-          : item.unitPrice,
+      unitPrice: normalizedPrice,
     });
   };
   const {
@@ -1320,16 +1284,14 @@ export const CreateOrderCard: React.FC<CreateOrderCardProps> = ({
           1,
           Number.parseInt(item.quantity || '1', 10) || 1,
         );
-        const totalPrice = Math.max(
-          0,
-          parseDecimalInput(item.price) || 0,
-        );
-        const knownUnitPrice = Math.max(
-          0,
-          parseDecimalInput(item.unitPrice) || 0,
-        );
+        const parsedPrice = parseDecimalInput(item.price);
+        const knownUnitPrice = parseDecimalInput(item.unitPrice);
         const resolvedUnitPrice =
-          knownUnitPrice > 0 ? knownUnitPrice : totalPrice / quantity;
+          Number.isFinite(parsedPrice) && parsedPrice >= 0
+            ? parsedPrice
+            : Number.isFinite(knownUnitPrice) && knownUnitPrice >= 0
+              ? knownUnitPrice
+              : 0;
         const normalizedUnitPrice = String(
           Math.round(resolvedUnitPrice * 100) / 100,
         );
@@ -1365,9 +1327,7 @@ export const CreateOrderCard: React.FC<CreateOrderCardProps> = ({
           article: item.article,
           serialNumber: hasBoundSerial ? serialNumber : '',
           serialNumbers: hasBoundSerial ? [serialNumber] : undefined,
-          price: hasBoundSerial
-            ? normalizedUnitPrice
-            : String(Math.round(totalPrice * 100) / 100),
+          price: normalizedUnitPrice,
           quantity: hasBoundSerial ? '1' : String(quantity),
           warrantyPeriod: item.warrantyPeriod,
           warehouse: '',

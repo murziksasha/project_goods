@@ -343,11 +343,19 @@ Service catalog stores three prices: retail (`service.price`), wholesale 1 (`sal
 
 ## Price Transfer From Create Form To Sale Card (2026-05-20)
 
-- For `Create order -> Sales order`, entered product price is source-of-truth for created sale line items.
+- For `Create order -> Sales order` product rows, the Price field is the price of **one** item (the unit price). Quantity changes never rewrite the Price field. The line amount is `unit price × qty`.
+- **Battery example:** AAA Panasonic Alkaline at retail 50 and qty 4 costs 200:
+  - Form Price field stays **50** when qty becomes **4**.
+  - Form Products total reads **200 UAH** (`saleItemsTotal = price × qty`).
+  - Saved payload is `{ price: 50, quantity: 4 }`.
+  - Opened sale card displays: card Price column **50**, Qty **4**, Products header total **200**, and To pay **200**.
+  - Saving 200 as the unit price is the defect (leading to card Price 200 × Qty 4 → To pay 800).
+- Manual price edits and R/W tier fills are unit prices and are stored directly without dividing by quantity.
+- Bound warehouse serials strictly stay at `quantity = 1` (attempting to change qty keeps 1 and shows the serialized-one-per-line error).
 - Price normalization must accept user decimal formats with spaces/comma and convert to numeric value before save.
 - On save:
   - each sale line item receives normalized unit `price`,
-  - sale header `salePrice` is calculated from sum of sale items.
+  - sale header `salePrice` is calculated from the sum of line items (`price × qty`).
 - Opened sale card must display the same effective item price values that were entered during creation.
 
 ## Services In Sale Card
