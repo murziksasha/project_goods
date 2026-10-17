@@ -75,11 +75,13 @@ export type WarehouseSearchMode =
 export type ReceiptStatus =
   | 'new'
   | 'approved'
+  | 'partially_stocked'
   | 'received'
   | 'cancelled';
 export const receiptStatusFilterOptions: ReceiptStatus[] = [
   'new',
   'approved',
+  'partially_stocked',
   'received',
   'cancelled',
 ];
@@ -89,7 +91,8 @@ export const receiptChipToOrderStatuses: Record<
 > = {
   new: ['request', 'ordered'],
   approved: ['approved'],
-  received: ['stocked', 'partially_stocked', 'partially_completed', 'overdue'],
+  partially_stocked: ['partially_stocked'],
+  received: ['stocked', 'partially_completed', 'overdue'],
   cancelled: ['cancelled', 'unavailable'],
 };
 export type WarehouseFilters = {

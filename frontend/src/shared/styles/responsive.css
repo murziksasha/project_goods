@@ -2288,3 +2288,12 @@
     font-size: 1.35rem;
   }
 }
+
+/* 2K and wider: use the area beside the sidebar instead of the 1540px page cap. */
+@media (min-width: 1600px) {
+  .page-shell:not(.auth-page-shell),
+  .dashboard-shell:not(.auth-dashboard-shell) .page-shell:not(.auth-page-shell) {
+    width: calc(100% - 32px);
+    max-width: none;
+  }
+}

@@ -100,7 +100,8 @@ Related: [ORDER_CARD.md](./ORDER_CARD.md) · [SALE_FLOW.md](./SALE_FLOW.md) · [
   - `client rejected`
   - `issued without repair`
   - (not from `notPickedUp` or `away`)
-- Repair Kanban board (Orders tab `Kanban` only) mirrors repair statuses as columns, including last column `away`; see [REPAIR_KANBAN_SPEC.md](./REPAIR_KANBAN_SPEC.md).
+- Repair Kanban board (Orders tab `Kanban` only) mirrors repair statuses as columns. The column after `diagnostics` is `pendingApproval` (EN Pending approval / UK На Узгодженні), then `clientApproved`, then `waitingParts`. The last column is `away`. See [REPAIR_KANBAN_SPEC.md](./REPAIR_KANBAN_SPEC.md).
+- List-menu permission for `pendingApproval` matches `diagnostics`: `orders.manage` or `kanban.use`. Board drag uses `kanban.use`, the same gate as dropping a card onto Diagnostics.
 - Repair orders support status `away` in the `Orders` tab status dropdown and filters. Any employee who can view the order may set `away`; other statuses stay gated by `orders.manage` / `kanban.use`.
 - Completion timestamp source is the corresponding status-change entry in `Live feed` (timeline).
 - Filters include `Payment method` dropdown: `All`, `Cash`, `Non-cash`.

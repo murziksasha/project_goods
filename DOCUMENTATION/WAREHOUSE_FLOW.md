@@ -377,12 +377,19 @@ Implementation references:
 
 ### 5.1) Receipts Filter Panel
 
-- `Warehouse -> Receipts` filter panel includes a multi-select receipt status filter with checkboxes: `new`, `approved`, `received`, `cancelled`.
+- `Warehouse -> Receipts` filter panel includes a multi-select receipt status filter with checkboxes: `new`, `approved`, `partially_stocked`, `received`, `cancelled`.
 - Empty status selection means all receipt statuses are shown.
-- Multiple selected statuses use OR logic: a row passes when its projected receipt status is in the selected set.
+- Multiple selected statuses use OR logic. A row passes when its supplier-order header status (`orderStatus`) is in the allow-list for any selected chip. The match is header status, not item `receiptStatus`.
+- Chip to header-status map:
+  - `new` — `request`, `ordered`
+  - `approved` — `approved`
+  - `partially_stocked` — `partially_stocked` only (Status badge **Partially stocked**)
+  - `received` (**Taken on charge**) — `stocked`, `partially_completed`, `overdue`. This chip does not include `partially_stocked`.
+  - `cancelled` — `cancelled`, `unavailable`
 - The toolbar `Filter` button counts a non-empty status selection as one active filter.
 - Toolbar also has `Orders` / `Lines` view toggle (default `Orders`; persisted per browser) and a star toggle for starred supplier-order receipts.
-- When a single receipt status is applied, matching status chips appear under the toolbar; `All` clears the status filter.
+- Status chips under the toolbar use the same options, in this order: `All`, `New`, `Approved`, `Partially stocked`, `Taken on charge`, `Cancelled`. When a single receipt status is applied, that chip is active; `All` clears the status filter.
+- Saved filters may store `partially_stocked` in `statuses`. A saved `received` selection no longer includes partially stocked orders.
 - Header summary on this tab: `{lines} lines · {orders} orders · {unpaid} unpaid`.
 - Named saved warehouse filters persist the `statuses` array on the server (`/api/saved-filters`, scope `warehouse`); active/draft filter fields still live in this browser.
 - Legacy saved filters that still store a single `status` value are migrated to `statuses` on load.
