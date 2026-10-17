@@ -897,7 +897,7 @@ describe('kanban active filters', () => {
     window.localStorage.clear();
   });
 
-  it('keeps only master, dates, and favorites on kanban', () => {
+  it('keeps only master, dates, and favorites on kanban and migrates legacy assigneeId', () => {
     expect(
       toKanbanFilters({
         ...emptyOrdersFilters,
@@ -912,11 +912,34 @@ describe('kanban active filters', () => {
       }),
     ).toEqual({
       ...emptyOrdersFilters,
-      assigneeId: 'master-1',
+      assigneeId: '',
+      masterIds: ['master-1'],
+      includeUnassignedMaster: false,
       dateFrom: '2026-02-01',
       dateTo: '2026-02-28',
       favoritesOnly: true,
     });
+  });
+
+  it('toKanbanFilters migrates a legacy assigneeId and clears it', () => {
+    const migrated = toKanbanFilters({
+      ...emptyOrdersFilters,
+      assigneeId: 'legacy-master',
+      masterIds: [],
+      includeUnassignedMaster: false,
+    });
+    expect(migrated.masterIds).toEqual(['legacy-master']);
+    expect(migrated.assigneeId).toBe('');
+
+    const withExisting = toKanbanFilters({
+      ...emptyOrdersFilters,
+      assigneeId: 'legacy-master',
+      masterIds: ['current-master'],
+      includeUnassignedMaster: true,
+    });
+    expect(withExisting.masterIds).toEqual(['current-master']);
+    expect(withExisting.includeUnassignedMaster).toBe(true);
+    expect(withExisting.assigneeId).toBe('');
   });
 
   it('does not copy leftover order status filters onto kanban', () => {
@@ -935,7 +958,9 @@ describe('kanban active filters', () => {
     const stored = readActiveOrderFilters();
     expect(stored.kanban).toEqual({
       ...emptyOrdersFilters,
-      assigneeId: 'master-1',
+      assigneeId: '',
+      masterIds: ['master-1'],
+      includeUnassignedMaster: false,
       dateFrom: '2026-01-01',
     });
     expect(stored.orders.statuses).toEqual([

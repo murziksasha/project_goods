@@ -142,7 +142,16 @@ Permission: `system.backups.manage` (except finance snapshot read).
   - `limit` — максимум записей (cap 5000); без `limit` и без `page` — полный список
   - `page` / `pageSize` — если `page` задан, ответ `{ items, total, page, pageSize }` (default pageSize 30, cap 500). Таблица Orders/Sales использует этот режим.
   - `statuses` — CSV/`$in`; `excludeStatuses` — `$nin`
-  - `assigneeId` — master или manager; `masterId` — только master (Kanban)
+  - `assigneeId` — exact employee id; matches `master` **or** `manager`. Orders assignee filter and Sales manager filter send this. Kanban does not.
+  - `masterId` — exact `master` match for older callers. Ignored when `masterIds` has any valid id or `includeUnassignedMaster=true`.
+  - `masterIds` — comma-separated employee ids (one id is still this param, not `masterId`). Kanban sends this and does not send `masterId`. Ids that are not valid ObjectIds are dropped. When every id is invalid, the param is ignored.
+  - `includeUnassignedMaster` — `true` matches sales whose `master` is null or missing. An order still assigned to an inactive employee is not included. `false` and omitted do not add that match.
+  - Master match, first branch that applies:
+    - valid `masterIds` and `includeUnassignedMaster=true`: `$or` of `{ master: { $in: ids } }` and `{ master: null }`
+    - valid `masterIds` only: `{ master: { $in: ids } }`
+    - `includeUnassignedMaster=true` only: `{ master: null }`
+    - otherwise `masterId`, then `assigneeId`
+  - `masterIds` and `includeUnassignedMaster` count in `hasSalesListFilters`. Kanban UI rules: [REPAIR_KANBAN_SPEC.md](./REPAIR_KANBAN_SPEC.md#master-filter-kanban-toolbar-only).
   - `recordNumber`, `client`, `product`, `service`, `repairType` (`paid`|`warranty`), `paymentMethod` (`cash`|`non-cash`)
   - `compact` — `1`/`true`: list projection без `timeline` и `paymentHistory`. Dashboard dump і таблиця шлють `compact=1`; картка довантажує `GET /sales/:id`.
   - См. политику размера БД: [DATA_RETENTION.md](./DATA_RETENTION.md)

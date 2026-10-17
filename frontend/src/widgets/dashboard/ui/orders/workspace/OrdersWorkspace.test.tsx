@@ -2337,16 +2337,16 @@ describe('OrdersWorkspace', () => {
     });
 
     fireEvent.click(screen.getByRole('button', { name: /Filter/i }));
-    const masterSelect = document.querySelector(
-      '.orders-filter-panel select',
-    ) as HTMLSelectElement;
-    expect(masterSelect).toBeTruthy();
-    expect(
-      [...masterSelect.options].map((option) => option.textContent),
-    ).toEqual(['All', 'Kostiantyn']);
-    fireEvent.change(masterSelect, {
-      target: { value: masterEmployee.id },
-    });
+    const masterToggle = document.querySelector(
+      '.orders-filter-status-toggle',
+    ) as HTMLButtonElement;
+    expect(masterToggle).toBeTruthy();
+    expect(masterToggle.textContent).toBe('All');
+    fireEvent.click(masterToggle);
+
+    expect(screen.getByLabelText('Without master')).toBeInTheDocument();
+    expect(screen.getByLabelText('Kostiantyn')).toBeInTheDocument();
+    fireEvent.click(screen.getByLabelText('Kostiantyn'));
     fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
 
     expect(screen.getByLabelText('Orders: 1')).toBeInTheDocument();
@@ -2356,6 +2356,114 @@ describe('OrdersWorkspace', () => {
     expect(
       screen.getByText(/Master: Kostiantyn/i),
     ).toBeInTheDocument();
+  });
+
+  it('filters kanban by Without master and coworker union, and removes chips', async () => {
+    const managerEmployee: Employee = {
+      ...employee,
+      id: 'olexandr-1',
+      name: 'Olexandr Gryhoriev',
+      role: 'manager',
+    };
+    const masterEmployee: Employee = {
+      ...employee,
+      id: 'kostia-1',
+      name: 'Kostiantyn',
+      role: 'master',
+      permissions: ['orders.view', 'repairs.execute'],
+    };
+
+    const unassignedOrder: Sale = {
+      ...sale,
+      id: 'sale-unassigned',
+      recordNumber: 'R000401',
+      status: 'new',
+      manager: {
+        id: managerEmployee.id,
+        name: managerEmployee.name,
+        role: 'manager',
+      },
+      master: null,
+    };
+    const kostiantynOrder: Sale = {
+      ...sale,
+      id: 'sale-kostiantyn',
+      recordNumber: 'R000402',
+      status: 'diagnostics',
+      manager: {
+        id: managerEmployee.id,
+        name: managerEmployee.name,
+        role: 'manager',
+      },
+      master: {
+        id: masterEmployee.id,
+        name: masterEmployee.name,
+        role: 'master',
+      },
+    };
+    const otherMasterOrder: Sale = {
+      ...sale,
+      id: 'sale-other',
+      recordNumber: 'R000403',
+      status: 'inRepair',
+      manager: {
+        id: managerEmployee.id,
+        name: managerEmployee.name,
+        role: 'manager',
+      },
+      master: {
+        id: 'other-master-id',
+        name: 'Other Master',
+        role: 'master',
+      },
+    };
+
+    renderWorkspace({
+      activeTab: 'kanban',
+      visibleTabs: ['orders', 'kanban'],
+      employees: [managerEmployee, masterEmployee],
+      sales: [unassignedOrder, kostiantynOrder, otherMasterOrder],
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /Filter/i }));
+    const masterToggle = document.querySelector(
+      '.orders-filter-status-toggle',
+    ) as HTMLButtonElement;
+    fireEvent.click(masterToggle);
+
+    fireEvent.click(screen.getByLabelText('Without master'));
+    fireEvent.click(screen.getByLabelText('Kostiantyn'));
+
+    expect(masterToggle.textContent).toBe('2 selected');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
+
+    expect(screen.getByLabelText('Orders: 2')).toBeInTheDocument();
+    expect(screen.getByText('#R000401')).toBeInTheDocument();
+    expect(screen.getByText('#R000402')).toBeInTheDocument();
+    expect(screen.queryByText('#R000403')).not.toBeInTheDocument();
+
+    expect(screen.getByText(/Master: Without master/i)).toBeInTheDocument();
+    expect(screen.getByText(/Master: Kostiantyn/i)).toBeInTheDocument();
+
+    const withoutMasterChip = screen
+      .getByText(/Master: Without master/i)
+      .closest('button')!;
+    fireEvent.click(withoutMasterChip);
+
+    expect(screen.getByLabelText('Orders: 1')).toBeInTheDocument();
+    expect(screen.queryByText('#R000401')).not.toBeInTheDocument();
+    expect(screen.getByText('#R000402')).toBeInTheDocument();
+
+    const kostiantynChip = screen
+      .getByText(/Master: Kostiantyn/i)
+      .closest('button')!;
+    fireEvent.click(kostiantynChip);
+
+    expect(screen.getByLabelText('Orders: 3')).toBeInTheDocument();
+    expect(screen.getByText('#R000401')).toBeInTheDocument();
+    expect(screen.getByText('#R000402')).toBeInTheDocument();
+    expect(screen.getByText('#R000403')).toBeInTheDocument();
   });
 
   it('renders Price and Paid columns in red for non-cash payments', async () => {

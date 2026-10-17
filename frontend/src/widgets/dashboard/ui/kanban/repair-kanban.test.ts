@@ -113,17 +113,63 @@ describe('repair kanban visibility', () => {
     const withMaster = {
       master: { id: 'master-1', name: 'Kostiantyn', role: 'master' },
     } as Sale;
+    const withOtherMaster = {
+      master: { id: 'master-2', name: 'Petro', role: 'master' },
+    } as Sale;
+    const withInactiveMaster = {
+      master: { id: 'inactive-1', name: 'Inactive Employee', role: 'master' },
+    } as Sale;
+    const unassignedOrder = {
+      master: null,
+    } as Sale;
     const createdByManager = {
       master: null,
       manager: { id: 'manager-1', name: 'Olexandr', role: 'manager' },
     } as Sale;
 
+    // All: masterIds empty and includeUnassignedMaster false matches every order
+    const allFilter = { masterIds: [], includeUnassignedMaster: false };
+    expect(saleMatchesKanbanMasterFilter(withMaster, allFilter)).toBe(true);
+    expect(saleMatchesKanbanMasterFilter(unassignedOrder, allFilter)).toBe(true);
+    expect(saleMatchesKanbanMasterFilter(withInactiveMaster, allFilter)).toBe(true);
+    expect(saleMatchesKanbanMasterFilter(createdByManager, allFilter)).toBe(true);
     expect(saleMatchesKanbanMasterFilter(withMaster, '')).toBe(true);
+
+    // One master: matches only orders with that master
+    const singleMasterFilter = {
+      masterIds: ['master-1'],
+      includeUnassignedMaster: false,
+    };
+    expect(saleMatchesKanbanMasterFilter(withMaster, singleMasterFilter)).toBe(true);
+    expect(saleMatchesKanbanMasterFilter(withOtherMaster, singleMasterFilter)).toBe(false);
+    expect(saleMatchesKanbanMasterFilter(unassignedOrder, singleMasterFilter)).toBe(false);
+    expect(saleMatchesKanbanMasterFilter(withMaster, 'master-1')).toBe(true);
+
+    // Unassigned (Without master): matches orders where master is empty
+    const unassignedFilter = { masterIds: [], includeUnassignedMaster: true };
+    expect(saleMatchesKanbanMasterFilter(unassignedOrder, unassignedFilter)).toBe(true);
+    expect(saleMatchesKanbanMasterFilter(createdByManager, unassignedFilter)).toBe(true);
+    // Assigned order excluded from Without master (active or inactive)
+    expect(saleMatchesKanbanMasterFilter(withMaster, unassignedFilter)).toBe(false);
+    expect(saleMatchesKanbanMasterFilter(withInactiveMaster, unassignedFilter)).toBe(false);
+
+    // Union: matches orders with no master OR orders of any checked coworker
+    const unionFilter = {
+      masterIds: ['master-1', 'master-2'],
+      includeUnassignedMaster: true,
+    };
+    expect(saleMatchesKanbanMasterFilter(unassignedOrder, unionFilter)).toBe(true);
+    expect(saleMatchesKanbanMasterFilter(createdByManager, unionFilter)).toBe(true);
+    expect(saleMatchesKanbanMasterFilter(withMaster, unionFilter)).toBe(true);
+    expect(saleMatchesKanbanMasterFilter(withOtherMaster, unionFilter)).toBe(true);
+    expect(saleMatchesKanbanMasterFilter(withInactiveMaster, unionFilter)).toBe(false);
+
+    // Manager-created order with no master: matches unassigned but not manager-1 when filtered by master
     expect(
-      saleMatchesKanbanMasterFilter(withMaster, 'master-1'),
-    ).toBe(true);
-    expect(
-      saleMatchesKanbanMasterFilter(withMaster, 'manager-1'),
+      saleMatchesKanbanMasterFilter(createdByManager, {
+        masterIds: ['manager-1'],
+        includeUnassignedMaster: false,
+      }),
     ).toBe(false);
     expect(
       saleMatchesKanbanMasterFilter(createdByManager, 'manager-1'),

@@ -100,4 +100,74 @@ describe('list-sales-query', () => {
     expect(options.masterId).toBe('507f1f77bcf86cd799439011');
     expect(options.repairType).toBe('warranty');
   });
+
+  describe('kanban master query filters', () => {
+    const validId1 = '507f1f77bcf86cd799439011';
+    const validId2 = '507f191e810c19729de860ea';
+
+    it('builds $in filter for masterIds only', () => {
+      const options = parseListSalesQuery({
+        masterIds: `${validId1},${validId2}`,
+      });
+      expect(options.masterIds).toEqual([validId1, validId2]);
+      expect(hasSalesListFilters(options)).toBe(true);
+
+      const filter = buildSalesFilter(options);
+      expect(filter.master).toEqual({ $in: [validId1, validId2] });
+    });
+
+    it('builds { master: null } filter for unassigned master only', () => {
+      const options = parseListSalesQuery({
+        includeUnassignedMaster: 'true',
+      });
+      expect(options.includeUnassignedMaster).toBe(true);
+      expect(hasSalesListFilters(options)).toBe(true);
+
+      const filter = buildSalesFilter(options);
+      expect(filter.master).toBeNull();
+    });
+
+    it('builds $or filter for both masterIds and includeUnassignedMaster', () => {
+      const options = parseListSalesQuery({
+        masterIds: validId1,
+        includeUnassignedMaster: 'true',
+      });
+      expect(options.masterIds).toEqual([validId1]);
+      expect(options.includeUnassignedMaster).toBe(true);
+
+      const filter = buildSalesFilter(options);
+      expect(filter.$or).toEqual([
+        { master: { $in: [validId1] } },
+        { master: null },
+      ]);
+    });
+
+    it('drops invalid ObjectIds and keeps valid ones', () => {
+      const options = parseListSalesQuery({
+        masterIds: `${validId1},invalid-id,${validId2}`,
+      });
+      expect(options.masterIds).toEqual([validId1, validId2]);
+
+      const allInvalidOptions = parseListSalesQuery({
+        masterIds: 'not-an-id,also-bad',
+      });
+      expect(allInvalidOptions.masterIds).toBeUndefined();
+      expect(hasSalesListFilters(allInvalidOptions)).toBe(false);
+
+      const filterFromRawInvalid = buildSalesFilter({
+        masterIds: ['invalid-id'],
+      });
+      expect(filterFromRawInvalid.master).toBeUndefined();
+    });
+
+    it('keeps legacy masterId behavior unchanged', () => {
+      const options = parseListSalesQuery({
+        masterId: validId1,
+      });
+      expect(options.masterId).toBe(validId1);
+      const filter = buildSalesFilter(options);
+      expect(filter.master).toBe(validId1);
+    });
+  });
 });
+

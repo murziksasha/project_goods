@@ -38,10 +38,14 @@ describe('buildOrdersSalesListParams', () => {
     });
   });
 
-  it('loads visible kanban statuses without table paging', () => {
+  it('loads visible kanban statuses without table paging and sends masterIds/includeUnassignedMaster without masterId', () => {
     const params = buildOrdersSalesListParams({
       tab: 'kanban',
-      filters: { ...emptyOrdersFilters, assigneeId: 'master-1' },
+      filters: {
+        ...emptyOrdersFilters,
+        masterIds: ['master-1', 'master-2'],
+        includeUnassignedMaster: true,
+      },
       searchValue: '',
       page: 4,
       pageSize: 30,
@@ -50,7 +54,29 @@ describe('buildOrdersSalesListParams', () => {
     expect(params.page).toBe(1);
     expect(params.pageSize).toBe(SALES_KANBAN_PAGE_SIZE);
     expect(params.statuses).toEqual([...kanbanVisibleRepairStatuses]);
-    expect(params.masterId).toBe('master-1');
+    expect(params.masterIds).toEqual(['master-1', 'master-2']);
+    expect(params.includeUnassignedMaster).toBe(true);
+    expect(params.masterId).toBeUndefined();
+    expect(params.assigneeId).toBeUndefined();
+  });
+
+  it('orders still sends assigneeId and not masterIds or includeUnassignedMaster', () => {
+    const params = buildOrdersSalesListParams({
+      tab: 'orders',
+      filters: {
+        ...emptyOrdersFilters,
+        assigneeId: 'emp-1',
+        masterIds: ['master-1'],
+        includeUnassignedMaster: true,
+      },
+      searchValue: '',
+      page: 1,
+      pageSize: 30,
+    });
+    expect(params.assigneeId).toBe('emp-1');
+    expect(params.masterIds).toBeUndefined();
+    expect(params.includeUnassignedMaster).toBeUndefined();
+    expect(params.masterId).toBeUndefined();
   });
 
   it('maps sales tab sale type to isRapidSale and skips repair type', () => {

@@ -68,10 +68,37 @@ export const isKanbanVisibleSale = (sale: Pick<Sale, 'status'>) =>
     normalizeOrderStatus(sale.status) as RepairStatus,
   );
 
+export type KanbanMasterFilter = {
+  masterIds?: readonly string[] | string[];
+  includeUnassignedMaster?: boolean;
+};
+
 export const saleMatchesKanbanMasterFilter = (
   sale: Pick<Sale, 'master'>,
-  masterId: string,
-) => !masterId || sale.master?.id === masterId;
+  filter: KanbanMasterFilter | string = '',
+) => {
+  if (typeof filter === 'string') {
+    const trimmedId = filter.trim();
+    return !trimmedId || sale.master?.id === trimmedId;
+  }
+
+  const masterIds = (filter.masterIds ?? [])
+    .map((id) => id.trim())
+    .filter(Boolean);
+  const includeUnassigned = filter.includeUnassignedMaster === true;
+
+  if (masterIds.length === 0 && !includeUnassigned) {
+    return true;
+  }
+
+  const saleMasterId = sale.master?.id?.trim();
+  const matchesUnassigned = includeUnassigned && !saleMasterId;
+  const matchesMaster = Boolean(
+    saleMasterId && masterIds.includes(saleMasterId),
+  );
+
+  return matchesUnassigned || matchesMaster;
+};
 
 export const countKanbanVisibleSales = (
   sales: readonly Pick<Sale, 'status'>[],
