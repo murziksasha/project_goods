@@ -89,7 +89,7 @@ test('Kanban master filter: multi-selection, chips, clear to All, saved filter, 
     makeRepairSale('sale-4', 'R000604', vasyl),
   ];
 
-  let savedFilters: Array<{
+  const savedFilters: Array<{
     id: string;
     employeeId: string;
     scope: string;
@@ -142,7 +142,6 @@ test('Kanban master filter: multi-selection, chips, clear to All, saved filter, 
       url.pathname.startsWith('/api/saved-filters/'),
     async (route) => {
       const request = route.request();
-      const path = new URL(request.url()).pathname;
       if (request.method() === 'GET') {
         await route.fulfill({
           status: 200,
