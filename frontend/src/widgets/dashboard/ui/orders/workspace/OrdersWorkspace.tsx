@@ -516,8 +516,12 @@ export const OrdersWorkspace: React.FC<OrdersWorkspaceProps> = ({
   }, [activeTab, employees, t]);
   const activeFiltersCount = useMemo(() => {
     if (activeTab === 'kanban') {
+      const isMasterFiltered = Boolean(
+        appliedFilters.includeUnassignedMaster ||
+          (appliedFilters.masterIds && appliedFilters.masterIds.length > 0),
+      );
       return (
-        (appliedFilters.assigneeId ? 1 : 0) +
+        (isMasterFiltered ? 1 : 0) +
         (appliedFilters.dateFrom ? 1 : 0) +
         (appliedFilters.dateTo ? 1 : 0) +
         (appliedFilters.favoritesOnly ? 1 : 0)
@@ -652,17 +656,20 @@ export const OrdersWorkspace: React.FC<OrdersWorkspaceProps> = ({
       ) {
         return false;
       }
-      if (listFilters.assigneeId) {
+      if (activeTab === 'kanban') {
+        const matchesKanbanMaster = saleMatchesKanbanMasterFilter(sale, {
+          masterIds: listFilters.masterIds,
+          includeUnassignedMaster: listFilters.includeUnassignedMaster,
+        });
+        if (!matchesKanbanMaster) {
+          return false;
+        }
+      } else if (listFilters.assigneeId) {
         const matchesAssignee =
-          activeTab === 'kanban'
-            ? saleMatchesKanbanMasterFilter(
-                sale,
-                listFilters.assigneeId,
-              )
-            : activeTab === 'sales'
-              ? sale.manager?.id === listFilters.assigneeId
-              : sale.master?.id === listFilters.assigneeId ||
-                sale.manager?.id === listFilters.assigneeId;
+          activeTab === 'sales'
+            ? sale.manager?.id === listFilters.assigneeId
+            : sale.master?.id === listFilters.assigneeId ||
+              sale.manager?.id === listFilters.assigneeId;
         if (!matchesAssignee) {
           return false;
         }

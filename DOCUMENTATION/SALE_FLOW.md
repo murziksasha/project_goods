@@ -392,7 +392,7 @@ Service catalog stores three prices: retail (`service.price`), wholesale 1 (`sal
 - Toolbar search placeholder: `Order, client, phone, product or manager`. Server `q` matches record number, client, product snapshot (name/serial/article), **every** `lineItems.name` / `lineItems.serialNumbers`, and manager. Client re-filter uses the same haystack (`getSaleListSearchValues`) so a good on the card as a second Products row (shown as `+N`) is still found. Product column still shows the first item plus `+N`.
 - Filters on this tab:
   - hide `Repair type`
-  - assignee is **Manager** (active managers/owners/`sales.manage`/`orders.manage`)
+  - assignee is **Manager**, a single select (active managers/owners/`sales.manage`/`orders.manage`), sent as `assigneeId`. This is not the Kanban master menu. Spec: [REPAIR_KANBAN_SPEC.md](./REPAIR_KANBAN_SPEC.md#master-filter-kanban-toolbar-only).
   - **Sale type**: `All` / `Rapid sale` / `Regular` (wired to `GET /sales?isRapidSale=`)
   - product, service, payment method, and dates stay available
 

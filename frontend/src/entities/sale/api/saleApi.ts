@@ -62,6 +62,8 @@ export type SalesListParams = {
   clientId?: string;
   assigneeId?: string;
   masterId?: string;
+  masterIds?: string[];
+  includeUnassignedMaster?: boolean;
   recordNumber?: string;
   client?: string;
   product?: string;
@@ -97,6 +99,10 @@ export const buildSalesListQuery = (params: SalesListParams = {}) => {
   if (params.clientId) query.clientId = params.clientId;
   if (params.assigneeId) query.assigneeId = params.assigneeId;
   if (params.masterId) query.masterId = params.masterId;
+  if (params.masterIds?.length) query.masterIds = params.masterIds.join(',');
+  if (params.includeUnassignedMaster !== undefined) {
+    query.includeUnassignedMaster = String(params.includeUnassignedMaster);
+  }
   if (params.recordNumber) query.recordNumber = params.recordNumber;
   if (params.client) query.client = params.client;
   if (params.product) query.product = params.product;

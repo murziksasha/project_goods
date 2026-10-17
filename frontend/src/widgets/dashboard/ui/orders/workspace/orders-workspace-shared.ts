@@ -212,6 +212,8 @@ export type OrdersFilters = {
   product: string;
   service: string;
   favoritesOnly: boolean;
+  masterIds: string[];
+  includeUnassignedMaster: boolean;
 };
 export type SavedOrdersFilter = {
   id: string;
@@ -618,18 +620,32 @@ export const emptyOrdersFilters: OrdersFilters = {
   product: '',
   service: '',
   favoritesOnly: false,
+  masterIds: [],
+  includeUnassignedMaster: false,
 };
 
 /** Kanban toolbar is master + dates + favorites only (columns are the status filter). */
 export const toKanbanFilters = (
   filters: OrdersFilters,
-): OrdersFilters => ({
-  ...emptyOrdersFilters,
-  assigneeId: filters.assigneeId,
-  dateFrom: filters.dateFrom,
-  dateTo: filters.dateTo,
-  favoritesOnly: filters.favoritesOnly === true,
-});
+): OrdersFilters => {
+  const legacyAssigneeId = filters.assigneeId?.trim() ?? '';
+  let masterIds = Array.isArray(filters.masterIds)
+    ? [...filters.masterIds]
+    : [];
+  if (masterIds.length === 0 && legacyAssigneeId) {
+    masterIds = [legacyAssigneeId];
+  }
+
+  return {
+    ...emptyOrdersFilters,
+    assigneeId: '',
+    masterIds,
+    includeUnassignedMaster: filters.includeUnassignedMaster === true,
+    dateFrom: filters.dateFrom,
+    dateTo: filters.dateTo,
+    favoritesOnly: filters.favoritesOnly === true,
+  };
+};
 
 export const readActiveOrderFilters = () => {
   try {
@@ -659,6 +675,8 @@ export const readActiveOrderFilters = () => {
         favoritesOnly: value.favoritesOnly === true,
         saleType,
         statuses: Array.isArray(value.statuses) ? value.statuses : [],
+        masterIds: Array.isArray(value.masterIds) ? value.masterIds : [],
+        includeUnassignedMaster: value.includeUnassignedMaster === true,
       };
     };
 

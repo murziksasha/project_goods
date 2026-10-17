@@ -751,6 +751,7 @@
       "clientPlaceholder": "Client name or phone",
       "assignee": "Master / manager",
       "master": "Master",
+      "withoutMaster": "Without master",
       "manager": "Manager",
       "warehouse": "Warehouse",
       "repairType": "Repair type",

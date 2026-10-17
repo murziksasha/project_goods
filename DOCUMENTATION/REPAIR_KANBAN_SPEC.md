@@ -43,9 +43,77 @@ Hidden (no column): `issued`, `issuedWithoutRepair`, `clientRejected`, `notPicke
 - Count label `Orders: N` / `Замовлень: N` (no pagination arrows). `N` is the number of cards currently shown on the board: search + toolbar filters, summed across visible columns. Hidden statuses (`issued`, `issuedWithoutRepair`, `clientRejected`, `notPickedUp`) are excluded.
 - When the search field is non-empty and `N === 1`, the count is a button: click (or Enter/Space) opens that order the same way as clicking the Kanban card. The same single-search open applies on the Orders list tab (the left count / `Orders: 1` chip). Empty search + one visible card stays a static label.
 - Search + favorites star.
-- Simplified Filter panel fields: **Master**, **Date from/to** (+ inline **Save filter** after Date to). Master options and matching use the assigned repair master (`sale.master`) only — never the order creator (`sale.manager`).
-- **Saved filters** reuse the same per-employee Orders saved-filter API (`scope=orders`, `tab=kanban`): list / save drawer / delete.
+- Simplified Filter panel fields: **Master** ([multi-choice menu](#master-filter-kanban-toolbar-only)), **Date from/to** (+ inline **Save filter** after Date to).
+- **Saved filters** reuse the same per-employee Orders saved-filter API (`scope=orders`, `tab=kanban`): list / save drawer / delete. Applying a saved Kanban filter runs `toKanbanFilters`, including the legacy `assigneeId` migration below.
 - No table columns gear.
+
+## Master filter (Kanban toolbar only)
+
+Orders and Sales keep a single-choice assignee list (`assigneeId`). The master control on the Kanban card is unchanged: the same `<select>` as Order Detail (`master` role or `repairs.execute`). This menu filters the board. It does not assign or clear a master.
+
+Matching uses the assigned repair master (`sale.master`) only, never the order creator (`sale.manager`).
+
+### Choice
+
+- **All** is the default. It is exclusive and matches every repair order on the board, including orders with no master.
+- **Without master** is a checkbox directly under All. It matches orders whose `sale.master` is empty (the card's "Select master" value). An order that still has a master id is excluded, including an order assigned to an inactive person.
+- Each coworker name is a checkbox. The list is unchanged: active employees with role `master` or permission `repairs.execute`, sorted A–Z by name. The menu does not add a row for someone who is inactive or otherwise missing from that list.
+- Checked rows combine. One order has one master, so the board shows orders with no master, orders of any checked coworker, or both.
+- Checking any box turns All off. Clearing the last box returns to All.
+- The menu stays open while boxes are toggled. Click outside or Escape closes the menu first, then the filter panel, same as the status menu.
+- Apply, Clear, and Save filter keep the previous timing. Checkboxes edit the draft. Apply commits the draft and closes the panel. Clear resets the Kanban filter to empty: Master **All**, dates cleared, favorites off. Save stores the draft (normalized by `toKanbanFilters`).
+- Search, the date range, and the favorites star still apply on top of this choice.
+- The Filter button count adds 1 when the applied Kanban master choice is not All. Several checked rows still count as one.
+- `Orders: N` is the number of cards on the board after this filter (plus search, dates, and favorites). Kanban requests at most 500 repair orders (`page=1`, `pageSize=500`, visible statuses). The master choice is part of that `GET /sales` query, so a match is not hidden only because it would have fallen past an unfiltered page. If more than 500 orders match, the board and `N` show that page. Query shape: [API.md](./API.md).
+
+### Closed field
+
+The closed Master control shows:
+
+- `All`
+- `Without master`
+- one coworker name
+- `{{count}} selected` when two or more rows are checked (`orders.filters.selectedCount`). Without master counts as one row.
+
+A single saved id that is not in the current people list shows that id.
+
+Copy:
+
+- en `orders.filters.withoutMaster`: `Without master`
+- uk `orders.filters.withoutMaster`: `Без майстра`
+
+`orders.filters.selectedCount` is the existing shared string (en `{{count}} selected`, uk `Обрано: {{count}}`).
+
+### Chips
+
+After Apply, one chip per checked row: `Master: Without master` and `Master: {name}`. The × removes only that row and applies immediately, same as status chips. The last × returns to All.
+
+Unknown saved ids that are not in the current people list still filter and still get a chip, so they can be removed. The chip label falls back to the id when the name is unknown.
+
+Chips for this choice are built in `orders-filter-chips.ts` from `masterIds` and `includeUnassignedMaster` only. Orders and Sales chips stay on `assigneeId`.
+
+### Stored shape
+
+`OrdersFilters` in `orders-workspace-shared.ts`:
+
+- `masterIds: string[]`
+- `includeUnassignedMaster: boolean`
+
+All is `masterIds` empty and `includeUnassignedMaster` false.
+
+`toKanbanFilters` normalizes Kanban state:
+
+- Copy dates, favorites, `masterIds`, and `includeUnassignedMaster`.
+- A legacy Kanban filter that only has `assigneeId` becomes `masterIds: [assigneeId]`.
+- The normalized filter stores `assigneeId: ''` so the old single-id path cannot override a combined choice.
+
+Orders and Sales keep using `assigneeId` and do not read these fields.
+
+### Out of scope
+
+- Orders tab assignee filter and Sales manager filter.
+- Assigning or clearing a master on the card or in order detail.
+- Adding inactive employees to the menu.
 
 ## Interactions
 
@@ -148,6 +216,11 @@ Shared parking status for repair orders and product sales. On Kanban it is the l
 - Board UI: `frontend/src/widgets/dashboard/ui/kanban/RepairKanbanBoard.tsx`
 - Navigator / move sheet: `RepairKanbanNavigator.tsx`, `RepairKanbanMoveSheet.tsx`
 - Drop ids: `column:{status}` and `rail:{status}` in `repair-kanban.ts` (`kanbanCollisionDetection` prefers rail hits)
+- Master match: `saleMatchesKanbanMasterFilter` in `repair-kanban.ts`
+- Filter state: `OrdersFilters` and `toKanbanFilters` in `frontend/src/widgets/dashboard/ui/orders/workspace/orders-workspace-shared.ts`
+- Master menu: `OrdersWorkspaceFilterPanel.tsx` (status-menu styles in `frontend/src/shared/styles/domains/orders.css`)
+- Chips: `orders-filter-chips.ts`
+- List query: `buildOrdersSalesListParams` in `orders-sales-query.ts`; Mongo match in `backend/src/domain/sale/list-sales-query.ts`
 - Status sets: `frontend/src/widgets/dashboard/ui/orders/workspace/orders-workspace-shared.ts`
 - Nav: `OrdersTab` in `frontend/src/pages/dashboard/model/types.ts`; `parseDashboardLocation` remaps `page=kanban`
 
@@ -166,3 +239,4 @@ Shared parking status for repair orders and product sales. On Kanban it is the l
 - 2026-09-15: Added shared `away` status as the last Kanban column (after `paid`). Any sale-read employee can set it.
 - 2026-09-20: Added within-column card up/down reordering (drag-and-drop + Up/Down buttons) persisting via `kanbanRank`.
 - 2026-10-10: Added open status `pendingApproval` (EN Pending approval / UK На Узгодженні) as the column after `diagnostics`. Moved `clientApproved` to sit before `waitingParts` on the board and in the Home funnel. Same drop permission as `diagnostics`. Card stays editable.
+- 2026-10-17: Kanban master filter is a multi-choice menu: All, Without master (`master` null or missing), and any set of coworkers (`masterIds`). Checked rows are a union, each row has its own chip, and the choice is applied on `GET /sales`. Orders and Sales stay on a single `assigneeId`. See [Master filter](#master-filter-kanban-toolbar-only).

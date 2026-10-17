@@ -39,7 +39,13 @@ export const buildOrdersSalesListParams = ({
       : filters.statuses.length > 0
         ? filters.statuses
         : undefined,
-    masterId: isKanban && filters.assigneeId ? filters.assigneeId : undefined,
+    masterIds:
+      isKanban && filters.masterIds && filters.masterIds.length > 0
+        ? filters.masterIds
+        : undefined,
+    includeUnassignedMaster:
+      isKanban && filters.includeUnassignedMaster ? true : undefined,
+    masterId: undefined,
     assigneeId: !isKanban && filters.assigneeId ? filters.assigneeId : undefined,
     repairType:
       isRepair && filters.repairType !== 'all' ? filters.repairType : undefined,
