@@ -2,14 +2,17 @@ import type { CatalogProduct } from '../../../entities/catalog-product';
 import type { Product } from '../../../entities/product';
 import type { Sale } from '../../../entities/sale';
 import {
+  buildInMemorySerialUsageSale,
   getProductSerialAvailability,
   getSaleSerialUsage,
   normalizeSerialNumber,
 } from './order-line-serials';
 import {
   buildProductWarehouseMetaById,
+  getIssuedSaleProductIds,
   type StockWarehouseItem,
 } from './stock-balance';
+import { getProductStockTimestamp } from './warehouse-serial-filter';
 import { getRetailSalePrice } from '../../../entities/product';
 import { parseDecimal } from '../../../shared/lib/decimal';
 import i18n from '../../../shared/i18n/config';
@@ -57,24 +60,86 @@ export const normalizeCreateOrderProductLookup = (value: string) =>
 
 const getDefaultProductSalePrice = (product: Product) => getRetailSalePrice(product);
 
+type OrderDetailSuggestionSale = Pick<Sale, 'id' | 'product' | 'lineItems'> & {
+  status?: string;
+};
+
+const getOrderDetailIssuedProductIds = (
+  products: Product[],
+  sales: OrderDetailSuggestionSale[],
+) =>
+  getIssuedSaleProductIds(
+    products,
+    sales.map((sale) => ({
+      status: sale.status ?? '',
+      product: sale.product,
+      lineItems: sale.lineItems,
+    })),
+  );
+
+/** Stock balances visibility, plus fail-closed occupancy for serialized units. */
+const isOrderDetailStockVisible = (
+  product: Product,
+  issuedProductIds: Set<string>,
+  occupancyUnavailable: boolean,
+) => {
+  if (product.quantity <= 0 || issuedProductIds.has(product.id)) return false;
+  if (occupancyUnavailable && normalizeSerialNumber(product.serialNumber)) {
+    return false;
+  }
+  return true;
+};
+
+const getOrderDetailSerialUsage = (
+  sales: OrderDetailSuggestionSale[],
+  currentSaleId: string,
+  occupiedSerialNumbers: string[],
+) =>
+  getSaleSerialUsage(
+    occupiedSerialNumbers.length > 0
+      ? [...sales, buildInMemorySerialUsageSale(occupiedSerialNumbers)]
+      : sales,
+    currentSaleId,
+  );
+
 export const findSelectableStockProductByName = ({
   products,
   catalogName,
   sales = [],
   currentSaleId = '',
+  occupiedSerialNumbers = [],
+  occupancyUnavailable = false,
 }: {
   products: Product[];
   catalogName: string;
-  sales?: Array<Pick<Sale, 'id' | 'product' | 'lineItems'>>;
+  sales?: OrderDetailSuggestionSale[];
   currentSaleId?: string;
+  /** Serials returned by `GET /sales/occupied-serials`, plus unsaved draft serials. */
+  occupiedSerialNumbers?: string[];
+  /** When the occupancy request fails, serialized units are omitted. */
+  occupancyUnavailable?: boolean;
 }): Product | null => {
   const normalizedCatalogName = normalizeCreateOrderProductLookup(catalogName);
   if (!normalizedCatalogName) return null;
 
-  const serialUsage = getSaleSerialUsage(sales, currentSaleId);
+  const issuedProductIds = getOrderDetailIssuedProductIds(products, sales);
+  const serialUsage = getOrderDetailSerialUsage(
+    sales,
+    currentSaleId,
+    occupiedSerialNumbers,
+  );
   const selectableMatches = products.filter((product) => {
     if (
       normalizeCreateOrderProductLookup(product.name) !== normalizedCatalogName
+    ) {
+      return false;
+    }
+    if (
+      !isOrderDetailStockVisible(
+        product,
+        issuedProductIds,
+        occupancyUnavailable,
+      )
     ) {
       return false;
     }
@@ -109,6 +174,7 @@ export const buildCreateOrderProductSuggestions = ({
   query,
   limit = 8,
   currentSaleId = '',
+  orderStockByReceiptAge = false,
 }: {
   products: Product[];
   catalogProducts: CatalogProduct[];
@@ -116,6 +182,8 @@ export const buildCreateOrderProductSuggestions = ({
   query: string;
   limit?: number;
   currentSaleId?: string;
+  /** Rapid sale: after rank and name, oldest receipt (`purchaseDate`, else `createdAt`) is first. */
+  orderStockByReceiptAge?: boolean;
 }): CreateOrderProductSuggestion[] => {
   const normalizedQuery = normalizeCreateOrderProductLookup(query);
   if (normalizedQuery.length < 2) return [];
@@ -152,6 +220,7 @@ export const buildCreateOrderProductSuggestions = ({
         selectable: availability.selectable,
         sortOrder: product.sortOrder ?? 0,
         rank: getStockProductRank(product, normalizedQuery),
+        receiptTime: getProductStockTimestamp(product),
       };
     });
   const unavailableStockNames = new Set(
@@ -166,8 +235,12 @@ export const buildCreateOrderProductSuggestions = ({
       const sortDiff = (first.sortOrder ?? 0) - (second.sortOrder ?? 0);
       if (sortDiff !== 0) return sortDiff;
       if (first.rank !== second.rank) return first.rank - second.rank;
-      return first.name.localeCompare(second.name);
-    });
+      const nameDiff = first.name.localeCompare(second.name);
+      if (nameDiff !== 0) return nameDiff;
+      if (!orderStockByReceiptAge) return 0;
+      return first.receiptTime - second.receiptTime;
+    })
+    .map(({ receiptTime: _receiptTime, ...suggestion }) => suggestion);
 
   const catalogMatches = catalogProducts
     .filter((product) => product.isActive !== false)
@@ -202,13 +275,6 @@ export const buildCreateOrderProductSuggestions = ({
     }));
 
   return [...stockMatches, ...catalogMatches].slice(0, limit);
-  return [...stockMatches, ...catalogMatches]
-    .sort((first, second) => {
-      const sortDiff = (first.sortOrder ?? 0) - (second.sortOrder ?? 0);
-      if (sortDiff !== 0) return sortDiff;
-      return first.name.localeCompare(second.name);
-    })
-    .slice(0, limit);
 };
 
 const getOrderDetailStockProductRank = (product: Product, query: string) => {
@@ -243,6 +309,55 @@ const isOrderDetailStockLookupQuery = (
     stockProductMatchesSerialOrArticle(product, normalizedQuery),
   );
 
+const catalogNamesForQuery = (
+  catalogProducts: CatalogProduct[],
+  normalizedQuery: string,
+) =>
+  new Set(
+    catalogProducts
+      .filter((product) => product.isActive !== false)
+      .filter((product) =>
+        normalizeCreateOrderProductLookup(product.name).includes(
+          normalizedQuery,
+        ),
+      )
+      .map((product) => normalizeCreateOrderProductLookup(product.name)),
+  );
+
+/** Serials the occupancy request must check. Wider than the visible limit. */
+export const collectOrderDetailCandidateSerials = ({
+  products,
+  catalogProducts,
+  query,
+}: {
+  products: Product[];
+  catalogProducts: CatalogProduct[];
+  query: string;
+}): string[] => {
+  const normalizedQuery = normalizeCreateOrderProductLookup(query);
+  if (normalizedQuery.length < 2) return [];
+
+  const catalogNames = catalogNamesForQuery(catalogProducts, normalizedQuery);
+  const serials = new Set<string>();
+
+  products.forEach((product) => {
+    if (product.quantity <= 0) return;
+    const serial = normalizeSerialNumber(product.serialNumber);
+    if (!serial) return;
+    const matchesSerialOrArticle = stockProductMatchesSerialOrArticle(
+      product,
+      normalizedQuery,
+    );
+    const matchesCatalogName = catalogNames.has(
+      normalizeCreateOrderProductLookup(product.name),
+    );
+    if (!matchesSerialOrArticle && !matchesCatalogName) return;
+    serials.add(serial);
+  });
+
+  return [...serials];
+};
+
 export const buildOrderDetailProductSuggestions = ({
   products,
   catalogProducts,
@@ -251,20 +366,31 @@ export const buildOrderDetailProductSuggestions = ({
   warehouses,
   limit = 8,
   currentSaleId = '',
+  occupiedSerialNumbers = [],
+  occupancyUnavailable = false,
 }: {
   products: Product[];
   catalogProducts: CatalogProduct[];
-  sales: Array<Pick<Sale, 'id' | 'product' | 'lineItems'>>;
+  sales: OrderDetailSuggestionSale[];
   query: string;
   warehouses: StockWarehouseItem[];
   limit?: number;
   currentSaleId?: string;
+  /** Serials returned by `GET /sales/occupied-serials`, plus unsaved draft serials. */
+  occupiedSerialNumbers?: string[];
+  /** When the occupancy request fails, serialized units are omitted. */
+  occupancyUnavailable?: boolean;
 }): OrderDetailProductSuggestion[] => {
   const normalizedQuery = normalizeCreateOrderProductLookup(query);
   if (normalizedQuery.length < 2) return [];
 
   if (isOrderDetailStockLookupQuery(products, normalizedQuery)) {
-    const serialUsage = getSaleSerialUsage(sales, currentSaleId);
+    const issuedProductIds = getOrderDetailIssuedProductIds(products, sales);
+    const serialUsage = getOrderDetailSerialUsage(
+      sales,
+      currentSaleId,
+      occupiedSerialNumbers,
+    );
     const warehouseMetaByProductId = buildProductWarehouseMetaById(
       products,
       warehouses,
@@ -273,6 +399,13 @@ export const buildOrderDetailProductSuggestions = ({
     return products
       .filter((product) =>
         stockProductMatchesSerialOrArticle(product, normalizedQuery),
+      )
+      .filter((product) =>
+        isOrderDetailStockVisible(
+          product,
+          issuedProductIds,
+          occupancyUnavailable,
+        ),
       )
       .map((product) => {
         const availability = getProductSerialAvailability(product, serialUsage);

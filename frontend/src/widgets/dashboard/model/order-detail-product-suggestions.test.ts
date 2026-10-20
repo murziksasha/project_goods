@@ -3,7 +3,10 @@ import i18n from '../../../shared/i18n/config';
 import type { CatalogProduct } from '../../../entities/catalog-product';
 import type { Product } from '../../../entities/product';
 import type { Sale } from '../../../entities/sale';
-import { buildOrderDetailProductSuggestions } from './create-order-products';
+import {
+  buildOrderDetailProductSuggestions,
+  collectOrderDetailCandidateSerials,
+} from './create-order-products';
 
 const warehouses = [
   {
@@ -159,5 +162,147 @@ describe('buildOrderDetailProductSuggestions', () => {
     });
 
     expect(suggestions.map((item) => item.productId)).toEqual(['free']);
+  });
+
+  it('omits a serial that is occupied outside the loaded sales page', () => {
+    const suggestions = buildOrderDetailProductSuggestions({
+      products: [
+        product({
+          id: 'missing',
+          serialNumber: 'S000140',
+          quantity: 1,
+          freeQuantity: 1,
+          isInStock: true,
+        }),
+        product({ id: 'free', serialNumber: 'S000138' }),
+      ],
+      catalogProducts: [],
+      sales: [],
+      query: 'S0001',
+      warehouses,
+      occupiedSerialNumbers: ['S000140'],
+    });
+
+    expect(suggestions.map((item) => item.productId)).toEqual(['free']);
+  });
+
+  it('omits an issued unit that still has free quantity', () => {
+    const suggestions = buildOrderDetailProductSuggestions({
+      products: [
+        product({
+          id: 'issued-unit',
+          serialNumber: 'S000140',
+          quantity: 1,
+          freeQuantity: 1,
+          isInStock: true,
+        }),
+      ],
+      catalogProducts: [],
+      sales: [
+        {
+          id: 'sale-issued',
+          status: 'issued',
+          product: {
+            id: 'issued-unit',
+            article: '',
+            name: '',
+            serialNumber: 'DEVICE-1',
+          },
+          lineItems: [],
+        } as Pick<Sale, 'id' | 'status' | 'product' | 'lineItems'>,
+      ],
+      query: 'S000140',
+      warehouses,
+    });
+
+    expect(suggestions).toEqual([]);
+  });
+
+  it('omits a unit with no warehouse quantity even when free quantity is positive', () => {
+    const suggestions = buildOrderDetailProductSuggestions({
+      products: [
+        product({
+          id: 'empty',
+          serialNumber: 'S000140',
+          quantity: 0,
+          freeQuantity: 1,
+          isInStock: true,
+        }),
+      ],
+      catalogProducts: [catalogProduct({ name: 'S000140 catalog' })],
+      sales: [],
+      query: 'S000140',
+      warehouses,
+    });
+
+    expect(suggestions).toEqual([]);
+  });
+
+  it('drops serialized rows when occupancy is unavailable and keeps a no-serial article match', () => {
+    const suggestions = buildOrderDetailProductSuggestions({
+      products: [
+        product({
+          id: 'serial',
+          serialNumber: 'S000140',
+          article: 'HUB-1',
+        }),
+        product({
+          id: 'bulk',
+          serialNumber: '',
+          article: 'HUB-2',
+        }),
+      ],
+      catalogProducts: [],
+      sales: [],
+      query: 'hub',
+      warehouses,
+      occupancyUnavailable: true,
+    });
+
+    expect(suggestions.map((item) => item.productId)).toEqual(['bulk']);
+  });
+
+  it('collects in-stock serials for the query and for catalog name matches', () => {
+    expect(
+      collectOrderDetailCandidateSerials({
+        products: [
+          product({ id: 'typed', serialNumber: 'S000140' }),
+          product({
+            id: 'named',
+            name: 'SVOD Decalcification',
+            serialNumber: 'S000141',
+            article: 'OTHER',
+          }),
+          product({
+            id: 'gone',
+            serialNumber: 'S000142',
+            quantity: 0,
+          }),
+        ],
+        catalogProducts: [
+          catalogProduct({
+            id: 'c-svod',
+            name: 'SVOD Decalcification',
+          }),
+        ],
+        query: 'svod',
+      }),
+    ).toEqual(['S000141']);
+
+    expect(
+      collectOrderDetailCandidateSerials({
+        products: [product({ serialNumber: 'S000140' })],
+        catalogProducts: [],
+        query: 'S000140',
+      }),
+    ).toEqual(['S000140']);
+
+    expect(
+      collectOrderDetailCandidateSerials({
+        products: [product({ serialNumber: 'S000140' })],
+        catalogProducts: [],
+        query: 's',
+      }),
+    ).toEqual([]);
   });
 });

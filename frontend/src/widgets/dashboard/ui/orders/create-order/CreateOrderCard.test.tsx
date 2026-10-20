@@ -40,6 +40,21 @@ import type { ServiceCatalogItem } from '../../../../../entities/service-catalog
 import { CreateOrderCard } from './CreateOrderCard';
 import { CreateOrderSidePanel } from './CreateOrderSidePanel';
 
+const { getOccupiedSerialNumbersMock } = vi.hoisted(() => ({
+  getOccupiedSerialNumbersMock: vi.fn(async () => ({
+    occupied: [] as string[],
+  })),
+}));
+
+vi.mock('../../../../../entities/sale', async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import('../../../../../entities/sale')>();
+  return {
+    ...actual,
+    getOccupiedSerialNumbers: getOccupiedSerialNumbersMock,
+  };
+});
+
 const {
   createClientMock,
   deleteClientDeviceMock,
@@ -439,6 +454,7 @@ describe('CreateOrderCard', () => {
     vi.useRealTimers();
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
+    getOccupiedSerialNumbersMock.mockResolvedValue({ occupied: [] });
     getClientsMock.mockReset();
     getClientHistoryMock.mockReset();
     getClientDevicesMock.mockReset();
@@ -1090,6 +1106,48 @@ describe('CreateOrderCard', () => {
           }),
         ],
       }),
+    );
+  });
+
+  it('hides a serial that occupied-serials reports as bound', async () => {
+    getOccupiedSerialNumbersMock.mockResolvedValue({
+      occupied: ['S000003'],
+    });
+    renderCreateOrderCard('sale');
+
+    await afterDebouncedInput(
+      () =>
+        fireEvent.change(
+          screen.getByPlaceholderText('Name, serial or article'),
+          {
+            target: { value: 'S000003' },
+          },
+        ),
+      () => {
+        expect(getOccupiedSerialNumbersMock).toHaveBeenCalledWith({
+          serials: ['S000003'],
+        });
+        expect(screen.queryByText('iPhone 14')).not.toBeInTheDocument();
+      },
+    );
+  });
+
+  it('hides serialized suggestions when the occupancy request fails', async () => {
+    getOccupiedSerialNumbersMock.mockRejectedValue(new Error('offline'));
+    renderCreateOrderCard('sale');
+
+    await afterDebouncedInput(
+      () =>
+        fireEvent.change(
+          screen.getByPlaceholderText('Name, serial or article'),
+          {
+            target: { value: 'S000003' },
+          },
+        ),
+      () => {
+        expect(getOccupiedSerialNumbersMock).toHaveBeenCalled();
+        expect(screen.queryByText('iPhone 14')).not.toBeInTheDocument();
+      },
     );
   });
 

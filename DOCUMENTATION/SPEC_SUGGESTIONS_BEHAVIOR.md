@@ -55,7 +55,11 @@ For `Rapid sale` (`RapidSaleModal` product search):
 3. Warehouse-scoped via `filterProductsByWarehouse` on the selected warehouse.
 4. Lookup matches normalized `name`, `article`, `serialNumber`, and stock `note`.
 5. Minimum query length: 2 characters; debounce: 200 ms.
-6. Ranking: exact serial, exact article, partial serial, partial article, partial name.
+6. Order, applied before the result limit:
+   1. name `sortOrder` (manual reorder)
+   2. match rank: exact serial, exact article, partial serial, partial article, partial name
+   3. name
+   4. receipt age ascending (`purchaseDate`, else `createdAt`) — oldest unit at the top. Same-name serials share `sortOrder`, so they follow this age. Do not keep the `GET /products` `createdAt` descending order.
 7. Suggestions render inline below the product entry row (`.rapid-sale-suggestions`), not as a floating overlay — fixed max-height with internal scroll.
 8. Suggestions are hidden while `selectedProductId` is set **or** the list was dismissed without select; they return only after the operator edits the search input (which also clears the product binding). Dismiss without select keeps the typed query (see **Dismiss Without Select Rule**).
 9. Selection is two-step: click suggestion → pre-fill entry row → operator clicks `Add product` to move line into draft.
@@ -64,14 +68,17 @@ For `Rapid sale` (`RapidSaleModal` product search):
 
 For `Rapid sale` product suggestions (`buildRapidSaleStockSuggestions`):
 
-1. Before calling `buildCreateOrderProductSuggestions`, collect occupied serial numbers from:
+1. A row is eligible only when it would be visible in Stock balances for the selected warehouse: `quantity > 0`, and not linked to an issued sale (`getIssuedSaleProductIds` on the loaded sales). Active + `freeQuantity > 0` still applies.
+2. Before calling `buildCreateOrderProductSuggestions`, collect occupied serial numbers from:
    - `draftItems[]` already confirmed with `Add product`
    - `pendingSerialNumbers[]` currently bound in the active product entry row
-2. When the occupied set is non-empty, merge an in-memory pseudo-sale built by `buildInMemorySerialUsageSale` (`frontend/src/widgets/dashboard/model/order-line-serials.ts`) into the `sales` argument with `currentSaleId: ''`.
-3. Reuse existing `getSaleSerialUsage` / `getProductSerialAvailability` rules; do not duplicate availability logic in the modal.
-4. Occupied serials must not appear as selectable stock suggestions.
-5. Removing a draft line frees its serial for suggestions again.
-6. `validateRapidSaleDraft` and `Add product` must reject duplicate serial numbers inside the same rapid-sale draft (`orders.rapidSale.errors.duplicateSerial`).
+   - `GET /sales/occupied-serials` for the candidate serials of the current query (`getOccupiedSerialNumbers`). This is the occupancy source of truth. Do not treat the paged `GET /sales?limit=500` list as complete.
+3. When that occupied set is non-empty, merge an in-memory pseudo-sale built by `buildInMemorySerialUsageSale` (`frontend/src/widgets/dashboard/model/order-line-serials.ts`) into the `sales` argument with `currentSaleId: ''`.
+4. Reuse existing `getSaleSerialUsage` / `getProductSerialAvailability` rules; do not duplicate availability logic in the modal.
+5. Occupied serials must not appear as selectable stock suggestions. Exclude them before the result limit.
+6. If `GET /sales/occupied-serials` fails, omit every serialized candidate. Non-serialized in-stock rows may still appear. Do not fall back to the paged sales list.
+7. Removing a draft line frees its serial for suggestions again. A serial still occupied on a saved sale/order stays hidden.
+8. `validateRapidSaleDraft` and `Add product` must reject duplicate serial numbers inside the same rapid-sale draft (`orders.rapidSale.errors.duplicateSerial`).
 
 ## Card And Create-Order Products Lookup Rule
 
@@ -97,6 +104,13 @@ For `Create order -> Sales order`, opened **sale card**, and **repair order card
      - Stock suggestion without `serialNumber`: pre-fills the active row with `productId`, name, and retail price (`getRetailSalePrice` / `formatRetailSalePrice`; fallback to purchase `product.price` when retail is missing or `<= 0`). The prefilled retail price stays the unit price when qty changes.
      - Catalog suggestion: pre-fills the active row with `catalogProductId`.
      - Catalog suggestion with matching selectable warehouse stock by `name`: pre-fills stock price hints (`productId` for R/W toggle, retail price via `getRetailSalePrice`) but does **not** bind `serialNumber`; the prefilled retail price stays the unit price when qty changes; operator may edit `qty > 1`; save omits `productId` when serialized stock is matched and `qty > 1` until serial binding in the opened card.
+9. Stock eligibility (serial/article rows and `findSelectableStockProductByName`):
+   - A unit is eligible only when it would be visible in Stock balances: `quantity > 0`, and not linked to an issued sale in the loaded sales (`getIssuedSaleProductIds`). Active + `freeQuantity > 0` still applies.
+   - Serials returned by `GET /sales/occupied-serials` for the current query are excluded, including serials bound on a sale/order outside the loaded sales page. The paged sales list is not the occupancy source.
+   - Unsaved serials already on the open card, or on other Create order rows, stay excluded.
+   - If `GET /sales/occupied-serials` fails, omit every serialized candidate. A no-serial in-stock row may still appear. Do not fall back to the paged sales list.
+   - Name resolution prefers a no-serial stock row among units that pass this gate. If occupancy failed, skip serialized namesakes.
+10. Sort stays `sortOrder`, then stock-mode rank (exact serial, exact article, partial serial, partial article), then name. This rule does not use receipt age. Apply the eligibility filter before the limit of 8.
 
 ## Modal Layout Rule
 

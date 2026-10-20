@@ -9,7 +9,10 @@ import {
 import { useTranslation } from 'react-i18next';
 import type { Product } from '../../../../../entities/product';
 import { reorderProducts } from '../../../../../entities/product';
-import type { Sale } from '../../../../../entities/sale';
+import {
+  getOccupiedSerialNumbers,
+  type Sale,
+} from '../../../../../entities/sale';
 import {
   createServiceCatalogItem,
   getServiceCatalogItems,
@@ -43,6 +46,7 @@ import {
 } from '../../../model/missingService';
 import {
   buildRapidSaleStockSuggestions,
+  collectRapidSaleCandidateSerials,
   getRapidSaleDraftTotal,
   getRapidSaleOccupiedSerialNumbers,
   validateRapidSaleDraft,
@@ -206,19 +210,40 @@ export const RapidSaleModal: React.FC<RapidSaleModalProps> = ({
 
     let isActive = true;
     const timeoutId = window.setTimeout(() => {
-      setIsProductLookupLoading(true);
-      try {
-        const suggestions = buildRapidSaleStockSuggestions({
-          products: warehouseFilteredProducts,
-          sales,
-          query: productQuery,
-          draftItems,
-          pendingSerialNumbers: selectedSerialNumbers,
-        });
-        if (isActive) setProductSuggestions(suggestions);
-      } finally {
-        if (isActive) setIsProductLookupLoading(false);
-      }
+      void (async () => {
+        setIsProductLookupLoading(true);
+        try {
+          const candidateSerials = collectRapidSaleCandidateSerials(
+            warehouseFilteredProducts,
+            productQuery,
+          );
+          let occupiedSerialNumbers: string[] = [];
+          let occupancyUnavailable = false;
+          if (candidateSerials.length > 0) {
+            try {
+              const occupancy = await getOccupiedSerialNumbers({
+                serials: candidateSerials,
+              });
+              occupiedSerialNumbers = occupancy.occupied;
+            } catch {
+              occupancyUnavailable = true;
+            }
+          }
+          if (!isActive) return;
+          const suggestions = buildRapidSaleStockSuggestions({
+            products: warehouseFilteredProducts,
+            sales,
+            query: productQuery,
+            draftItems,
+            pendingSerialNumbers: selectedSerialNumbers,
+            occupiedSerialNumbers,
+            occupancyUnavailable,
+          });
+          if (isActive) setProductSuggestions(suggestions);
+        } finally {
+          if (isActive) setIsProductLookupLoading(false);
+        }
+      })();
     }, 200);
 
     return () => {
