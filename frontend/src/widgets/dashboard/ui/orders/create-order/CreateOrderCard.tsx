@@ -39,10 +39,14 @@ import {
   getRetailSalePrice,
   reorderProducts,
 } from '../../../../../entities/product';
-import type { Sale } from '../../../../../entities/sale';
+import {
+  getOccupiedSerialNumbers,
+  type Sale,
+} from '../../../../../entities/sale';
 import type { CreateOrderRequestPayload } from '../../../model/order-request';
 import {
   buildOrderDetailProductSuggestions,
+  collectOrderDetailCandidateSerials,
   findSelectableStockProductByName,
   type OrderDetailProductSuggestion,
 } from '../../../model/create-order-products';
@@ -70,7 +74,10 @@ import {
   getBlacklistClientWarning,
   isBlacklistClient,
 } from '../../../model/clients-workspace';
-import { normalizeSerialNumber } from '../../../model/order-line-serials';
+import {
+  collectOccupiedSerialNumbers,
+  normalizeSerialNumber,
+} from '../../../model/order-line-serials';
 import {
   createOrderClientRequestsTabStorageKey,
   createOrderTabStorageKey,
@@ -212,6 +219,10 @@ export const CreateOrderCard: React.FC<CreateOrderCardProps> = ({
   >([]);
   const [saleProductSuggestions, setSaleProductSuggestions] =
     useState<OrderDetailProductSuggestion[]>([]);
+  const [saleProductStockGate, setSaleProductStockGate] = useState({
+    occupiedSerialNumbers: [] as string[],
+    occupancyUnavailable: false,
+  });
   const [isServicesSectionOpen, setIsServicesSectionOpen] =
     useState(false);
   const [serviceQuery, setServiceQuery] = useState('');
@@ -454,6 +465,8 @@ export const CreateOrderCard: React.FC<CreateOrderCardProps> = ({
         products,
         catalogName: suggestion.name,
         sales,
+        occupiedSerialNumbers: saleProductStockGate.occupiedSerialNumbers,
+        occupancyUnavailable: saleProductStockGate.occupancyUnavailable,
       });
       if (!matchingStock) return suggestion;
 
@@ -468,6 +481,8 @@ export const CreateOrderCard: React.FC<CreateOrderCardProps> = ({
     focusedSaleItem?.productId,
     products,
     saleProductLookupQuery.length,
+    saleProductStockGate.occupancyUnavailable,
+    saleProductStockGate.occupiedSerialNumbers,
     saleProductSuggestions,
     sales,
   ]);
@@ -695,6 +710,10 @@ export const CreateOrderCard: React.FC<CreateOrderCardProps> = ({
       Boolean(focusedSaleItem?.productId)
     ) {
       setSaleProductSuggestions([]);
+      setSaleProductStockGate({
+        occupiedSerialNumbers: [],
+        occupancyUnavailable: false,
+      });
       setIsSaleProductLookupLoading(false);
       return;
     }
@@ -703,18 +722,47 @@ export const CreateOrderCard: React.FC<CreateOrderCardProps> = ({
     const timeoutId = window.setTimeout(async () => {
       setIsSaleProductLookupLoading(true);
       try {
-        if (isActive) {
-          setSaleProductSuggestions(
-            buildOrderDetailProductSuggestions({
-              products,
-              catalogProducts,
-              sales,
-              query: saleProductLookupQuery,
-              warehouses,
-              limit: 8,
-            }),
-          );
+        const candidateSerials = collectOrderDetailCandidateSerials({
+          products,
+          catalogProducts,
+          query: saleProductLookupQuery,
+        });
+        const draftSerials = saleItems
+          .map((item) => item.serialNumber)
+          .filter(Boolean);
+        let occupiedFromApi: string[] = [];
+        let occupancyUnavailable = false;
+        if (candidateSerials.length > 0) {
+          try {
+            const occupancy = await getOccupiedSerialNumbers({
+              serials: candidateSerials,
+            });
+            occupiedFromApi = occupancy.occupied;
+          } catch {
+            occupancyUnavailable = true;
+          }
         }
+        if (!isActive) return;
+        const occupiedSerialNumbers = collectOccupiedSerialNumbers([
+          ...draftSerials,
+          ...occupiedFromApi,
+        ]);
+        setSaleProductStockGate({
+          occupiedSerialNumbers,
+          occupancyUnavailable,
+        });
+        setSaleProductSuggestions(
+          buildOrderDetailProductSuggestions({
+            products,
+            catalogProducts,
+            sales,
+            query: saleProductLookupQuery,
+            warehouses,
+            limit: 8,
+            occupiedSerialNumbers,
+            occupancyUnavailable,
+          }),
+        );
       } catch {
         if (isActive) setSaleProductSuggestions([]);
       } finally {
@@ -732,6 +780,7 @@ export const CreateOrderCard: React.FC<CreateOrderCardProps> = ({
     focusedSaleItem?.catalogProductId,
     focusedSaleItem?.productId,
     products,
+    saleItems,
     saleProductLookupQuery,
     sales,
     warehouses,
@@ -903,6 +952,8 @@ export const CreateOrderCard: React.FC<CreateOrderCardProps> = ({
         products,
         catalogName: suggestion.name,
         sales,
+        occupiedSerialNumbers: saleProductStockGate.occupiedSerialNumbers,
+        occupancyUnavailable: saleProductStockGate.occupancyUnavailable,
       });
 
       if (matchingStock) {

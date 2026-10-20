@@ -23,6 +23,18 @@ vi.mock('../../../../../entities/service-catalog', async (importOriginal) => {
   };
 });
 
+const { getOccupiedSerialNumbersMock } = vi.hoisted(() => ({
+  getOccupiedSerialNumbersMock: vi.fn(async () => ({ occupied: [] as string[] })),
+}));
+
+vi.mock('../../../../../entities/sale', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../../../entities/sale')>();
+  return {
+    ...actual,
+    getOccupiedSerialNumbers: getOccupiedSerialNumbersMock,
+  };
+});
+
 const { getWarehouseSettingsMock } = vi.hoisted(() => ({
   getWarehouseSettingsMock: vi.fn(async () => ({
     warehouses: [
@@ -838,6 +850,99 @@ describe('RapidSaleModal', () => {
     expect(entryBody).toBeTruthy();
     expect(entryBody?.contains(draftSection)).toBe(false);
     expect(within(dialog).getByText('Cable')).toBeInTheDocument();
+
+    vi.useRealTimers();
+  });
+
+  it('hides a serial that the occupancy endpoint reports as bound', async () => {
+    getOccupiedSerialNumbersMock.mockResolvedValueOnce({
+      occupied: ['S000140'],
+    });
+    vi.useFakeTimers();
+    renderModal(
+      <RapidSaleModal
+        products={[
+          product({
+            id: 'bound',
+            name: 'Fluid',
+            serialNumber: 'S000140',
+            purchaseDate: '2026-03-01T00:00:00.000Z',
+            salePriceOptions: [100],
+          }),
+          product({
+            id: 'free',
+            name: 'Fluid',
+            serialNumber: 'S000138',
+            purchaseDate: '2026-01-01T00:00:00.000Z',
+            salePriceOptions: [100],
+          }),
+        ]}
+        sales={[]}
+        isSaving={false}
+        onClose={vi.fn()}
+        onSubmit={vi.fn(async () => undefined)}
+        onError={vi.fn()}
+      />,
+    );
+
+    const dialog = screen.getByRole('dialog', { name: 'Rapid sale' });
+    fireEvent.change(within(dialog).getByPlaceholderText('Name, serial or article'), {
+      target: { value: 'Fluid' },
+    });
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(250);
+    });
+
+    const suggestions = within(dialog).getAllByRole('button', { name: 'Fluid' });
+    expect(suggestions).toHaveLength(1);
+    expect(suggestions[0]).toHaveTextContent('S000138');
+    expect(suggestions[0]).not.toHaveTextContent('S000140');
+
+    vi.useRealTimers();
+  });
+
+  it('hides serialized suggestions when the occupancy request fails', async () => {
+    getOccupiedSerialNumbersMock.mockRejectedValueOnce(new Error('offline'));
+    vi.useFakeTimers();
+    renderModal(
+      <RapidSaleModal
+        products={[
+          product({
+            id: 'serial',
+            name: 'Fluid',
+            serialNumber: 'S000138',
+            salePriceOptions: [100],
+          }),
+          product({
+            id: 'bulk',
+            name: 'Fluid bulk',
+            serialNumber: '',
+            quantity: 4,
+            freeQuantity: 4,
+            salePriceOptions: [80],
+          }),
+        ]}
+        sales={[]}
+        isSaving={false}
+        onClose={vi.fn()}
+        onSubmit={vi.fn(async () => undefined)}
+        onError={vi.fn()}
+      />,
+    );
+
+    const dialog = screen.getByRole('dialog', { name: 'Rapid sale' });
+    fireEvent.change(within(dialog).getByPlaceholderText('Name, serial or article'), {
+      target: { value: 'Fluid' },
+    });
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(250);
+    });
+
+    expect(within(dialog).getByRole('button', { name: 'Fluid bulk' })).toBeInTheDocument();
+    expect(within(dialog).queryByRole('button', { name: 'Fluid' })).not.toBeInTheDocument();
+    expect(within(dialog).queryByText(/S000138/)).not.toBeInTheDocument();
 
     vi.useRealTimers();
   });

@@ -1008,6 +1008,98 @@ describe('OrderDetailCard product entry', () => {
     );
   });
 
+  it('hides a serial that occupied-serials reports as bound', async () => {
+    getOccupiedSerialNumbersMock.mockResolvedValue({
+      occupied: ['S000003'],
+    });
+    renderCard({ catalogProducts: [] });
+
+    fireEvent.change(
+      screen.getByPlaceholderText(PRODUCT_SEARCH_PLACEHOLDER),
+      {
+        target: { value: 'S000003' },
+      },
+    );
+
+    await waitFor(() => {
+      expect(getOccupiedSerialNumbersMock).toHaveBeenCalledWith({
+        serials: ['S000003'],
+      });
+      expect(
+        screen.queryByText('Searching products...'),
+      ).not.toBeInTheDocument();
+    });
+    expect(
+      screen.queryByText('TerraE 30E INR18650 2900mAh'),
+    ).not.toBeInTheDocument();
+  });
+
+  it('hides serialized suggestions when the occupancy request fails', async () => {
+    getOccupiedSerialNumbersMock.mockRejectedValue(new Error('offline'));
+    renderCard({ catalogProducts: [] });
+
+    fireEvent.change(
+      screen.getByPlaceholderText(PRODUCT_SEARCH_PLACEHOLDER),
+      {
+        target: { value: 'S000003' },
+      },
+    );
+
+    await waitFor(() => {
+      expect(getOccupiedSerialNumbersMock).toHaveBeenCalled();
+      expect(
+        screen.queryByText('Searching products...'),
+      ).not.toBeInTheDocument();
+    });
+    expect(
+      screen.queryByText('TerraE 30E INR18650 2900mAh'),
+    ).not.toBeInTheDocument();
+  });
+
+  it('does not attach an occupied serialized unit from a catalog name', async () => {
+    getOccupiedSerialNumbersMock.mockResolvedValue({
+      occupied: ['S000140'],
+    });
+    renderCard({
+      products: [
+        product({
+          id: 'svod-stock',
+          name: 'SVOD Decalcification',
+          serialNumber: 'S000140',
+          salePriceOptions: [250],
+        }),
+      ],
+      catalogProducts: [
+        catalogProduct({
+          id: 'catalog-svod',
+          name: 'SVOD Decalcification',
+        }),
+      ],
+    });
+
+    fireEvent.change(
+      screen.getByPlaceholderText(PRODUCT_SEARCH_PLACEHOLDER),
+      {
+        target: { value: 'SVOD' },
+      },
+    );
+
+    await waitFor(() => {
+      expect(getOccupiedSerialNumbersMock).toHaveBeenCalledWith({
+        serials: ['S000140'],
+      });
+      expect(
+        screen.getByRole('button', { name: /SVOD Decalcification/i }),
+      ).toBeInTheDocument();
+    });
+
+    fireEvent.click(
+      screen.getByRole('button', { name: /SVOD Decalcification/i }),
+    );
+
+    expect(screen.queryByDisplayValue('250')).not.toBeInTheDocument();
+  });
+
   it('shows stock suggestions with warehouse when searching by article', async () => {
     renderCard({ catalogProducts: [] });
 

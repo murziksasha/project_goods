@@ -57,6 +57,8 @@ Compact counter-sale flow for walk-in customers: no client form, warehouse stock
 - Changing warehouse clears the in-progress product entry row (search, price, tier, qty, warranty, selected product/serials).
 - Product search: min 2 characters, 200 ms debounce.
 - Suggestions: `buildRapidSaleStockSuggestions` — **warehouse stock only** (`source: stock`, `selectable: true` rows). No catalog fallback.
+- Suggestion order, before the 8-row limit: name `sortOrder`, then match rank (exact serial, exact article, partial serial, partial article, partial name), then name, then receipt age ascending (`purchaseDate`, else `createdAt`). Oldest unit is at the top. Same-name serials follow that age; the `createdAt` descending product list must not put the newer serial first.
+- A suggested unit must be visible in Stock balances: `quantity > 0` and not linked to an issued sale. Serials returned by `GET /sales/occupied-serials` are excluded, including serials bound on a sale/order outside the loaded sales page. If that request fails, serialized suggestions are omitted. See [SPEC_SUGGESTIONS_BEHAVIOR.md](./SPEC_SUGGESTIONS_BEHAVIOR.md#rapid-sale-serial-dedup-rule).
 - Catalog-only rows and manual product text are rejected on save (`orders.rapidSale.errors.stockOnly`).
 
 #### Suggestion selection
@@ -164,7 +166,7 @@ Rules:
 - Manual product lines without `productId` are rejected.
 - `clientId` in request body is ignored; system rapid-sale client is assigned server-side.
 - Formatted API responses include `isRapidSale: boolean` on the sale snapshot.
-- Frontend duplicate-serial protection applies to the draft only; backend `assertSerialNumbersNotBoundToOtherSales` checks other **saved** sales.
+- Frontend duplicate-serial protection applies to the draft, and product suggestions also exclude serials from `GET /sales/occupied-serials`. Backend `assertSerialNumbersNotBoundToOtherSales` checks other **saved** sales.
 
 ### Key Implementation Files
 
@@ -225,7 +227,7 @@ Related: [BROWSER_NAVIGATION.md](./BROWSER_NAVIGATION.md) (URL behavior), [API.m
 ## Product Suggestions
 
 - Product search starts from 2+ characters.
-- `Create order -> Sales order` and opened sale/repair card `Products` use `buildOrderDetailProductSuggestions`.
+- `Create order -> Sales order` and opened sale/repair card `Products` use `buildOrderDetailProductSuggestions`. A suggested stock unit must be visible in Stock balances (`quantity > 0`, not linked to an issued sale in the loaded sales) and its serial must be absent from `GET /sales/occupied-serials`. If that request fails, serialized suggestions are omitted. See [SPEC_SUGGESTIONS_BEHAVIOR.md](./SPEC_SUGGESTIONS_BEHAVIOR.md#card-and-create-order-products-lookup-rule).
 - `Rapid sale` keeps `buildRapidSaleStockSuggestions` / warehouse-scoped stock lookup.
 - Clicking a suggestion fills:
   - product name into search input
@@ -276,7 +278,7 @@ When selecting a warehouse stock suggestion **without** a bound serial in `Creat
 
 ### Catalog name lookup with stock resolve (2026-06-30)
 
-`Create order -> Sales order` name queries still use catalog suggestions (`buildOrderDetailProductSuggestions` catalog mode). On selection, `findSelectableStockProductByName` checks for a selectable warehouse product with the same normalized `name`:
+`Create order -> Sales order` name queries still use catalog suggestions (`buildOrderDetailProductSuggestions` catalog mode). On selection, `findSelectableStockProductByName` checks for a warehouse product with the same normalized `name` that passes the Stock balances and `GET /sales/occupied-serials` gate (same rule as serial search; occupancy failure skips serialized namesakes):
 
 - **Match found (bulk stock):** apply stock row (`productId`, retail/purchase price, optional R/W toggle).
 - **Match found (serialized-only stock, e.g. AAA Etron batteries):** pre-fill name/price/`productId` for R/W toggle, leave `serialNumber` empty, allow `qty > 1`; on save omit `productId` when `qty > 1`; serial binding happens later in the opened sale card (`Serials x/y`). Occupancy: [WAREHOUSE_FLOW.md §4.3.0](./WAREHOUSE_FLOW.md#430-bind-modal-occupancy-opened-repair-and-sale-cards). Bind-modal candidate row: [WAREHOUSE_FLOW.md §4.3.2](./WAREHOUSE_FLOW.md#432-bind-modal-candidate-row-purchase-price--supplier-order).
