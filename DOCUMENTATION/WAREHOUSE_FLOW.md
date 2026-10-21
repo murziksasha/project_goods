@@ -137,7 +137,12 @@ This document defines current warehouse requirements for stock balances, receipt
 5. `Warehouse` and `Location` are displayed as readable badges; warehouse badge uses the service-center color when set
 6. `Client order` and `Supplier order` links are displayed as compact badges. Hover shows a copy icon; only the icon copies the visible number. Badge click still opens the sale/order card or supplier-order modal.
 7. `Note` is a compact single-line column; long text is truncated with ellipsis and exposes the full note in the native hover tooltip
-8. `Action` is a kebab menu (`⋮`) with `Transfer` (when a transfer handler is provided) and `Delete`
+8. `Action` is a kebab menu (`⋮`) with `Transfer` (when a transfer handler is provided) and `Delete`:
+   - rendered via a `document.body` portal (`createPortal`) with `position: fixed` so the menu is never clipped by table cell `overflow: hidden` or `.catalog-table-wrap` horizontal scrolling
+   - uses fixed coordinates from trigger `getBoundingClientRect()`, right-aligned to the trigger button
+   - smart vertical placement: opens below the button by default; flips above when remaining viewport space below is insufficient (`< 90px`) and there is enough room above
+   - dismiss behavior: closes on outside click (`pointerdown`), `Escape` key, window scroll/resize, or when an action is selected
+   - cell style `.warehouse-stock-cell-action` keeps `overflow: visible`
 9. empty state must explicitly suggest adjusting search or filters
 
 ### 4.4.1) Stock View Modes (`Models` / `Units`)
