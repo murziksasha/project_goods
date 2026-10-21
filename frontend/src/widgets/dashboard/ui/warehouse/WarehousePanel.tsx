@@ -7,6 +7,7 @@ import {
   useState,
 } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useStoredPageSize } from '../../../../shared/lib/page-size-preference';
 import type { CatalogProduct } from '../../../../entities/catalog-product';
 import type { Product } from '../../../../entities/product';
 import { printSerialNumbers } from '../orders/workspace/orders-workspace-shared';
@@ -78,6 +79,7 @@ import {
   groupReceiptRowsByOrder,
   initialAdministrators,
   getWarehouseFiltersStorageKey,
+  getWarehouseSeedPageSize,
   initialServiceCenters,
   initialWarehouseFilters,
   initialWarehouses,
@@ -231,13 +233,9 @@ export const WarehousePanel: React.FC<WarehousePanelProps> = ({
       ? Math.floor(parsed.currentPage as number)
       : 1;
   });
-  const [pageSize, setPageSize] = useState(() => {
-    const parsed = readStoredWarehouseFilters(currentEmployeeId);
-    return Number.isFinite(parsed.pageSize) &&
-      (parsed.pageSize ?? 0) > 0
-      ? Math.floor(parsed.pageSize as number)
-      : 30;
-  });
+  const [pageSize, setPageSize] = useStoredPageSize('warehouse', () =>
+    getWarehouseSeedPageSize(currentEmployeeId),
+  );
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
   const [isReceiptStatusFilterOpen, setIsReceiptStatusFilterOpen] =
     useState(false);
@@ -1163,7 +1161,6 @@ export const WarehousePanel: React.FC<WarehousePanelProps> = ({
           searchMode,
           settingsTab,
           currentPage,
-          pageSize,
           stockView,
           receiptsView,
           receiptStatus,
@@ -1180,7 +1177,6 @@ export const WarehousePanel: React.FC<WarehousePanelProps> = ({
     appliedFilters.statuses,
     currentEmployeeId,
     currentPage,
-    pageSize,
     query,
     receiptsView,
     searchMode,

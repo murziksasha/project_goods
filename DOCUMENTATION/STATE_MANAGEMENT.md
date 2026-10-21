@@ -47,6 +47,32 @@ Support stable concurrent work for 3-5 users with minimal conflicts and stale da
 
 For any mutation that can affect shared screens (orders, sales, stock, client devices), backend is source of truth and frontend must refresh corresponding collections immediately.
 
+## Page-Size Preference Rule (2026-10-21)
+
+- Bottom `PaginationPanel` page size preferences are stored per-browser in `localStorage` under `project-goods.page-sizes` as a single JSON map of list keys to allowed numbers (`10 | 30 | 50 | 100 | 200`).
+- **Device map wins**: this browser's preference wins over the hardcoded `30`, over named filters stored on the server, and over another employee on the same PC. One size per list, shared by every account on this browser. Another browser starts at `30`.
+- **Named filters do not store page size**: server-persisted named saved filters (`/api/saved-filters`) never store or override page sizes; only filter criteria belong to named filters.
+- **Allowed values**: `10 | 30 | 50 | 100 | 200`. Any other value is ignored and falls back to `30` without writing to storage.
+- **Per-list keys**:
+  - `orders`: Repair orders table
+  - `sales`: Sales table
+  - `supplierOrders`: Supplier orders table
+  - `warehouse`: Warehouse stock and receipts
+  - `warehouseInformationProducts`: Warehouse information, products
+  - `warehouseInformationLocations`: Warehouse information, locations
+  - `warehouseInformationSuppliers`: Warehouse information, suppliers
+  - `clients`: Clients table
+  - `clientSuppliers`: Suppliers table on the Clients page
+  - `catalogProducts`: Catalog client-devices tab
+  - `catalogCatalogProducts`: Catalog products tab
+  - `catalogServices`: Catalog services tab
+  - `catalogSuppliers`: Catalog suppliers tab
+  - `accountingTransactions`: Accounting transactions
+  - `accountingReports`: Accounting profit reports
+  - `settingsBackups`: Settings backups
+- Changing the page-size dropdown resets the list to page 1. Current page number is never stored in `project-goods.page-sizes`.
+- Warehouse filter blob migration: page size leaves `project-goods.warehouse-filters` and is copied once to `project-goods.page-sizes` if absent (seeded from `project-goods.warehouse-filters.<employeeId>` then unscoped `project-goods.warehouse-filters`). Subsequent warehouse filter writes omit `pageSize`.
+
 ## Filters Persistence Rule (2026-05-08)
 
 - Filter and search settings must persist across browser reload (`F5`) for all dashboard workspaces that expose filters/search.
@@ -158,5 +184,5 @@ For any mutation that can affect shared screens (orders, sales, stock, client de
 - Same employee sees their filters on any browser/device after login; other employees never see them.
 - Scopes: `orders` | `warehouse` | `clients` | `catalog`; `tab` selects list sub-tab.
 - **Active/draft** filter form state (what is currently applied in the panel) may still use `localStorage` per browser; only the **saved presets list** is server-backed.
-- Warehouse workspace layout on this device (not synced): `project-goods.warehouse-filters` (tab, search, pagination, `stockView`, `receiptsView`), `project-goods.warehouse-columns` (column visibility), `project-goods.warehouse-stock-name-width` (stock `Name` column width, 180–720px).
+- Warehouse workspace layout on this device (not synced): `project-goods.warehouse-filters` (tab, search, current page, `stockView`, `receiptsView`; page size is stored in `project-goods.page-sizes`), `project-goods.warehouse-columns` (column visibility), `project-goods.warehouse-stock-name-width` (stock `Name` column width, 180–720px).
 - One-time client migration: if the server list is empty, legacy `localStorage` presets for that employee are POSTed and the old storage key is cleared.
