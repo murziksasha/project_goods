@@ -516,12 +516,27 @@ Implementation references:
 - API payload must include `warehouseId` and `locationId`.
 - Successful take-on-charge must invalidate/refetch supplier orders and product stock data so receipt status and stock balances stay in sync.
 
-### 11.1) Article Behavior In Take-On-Charge Modal
+### 11.1) Article Behavior and Local Preferences In Take-On-Charge Modal
 
 - In `Оприбуткування` (`Stock receipt`) modal:
-  - Each item line (`#1`, `#2`...) has an independent auto-generate article checkbox and manual article input field.
-  - **Quantity-based default**: Checkbox defaults to **checked** if that item line's `quantity > 1`, and defaults to **unchecked** if `quantity = 1` (single units are tracked by serial number and do not require article numbers).
-  - **Master toggle**: A top master checkbox `Auto-generate articles` allows toggling all item checkboxes simultaneously.
+  - **Browser-wide local preferences**: Stored in `localStorage` under `project-goods.stock-receipt`. Shared across all logins on this browser profile; logout does not clear it; no server copy and no per-employee key. Read each time the dialog opens ("Receive to stock" click).
+  - **Stored controls**:
+    - `autoGenerateSerialNumbers` (boolean, default `true` when untouched)
+    - `autoGenerateArticles` (boolean, stored when top or single-line checkbox is clicked)
+    - `printSerialNumbers` (boolean, default `true` when untouched)
+    - `warehouseId` (non-empty string)
+    - `locationId` (string; `""` represents a stored warehouse with no locations)
+  - **Articles rule**:
+    - **Quantity-based default**: Applies only while `autoGenerateArticles` has never been stored in `project-goods.stock-receipt`. In this untouched state, each item line's checkbox defaults to **checked** if `quantity > 1`, and **unchecked** if `quantity = 1` (the top master checkbox is checked only if all lines are checked).
+    - **Stored value on open**: Once stored, that boolean is applied uniformly to every line on modal open, including lines with `quantity = 1`.
+    - **Per-line clicks**: On multi-line receipts, clicking individual line checkboxes modifies local dialog state for that receipt only and does not write to storage.
+    - **One-line receipt**: The single Auto-generate article checkbox acts as the top-level control and writes the boolean to storage.
+    - **Master toggle**: A top master checkbox `Auto-generate articles` toggles all lines simultaneously and writes the boolean to storage.
+  - **Warehouse & Location fallback-without-write**:
+    - Changing warehouse stores the warehouse id and the visible location (retained if valid in the new warehouse, otherwise first location, or `""` if none). Changing location stores `locationId`.
+    - A missing or inactive stored warehouse id falls back to the first active warehouse and its first location without writing to storage.
+    - If a stored warehouse has `locationId: ""` but later gains locations, the first location is selected without writing.
+    - Manual article text and manual serial numbers are cleared on every open and never stored.
   - **When enabled for an item**: Backend generates one article for the item in sequence `A000001`, `A000002`, ... and applies this single article to all units of that item line. Helper hint displays `Leave blank to auto-generate`.
   - **When disabled for an item**: If manual input is empty, products are stored with empty article (`article: ''`). Helper hint displays `Leave blank for no article`.
   - **Manual override**: The manual input field is always accessible for every item; if a custom article is typed, it is applied as-is regardless of checkbox state.

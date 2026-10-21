@@ -73,6 +73,13 @@ For any mutation that can affect shared screens (orders, sales, stock, client de
 - Changing the page-size dropdown resets the list to page 1. Current page number is never stored in `project-goods.page-sizes`.
 - Warehouse filter blob migration: page size leaves `project-goods.warehouse-filters` and is copied once to `project-goods.page-sizes` if absent (seeded from `project-goods.warehouse-filters.<employeeId>` then unscoped `project-goods.warehouse-filters`). Subsequent warehouse filter writes omit `pageSize`.
 
+## Stock Receipt Preferences Rule (2026-10-21)
+
+- Stock receipt dialog choices inside `SupplierOrderModal` are stored per-browser in `localStorage` under `project-goods.stock-receipt` as a single JSON object.
+- **Client-only and per-browser**: Device choices win over initial defaults. The preference is shared by every account/login on this browser profile and is not cleared on logout. It is not saved per employee and has no server copy.
+- **Stored fields**: `autoGenerateSerialNumbers` (boolean), `autoGenerateArticles` (boolean), `printSerialNumbers` (boolean), `warehouseId` (string), `locationId` (string; `""` for no locations).
+- **Read/write semantics & fallback**: Read on open ("Receive to stock" click); writes occur only on explicit user control changes (`onChange`). Fallback lookups (missing warehouse or missing location) never write to storage. Full specification: [WAREHOUSE_FLOW.md §11.1](./WAREHOUSE_FLOW.md#111-article-behavior-and-local-preferences-in-take-on-charge-modal).
+
 ## Filters Persistence Rule (2026-05-08)
 
 - Filter and search settings must persist across browser reload (`F5`) for all dashboard workspaces that expose filters/search.
