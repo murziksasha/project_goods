@@ -13,6 +13,7 @@ import type { Sale } from '../../../../entities/sale';
 import { useServicesQuery } from '../../../../entities/service-catalog';
 import type { SupplierOrder } from '../../../../entities/supplier-order';
 import { PaginationPanel } from '../../../../shared/ui/PaginationPanel';
+import { useStoredPageSize } from '../../../../shared/lib/page-size-preference';
 import { CopyableValue } from '../../../../shared/ui/CopyableValue';
 import type { AnalyticsDateRange } from '../../model/analytics-date-range';
 import { formatMoney } from '../../model/accounting';
@@ -52,8 +53,6 @@ import {
 } from './AccountingProfitCharts';
 import { AccountingProfitVisualSettings } from './AccountingProfitVisualSettings';
 import { ProfitReportCatalogModalHost } from './ProfitReportCatalogModalHost';
-
-const pageSizeDefault = 30;
 
 const signedClass = (value: number | null) => {
   if (value == null || value === 0) return '';
@@ -100,7 +99,7 @@ export const AccountingProfitReportsView: React.FC<AccountingProfitReportsViewPr
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [catalogRow, setCatalogRow] = useState<ProfitMarginRow | null>(null);
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(pageSizeDefault);
+  const [pageSize, setPageSize] = useStoredPageSize('accountingReports');
 
   const customRange = hasCustomProfitDateRange(appliedRange);
   const query = useFinanceProfitReportQuery(

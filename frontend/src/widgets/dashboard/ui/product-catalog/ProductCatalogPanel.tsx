@@ -26,6 +26,7 @@ import {
   CompactPaginationPanel,
   PaginationPanel,
 } from '../../../../shared/ui/PaginationPanel';
+import { useStoredPageSize } from '../../../../shared/lib/page-size-preference';
 import { Button } from '../../../../shared/ui/Button';
 import { Modal } from '../../../../shared/ui/Modal';
 import { PageHeader } from '../../../../shared/ui/PageHeader';
@@ -233,14 +234,17 @@ export const ProductCatalogPanel: React.FC<
       : 'products';
   });
   const [productsPage, setProductsPage] = useState(1);
-  const [productsPageSize, setProductsPageSize] = useState(30);
+  const [productsPageSize, setProductsPageSize] =
+    useStoredPageSize('catalogProducts');
   const [catalogProductsPage, setCatalogProductsPage] = useState(1);
   const [catalogProductsPageSize, setCatalogProductsPageSize] =
-    useState(30);
+    useStoredPageSize('catalogCatalogProducts');
   const [servicesPage, setServicesPage] = useState(1);
-  const [servicesPageSize, setServicesPageSize] = useState(30);
+  const [servicesPageSize, setServicesPageSize] =
+    useStoredPageSize('catalogServices');
   const [suppliersPage, setSuppliersPage] = useState(1);
-  const [suppliersPageSize, setSuppliersPageSize] = useState(30);
+  const [suppliersPageSize, setSuppliersPageSize] =
+    useStoredPageSize('catalogSuppliers');
   const [selectedService, setSelectedService] =
     useState<ServiceCatalogItem | null>(null);
   const [selectedSupplier, setSelectedSupplier] =

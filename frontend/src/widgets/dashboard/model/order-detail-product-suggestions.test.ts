@@ -305,4 +305,40 @@ describe('buildOrderDetailProductSuggestions', () => {
       }),
     ).toEqual([]);
   });
+
+  it('returns sorted top 8 when more than 8 catalog matches exist and array order differs from sortOrder', () => {
+    const catalogMatches = [
+      catalogProduct({ id: 'c-9', name: 'Cable J', sortOrder: 9 }),
+      catalogProduct({ id: 'c-8', name: 'Cable I', sortOrder: 8 }),
+      catalogProduct({ id: 'c-7', name: 'Cable H', sortOrder: 7 }),
+      catalogProduct({ id: 'c-6', name: 'Cable G', sortOrder: 6 }),
+      catalogProduct({ id: 'c-5', name: 'Cable F', sortOrder: 5 }),
+      catalogProduct({ id: 'c-4', name: 'Cable E', sortOrder: 4 }),
+      catalogProduct({ id: 'c-3', name: 'Cable D', sortOrder: 3 }),
+      catalogProduct({ id: 'c-2', name: 'Cable C', sortOrder: 2 }),
+      catalogProduct({ id: 'c-1', name: 'Cable B', sortOrder: 1 }),
+      catalogProduct({ id: 'c-0', name: 'Cable A', sortOrder: 0 }),
+    ];
+
+    const suggestions = buildOrderDetailProductSuggestions({
+      products: [],
+      catalogProducts: catalogMatches,
+      sales: [],
+      query: 'Cable',
+      warehouses,
+    });
+
+    expect(suggestions).toHaveLength(8);
+    expect(suggestions.map((s) => s.name)).toEqual([
+      'Cable A',
+      'Cable B',
+      'Cable C',
+      'Cable D',
+      'Cable E',
+      'Cable F',
+      'Cable G',
+      'Cable H',
+    ]);
+    expect(suggestions.map((s) => s.sortOrder)).toEqual([0, 1, 2, 3, 4, 5, 6, 7]);
+  });
 });

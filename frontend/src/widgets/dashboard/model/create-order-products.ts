@@ -444,7 +444,6 @@ export const buildOrderDetailProductSuggestions = ({
     .filter((product) =>
       normalizeCreateOrderProductLookup(product.name).includes(normalizedQuery),
     )
-    .slice(0, limit)
     .map((product) => ({
       id: `catalog-${product.id}`,
       source: 'catalog' as const,

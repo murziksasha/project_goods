@@ -65,6 +65,7 @@ import { OrdersWorkspaceTableSection } from './OrdersWorkspaceTableSection';
 import { TruncatedTextTooltip } from '../../../../../shared/ui/TruncatedTextTooltip';
 import { useSaleDetail } from '../../../../../entities/sale';
 import { useSalesPageQuery } from '../../../../../entities/sale';
+import { useStoredPageSize } from '../../../../../shared/lib/page-size-preference';
 import { buildOrdersSalesListParams } from './orders-sales-query';
 
 import { OrderDetailCard } from '../order-detail/OrderDetailCard';
@@ -361,15 +362,8 @@ export const OrdersWorkspace: React.FC<OrdersWorkspaceProps> = ({
     supplierOrders: 1,
     supplierInformation: 1,
   });
-  const [pageSizeByTab, setPageSizeByTab] = useState<
-    Record<OrdersTab, number>
-  >({
-    orders: 30,
-    kanban: 30,
-    sales: 30,
-    supplierOrders: 30,
-    supplierInformation: 30,
-  });
+  const [ordersPageSize, setOrdersPageSize] = useStoredPageSize('orders');
+  const [salesPageSize, setSalesPageSize] = useStoredPageSize('sales');
   const [warningMessage, setWarningMessage] = useState<string | null>(
     null,
   );
@@ -403,7 +397,12 @@ export const OrdersWorkspace: React.FC<OrdersWorkspaceProps> = ({
   const visibleColumnKeys = visibleColumns[activeTab];
   const tableMinWidth = getOrdersTableMinWidth(visibleColumnKeys);
   const currentPage = pageByTab[activeTab];
-  const currentPageSize = pageSizeByTab[activeTab];
+  const currentPageSize =
+    activeTab === 'sales'
+      ? salesPageSize
+      : activeTab === 'orders'
+        ? ordersPageSize
+        : 30;
   const usesServerList =
     activeTab === 'orders' ||
     activeTab === 'sales' ||
@@ -3481,11 +3480,12 @@ export const OrdersWorkspace: React.FC<OrdersWorkspaceProps> = ({
               [activeTab]: page,
             }))
           }
-          onPageSizeChange={(pageSize) => {
-            setPageSizeByTab((current) => ({
-              ...current,
-              [activeTab]: pageSize,
-            }));
+          onPageSizeChange={(newPageSize) => {
+            if (activeTab === 'sales') {
+              setSalesPageSize(newPageSize);
+            } else if (activeTab === 'orders') {
+              setOrdersPageSize(newPageSize);
+            }
             setPageByTab((current) => ({
               ...current,
               [activeTab]: 1,

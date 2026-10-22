@@ -48,6 +48,10 @@ import {
   resolveSupplierOrderErrorMessage,
   resolveSupplierOrderModalLocks,
 } from '../../../model/supplier-order-utils';
+import {
+  readStockReceiptPreferences,
+  writeStockReceiptPreferences,
+} from '../../../model/stock-receipt-preferences';
 import { useModalBackgroundScrollLock } from '../../../../../shared/lib/useModalBackgroundScrollLock';
 import { useDismissibleSuggestions } from '../../../../../shared/lib/useDismissibleSuggestions';
 import { useReorderableSuggestions } from '../../../../../shared/lib/useReorderableSuggestions';
@@ -1220,22 +1224,73 @@ export const SupplierOrderModal: React.FC<
                     sum + Math.max(0, Math.floor(item.quantity)),
                   0,
                 );
-                setIsSerialModalOpen(true);
-                setIsAutoSerialEnabled(true);
+                const prefs = readStockReceiptPreferences();
+
+                const autoSerial =
+                  typeof prefs.autoGenerateSerialNumbers === 'boolean'
+                    ? prefs.autoGenerateSerialNumbers
+                    : true;
+                setIsAutoSerialEnabled(autoSerial);
                 setManualSerialNumbers(
                   Array.from({ length: chargeUnits }, () => ''),
                 );
-                const defaultAutoArticles = submitItems.map(
-                  (item) => Math.max(0, Math.floor(item.quantity)) > 1,
-                );
-                setGroupAutoArticles(defaultAutoArticles);
-                setIsAutoArticleEnabled(
-                  defaultAutoArticles.length > 0 &&
-                    defaultAutoArticles.every(Boolean),
-                );
+
+                if (typeof prefs.autoGenerateArticles === 'boolean') {
+                  const autoArticles = prefs.autoGenerateArticles;
+                  setIsAutoArticleEnabled(autoArticles);
+                  setGroupAutoArticles(submitItems.map(() => autoArticles));
+                } else {
+                  const defaultAutoArticles = submitItems.map(
+                    (item) => Math.max(0, Math.floor(item.quantity)) > 1,
+                  );
+                  setGroupAutoArticles(defaultAutoArticles);
+                  setIsAutoArticleEnabled(
+                    defaultAutoArticles.length > 0 &&
+                      defaultAutoArticles.every(Boolean),
+                  );
+                }
                 setGroupArticleInputs(
                   Array.from({ length: submitItems.length }, () => ''),
                 );
+
+                const printSerials =
+                  typeof prefs.printSerialNumbers === 'boolean'
+                    ? prefs.printSerialNumbers
+                    : true;
+                setShouldPrintSerials(printSerials);
+
+                const storedWarehouse = prefs.warehouseId
+                  ? resolvedWarehouseOptions.find(
+                      (w) => w.id === prefs.warehouseId,
+                    )
+                  : undefined;
+
+                let nextWarehouseId = '';
+                let nextLocationId = '';
+
+                if (storedWarehouse) {
+                  nextWarehouseId = storedWarehouse.id;
+                  const locations = storedWarehouse.locations ?? [];
+                  const matchingLocation = locations.find(
+                    (l) => l.id === prefs.locationId,
+                  );
+                  if (matchingLocation) {
+                    nextLocationId = matchingLocation.id;
+                  } else if (prefs.locationId === '' && locations.length === 0) {
+                    nextLocationId = '';
+                  } else {
+                    nextLocationId = locations[0]?.id ?? '';
+                  }
+                } else {
+                  const defaultWarehouse = resolvedWarehouseOptions[0];
+                  nextWarehouseId = defaultWarehouse?.id ?? '';
+                  nextLocationId = defaultWarehouse?.locations[0]?.id ?? '';
+                }
+
+                setTakeOnChargeWarehouseId(nextWarehouseId);
+                setTakeOnChargeLocationId(nextLocationId);
+
+                setIsSerialModalOpen(true);
               }}
               style={{ background: '#16a34a' }}
             >
@@ -1455,9 +1510,13 @@ export const SupplierOrderModal: React.FC<
                 <input
                   type='checkbox'
                   checked={isAutoSerialEnabled}
-                  onChange={(event) =>
-                    setIsAutoSerialEnabled(event.target.checked)
-                  }
+                  onChange={(event) => {
+                    const nextChecked = event.target.checked;
+                    setIsAutoSerialEnabled(nextChecked);
+                    writeStockReceiptPreferences({
+                      autoGenerateSerialNumbers: nextChecked,
+                    });
+                  }}
                 />
                 <span>
                   {t('orders.supplier.modal.autoSerialNumbers')}
@@ -1506,6 +1565,9 @@ export const SupplierOrderModal: React.FC<
                     setGroupAutoArticles((current) =>
                       current.map(() => checked),
                     );
+                    writeStockReceiptPreferences({
+                      autoGenerateArticles: checked,
+                    });
                   }}
                 />
                 <span>{t('orders.supplier.modal.autoArticles')}</span>
@@ -1514,9 +1576,13 @@ export const SupplierOrderModal: React.FC<
                 <input
                   type='checkbox'
                   checked={shouldPrintSerials}
-                  onChange={(event) =>
-                    setShouldPrintSerials(event.target.checked)
-                  }
+                  onChange={(event) => {
+                    const checked = event.target.checked;
+                    setShouldPrintSerials(checked);
+                    writeStockReceiptPreferences({
+                      printSerialNumbers: checked,
+                    });
+                  }}
                 />
                 <span>
                   {t(
@@ -1594,6 +1660,9 @@ export const SupplierOrderModal: React.FC<
                           const checked = event.target.checked;
                           setGroupAutoArticles([checked]);
                           setIsAutoArticleEnabled(checked);
+                          writeStockReceiptPreferences({
+                            autoGenerateArticles: checked,
+                          });
                         }}
                       />
                       <span>{t('orders.supplier.modal.autoArticle')}</span>
@@ -1624,9 +1693,28 @@ export const SupplierOrderModal: React.FC<
                       : undefined
                   }
                   value={takeOnChargeWarehouseId}
-                  onChange={(event) =>
-                    setTakeOnChargeWarehouseId(event.target.value)
-                  }
+                  onChange={(event) => {
+                    const nextWarehouseId = event.target.value;
+                    const nextWarehouse = resolvedWarehouseOptions.find(
+                      (w) => w.id === nextWarehouseId,
+                    );
+                    const availableLocations = nextWarehouse?.locations ?? [];
+                    const hasCurrentLocation = availableLocations.some(
+                      (l) => l.id === takeOnChargeLocationId,
+                    );
+                    const nextLocationId = hasCurrentLocation
+                      ? takeOnChargeLocationId
+                      : availableLocations[0]?.id ?? '';
+
+                    setTakeOnChargeWarehouseId(nextWarehouseId);
+                    setTakeOnChargeLocationId(nextLocationId);
+                    if (nextWarehouseId) {
+                      writeStockReceiptPreferences({
+                        warehouseId: nextWarehouseId,
+                        locationId: nextLocationId,
+                      });
+                    }
+                  }}
                 >
                   {resolvedWarehouseOptions.length === 0 ? (
                     <option value=''>
@@ -1649,9 +1737,13 @@ export const SupplierOrderModal: React.FC<
                       : undefined
                   }
                   value={takeOnChargeLocationId}
-                  onChange={(event) =>
-                    setTakeOnChargeLocationId(event.target.value)
-                  }
+                  onChange={(event) => {
+                    const nextLocationId = event.target.value;
+                    setTakeOnChargeLocationId(nextLocationId);
+                    writeStockReceiptPreferences({
+                      locationId: nextLocationId,
+                    });
+                  }}
                   disabled={
                     selectedTakeOnChargeLocations.length === 0
                   }
