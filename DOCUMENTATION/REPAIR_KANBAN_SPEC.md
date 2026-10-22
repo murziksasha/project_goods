@@ -129,6 +129,7 @@ Orders and Sales keep using `assigneeId` and do not read these fields.
 - **Click** card (outside master, handle, and Move) opens the existing Order Detail panel/modal while staying on the Kanban tab.
 - **Device name** on the card uses primary-blue (`--color-primary-strong`) so the appliance is scannable.
 - **Total** (`formatCurrency(getSaleTotal(sale))`) is shown on the card only when `sale.lineItems.length > 0` (includes discount). Empty line items → no amount.
+- **Ready header total** (`formatCurrency(sumReadyColumnTotal(sales))`) is shown only in the Ready column header, placed immediately after the word Ready and before the count pill. Sums `getSaleTotal(sale)` (line items after discount) for cards with `lineItems.length > 0`, rounded to integer kopiykas with `roundCurrency` to match displayed card labels without fractional drift. Cards with no line items add nothing. Computed client-side from the Ready cards array rendered by the column (honoring search, master, dates, favorites, and the 500-order cap; drag or pending move out of Ready immediately deducts the amount). Expanded Ready always shows the total (including 0 when empty or unpriced); the collapsed 72px strip omits it.
 - **Master select** on the card uses the same employee options as Order Detail (`master` role or `repairs.execute`); change persists via the same main-info workspace save and stays in sync with the open order card.
 - Column/card left accent uses status color tokens (aligned with the Home repair funnel).
 

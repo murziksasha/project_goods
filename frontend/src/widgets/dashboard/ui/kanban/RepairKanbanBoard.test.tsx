@@ -6,6 +6,7 @@ import {
 } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import type { Sale } from '../../../../entities/sale';
+import { formatCurrency } from '../../../../shared/lib/format';
 import { RepairKanbanBoard } from './RepairKanbanBoard';
 
 const sale = {
@@ -435,5 +436,200 @@ describe('RepairKanbanBoard', () => {
     expect(onRankChange).toHaveBeenCalledWith([
       { saleId: 'move-1', kanbanRank: 6000 },
     ]);
+  });
+
+  it('shows formatted sum and card count in Ready header, and no amount in other columns', () => {
+    const readySale = {
+      ...sale,
+      id: 'ready-1',
+      status: 'ready',
+      lineItems: [
+        {
+          id: 'item-1',
+          kind: 'service',
+          name: 'Diagnostics',
+          price: 350,
+          quantity: 1,
+          warrantyPeriod: 0,
+        },
+      ],
+    } as unknown as Sale;
+
+    const inRepairSale = {
+      ...sale,
+      id: 'repair-1',
+      status: 'inRepair',
+      lineItems: [
+        {
+          id: 'item-2',
+          kind: 'part',
+          name: 'Screen',
+          price: 500,
+          quantity: 1,
+          warrantyPeriod: 0,
+        },
+      ],
+    } as unknown as Sale;
+
+    const paidSale = {
+      ...sale,
+      id: 'paid-1',
+      status: 'paid',
+      lineItems: [
+        {
+          id: 'item-3',
+          kind: 'service',
+          name: 'Cleaning',
+          price: 200,
+          quantity: 1,
+          warrantyPeriod: 0,
+        },
+      ],
+    } as unknown as Sale;
+
+    const { container } = render(
+      <RepairKanbanBoard
+        sales={[readySale, inRepairSale, paidSale]}
+        employees={[]}
+        canUpdateStatus
+        canUpdateMaster={false}
+        onStatusChange={vi.fn()}
+        onMasterChange={vi.fn()}
+        onOpenSale={vi.fn()}
+      />,
+    );
+
+    const readyColumn = container.querySelector<HTMLElement>(
+      '.repair-kanban-column[data-status="ready"]',
+    )!;
+    const readyTotal = readyColumn.querySelector(
+      '.repair-kanban-column-total',
+    );
+    expect(readyTotal).toBeInTheDocument();
+    expect(readyTotal?.textContent).toBe(formatCurrency(350));
+    expect(readyTotal).toHaveAttribute(
+      'aria-label',
+      expect.stringContaining(formatCurrency(350)),
+    );
+    expect(
+      readyColumn.querySelector('.repair-kanban-column-count')?.textContent,
+    ).toBe('1');
+
+    const inRepairColumn = container.querySelector(
+      '.repair-kanban-column[data-status="inRepair"]',
+    )!;
+    expect(
+      inRepairColumn.querySelector('.repair-kanban-column-total'),
+    ).toBeNull();
+    expect(
+      inRepairColumn.querySelector('.repair-kanban-column-count')?.textContent,
+    ).toBe('1');
+
+    const paidColumn = container.querySelector(
+      '.repair-kanban-column[data-status="paid"]',
+    )!;
+    expect(
+      paidColumn.querySelector('.repair-kanban-column-total'),
+    ).toBeNull();
+    expect(
+      paidColumn.querySelector('.repair-kanban-column-count')?.textContent,
+    ).toBe('1');
+  });
+
+  it('shows zero amount in expanded empty Ready, and hides amount when collapsed', () => {
+    const { container } = render(
+      <RepairKanbanBoard
+        sales={[]}
+        employees={[]}
+        canUpdateStatus
+        canUpdateMaster={false}
+        onStatusChange={vi.fn()}
+        onMasterChange={vi.fn()}
+        onOpenSale={vi.fn()}
+      />,
+    );
+
+    const readyColumn = container.querySelector<HTMLElement>(
+      '.repair-kanban-column[data-status="ready"]',
+    )!;
+    const readyTotal = readyColumn.querySelector(
+      '.repair-kanban-column-total',
+    );
+    expect(readyTotal).toBeInTheDocument();
+    expect(readyTotal?.textContent).toBe(formatCurrency(0));
+    expect(
+      readyColumn.querySelector('.repair-kanban-column-count')?.textContent,
+    ).toBe('0');
+
+    // Collapse the empty Ready column
+    const collapseBtn = within(readyColumn).getByRole('button', {
+      name: /Collapse empty column|Згорнути порожню колонку/i,
+    });
+    fireEvent.click(collapseBtn);
+
+    expect(readyColumn).toHaveClass('repair-kanban-column-collapsed');
+    expect(
+      readyColumn.querySelector('.repair-kanban-column-total'),
+    ).toBeNull();
+
+    // Re-expand the empty Ready column
+    const expandBtn = within(readyColumn).getByRole('button', {
+      name: /Expand column|Розгорнути колонку/i,
+    });
+    fireEvent.click(expandBtn);
+
+    expect(readyColumn).not.toHaveClass('repair-kanban-column-collapsed');
+    expect(
+      readyColumn.querySelector('.repair-kanban-column-total')?.textContent,
+    ).toBe(formatCurrency(0));
+  });
+
+  it('does not change Ready amount when an unpriced card is present', () => {
+    const pricedSale = {
+      ...sale,
+      id: 'priced-1',
+      status: 'ready',
+      lineItems: [
+        {
+          id: 'item-1',
+          kind: 'service',
+          name: 'Diagnostics',
+          price: 400,
+          quantity: 1,
+          warrantyPeriod: 0,
+        },
+      ],
+    } as unknown as Sale;
+
+    const unpricedSale = {
+      ...sale,
+      id: 'unpriced-1',
+      status: 'ready',
+      lineItems: [],
+      salePrice: 1000,
+      quantity: 1,
+    } as unknown as Sale;
+
+    const { container } = render(
+      <RepairKanbanBoard
+        sales={[pricedSale, unpricedSale]}
+        employees={[]}
+        canUpdateStatus
+        canUpdateMaster={false}
+        onStatusChange={vi.fn()}
+        onMasterChange={vi.fn()}
+        onOpenSale={vi.fn()}
+      />,
+    );
+
+    const readyColumn = container.querySelector<HTMLElement>(
+      '.repair-kanban-column[data-status="ready"]',
+    )!;
+    expect(
+      readyColumn.querySelector('.repair-kanban-column-count')?.textContent,
+    ).toBe('2');
+    expect(
+      readyColumn.querySelector('.repair-kanban-column-total')?.textContent,
+    ).toBe(formatCurrency(400));
   });
 });

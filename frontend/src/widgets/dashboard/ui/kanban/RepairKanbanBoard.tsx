@@ -50,6 +50,7 @@ import {
   parseCollapsedKanbanColumns,
   resolveKanbanDropStatus,
   shouldKeepKanbanPendingMove,
+  sumReadyColumnTotal,
   type KanbanPendingMove,
 } from './repair-kanban';
 
@@ -401,6 +402,10 @@ const KanbanColumn = ({
     data: { status },
   });
   const canCollapse = sales.length === 0;
+  const formattedReadyTotal =
+    status === 'ready' && !collapsed
+      ? formatCurrency(sumReadyColumnTotal(sales))
+      : '';
 
   return (
     <section
@@ -419,6 +424,16 @@ const KanbanColumn = ({
         <h3 className='repair-kanban-column-title'>
           {t(`orders.status.repair.${status}`)}
         </h3>
+        {status === 'ready' && !collapsed ? (
+          <span
+            className='repair-kanban-column-total'
+            aria-label={t('orders.kanban.readyTotal', {
+              amount: formattedReadyTotal,
+            })}
+          >
+            {formattedReadyTotal}
+          </span>
+        ) : null}
         <span className='repair-kanban-column-count'>
           {sales.length}
         </span>
