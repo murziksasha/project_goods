@@ -56,7 +56,7 @@ export const filterProductsByWarehouse = (
   );
 };
 
-const getProductStockTimestamp = (product: Product): number => {
+export const getProductStockTimestamp = (product: Product): number => {
   const timestamp = new Date(
     product.purchaseDate ?? product.createdAt,
   ).getTime();

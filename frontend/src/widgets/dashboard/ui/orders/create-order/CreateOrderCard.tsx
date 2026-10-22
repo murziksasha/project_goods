@@ -39,10 +39,14 @@ import {
   getRetailSalePrice,
   reorderProducts,
 } from '../../../../../entities/product';
-import type { Sale } from '../../../../../entities/sale';
+import {
+  getOccupiedSerialNumbers,
+  type Sale,
+} from '../../../../../entities/sale';
 import type { CreateOrderRequestPayload } from '../../../model/order-request';
 import {
   buildOrderDetailProductSuggestions,
+  collectOrderDetailCandidateSerials,
   findSelectableStockProductByName,
   type OrderDetailProductSuggestion,
 } from '../../../model/create-order-products';
@@ -70,7 +74,10 @@ import {
   getBlacklistClientWarning,
   isBlacklistClient,
 } from '../../../model/clients-workspace';
-import { normalizeSerialNumber } from '../../../model/order-line-serials';
+import {
+  collectOccupiedSerialNumbers,
+  normalizeSerialNumber,
+} from '../../../model/order-line-serials';
 import {
   createOrderClientRequestsTabStorageKey,
   createOrderTabStorageKey,
@@ -212,6 +219,10 @@ export const CreateOrderCard: React.FC<CreateOrderCardProps> = ({
   >([]);
   const [saleProductSuggestions, setSaleProductSuggestions] =
     useState<OrderDetailProductSuggestion[]>([]);
+  const [saleProductStockGate, setSaleProductStockGate] = useState({
+    occupiedSerialNumbers: [] as string[],
+    occupancyUnavailable: false,
+  });
   const [isServicesSectionOpen, setIsServicesSectionOpen] =
     useState(false);
   const [serviceQuery, setServiceQuery] = useState('');
@@ -454,6 +465,8 @@ export const CreateOrderCard: React.FC<CreateOrderCardProps> = ({
         products,
         catalogName: suggestion.name,
         sales,
+        occupiedSerialNumbers: saleProductStockGate.occupiedSerialNumbers,
+        occupancyUnavailable: saleProductStockGate.occupancyUnavailable,
       });
       if (!matchingStock) return suggestion;
 
@@ -468,6 +481,8 @@ export const CreateOrderCard: React.FC<CreateOrderCardProps> = ({
     focusedSaleItem?.productId,
     products,
     saleProductLookupQuery.length,
+    saleProductStockGate.occupancyUnavailable,
+    saleProductStockGate.occupiedSerialNumbers,
     saleProductSuggestions,
     sales,
   ]);
@@ -695,6 +710,10 @@ export const CreateOrderCard: React.FC<CreateOrderCardProps> = ({
       Boolean(focusedSaleItem?.productId)
     ) {
       setSaleProductSuggestions([]);
+      setSaleProductStockGate({
+        occupiedSerialNumbers: [],
+        occupancyUnavailable: false,
+      });
       setIsSaleProductLookupLoading(false);
       return;
     }
@@ -703,18 +722,47 @@ export const CreateOrderCard: React.FC<CreateOrderCardProps> = ({
     const timeoutId = window.setTimeout(async () => {
       setIsSaleProductLookupLoading(true);
       try {
-        if (isActive) {
-          setSaleProductSuggestions(
-            buildOrderDetailProductSuggestions({
-              products,
-              catalogProducts,
-              sales,
-              query: saleProductLookupQuery,
-              warehouses,
-              limit: 8,
-            }),
-          );
+        const candidateSerials = collectOrderDetailCandidateSerials({
+          products,
+          catalogProducts,
+          query: saleProductLookupQuery,
+        });
+        const draftSerials = saleItems
+          .map((item) => item.serialNumber)
+          .filter(Boolean);
+        let occupiedFromApi: string[] = [];
+        let occupancyUnavailable = false;
+        if (candidateSerials.length > 0) {
+          try {
+            const occupancy = await getOccupiedSerialNumbers({
+              serials: candidateSerials,
+            });
+            occupiedFromApi = occupancy.occupied;
+          } catch {
+            occupancyUnavailable = true;
+          }
         }
+        if (!isActive) return;
+        const occupiedSerialNumbers = collectOccupiedSerialNumbers([
+          ...draftSerials,
+          ...occupiedFromApi,
+        ]);
+        setSaleProductStockGate({
+          occupiedSerialNumbers,
+          occupancyUnavailable,
+        });
+        setSaleProductSuggestions(
+          buildOrderDetailProductSuggestions({
+            products,
+            catalogProducts,
+            sales,
+            query: saleProductLookupQuery,
+            warehouses,
+            limit: 8,
+            occupiedSerialNumbers,
+            occupancyUnavailable,
+          }),
+        );
       } catch {
         if (isActive) setSaleProductSuggestions([]);
       } finally {
@@ -732,6 +780,7 @@ export const CreateOrderCard: React.FC<CreateOrderCardProps> = ({
     focusedSaleItem?.catalogProductId,
     focusedSaleItem?.productId,
     products,
+    saleItems,
     saleProductLookupQuery,
     sales,
     warehouses,
@@ -903,6 +952,8 @@ export const CreateOrderCard: React.FC<CreateOrderCardProps> = ({
         products,
         catalogName: suggestion.name,
         sales,
+        occupiedSerialNumbers: saleProductStockGate.occupiedSerialNumbers,
+        occupancyUnavailable: saleProductStockGate.occupancyUnavailable,
       });
 
       if (matchingStock) {
@@ -1090,7 +1141,6 @@ export const CreateOrderCard: React.FC<CreateOrderCardProps> = ({
     if (item.source === 'stock' && item.serialNumber) {
       updateSaleItem(item.id, {
         quantity: '1',
-        price: item.unitPrice || item.price,
       });
       onError(t('orders.create.errors.serializedOnePerLine'));
       return;
@@ -1100,32 +1150,9 @@ export const CreateOrderCard: React.FC<CreateOrderCardProps> = ({
       1,
       Number.parseInt(value || '1', 10) || 1,
     );
-    const previousQuantity = Math.max(
-      1,
-      Number.parseInt(item.quantity || '1', 10) || 1,
-    );
-    const currentPrice = parseDecimalInput(item.price);
-    const knownUnitPrice = parseDecimalInput(item.unitPrice);
-    const resolvedUnitPrice =
-      Number.isFinite(knownUnitPrice) && knownUnitPrice > 0
-        ? knownUnitPrice
-        : Number.isFinite(currentPrice) && currentPrice > 0
-          ? currentPrice / previousQuantity
-          : 0;
 
     updateSaleItem(item.id, {
       quantity: String(nextQuantity),
-      unitPrice:
-        resolvedUnitPrice > 0
-          ? String(Math.round(resolvedUnitPrice * 100) / 100)
-          : item.unitPrice,
-      price:
-        resolvedUnitPrice > 0
-          ? String(
-              Math.round(resolvedUnitPrice * nextQuantity * 100) /
-                100,
-            )
-          : item.price,
     });
   };
 
@@ -1134,22 +1161,10 @@ export const CreateOrderCard: React.FC<CreateOrderCardProps> = ({
     value: string,
   ) => {
     const normalizedPrice = value.trim();
-    const quantity = Math.max(
-      1,
-      Number.parseInt(item.quantity || '1', 10) || 1,
-    );
-    const numericPrice = parseDecimalInput(normalizedPrice);
-    const resolvedUnitPrice =
-      Number.isFinite(numericPrice) && numericPrice >= 0
-        ? numericPrice / quantity
-        : 0;
 
     updateSaleItem(item.id, {
       price: normalizedPrice,
-      unitPrice:
-        Number.isFinite(resolvedUnitPrice) && resolvedUnitPrice >= 0
-          ? String(Math.round(resolvedUnitPrice * 100) / 100)
-          : item.unitPrice,
+      unitPrice: normalizedPrice,
     });
   };
   const {
@@ -1320,16 +1335,14 @@ export const CreateOrderCard: React.FC<CreateOrderCardProps> = ({
           1,
           Number.parseInt(item.quantity || '1', 10) || 1,
         );
-        const totalPrice = Math.max(
-          0,
-          parseDecimalInput(item.price) || 0,
-        );
-        const knownUnitPrice = Math.max(
-          0,
-          parseDecimalInput(item.unitPrice) || 0,
-        );
+        const parsedPrice = parseDecimalInput(item.price);
+        const knownUnitPrice = parseDecimalInput(item.unitPrice);
         const resolvedUnitPrice =
-          knownUnitPrice > 0 ? knownUnitPrice : totalPrice / quantity;
+          Number.isFinite(parsedPrice) && parsedPrice >= 0
+            ? parsedPrice
+            : Number.isFinite(knownUnitPrice) && knownUnitPrice >= 0
+              ? knownUnitPrice
+              : 0;
         const normalizedUnitPrice = String(
           Math.round(resolvedUnitPrice * 100) / 100,
         );
@@ -1365,9 +1378,7 @@ export const CreateOrderCard: React.FC<CreateOrderCardProps> = ({
           article: item.article,
           serialNumber: hasBoundSerial ? serialNumber : '',
           serialNumbers: hasBoundSerial ? [serialNumber] : undefined,
-          price: hasBoundSerial
-            ? normalizedUnitPrice
-            : String(Math.round(totalPrice * 100) / 100),
+          price: normalizedUnitPrice,
           quantity: hasBoundSerial ? '1' : String(quantity),
           warrantyPeriod: item.warrantyPeriod,
           warehouse: '',

@@ -35,12 +35,14 @@ Specs:
 
 - `e2e/login-page.spec.ts` — logged-out Login / Sign in.
 - `e2e/accounting-operation-modal.spec.ts` — **Confirm** (outline, stay open) and **Confirm and close** (filled); no large-amount warning.
+- `e2e/repair-kanban-master-filter.spec.ts` — Kanban master menu: several coworkers plus Without master, chips, Clear back to All, saved filter, and Orders/Sales still a single assignee. Spec: [REPAIR_KANBAN_SPEC.md](./REPAIR_KANBAN_SPEC.md#master-filter-kanban-toolbar-only).
 
 ## Frontend structure
 
 - Co-located `*.test.tsx` / `*.test.ts` next to components and hooks.
 - High-value suites: `OrdersWorkspace`, `OrderDetailCard`, `CreateOrderCard`, `AccountingPanel`, `DashboardPage`.
 - Sales list `+N` extra-lines dropdown: `OrdersWorkspace.test.tsx` (toggle, contents, does not open the card); `orders-workspace-shared.test.tsx` (serial fallback, qty price, above-placement pins to the trigger). Spec: [SALE_FLOW.md → Product extra-lines dropdown](./SALE_FLOW.md#product-extra-lines-dropdown).
+- Kanban master filter: `repair-kanban.test.ts` (All, one master, Without master, union, manager-created order with no master, assigned order excluded); `orders-workspace-shared.test.tsx` (`toKanbanFilters` migrates legacy `assigneeId` and clears it); `orders-sales-query.test.ts` (Kanban sends `masterIds` / `includeUnassignedMaster` and not `masterId`; Orders still sends `assigneeId`); `OrdersActiveFilterChips.test.tsx` (one chip per row, × removes one row, last × is All); `OrdersWorkspaceFilterPanel.test.tsx` (closed-field text and checkbox draft). Spec: [REPAIR_KANBAN_SPEC.md](./REPAIR_KANBAN_SPEC.md#master-filter-kanban-toolbar-only).
 - Product grouping: `order-line-item-groups.test.ts` (card key + print key with price); `OrderDetailCard.test.tsx` (collapsed `×N` groups); `orders-workspace-shared.test.tsx` (print `products_table` / invoice merge-vs-split).
 - Product model serial table: `product-model.test.ts` (latest batch, reserved-on-other-sale, supplier-order provenance); `ProductModelModal.test.tsx` (Latest / Reserved badges, serial + supplier-order hover copy, empty `—`). Nested modal Escape: `Modal.test.tsx`.
 - Serial bind modal candidate row: `SerialBindModal.test.tsx` (purchase price, empty `—`, copy/click do not select serial); `OrderDetailCard.test.tsx` (number click opens existing supplier-order modal; bind dialog remains). Spec: [WAREHOUSE_FLOW.md §4.3.2](./WAREHOUSE_FLOW.md#432-bind-modal-candidate-row-purchase-price--supplier-order).
@@ -53,6 +55,7 @@ Specs:
 ## Backend structure
 
 - Domain services: `backend/src/domain/**/service*.test.ts` — business rules without HTTP.
+- Sales list master query: `backend/src/domain/sale/list-sales-query.test.ts` — `masterIds` `$in`, `{ master: null }`, `$or`, invalid id dropped, legacy `masterId` unchanged. Spec: [API.md](./API.md).
 - Route helpers: `backend/src/routes/sale.routes.test.ts`.
 - **API integration:** `backend/src/routes/api.integration.test.ts` (supertest)
   - 401 without token / invalid token

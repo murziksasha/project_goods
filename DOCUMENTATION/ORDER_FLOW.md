@@ -100,7 +100,7 @@ Related: [ORDER_CARD.md](./ORDER_CARD.md) · [SALE_FLOW.md](./SALE_FLOW.md) · [
   - `client rejected`
   - `issued without repair`
   - (not from `notPickedUp` or `away`)
-- Repair Kanban board (Orders tab `Kanban` only) mirrors repair statuses as columns. The column after `diagnostics` is `pendingApproval` (EN Pending approval / UK На Узгодженні), then `clientApproved`, then `waitingParts`. The last column is `away`. See [REPAIR_KANBAN_SPEC.md](./REPAIR_KANBAN_SPEC.md).
+- Repair Kanban board (Orders tab `Kanban` only) mirrors repair statuses as columns. The column after `diagnostics` is `pendingApproval` (EN Pending approval / UK На Узгодженні), then `clientApproved`, then `waitingParts`. The last column is `away`. The Kanban toolbar master filter (All, Without master, several coworkers) is Kanban-only and is sent on the sales list query. The Orders list assignee filter stays a single choice. See [REPAIR_KANBAN_SPEC.md](./REPAIR_KANBAN_SPEC.md#master-filter-kanban-toolbar-only).
 - List-menu permission for `pendingApproval` matches `diagnostics`: `orders.manage` or `kanban.use`. Board drag uses `kanban.use`, the same gate as dropping a card onto Diagnostics.
 - Repair orders support status `away` in the `Orders` tab status dropdown and filters. Any employee who can view the order may set `away`; other statuses stay gated by `orders.manage` / `kanban.use`.
 - Completion timestamp source is the corresponding status-change entry in `Live feed` (timeline).
@@ -194,7 +194,7 @@ Related: [ORDER_CARD.md](./ORDER_CARD.md) · [SALE_FLOW.md](./SALE_FLOW.md) · [
 - `S/N` must remain editable at any time, including empty value.
 - Empty `S/N` must be accepted by backend validation and must not prevent saving order-card changes.
 - `Save changes` from order card persists the selected device name to the order snapshot.
-- `Master` is editable in order card via dropdown list of active employees with role `master` (or users with repair execution rights). Inactive employees are excluded from the dropdown on both create-order and order-card flows.
+- `Master` is editable in order card via dropdown list of active employees with role `master` (or users with repair execution rights). Inactive employees are excluded from the dropdown on both create-order and order-card flows. The Kanban card uses that same select. The Kanban toolbar filter is a separate multi-choice menu and does not change the card. Spec: [REPAIR_KANBAN_SPEC.md](./REPAIR_KANBAN_SPEC.md#master-filter-kanban-toolbar-only).
 - In `Employees -> Employees` list, inactive team members show an inline `Inactive` badge (`catalog-inactive-badge`) after the employee name. See [EMPLOYEES_SPEC.md](./EMPLOYEES_SPEC.md).
 - `Manager` remains informational.
 - `Article` is removed from order card main information.

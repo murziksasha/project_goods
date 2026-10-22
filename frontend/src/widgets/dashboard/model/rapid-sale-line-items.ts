@@ -3,6 +3,7 @@ import type { Sale } from '../../../entities/sale';
 import { parseDecimal } from '../../../shared/lib/decimal';
 import {
   buildCreateOrderProductSuggestions,
+  normalizeCreateOrderProductLookup,
   type CreateOrderProductSuggestion,
 } from './create-order-products';
 import {
@@ -10,6 +11,7 @@ import {
   collectOccupiedSerialNumbers,
   normalizeSerialNumber,
 } from './order-line-serials';
+import { getIssuedSaleProductIds } from './stock-balance';
 
 export type RapidSaleProductDraft = {
   id: string;
@@ -45,37 +47,98 @@ export const getRapidSaleOccupiedSerialNumbers = (
     ...pendingSerialNumbers,
   ]);
 
+type RapidSaleSuggestionSale = Pick<Sale, 'id' | 'product' | 'lineItems'> & {
+  status?: string;
+};
+
+/** Serials the occupancy request must check for this query. Wider than the visible limit. */
+export const collectRapidSaleCandidateSerials = (
+  products: Product[],
+  query: string,
+): string[] => {
+  const normalizedQuery = normalizeCreateOrderProductLookup(query);
+  if (normalizedQuery.length < 2) return [];
+
+  const serials = new Set<string>();
+  products.forEach((product) => {
+    if (product.quantity <= 0) return;
+    const matches = [
+      product.name,
+      product.article,
+      product.serialNumber,
+      product.note,
+    ].some((field) =>
+      normalizeCreateOrderProductLookup(field ?? '').includes(normalizedQuery),
+    );
+    if (!matches) return;
+    const serial = normalizeSerialNumber(product.serialNumber);
+    if (serial) serials.add(serial);
+  });
+
+  return [...serials];
+};
+
+const isVisibleRapidSaleStock = (
+  product: Product,
+  issuedProductIds: Set<string>,
+  occupancyUnavailable: boolean,
+) => {
+  if (product.quantity <= 0 || issuedProductIds.has(product.id)) return false;
+  if (occupancyUnavailable && normalizeSerialNumber(product.serialNumber)) {
+    return false;
+  }
+  return true;
+};
+
 export const buildRapidSaleStockSuggestions = ({
   products,
   sales,
   query,
   draftItems = [],
   pendingSerialNumbers = [],
+  occupiedSerialNumbers = [],
+  occupancyUnavailable = false,
   limit = 8,
 }: {
   products: Product[];
-  sales: Array<Pick<Sale, 'id' | 'product' | 'lineItems'>>;
+  sales: RapidSaleSuggestionSale[];
   query: string;
   draftItems?: RapidSaleDraftItem[];
   pendingSerialNumbers?: string[];
+  /** Serials returned by `GET /sales/occupied-serials`. Not the paged sales list. */
+  occupiedSerialNumbers?: string[];
+  /** When the occupancy request fails, serialized units are omitted. */
+  occupancyUnavailable?: boolean;
   limit?: number;
 }): CreateOrderProductSuggestion[] => {
-  const occupiedSerialNumbers = getRapidSaleOccupiedSerialNumbers(
-    draftItems,
-    pendingSerialNumbers,
+  const issuedProductIds = getIssuedSaleProductIds(
+    products,
+    sales.map((sale) => ({
+      status: sale.status ?? '',
+      product: sale.product,
+      lineItems: sale.lineItems,
+    })),
   );
+  const visibleProducts = products.filter((product) =>
+    isVisibleRapidSaleStock(product, issuedProductIds, occupancyUnavailable),
+  );
+  const blockedSerialNumbers = [
+    ...getRapidSaleOccupiedSerialNumbers(draftItems, pendingSerialNumbers),
+    ...occupiedSerialNumbers,
+  ];
   const draftSerialSale =
-    occupiedSerialNumbers.length > 0
-      ? buildInMemorySerialUsageSale(occupiedSerialNumbers)
+    blockedSerialNumbers.length > 0
+      ? buildInMemorySerialUsageSale(blockedSerialNumbers)
       : null;
 
   return buildCreateOrderProductSuggestions({
-    products,
+    products: visibleProducts,
     catalogProducts: [],
     sales: draftSerialSale ? [...sales, draftSerialSale] : sales,
     query,
     limit,
     currentSaleId: '',
+    orderStockByReceiptAge: true,
   }).filter((suggestion) => suggestion.source === 'stock' && suggestion.selectable);
 };
 

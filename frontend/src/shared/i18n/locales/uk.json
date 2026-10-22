@@ -751,6 +751,7 @@
       "clientPlaceholder": "Імʼя або телефон клієнта",
       "assignee": "Майстер / менеджер",
       "master": "Майстер",
+      "withoutMaster": "Без майстра",
       "manager": "Менеджер",
       "warehouse": "Склад",
       "repairType": "Тип ремонту",

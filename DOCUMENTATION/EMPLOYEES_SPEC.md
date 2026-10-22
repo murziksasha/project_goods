@@ -62,6 +62,7 @@ In `EmployeeFormModal`, within the **Finance** permissions block:
 Inactive employees must not be assignable as repair master:
 
 - **Frontend**: `CreateOrderCard` and `OrderDetailCard` filter master options with `employee.isActive === true` and repair rights (`role === 'master'` or `repairs.execute`)
+- **Kanban toolbar**: the master filter menu uses that same active list and does not add inactive employees. An order that is still assigned to an inactive person is excluded from **Without master**. Spec: [REPAIR_KANBAN_SPEC.md](./REPAIR_KANBAN_SPEC.md#master-filter-kanban-toolbar-only).
 - **Backend**: `resolveEmployee()` in `backend/src/domain/sale/service.ts` rejects inactive `masterId` with `masterId employee not found or inactive.`
 
 ## Information tab

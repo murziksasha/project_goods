@@ -53,6 +53,8 @@ export const OrdersActiveFilterChips: React.FC<OrdersActiveFilterChipsProps> = (
         product: t('orders.filters.product'),
         service: t('orders.filters.service'),
         favorites: t('orders.filters.favoritesOnly'),
+        masterField: t('orders.filters.master'),
+        withoutMaster: t('orders.filters.withoutMaster'),
       }),
     [assigneeFieldLabel, assigneeLabelById, filters, t],
   );

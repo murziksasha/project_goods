@@ -125,6 +125,183 @@ describe('rapid-sale-line-items', () => {
     expect(suggestions.map((item) => item.serialNumber)).toEqual(['S000003']);
   });
 
+  it('lists the older receipt above the newer one before the limit', () => {
+    const suggestions = buildRapidSaleStockSuggestions({
+      products: [
+        product({
+          id: 'newer',
+          name: 'Fluid',
+          serialNumber: 'S000140',
+          purchaseDate: '2026-03-01T00:00:00.000Z',
+          createdAt: '2026-03-01T00:00:00.000Z',
+        }),
+        product({
+          id: 'older',
+          name: 'Fluid',
+          serialNumber: 'S000138',
+          purchaseDate: '2026-01-01T00:00:00.000Z',
+          createdAt: '2026-01-01T00:00:00.000Z',
+        }),
+      ],
+      sales: [],
+      query: 'fluid',
+    });
+
+    expect(suggestions.map((item) => item.serialNumber)).toEqual([
+      'S000138',
+      'S000140',
+    ]);
+  });
+
+  it('keeps the oldest matches when more than the limit are in stock', () => {
+    const products = Array.from({ length: 9 }, (_, index) => {
+      const day = String(index + 1).padStart(2, '0');
+      return product({
+        id: `unit-${index + 1}`,
+        name: 'Fluid',
+        serialNumber: `S00010${index + 1}`,
+        purchaseDate: `2026-02-${day}T00:00:00.000Z`,
+        createdAt: `2026-02-${day}T00:00:00.000Z`,
+      });
+    }).reverse();
+
+    const suggestions = buildRapidSaleStockSuggestions({
+      products,
+      sales: [],
+      query: 'fluid',
+      limit: 8,
+    });
+
+    expect(suggestions.map((item) => item.serialNumber)).toEqual([
+      'S000101',
+      'S000102',
+      'S000103',
+      'S000104',
+      'S000105',
+      'S000106',
+      'S000107',
+      'S000108',
+    ]);
+  });
+
+  it('keeps manual name order ahead of receipt age', () => {
+    const suggestions = buildRapidSaleStockSuggestions({
+      products: [
+        product({
+          id: 'older-name',
+          name: 'Unit Alpha',
+          sortOrder: 1,
+          serialNumber: 'S000100',
+          purchaseDate: '2026-01-01T00:00:00.000Z',
+        }),
+        product({
+          id: 'newer-name',
+          name: 'Unit Zebra',
+          sortOrder: 0,
+          serialNumber: 'S000200',
+          purchaseDate: '2026-06-01T00:00:00.000Z',
+        }),
+      ],
+      sales: [],
+      query: 'unit',
+    });
+
+    expect(suggestions.map((item) => item.serialNumber)).toEqual([
+      'S000200',
+      'S000100',
+    ]);
+  });
+
+  it('omits a serial occupied on a sale that is not in the loaded sales page', () => {
+    const suggestions = buildRapidSaleStockSuggestions({
+      products: [
+        product({
+          id: 'bound',
+          name: 'Fluid',
+          serialNumber: 'S000140',
+          purchaseDate: '2026-03-01T00:00:00.000Z',
+        }),
+        product({
+          id: 'free',
+          name: 'Fluid',
+          serialNumber: 'S000138',
+          purchaseDate: '2026-01-01T00:00:00.000Z',
+        }),
+      ],
+      sales: [],
+      occupiedSerialNumbers: ['s000140'],
+      query: 'fluid',
+    });
+
+    expect(suggestions.map((item) => item.serialNumber)).toEqual(['S000138']);
+  });
+
+  it('omits a unit linked to an issued sale even when quantity is still positive', () => {
+    const suggestions = buildRapidSaleStockSuggestions({
+      products: [
+        product({
+          id: 'sold',
+          name: 'Fluid',
+          serialNumber: 'S000140',
+          quantity: 1,
+          freeQuantity: 1,
+          isInStock: true,
+        }),
+        product({
+          id: 'free',
+          name: 'Fluid',
+          serialNumber: 'S000138',
+        }),
+      ],
+      sales: [
+        {
+          id: 'sale-issued',
+          status: 'issued',
+          product: { id: '', article: '', name: '', serialNumber: '' },
+          lineItems: [
+            {
+              id: 'li-1',
+              kind: 'product',
+              productId: 'sold',
+              name: 'Fluid',
+              price: 10,
+              quantity: 1,
+              warrantyPeriod: 0,
+              serialNumbers: ['S000140'],
+            },
+          ],
+        },
+      ],
+      query: 'fluid',
+    });
+
+    expect(suggestions.map((item) => item.serialNumber)).toEqual(['S000138']);
+  });
+
+  it('drops serialized rows when occupancy cannot be loaded and keeps bulk stock', () => {
+    const suggestions = buildRapidSaleStockSuggestions({
+      products: [
+        product({
+          id: 'serial',
+          name: 'Fluid',
+          serialNumber: 'S000138',
+        }),
+        product({
+          id: 'bulk',
+          name: 'Fluid bulk',
+          serialNumber: '',
+          quantity: 4,
+          freeQuantity: 4,
+        }),
+      ],
+      sales: [],
+      occupancyUnavailable: true,
+      query: 'fluid',
+    });
+
+    expect(suggestions.map((item) => item.productId)).toEqual(['bulk']);
+  });
+
   it('validates draft requirements', () => {
     expect(validateRapidSaleDraft([])).toBe('orders.rapidSale.errors.noItems');
     expect(

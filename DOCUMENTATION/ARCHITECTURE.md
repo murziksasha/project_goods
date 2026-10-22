@@ -33,7 +33,7 @@ MongoDB
 
 ## Repair Kanban
 
-Канбан ремонтів — вкладка Orders (`ordersTab=kanban`), не окрема сторінка. Синхронізований із repair sales; статуси = стовпці (останній видимий — `away` після `paid`). Деталі: [REPAIR_KANBAN_SPEC.md](./REPAIR_KANBAN_SPEC.md).
+Канбан ремонтів — вкладка Orders (`ordersTab=kanban`), не окрема сторінка. Синхронізований із repair sales; статуси = стовпці (останній видимий — `away` після `paid`). Фільтр майстра на тулбарі — кілька coworker плюс «без майстра», і він іде в `GET /sales` (`masterIds`, `includeUnassignedMaster`). Orders і Sales лишаються на одному `assigneeId`. Деталі: [REPAIR_KANBAN_SPEC.md](./REPAIR_KANBAN_SPEC.md#master-filter-kanban-toolbar-only).
 
 ## Архитектура frontend
 

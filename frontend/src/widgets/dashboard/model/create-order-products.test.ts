@@ -271,6 +271,67 @@ describe('create order product helpers', () => {
     expect(match).toBeNull();
   });
 
+  it('skips a serialized namesake listed only as occupied', () => {
+    const match = findSelectableStockProductByName({
+      products: [
+        product({
+          id: 'bound-videx',
+          name: 'Videx',
+          serialNumber: 'S000140',
+        }),
+        product({
+          id: 'free-videx',
+          name: 'Videx',
+          serialNumber: 'S000141',
+        }),
+      ],
+      catalogName: 'Videx',
+      sales: [],
+      occupiedSerialNumbers: ['S000140'],
+    });
+
+    expect(match?.id).toBe('free-videx');
+  });
+
+  it('returns bulk stock when occupancy fails and skips serialized namesakes', () => {
+    const match = findSelectableStockProductByName({
+      products: [
+        product({
+          id: 'serial-videx',
+          name: 'Videx',
+          serialNumber: 'S000140',
+        }),
+        product({
+          id: 'bulk-videx',
+          name: 'Videx',
+          serialNumber: '',
+        }),
+      ],
+      catalogName: 'Videx',
+      sales: [],
+      occupancyUnavailable: true,
+    });
+
+    expect(match?.id).toBe('bulk-videx');
+  });
+
+  it('returns null when occupancy fails and every namesake is serialized', () => {
+    const match = findSelectableStockProductByName({
+      products: [
+        product({
+          id: 'serial-videx',
+          name: 'Videx',
+          serialNumber: 'S000140',
+        }),
+      ],
+      catalogName: 'Videx',
+      sales: [],
+      occupancyUnavailable: true,
+    });
+
+    expect(match).toBeNull();
+  });
+
   it('returns null when no stock matches catalog name', () => {
     const match = findSelectableStockProductByName({
       products: [product({ id: 'other', name: 'Other item' })],
