@@ -75,7 +75,7 @@ Money KPIs (selected period):
 
 Operations:
 
-- Funnel and Open / Ready / Waiting parts are **current open repairs** (snapshot), not period-created. `FUNNEL_STATUSES` (left → right): `new`, `diagnostics`, `waitingParts`, `clientApproved`, `inRepair`, `refinement`, `ready`, `paid`, `away`. Repair `paid` and `away` stay open (kanban columns); unknown open statuses fall into `other`. Final repair statuses are `issued`, `issuedWithoutRepair`, `clientRejected`, `notPickedUp`.
+- Funnel and Open / Ready / Waiting parts are **current open repairs** (snapshot), not period-created. `FUNNEL_STATUSES` (left → right): `new`, `diagnostics`, `pendingApproval`, `clientApproved`, `waitingParts`, `inRepair`, `refinement`, `ready`, `paid`, `away`. `pendingApproval` is its own open slice and stays inside in-progress. It does not increment Waiting parts or Ready. Repair `paid` and `away` stay open (kanban columns); unknown open statuses fall into `other`. Final repair statuses are `issued`, `issuedWithoutRepair`, `clientRejected`, `notPickedUp`.
 - Closed in period = final-status repairs whose `saleDate` is in the selected period.
 - Stock is a current snapshot (free / reserved / value). Clients are not shown here.
 - Today strip always uses calendar today.

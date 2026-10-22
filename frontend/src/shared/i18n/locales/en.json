@@ -1442,6 +1442,7 @@
         "paid": "Paid",
         "new": "New repair",
         "diagnostics": "Diagnostics",
+        "pendingApproval": "Pending approval",
         "inRepair": "In repair",
         "refinement": "Refinement",
         "waitingParts": "Waiting parts",
@@ -1845,6 +1846,7 @@
         "status": {
           "cancelled": "Cancelled",
           "received": "Taken on charge",
+          "partially_stocked": "Partially stocked",
           "new": "New",
           "approved": "Approved"
         },

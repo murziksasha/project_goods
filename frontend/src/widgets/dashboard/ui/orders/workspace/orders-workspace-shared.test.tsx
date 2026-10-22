@@ -852,6 +852,22 @@ describe('repair status refinement', () => {
   });
 });
 
+describe('pending approval status', () => {
+  it('places pending approval after diagnostics in the menu and keeps client approved after waiting parts', () => {
+    const keys = repairStatuses.map((item) => item.key);
+    expect(keys.indexOf('pendingApproval')).toBe(
+      keys.indexOf('diagnostics') + 1,
+    );
+    expect(keys.indexOf('clientApproved')).toBeGreaterThan(
+      keys.indexOf('waitingParts'),
+    );
+    expect(repairEditableStatuses.has('pendingApproval')).toBe(true);
+    expect(shouldOpenPaymentModalForStatusChange('pendingApproval', 100)).toBe(
+      false,
+    );
+  });
+});
+
 describe('away status', () => {
   it('normalizes away for repair and sale', () => {
     expect(normalizeOrderStatus('away')).toBe('away');

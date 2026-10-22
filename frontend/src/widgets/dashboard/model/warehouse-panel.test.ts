@@ -131,7 +131,15 @@ describe('warehouse-panel receipts filtering', () => {
   it('filters receipts using mapped order statuses for chips', () => {
     const receipts = [
       makeReceipt({ id: 'r-ordered', orderStatus: 'ordered' }),
-      makeReceipt({ id: 'r-partially-stocked', orderStatus: 'partially_stocked' }),
+      makeReceipt({
+        id: 'r-partially-stocked',
+        orderStatus: 'partially_stocked',
+      }),
+      makeReceipt({ id: 'r-stocked', orderStatus: 'stocked' }),
+      makeReceipt({
+        id: 'r-partially-completed',
+        orderStatus: 'partially_completed',
+      }),
       makeReceipt({ id: 'r-unavailable', orderStatus: 'unavailable' }),
     ];
 
@@ -148,6 +156,17 @@ describe('warehouse-panel receipts filtering', () => {
         receipts,
         query: '',
         filters: { ...initialWarehouseFilters, statuses: ['received'] },
+      }).map((r) => r.id),
+    ).toEqual(['r-stocked', 'r-partially-completed']);
+
+    expect(
+      filterReceiptRows({
+        receipts,
+        query: '',
+        filters: {
+          ...initialWarehouseFilters,
+          statuses: ['partially_stocked'],
+        },
       }).map((r) => r.id),
     ).toEqual(['r-partially-stocked']);
 
@@ -202,9 +221,14 @@ describe('normalizeReceiptStatuses', () => {
   it('keeps only supported receipt statuses', () => {
     expect(
       normalizeReceiptStatuses({
-        statuses: ['new', 'received', 'invalid' as never],
+        statuses: [
+          'new',
+          'received',
+          'partially_stocked',
+          'invalid' as never,
+        ],
       }),
-    ).toEqual(['new', 'received']);
+    ).toEqual(['new', 'received', 'partially_stocked']);
   });
 
   it('migrates legacy single status values', () => {

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Product } from '../../../entities/product';
 import type { Sale } from '../../../entities/sale';
+import { FUNNEL_STATUSES } from './analytics-aggregates';
 import { buildDashboardAnalytics, getSaleTotal } from './sales-analytics';
 
 const baseSale: Sale = {
@@ -275,6 +276,29 @@ describe('sales analytics', () => {
     expect(analytics.operations.openOrders).toBe(1);
     expect(analytics.operations.closedOrders).toBe(0);
     expect(analytics.funnel.find((item) => item.status === 'paid')?.count).toBe(1);
+  });
+
+  it('counts pending approval as its own open in-progress slice', () => {
+    const analytics = buildDashboardAnalytics(
+      [],
+      [{ ...baseSale, id: 'r-approval', kind: 'repair', status: 'pendingApproval' }],
+      'currentMonth',
+      [],
+      new Date('2026-05-12T12:00:00.000Z'),
+    );
+
+    expect(analytics.operations.openOrders).toBe(1);
+    expect(analytics.operations.closedOrders).toBe(0);
+    expect(analytics.operations.waitingPartsCount).toBe(0);
+    expect(analytics.operations.inProgressCount).toBe(1);
+    expect(analytics.funnel.find((item) => item.status === 'pendingApproval')?.count).toBe(1);
+    expect(analytics.funnel.find((item) => item.status === 'other')).toBeUndefined();
+    expect(FUNNEL_STATUSES.indexOf('pendingApproval')).toBe(
+      FUNNEL_STATUSES.indexOf('diagnostics') + 1,
+    );
+    expect(FUNNEL_STATUSES.indexOf('clientApproved')).toBeLessThan(
+      FUNNEL_STATUSES.indexOf('waitingParts'),
+    );
   });
 
   it('keeps away repairs in the open funnel', () => {
