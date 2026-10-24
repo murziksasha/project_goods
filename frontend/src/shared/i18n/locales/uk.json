@@ -693,7 +693,8 @@
       "expandColumn": "Розгорнути колонку",
       "moveUp": "Вгору",
       "moveDown": "Вниз",
-      "navigator": "Колонки канбану"
+      "navigator": "Колонки канбану",
+      "readyTotal": "Сума колонки Готово {{amount}}"
     },
     "toolbar": {
       "filter": "Фільтр",

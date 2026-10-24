@@ -693,7 +693,8 @@
       "expandColumn": "Expand column",
       "moveUp": "Move up",
       "moveDown": "Move down",
-      "navigator": "Kanban columns"
+      "navigator": "Kanban columns",
+      "readyTotal": "Ready total {{amount}}"
     },
     "toolbar": {
       "filter": "Filter",

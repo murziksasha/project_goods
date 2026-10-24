@@ -25,6 +25,7 @@ import type {
 } from '../../../../entities/client-device';
 import { isValidUkrainianPhone } from '../../../../shared/lib/phoneFormatter';
 import { PaginationPanel } from '../../../../shared/ui/PaginationPanel';
+import { useStoredPageSize } from '../../../../shared/lib/page-size-preference';
 import { ClientCardModal } from './ClientCardModal';
 import { ClientCreateModal } from './ClientCreateModal';
 import { CatalogRecordMergeModal } from '../../../../features/catalog-duplicate-merge';
@@ -271,7 +272,7 @@ export const ClientsWorkspace: React.FC<ClientsWorkspaceProps> = ({
     string | null
   >(null);
   const [clientsPage, setClientsPage] = useState(1);
-  const [clientsPageSize, setClientsPageSize] = useState(30);
+  const [clientsPageSize, setClientsPageSize] = useStoredPageSize('clients');
   const importInputRef = useRef<HTMLInputElement | null>(null);
   const isMainTabDirtyRef = useRef(false);
   const hydratedClientIdRef = useRef<string | null>(null);

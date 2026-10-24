@@ -21,8 +21,11 @@ import {
 } from '../../../../../entities/service-catalog';
 import {
   getProducts,
-  reorderProducts,
 } from '../../../../../entities/product';
+import {
+  useProductSuggestionReorder,
+  mergeProductsWithLatestSortOrders,
+} from '../../../model/product-suggestion-reorder';
 import { getOccupiedSerialNumbers } from '../../../../../entities/sale';
 import {
   createSupplier,
@@ -254,6 +257,7 @@ export const OrderDetailLineItemsPanel: React.FC<
   const [productSuggestions, setProductSuggestions] = useState<
     ProductEntrySuggestion[]
   >([]);
+  const productReorderCoordinator = useProductSuggestionReorder();
   const [productStockGate, setProductStockGate] = useState({
     occupiedSerialNumbers: [] as string[],
     occupancyUnavailable: false,
@@ -323,6 +327,22 @@ export const OrderDetailLineItemsPanel: React.FC<
   >([]);
   const [productLookupWarehouses, setProductLookupWarehouses] =
     useState<WarehouseItem[]>([]);
+  const nameRef = useRef(name);
+  const productsRef = useRef(products);
+  const catalogProductsRef = useRef(catalogProducts);
+  const salesRef = useRef(sales);
+  const currentSaleIdRef = useRef(currentSaleId);
+  const productLookupWarehousesRef = useRef(productLookupWarehouses);
+  const productStockGateRef = useRef(productStockGate);
+  useEffect(() => {
+    nameRef.current = name;
+    productsRef.current = products;
+    catalogProductsRef.current = catalogProducts;
+    salesRef.current = sales;
+    currentSaleIdRef.current = currentSaleId;
+    productLookupWarehousesRef.current = productLookupWarehouses;
+    productStockGateRef.current = productStockGate;
+  });
   const [priceDrafts, setPriceDrafts] = useState<
     Record<string, string>
   >({});
@@ -955,6 +975,71 @@ export const OrderDetailLineItemsPanel: React.FC<
     [currentSaleId, products, sales],
   );
 
+  const rebuildProductSuggestions = useCallback(
+    (
+      currentQuery: string,
+      stockProducts: Product[],
+      catProducts: CatalogProduct[],
+    ) => {
+      const suggestions = buildOrderDetailProductSuggestions({
+        products: stockProducts,
+        catalogProducts: catProducts,
+        sales: salesRef.current,
+        query: currentQuery,
+        warehouses: productLookupWarehousesRef.current,
+        limit: 8,
+        currentSaleId: currentSaleIdRef.current,
+        occupiedSerialNumbers:
+          productStockGateRef.current.occupiedSerialNumbers,
+        occupancyUnavailable:
+          productStockGateRef.current.occupancyUnavailable,
+      });
+
+      const mappedSuggestions: ProductEntrySuggestion[] = [];
+      suggestions.forEach((suggestion) => {
+        if (suggestion.source === 'stock') {
+          const product = stockProducts.find(
+            (candidate) => candidate.id === suggestion.productId,
+          );
+          if (product) {
+            mappedSuggestions.push({
+              type: 'stock',
+              product,
+              warehouseName: suggestion.warehouseName ?? '-',
+            });
+          }
+          return;
+        }
+
+        const catalogProduct = catProducts.find(
+          (product) => product.id === suggestion.catalogProductId,
+        );
+        if (catalogProduct) {
+          const matchingStockProduct = findSelectableStockProductByName({
+            products: stockProducts,
+            catalogName: catalogProduct.name,
+            sales: salesRef.current,
+            currentSaleId: currentSaleIdRef.current,
+            occupiedSerialNumbers:
+              productStockGateRef.current.occupiedSerialNumbers,
+            occupancyUnavailable:
+              productStockGateRef.current.occupancyUnavailable,
+          });
+          mappedSuggestions.push({
+            type: 'catalog',
+            catalogProduct,
+            price: matchingStockProduct
+              ? getRetailSalePrice(matchingStockProduct)
+              : 0,
+            warrantyPeriod: matchingStockProduct?.warrantyPeriod ?? 0,
+          });
+        }
+      });
+
+      setProductSuggestions(mappedSuggestions);
+    },
+    [],
+  );
   useEffect(() => {
     if (
       kind !== 'product' ||
@@ -971,9 +1056,16 @@ export const OrderDetailLineItemsPanel: React.FC<
       return;
     }
 
+    if (productReorderCoordinator.hasUnsavedDrop(name)) {
+      return;
+    }
+
     let isActive = true;
     const timeoutId = window.setTimeout(() => {
       void (async () => {
+        if (productReorderCoordinator.hasUnsavedDrop(name)) {
+          return;
+        }
         setIsProductLookupLoading(true);
         try {
           const candidateSerials = collectOrderDetailCandidateSerials({
@@ -999,6 +1091,9 @@ export const OrderDetailLineItemsPanel: React.FC<
             }
           }
           if (!isActive) return;
+          if (productReorderCoordinator.hasUnsavedDrop(name)) {
+            return;
+          }
           const occupiedSerialNumbers = collectOccupiedSerialNumbers([
             ...localSerials,
             ...occupiedFromApi,
@@ -1068,6 +1163,7 @@ export const OrderDetailLineItemsPanel: React.FC<
     kind,
     name,
     productLookupWarehouses,
+    productReorderCoordinator,
     products,
     sales,
     selectedCatalogProductId,
@@ -1280,25 +1376,48 @@ export const OrderDetailLineItemsPanel: React.FC<
       onSelect: applyProductSuggestion,
       onReorder: async (newSuggestions) => {
         setProductSuggestions(newSuggestions);
-        const reorderItems = newSuggestions.map(
-          (suggestion, index) => ({
-            name:
-              suggestion.type === 'catalog'
-                ? suggestion.catalogProduct.name
-                : suggestion.product.name,
-            sortOrder: index,
-          }),
-        );
-        try {
-          await reorderProducts(reorderItems);
-        } catch (error) {
-          onError(
-            error instanceof Error
-              ? error.message
-              : t('orders.messages.errors.failedReorder'),
-          );
-        }
-      },
+        const dropQuery = name;
+        await productReorderCoordinator.executeReorder({
+          newSuggestions,
+          query: dropQuery,
+          getName: (s) =>
+            s.type === 'catalog'
+              ? s.catalogProduct.name
+              : s.product.name,
+          rebuildSuccess: (savedMap) => {
+            if (nameRef.current === dropQuery) {
+              const patchedCatalog = mergeProductsWithLatestSortOrders(
+                catalogProductsRef.current,
+                savedMap,
+              );
+              const patchedStock = mergeProductsWithLatestSortOrders(
+                productsRef.current,
+                savedMap,
+              );
+              rebuildProductSuggestions(
+                dropQuery,
+                patchedStock,
+                patchedCatalog,
+              );
+            }
+          },
+          snapBackFailure: () => {
+            if (nameRef.current === dropQuery) {
+              rebuildProductSuggestions(
+                dropQuery,
+                productsRef.current,
+                catalogProductsRef.current,
+              );
+            }
+          },
+          onError: (error) => {
+            onError(
+              error instanceof Error
+                ? error.message
+                : t('orders.messages.errors.failedReorder'),
+            );
+          },
+        });      },
       canReorder: canManageOrders && !isReadOnly,
       isVisible: isLineItemSuggestionsVisible && isProductKind,
     });

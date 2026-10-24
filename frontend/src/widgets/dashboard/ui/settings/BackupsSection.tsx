@@ -23,6 +23,7 @@ import { LoadingState } from '../../../../shared/ui/LoadingState';
 import { Modal } from '../../../../shared/ui/Modal';
 import { PageHeader } from '../../../../shared/ui/PageHeader';
 import { StatusBadge } from '../../../../shared/ui/StatusBadge';
+import { useStoredPageSize } from '../../../../shared/lib/page-size-preference';
 import type { StatusBadgeTone } from '../../../../shared/ui/StatusBadge';
 import { PaginationPanel } from '../../../../shared/ui/PaginationPanel';
 
@@ -85,7 +86,7 @@ export const BackupsSection: React.FC<BackupsSectionProps> = ({
   const [toastMessage, setToastMessage] = useState('');
   const [error, setError] = useState('');
   const [backupsPage, setBackupsPage] = useState(1);
-  const [backupsPageSize, setBackupsPageSize] = useState(30);
+  const [backupsPageSize, setBackupsPageSize] = useStoredPageSize('settingsBackups');
   const toastTimeoutRef = useRef<number | null>(null);
 
   const showToast = useCallback((text: string) => {

@@ -452,6 +452,7 @@
   width: 76px;
   min-width: 76px;
   text-align: center;
+  overflow: visible;
 }
 
 .warehouse-stock-cell-note .warehouse-stock-note-button {
@@ -626,13 +627,23 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  border: 0;
+  background: transparent;
   border-radius: 6px;
   cursor: pointer;
   color: var(--color-text-label);
+  font: inherit;
+  padding: 0;
 }
 
-.warehouse-row-menu-toggle:hover {
+.warehouse-row-menu-toggle:hover,
+.warehouse-row-menu-toggle:focus-visible {
   background: var(--bg-soft-muted);
+}
+
+.warehouse-row-menu-panel-portal {
+  position: fixed;
+  z-index: 1000;
 }
 
 .warehouse-row-menu-panel {

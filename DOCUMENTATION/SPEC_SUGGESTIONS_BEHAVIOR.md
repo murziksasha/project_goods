@@ -110,7 +110,11 @@ For `Create order -> Sales order`, opened **sale card**, and **repair order card
    - Unsaved serials already on the open card, or on other Create order rows, stay excluded.
    - If `GET /sales/occupied-serials` fails, omit every serialized candidate. A no-serial in-stock row may still appear. Do not fall back to the paged sales list.
    - Name resolution prefers a no-serial stock row among units that pass this gate. If occupancy failed, skip serialized namesakes.
-10. Sort stays `sortOrder`, then stock-mode rank (exact serial, exact article, partial serial, partial article), then name. This rule does not use receipt age. Apply the eligibility filter before the limit of 8.
+10. Suggestions filter, then sort, then cut to the limit of 8. A cut before the sort is wrong.
+    - **Catalog-name search keys**: `sortOrder` (manual reorder), then `name`.
+    - **Stock search keys**: `sortOrder`, stock-mode rank (exact serial, exact article, partial serial, partial article), then `name`.
+    - Same-name serials sit together; the card sorts them by match rank then name (Rapid sale stock splits them by receipt age). The lower serial jumping back up is not a bug; its drag handle stays, and the other names still move.
+    - This rule does not use receipt age. Apply the eligibility filter before the limit of 8.
 
 ## Modal Layout Rule
 
@@ -189,7 +193,12 @@ When reordering occurs (via drag-and-drop, shift buttons, or `Alt+Arrow` shortcu
 
 1. **Local State**: The visible list updates immediately in memory to provide instantaneous feedback.
 2. **Backend Persistence**:
-   - Products: `PATCH /products/reorder` with `{ items: Array<{ name: string, sortOrder: number }> }`.
+   - Products:
+     - **Name rule & compact numbering**: One `sortOrder` per product name, case-insensitive, trimmed. The same number is stored on the catalog product and on every stock unit with that name. Renumber the open list by distinct names in first-seen order: `0, 1, 2…`. A repeated name keeps the upper row’s number and does not leave a gap (`Кабель`, `Оплата сервису ТВ`, repeated `Кабель`, `Блок` saves `0, 1, 2`). Names not on screen keep their old number; if still `0`, the next search may show a different 8 (successful save). Persist via `PATCH /products/reorder` with `{ items: Array<{ name: string, sortOrder: number }> }`.
+     - **Page-list update & rebuild on success**: On success of the latest drop, write the new numbers onto the catalog and stock rows this page already holds (`setQueryData` for `queryKeys.catalogProducts` and `queryKeys.products`) without waiting for a refetch. If the dropdown is still showing the drop (search text unchanged), rebuild it immediately from the saved numbers (repeated names jump together immediately, and the list may display a different 8). If the search text already changed, only patch the page lists; the following search shows the new order.
+     - **Latest-drop rule & stale-response prevention**: Track a generation so an earlier response cannot patch or snap back. Only the later drop may patch, rebuild, or snap back.
+     - **Stale refetch overlay**: When a refetch lands without the latest saved numbers, overlay those numbers so an older poll or refresh cannot wipe the page lists. When the refetch already contains those numbers, take it. While that save is in flight, the open dropdown keeps the unsaved drop; a refresh must not rebuild it, but a new search shows the last stored order, not the unsaved drop.
+     - **Snap-back on failure**: When the latest save fails, leave the page lists on the last success, snap the open list back to that order (rebuilt from unpatched lists), and show the existing reorder error without adding a new message.
    - Services: `PATCH /services/reorder` with `{ items: Array<{ id: string, sortOrder: number }> }`.
    - Suppliers: `PATCH /suppliers/reorder` with `{ items: Array<{ id: string, sortOrder: number }> }`.
 3. **Cache Invalidation**: On successful API response, the relevant React Query cache is invalidated (`queryKeys.products`, `queryKeys.services`, or `queryKeys.suppliers`) to synchronize all application views.

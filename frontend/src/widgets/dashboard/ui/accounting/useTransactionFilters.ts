@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useFinanceTransactionsQuery } from '../../../../entities/finance';
+import { useStoredPageSize } from '../../../../shared/lib/page-size-preference';
 import {
-  FINANCE_TRANSACTIONS_DEFAULT_PAGE_SIZE,
   getActiveTransactionFiltersCount,
   initialTransactionFilters,
   toFinanceTransactionsListParams,
@@ -20,8 +20,8 @@ export const useTransactionFilters = ({
   const [appliedTransactionFilters, setAppliedTransactionFilters] =
     useState<TransactionFilters>(initialTransactionFilters);
   const [transactionsPage, setTransactionsPage] = useState(1);
-  const [transactionsPageSize, setTransactionsPageSize] = useState(
-    FINANCE_TRANSACTIONS_DEFAULT_PAGE_SIZE,
+  const [transactionsPageSize, setTransactionsPageSize] = useStoredPageSize(
+    'accountingTransactions',
   );
   const [
     selectedTransactionCashboxId,

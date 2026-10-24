@@ -1,4 +1,5 @@
 import type React from 'react';
+import { createPortal } from 'react-dom';
 import {
   Fragment,
   useEffect,
@@ -657,29 +658,121 @@ const StockRowActions = ({
   onTransfer?: (product: Product) => void;
 }) => {
   const { t } = useTranslation();
+  const [isOpen, setIsOpen] = useState(false);
+  const [menuPosition, setMenuPosition] = useState<{ top: number; left: number } | null>(null);
+  const buttonRef = useRef<HTMLButtonElement | null>(null);
+  const panelRef = useRef<HTMLDivElement | null>(null);
+
+  const handleToggle = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (isOpen) {
+      setIsOpen(false);
+      return;
+    }
+    if (!buttonRef.current) return;
+    const rect = buttonRef.current.getBoundingClientRect();
+    const menuWidth = 140;
+    const menuHeight = onTransfer ? 82 : 46;
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const placeAbove = spaceBelow < menuHeight + 8 && rect.top > menuHeight + 8;
+
+    const top = placeAbove ? rect.top - menuHeight - 4 : rect.bottom + 4;
+    const left = Math.max(8, Math.min(rect.right - menuWidth, window.innerWidth - menuWidth - 8));
+
+    setMenuPosition({ top, left });
+    setIsOpen(true);
+  };
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handlePointerDown = (event: PointerEvent) => {
+      const target = event.target as Node;
+      if (
+        panelRef.current?.contains(target) ||
+        buttonRef.current?.contains(target)
+      ) {
+        return;
+      }
+      setIsOpen(false);
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsOpen(false);
+      }
+    };
+
+    const handleScrollOrResize = (event: Event) => {
+      if (panelRef.current?.contains(event.target as Node)) {
+        return;
+      }
+      setIsOpen(false);
+    };
+
+    window.addEventListener('pointerdown', handlePointerDown);
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('scroll', handleScrollOrResize, true);
+    window.addEventListener('resize', handleScrollOrResize);
+
+    return () => {
+      window.removeEventListener('pointerdown', handlePointerDown);
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('scroll', handleScrollOrResize, true);
+      window.removeEventListener('resize', handleScrollOrResize);
+    };
+  }, [isOpen]);
+
   return (
-    <details className='warehouse-row-menu'>
-      <summary
+    <div className='warehouse-row-menu'>
+      <button
+        ref={buttonRef}
+        type='button'
         className='warehouse-row-menu-toggle'
         aria-label={t('warehouse.actions.more')}
+        aria-expanded={isOpen}
+        onClick={handleToggle}
       >
         <span aria-hidden='true'>{'\u22EE'}</span>
-      </summary>
-      <div className='warehouse-row-menu-panel'>
-        {onTransfer ? (
-          <button type='button' onClick={() => onTransfer(product)}>
-            {t('warehouse.actions.transfer')}
-          </button>
-        ) : null}
-        <button
-          type='button'
-          className='warehouse-row-menu-danger'
-          onClick={() => onDelete(product)}
-        >
-          {t('warehouse.actions.delete')}
-        </button>
-      </div>
-    </details>
+      </button>
+      {isOpen && menuPosition && typeof document !== 'undefined'
+        ? createPortal(
+            <div
+              ref={panelRef}
+              className='warehouse-row-menu-panel warehouse-row-menu-panel-portal'
+              style={{
+                top: menuPosition.top,
+                left: menuPosition.left,
+              }}
+            >
+              {onTransfer ? (
+                <button
+                  type='button'
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsOpen(false);
+                    onTransfer(product);
+                  }}
+                >
+                  {t('warehouse.actions.transfer')}
+                </button>
+              ) : null}
+              <button
+                type='button'
+                className='warehouse-row-menu-danger'
+                onClick={(e) => {
+                    e.stopPropagation();
+                  setIsOpen(false);
+                  onDelete(product);
+                }}
+              >
+                {t('warehouse.actions.delete')}
+              </button>
+            </div>,
+            document.body,
+          )
+        : null}
+    </div>
   );
 };
 

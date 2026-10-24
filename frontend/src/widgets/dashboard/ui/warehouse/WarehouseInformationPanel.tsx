@@ -7,6 +7,7 @@ import {
   formatDate,
 } from '../../../../shared/lib/format';
 import { PaginationPanel } from '../../../../shared/ui/PaginationPanel';
+import { useStoredPageSize } from '../../../../shared/lib/page-size-preference';
 import { formatPercent } from '../../model/accounting';
 import {
   buildWarehouseInformationChartRows,
@@ -35,7 +36,6 @@ const defaultFilters: WarehouseInformationFilters = {
 const formatList = (items: string[]) =>
   items.length > 0 ? items.join(', ') : '-';
 
-const pageSizeDefault = 30;
 const chipLimit = 3;
 const distributionLimit = 8;
 const topBarLimit = 3;
@@ -165,15 +165,22 @@ export const WarehouseInformationPanel: React.FC<
     locations: 1,
     suppliers: 1,
   });
-  const [pageSizeByView, setPageSizeByView] = useState<
-    Record<WarehouseInformationView, number>
-  >({
-    products: pageSizeDefault,
-    locations: pageSizeDefault,
-    suppliers: pageSizeDefault,
-  });
+  const [productsPageSize, setProductsPageSize] = useStoredPageSize(
+    'warehouseInformationProducts',
+  );
+  const [locationsPageSize, setLocationsPageSize] = useStoredPageSize(
+    'warehouseInformationLocations',
+  );
+  const [suppliersPageSize, setSuppliersPageSize] = useStoredPageSize(
+    'warehouseInformationSuppliers',
+  );
   const currentPage = pageByView[view];
-  const currentPageSize = pageSizeByView[view];
+  const currentPageSize =
+    view === 'products'
+      ? productsPageSize
+      : view === 'locations'
+        ? locationsPageSize
+        : suppliersPageSize;
   const resetCurrentViewPage = () => {
     setPageByView((current) => ({ ...current, [view]: 1 }));
   };
@@ -597,10 +604,13 @@ export const WarehouseInformationPanel: React.FC<
         setPageByView((current) => ({ ...current, [view]: nextPage }))
       }
       onPageSizeChange={(nextPageSize) => {
-        setPageSizeByView((current) => ({
-          ...current,
-          [view]: nextPageSize,
-        }));
+        if (view === 'products') {
+          setProductsPageSize(nextPageSize);
+        } else if (view === 'locations') {
+          setLocationsPageSize(nextPageSize);
+        } else if (view === 'suppliers') {
+          setSuppliersPageSize(nextPageSize);
+        }
         setPageByView((current) => ({ ...current, [view]: 1 }));
       }}
     />

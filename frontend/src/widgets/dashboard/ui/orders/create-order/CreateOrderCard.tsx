@@ -1,5 +1,5 @@
 import type React from 'react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useDismissibleSuggestions } from '../../../../../shared/lib/useDismissibleSuggestions';
 import { useTranslation } from 'react-i18next';
 import {
@@ -37,8 +37,11 @@ import type { Product } from '../../../../../entities/product';
 import {
   formatRetailSalePrice,
   getRetailSalePrice,
-  reorderProducts,
 } from '../../../../../entities/product';
+import {
+  useProductSuggestionReorder,
+  mergeProductsWithLatestSortOrders,
+} from '../../../model/product-suggestion-reorder';
 import {
   getOccupiedSerialNumbers,
   type Sale,
@@ -219,6 +222,7 @@ export const CreateOrderCard: React.FC<CreateOrderCardProps> = ({
   >([]);
   const [saleProductSuggestions, setSaleProductSuggestions] =
     useState<OrderDetailProductSuggestion[]>([]);
+  const productReorderCoordinator = useProductSuggestionReorder();
   const [saleProductStockGate, setSaleProductStockGate] = useState({
     occupiedSerialNumbers: [] as string[],
     occupancyUnavailable: false,
@@ -448,6 +452,20 @@ export const CreateOrderCard: React.FC<CreateOrderCardProps> = ({
     saleItems[0] ??
     null;
   const saleProductLookupQuery = focusedSaleItem?.query.trim() ?? '';
+  const catalogProductsRef = useRef(catalogProducts);
+  const productsRef = useRef(products);
+  const salesRef = useRef(sales);
+  const warehousesRef = useRef(warehouses);
+  const saleProductStockGateRef = useRef(saleProductStockGate);
+  const saleProductLookupQueryRef = useRef(saleProductLookupQuery);
+  useEffect(() => {
+    catalogProductsRef.current = catalogProducts;
+    productsRef.current = products;
+    salesRef.current = sales;
+    warehousesRef.current = warehouses;
+    saleProductStockGateRef.current = saleProductStockGate;
+    saleProductLookupQueryRef.current = saleProductLookupQuery;
+  });
   const visibleSaleProductSuggestions = useMemo(() => {
     if (
       activeTab !== 'sale' ||
@@ -718,8 +736,15 @@ export const CreateOrderCard: React.FC<CreateOrderCardProps> = ({
       return;
     }
 
+    if (productReorderCoordinator.hasUnsavedDrop(saleProductLookupQuery)) {
+      return;
+    }
+
     let isActive = true;
     const timeoutId = window.setTimeout(async () => {
+      if (productReorderCoordinator.hasUnsavedDrop(saleProductLookupQuery)) {
+        return;
+      }
       setIsSaleProductLookupLoading(true);
       try {
         const candidateSerials = collectOrderDetailCandidateSerials({
@@ -743,6 +768,9 @@ export const CreateOrderCard: React.FC<CreateOrderCardProps> = ({
           }
         }
         if (!isActive) return;
+        if (productReorderCoordinator.hasUnsavedDrop(saleProductLookupQuery)) {
+          return;
+        }
         const occupiedSerialNumbers = collectOccupiedSerialNumbers([
           ...draftSerials,
           ...occupiedFromApi,
@@ -780,6 +808,7 @@ export const CreateOrderCard: React.FC<CreateOrderCardProps> = ({
     focusedSaleItem?.catalogProductId,
     focusedSaleItem?.productId,
     products,
+    productReorderCoordinator,
     saleItems,
     saleProductLookupQuery,
     sales,
@@ -1293,20 +1322,63 @@ export const CreateOrderCard: React.FC<CreateOrderCardProps> = ({
     newSuggestions: OrderDetailProductSuggestion[],
   ) => {
     setSaleProductSuggestions(newSuggestions);
-    const reorderItems = newSuggestions.map((suggestion, index) => ({
-      name: suggestion.name,
-      sortOrder: index,
-    }));
-    try {
-      await reorderProducts(reorderItems);
-    } catch (error) {
-      onError(
-        error instanceof Error
-          ? error.message
-          : t('orders.messages.errors.failedReorder'),
-      );
-    }
-  };
+    const dropQuery = saleProductLookupQuery;
+    await productReorderCoordinator.executeReorder({
+      newSuggestions,
+      query: dropQuery,
+      getName: (s) => s.name,
+      rebuildSuccess: (savedMap) => {
+        if (saleProductLookupQueryRef.current === dropQuery) {
+          const patchedCatalog = mergeProductsWithLatestSortOrders(
+            catalogProductsRef.current,
+            savedMap,
+          );
+          const patchedStock = mergeProductsWithLatestSortOrders(
+            productsRef.current,
+            savedMap,
+          );
+          setSaleProductSuggestions(
+            buildOrderDetailProductSuggestions({
+              products: patchedStock,
+              catalogProducts: patchedCatalog,
+              sales: salesRef.current,
+              query: dropQuery,
+              warehouses: warehousesRef.current,
+              limit: 8,
+              occupiedSerialNumbers:
+                saleProductStockGateRef.current.occupiedSerialNumbers,
+              occupancyUnavailable:
+                saleProductStockGateRef.current.occupancyUnavailable,
+            }),
+          );
+        }
+      },
+      snapBackFailure: () => {
+        if (saleProductLookupQueryRef.current === dropQuery) {
+          setSaleProductSuggestions(
+            buildOrderDetailProductSuggestions({
+              products: productsRef.current,
+              catalogProducts: catalogProductsRef.current,
+              sales: salesRef.current,
+              query: dropQuery,
+              warehouses: warehousesRef.current,
+              limit: 8,
+              occupiedSerialNumbers:
+                saleProductStockGateRef.current.occupiedSerialNumbers,
+              occupancyUnavailable:
+                saleProductStockGateRef.current.occupancyUnavailable,
+            }),
+          );
+        }
+      },
+      onError: (error) => {
+        onError(
+          error instanceof Error
+            ? error.message
+            : t('orders.messages.errors.failedReorder'),
+        );
+      },
+    });  };
 
   const handleReorderServiceSuggestions = async (
     newServices: ServiceCatalogItem[],
