@@ -31,6 +31,8 @@ export type ListSalesOptions = {
   clientId?: string;
   assigneeId?: string;
   masterId?: string;
+  masterIds?: string[];
+  includeUnassignedMaster?: boolean;
   recordNumber?: string;
   client?: string;
   product?: string;
@@ -110,6 +112,13 @@ const parseStringList = (value: unknown): string[] | undefined => {
   return raw.length > 0 ? raw : undefined;
 };
 
+const parseObjectIdList = (value: unknown): string[] | undefined => {
+  const raw = parseStringList(value);
+  if (!raw) return undefined;
+  const valid = raw.filter((item) => mongoose.isValidObjectId(item));
+  return valid.length > 0 ? valid : undefined;
+};
+
 const parseRepairType = (
   value: unknown,
 ): SaleRepairTypeFilter | undefined => {
@@ -152,6 +161,11 @@ export const parseListSalesQuery = (
     clientId: parseObjectId(query.clientId),
     assigneeId: parseObjectId(query.assigneeId),
     masterId: parseObjectId(query.masterId),
+    masterIds: parseObjectIdList(query.masterIds),
+    includeUnassignedMaster:
+      parseOptionalBoolean(query.includeUnassignedMaster) === true
+        ? true
+        : undefined,
     recordNumber:
       String(query.recordNumber ?? '').trim() || undefined,
     client: String(query.client ?? '').trim() || undefined,
@@ -227,7 +241,21 @@ export const buildSalesFilter = (
     filter.client = options.clientId;
   }
 
-  if (options.masterId) {
+  const validMasterIds = options.masterIds
+    ?.map((id) => String(id).trim())
+    .filter((id) => mongoose.isValidObjectId(id));
+  const hasMasterIds = Boolean(validMasterIds && validMasterIds.length > 0);
+  const includeUnassigned = options.includeUnassignedMaster === true;
+
+  if (hasMasterIds && includeUnassigned) {
+    and.push({
+      $or: [{ master: { $in: validMasterIds } }, { master: null }],
+    });
+  } else if (hasMasterIds) {
+    filter.master = { $in: validMasterIds };
+  } else if (includeUnassigned) {
+    filter.master = null;
+  } else if (options.masterId) {
     filter.master = options.masterId;
   } else if (options.assigneeId) {
     and.push({
@@ -350,6 +378,8 @@ export const hasSalesListFilters = (options: ListSalesOptions) =>
     options.clientId ||
     options.assigneeId ||
     options.masterId ||
+    options.masterIds?.length ||
+    options.includeUnassignedMaster ||
     options.recordNumber ||
     options.client ||
     options.product ||

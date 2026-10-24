@@ -82,6 +82,7 @@ import { ProductModelModal } from '../modals/ProductModelModal';
 import { SerialBindModal } from '../modals/SerialBindModal';
 import {
   buildOrderDetailProductSuggestions,
+  collectOrderDetailCandidateSerials,
   findSelectableStockProductByName,
 } from '../../../model/create-order-products';
 import {
@@ -101,6 +102,7 @@ import {
 } from '../../../model/order-line-item-groups';
 import {
   buildSerializedProductLineItem,
+  collectOccupiedSerialNumbers,
   filterBindableSerialProducts,
   getProductSerialAvailability,
   getSaleSerialUsage,
@@ -252,6 +254,10 @@ export const OrderDetailLineItemsPanel: React.FC<
   const [productSuggestions, setProductSuggestions] = useState<
     ProductEntrySuggestion[]
   >([]);
+  const [productStockGate, setProductStockGate] = useState({
+    occupiedSerialNumbers: [] as string[],
+    occupancyUnavailable: false,
+  });
   const [selectedServiceId, setSelectedServiceId] = useState<
     string | undefined
   >();
@@ -925,13 +931,20 @@ export const OrderDetailLineItemsPanel: React.FC<
     setWarrantyPeriod(kind === 'service' ? '1' : '0');
   }, [kind]);
 
-  const getCatalogDefaults = useCallback(
-    (catalogProduct: CatalogProduct) => {
-      const matchingStockProduct = products.find(
-        (product) =>
-          normalizeProductLookupValue(product.name) ===
-          normalizeProductLookupValue(catalogProduct.name),
-      );
+  const resolveCatalogStockDefaults = useCallback(
+    (
+      catalogName: string,
+      occupiedSerialNumbers: string[],
+      occupancyUnavailable: boolean,
+    ) => {
+      const matchingStockProduct = findSelectableStockProductByName({
+        products,
+        catalogName,
+        sales,
+        currentSaleId,
+        occupiedSerialNumbers,
+        occupancyUnavailable,
+      });
       return {
         price: matchingStockProduct
           ? getRetailSalePrice(matchingStockProduct)
@@ -939,7 +952,7 @@ export const OrderDetailLineItemsPanel: React.FC<
         warrantyPeriod: matchingStockProduct?.warrantyPeriod ?? 0,
       };
     },
-    [products],
+    [currentSaleId, products, sales],
   );
 
   useEffect(() => {
@@ -950,57 +963,108 @@ export const OrderDetailLineItemsPanel: React.FC<
       Boolean(selectedCatalogProductId)
     ) {
       setProductSuggestions([]);
+      setProductStockGate({
+        occupiedSerialNumbers: [],
+        occupancyUnavailable: false,
+      });
       setIsProductLookupLoading(false);
       return;
     }
 
+    let isActive = true;
     const timeoutId = window.setTimeout(() => {
-      setIsProductLookupLoading(true);
-      const suggestions = buildOrderDetailProductSuggestions({
-        products,
-        catalogProducts,
-        sales,
-        query: name,
-        warehouses: productLookupWarehouses,
-        limit: 8,
-        currentSaleId,
-      });
-      const mappedSuggestions: ProductEntrySuggestion[] = [];
-      suggestions.forEach((suggestion) => {
-        if (suggestion.source === 'stock') {
-          const stockProduct = products.find(
-            (product) => product.id === suggestion.productId,
-          );
-          if (stockProduct) {
-            mappedSuggestions.push({
-              type: 'stock',
-              product: stockProduct,
-              warehouseName: suggestion.warehouseName ?? '-',
-            });
-          }
-          return;
-        }
-
-        const catalogProduct = catalogProducts.find(
-          (product) => product.id === suggestion.catalogProductId,
-        );
-        if (catalogProduct) {
-          mappedSuggestions.push({
-            type: 'catalog',
-            catalogProduct,
-            ...getCatalogDefaults(catalogProduct),
+      void (async () => {
+        setIsProductLookupLoading(true);
+        try {
+          const candidateSerials = collectOrderDetailCandidateSerials({
+            products,
+            catalogProducts,
+            query: name,
           });
+          const localSerials = items.flatMap((lineItem) =>
+            lineItem.kind === 'product'
+              ? (lineItem.serialNumbers ?? [])
+              : [],
+          );
+          let occupiedFromApi: string[] = [];
+          let occupancyUnavailable = false;
+          if (candidateSerials.length > 0) {
+            try {
+              const occupancy = await getOccupiedSerialNumbers({
+                serials: candidateSerials,
+              });
+              occupiedFromApi = occupancy.occupied;
+            } catch {
+              occupancyUnavailable = true;
+            }
+          }
+          if (!isActive) return;
+          const occupiedSerialNumbers = collectOccupiedSerialNumbers([
+            ...localSerials,
+            ...occupiedFromApi,
+          ]);
+          setProductStockGate({
+            occupiedSerialNumbers,
+            occupancyUnavailable,
+          });
+          const suggestions = buildOrderDetailProductSuggestions({
+            products,
+            catalogProducts,
+            sales,
+            query: name,
+            warehouses: productLookupWarehouses,
+            limit: 8,
+            currentSaleId,
+            occupiedSerialNumbers,
+            occupancyUnavailable,
+          });
+          const mappedSuggestions: ProductEntrySuggestion[] = [];
+          suggestions.forEach((suggestion) => {
+            if (suggestion.source === 'stock') {
+              const stockProduct = products.find(
+                (product) => product.id === suggestion.productId,
+              );
+              if (stockProduct) {
+                mappedSuggestions.push({
+                  type: 'stock',
+                  product: stockProduct,
+                  warehouseName: suggestion.warehouseName ?? '-',
+                });
+              }
+              return;
+            }
+
+            const catalogProduct = catalogProducts.find(
+              (product) => product.id === suggestion.catalogProductId,
+            );
+            if (catalogProduct) {
+              mappedSuggestions.push({
+                type: 'catalog',
+                catalogProduct,
+                ...resolveCatalogStockDefaults(
+                  catalogProduct.name,
+                  occupiedSerialNumbers,
+                  occupancyUnavailable,
+                ),
+              });
+            }
+          });
+          setProductSuggestions(mappedSuggestions);
+        } finally {
+          if (isActive) setIsProductLookupLoading(false);
         }
-      });
-      setProductSuggestions(mappedSuggestions);
-      setIsProductLookupLoading(false);
+      })();
     }, 250);
 
-    return () => window.clearTimeout(timeoutId);
+    return () => {
+      isActive = false;
+      window.clearTimeout(timeoutId);
+    };
   }, [
     catalogProducts,
     currentSaleId,
-    getCatalogDefaults,
+    items,
+    resolveCatalogStockDefaults,
     kind,
     name,
     productLookupWarehouses,
@@ -1135,6 +1199,8 @@ export const OrderDetailLineItemsPanel: React.FC<
         catalogName: suggestion.catalogProduct.name,
         sales,
         currentSaleId,
+        occupiedSerialNumbers: productStockGate.occupiedSerialNumbers,
+        occupancyUnavailable: productStockGate.occupancyUnavailable,
       });
 
       if (matchingStock) {

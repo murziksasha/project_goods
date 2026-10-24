@@ -63,4 +63,173 @@ describe('OrdersWorkspaceFilterPanel', () => {
     fireEvent.change(saleTypeSelect, { target: { value: 'rapid' } });
     expect(setDraftFilters).toHaveBeenCalled();
   });
+
+  describe('kanban master filter', () => {
+    it('renders closed field text for All, Without master, single coworker, and selected count', () => {
+      const { rerender } = render(
+        <OrdersWorkspaceFilterPanel
+          {...baseProps}
+          variant="kanban"
+          assigneeOptions={[
+            { id: 'm1', label: 'Kostiantyn' },
+            { id: 'm2', label: 'Petro' },
+          ]}
+          draftFilters={{
+            ...emptyOrdersFilters,
+            masterIds: [],
+            includeUnassignedMaster: false,
+          }}
+        />,
+      );
+
+      // Default All
+      expect(screen.getByRole('button', { name: 'All' })).toBeInTheDocument();
+
+      // Without master only
+      rerender(
+        <OrdersWorkspaceFilterPanel
+          {...baseProps}
+          variant="kanban"
+          assigneeOptions={[
+            { id: 'm1', label: 'Kostiantyn' },
+            { id: 'm2', label: 'Petro' },
+          ]}
+          draftFilters={{
+            ...emptyOrdersFilters,
+            masterIds: [],
+            includeUnassignedMaster: true,
+          }}
+        />,
+      );
+      expect(
+        screen.getByRole('button', { name: 'Without master' }),
+      ).toBeInTheDocument();
+
+      // One coworker only
+      rerender(
+        <OrdersWorkspaceFilterPanel
+          {...baseProps}
+          variant="kanban"
+          assigneeOptions={[
+            { id: 'm1', label: 'Kostiantyn' },
+            { id: 'm2', label: 'Petro' },
+          ]}
+          draftFilters={{
+            ...emptyOrdersFilters,
+            masterIds: ['m1'],
+            includeUnassignedMaster: false,
+          }}
+        />,
+      );
+      expect(
+        screen.getByRole('button', { name: 'Kostiantyn' }),
+      ).toBeInTheDocument();
+
+      // 2 selected (Without master + 1 coworker)
+      rerender(
+        <OrdersWorkspaceFilterPanel
+          {...baseProps}
+          variant="kanban"
+          assigneeOptions={[
+            { id: 'm1', label: 'Kostiantyn' },
+            { id: 'm2', label: 'Petro' },
+          ]}
+          draftFilters={{
+            ...emptyOrdersFilters,
+            masterIds: ['m1'],
+            includeUnassignedMaster: true,
+          }}
+        />,
+      );
+      expect(
+        screen.getByRole('button', { name: '2 selected' }),
+      ).toBeInTheDocument();
+
+      // 2 coworkers selected
+      rerender(
+        <OrdersWorkspaceFilterPanel
+          {...baseProps}
+          variant="kanban"
+          assigneeOptions={[
+            { id: 'm1', label: 'Kostiantyn' },
+            { id: 'm2', label: 'Petro' },
+          ]}
+          draftFilters={{
+            ...emptyOrdersFilters,
+            masterIds: ['m1', 'm2'],
+            includeUnassignedMaster: false,
+          }}
+        />,
+      );
+      expect(
+        screen.getByRole('button', { name: '2 selected' }),
+      ).toBeInTheDocument();
+
+      // 3 selected (Without master + 2 coworkers)
+      rerender(
+        <OrdersWorkspaceFilterPanel
+          {...baseProps}
+          variant="kanban"
+          assigneeOptions={[
+            { id: 'm1', label: 'Kostiantyn' },
+            { id: 'm2', label: 'Petro' },
+          ]}
+          draftFilters={{
+            ...emptyOrdersFilters,
+            masterIds: ['m1', 'm2'],
+            includeUnassignedMaster: true,
+          }}
+        />,
+      );
+      expect(
+        screen.getByRole('button', { name: '3 selected' }),
+      ).toBeInTheDocument();
+    });
+
+    it('opens master menu, toggles Without master, coworker, and All button', () => {
+      const setDraftFilters = vi.fn();
+      render(
+        <OrdersWorkspaceFilterPanel
+          {...baseProps}
+          variant="kanban"
+          assigneeOptions={[
+            { id: 'm1', label: 'Kostiantyn' },
+            { id: 'm2', label: 'Petro' },
+          ]}
+          draftFilters={{
+            ...emptyOrdersFilters,
+            masterIds: [],
+            includeUnassignedMaster: false,
+          }}
+          setDraftFilters={setDraftFilters}
+        />,
+      );
+
+      const toggleButton = screen.getByRole('button', { name: 'All' });
+      fireEvent.click(toggleButton);
+
+      // Checkboxes appear
+      const withoutMasterCheckbox = screen.getByLabelText('Without master');
+      const kostiantynCheckbox = screen.getByLabelText('Kostiantyn');
+      const allOptionButton = document.querySelector(
+        '.orders-filter-master-all-button',
+      ) as HTMLButtonElement;
+
+      expect(withoutMasterCheckbox).toBeInTheDocument();
+      expect(kostiantynCheckbox).toBeInTheDocument();
+      expect(allOptionButton).toBeInTheDocument();
+
+      // Toggle Without master
+      fireEvent.click(withoutMasterCheckbox);
+      expect(setDraftFilters).toHaveBeenCalled();
+
+      // Toggle coworker
+      fireEvent.click(kostiantynCheckbox);
+      expect(setDraftFilters).toHaveBeenCalled();
+
+      // Click All button
+      fireEvent.click(allOptionButton);
+      expect(setDraftFilters).toHaveBeenCalled();
+    });
+  });
 });

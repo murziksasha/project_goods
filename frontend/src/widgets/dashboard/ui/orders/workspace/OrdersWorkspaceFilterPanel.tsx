@@ -1,5 +1,13 @@
 import type React from 'react';
-import type { Dispatch, RefObject, SetStateAction } from 'react';
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type Dispatch,
+  type RefObject,
+  type SetStateAction,
+} from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   filterIconOptions,
@@ -80,6 +88,79 @@ export const OrdersWorkspaceFilterPanel: React.FC<OrdersWorkspaceFilterPanelProp
   const { t } = useTranslation();
   const isKanban = variant === 'kanban';
   const isSales = variant === 'sales';
+
+  const [isMasterFilterOpen, setIsMasterFilterOpen] = useState(false);
+  const masterFilterRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!isMasterFilterOpen) return;
+    const handleOutsideClick = (event: MouseEvent) => {
+      if (
+        masterFilterRef.current &&
+        !masterFilterRef.current.contains(event.target as Node)
+      ) {
+        setIsMasterFilterOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleOutsideClick);
+    return () => {
+      document.removeEventListener('mousedown', handleOutsideClick);
+    };
+  }, [isMasterFilterOpen]);
+
+  useEffect(() => {
+    if (!isMasterFilterOpen) return;
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.stopPropagation();
+        event.preventDefault();
+        setIsMasterFilterOpen(false);
+      }
+    };
+    window.addEventListener('keydown', handleEscape, true);
+    return () => {
+      window.removeEventListener('keydown', handleEscape, true);
+    };
+  }, [isMasterFilterOpen]);
+
+  useEffect(() => {
+    if (!isFilterPanelOpen) {
+      setIsMasterFilterOpen(false);
+    }
+  }, [isFilterPanelOpen]);
+
+  const selectedMasterIds = draftFilters.masterIds ?? [];
+  const withoutMasterChecked = draftFilters.includeUnassignedMaster === true;
+  const isAllSelected =
+    !withoutMasterChecked && selectedMasterIds.length === 0;
+
+  const masterFieldText = useMemo(() => {
+    const ids = draftFilters.masterIds ?? [];
+    const withoutMaster = draftFilters.includeUnassignedMaster === true;
+    const total = (withoutMaster ? 1 : 0) + ids.length;
+
+    if (total === 0) {
+      return t('orders.filters.all');
+    }
+    if (total === 1) {
+      if (withoutMaster) {
+        return t('orders.filters.withoutMaster');
+      }
+      const singleId = ids[0];
+      return (
+        assigneeOptions.find((opt) => opt.id === singleId)?.label ??
+        singleId
+      );
+    }
+    return t('orders.filters.selectedCount', {
+      count: total,
+    });
+  }, [
+    assigneeOptions,
+    draftFilters.includeUnassignedMaster,
+    draftFilters.masterIds,
+    t,
+  ]);
 
   return (
     <>
@@ -229,31 +310,107 @@ export const OrdersWorkspaceFilterPanel: React.FC<OrdersWorkspaceFilterPanelProp
             </>
           ) : null}
 
-          <label className="orders-filter-field">
-            <span>
-              {isKanban
-                ? t('orders.filters.master')
-                : isSales
+          {isKanban ? (
+            <div
+              className="orders-filter-field orders-filter-status-field"
+              ref={masterFilterRef}
+            >
+              <span>{t('orders.filters.master')}</span>
+              <button
+                type="button"
+                className="orders-filter-status-toggle"
+                aria-expanded={isMasterFilterOpen}
+                onClick={() => setIsMasterFilterOpen((current) => !current)}
+              >
+                {masterFieldText}
+              </button>
+              {isMasterFilterOpen ? (
+                <div className="orders-filter-status-menu">
+                  <div className="orders-filter-status-all">
+                    <button
+                      type="button"
+                      className={`orders-filter-master-all-button${isAllSelected ? ' is-selected' : ''}`}
+                      onClick={() =>
+                        setDraftFilters((current) => ({
+                          ...current,
+                          masterIds: [],
+                          includeUnassignedMaster: false,
+                        }))
+                      }
+                    >
+                      {t('orders.filters.all')}
+                    </button>
+                  </div>
+                  <label>
+                    <input
+                      type="checkbox"
+                      checked={withoutMasterChecked}
+                      onChange={(event) =>
+                        setDraftFilters((current) => ({
+                          ...current,
+                          includeUnassignedMaster: event.target.checked,
+                        }))
+                      }
+                    />
+                    <span>{t('orders.filters.withoutMaster')}</span>
+                  </label>
+                  {assigneeOptions.map((assignee) => (
+                    <label key={assignee.id}>
+                      <input
+                        type="checkbox"
+                        checked={selectedMasterIds.includes(assignee.id)}
+                        onChange={(event) => {
+                          const checked = event.target.checked;
+                          setDraftFilters((current) => {
+                            const currentIds = current.masterIds ?? [];
+                            const nextIds = checked
+                              ? [
+                                  ...currentIds.filter(
+                                    (id) => id !== assignee.id,
+                                  ),
+                                  assignee.id,
+                                ]
+                              : currentIds.filter(
+                                  (id) => id !== assignee.id,
+                                );
+                            return {
+                              ...current,
+                              masterIds: nextIds,
+                            };
+                          });
+                        }}
+                      />
+                      <span>{assignee.label}</span>
+                    </label>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+          ) : (
+            <label className="orders-filter-field">
+              <span>
+                {isSales
                   ? t('orders.filters.manager')
                   : t('orders.filters.assignee')}
-            </span>
-            <select
-              value={draftFilters.assigneeId}
-              onChange={(event) =>
-                setDraftFilters((current) => ({
-                  ...current,
-                  assigneeId: event.target.value,
-                }))
-              }
-            >
-              <option value="">{t('orders.filters.all')}</option>
-              {assigneeOptions.map((assignee) => (
-                <option key={assignee.id} value={assignee.id}>
-                  {assignee.label}
-                </option>
-              ))}
-            </select>
-          </label>
+              </span>
+              <select
+                value={draftFilters.assigneeId}
+                onChange={(event) =>
+                  setDraftFilters((current) => ({
+                    ...current,
+                    assigneeId: event.target.value,
+                  }))
+                }
+              >
+                <option value="">{t('orders.filters.all')}</option>
+                {assigneeOptions.map((assignee) => (
+                  <option key={assignee.id} value={assignee.id}>
+                    {assignee.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
 
           {isSales ? (
             <label className="orders-filter-field">

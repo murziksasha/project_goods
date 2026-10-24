@@ -43,6 +43,8 @@ export const buildOrdersFilterChips = (
     product: string;
     service: string;
     favorites: string;
+    masterField?: string;
+    withoutMaster?: string;
   },
 ): OrdersFilterChip[] => {
   const chips: OrdersFilterChip[] = [];
@@ -54,6 +56,28 @@ export const buildOrdersFilterChips = (
       clear: (current) => ({
         ...current,
         statuses: current.statuses.filter((item) => item !== status),
+      }),
+    });
+  }
+
+  if (filters.includeUnassignedMaster) {
+    chips.push({
+      id: 'master-unassigned',
+      label: `${labels.masterField ?? labels.assigneeField}: ${labels.withoutMaster ?? 'Without master'}`,
+      clear: (current) => ({
+        ...current,
+        includeUnassignedMaster: false,
+      }),
+    });
+  }
+
+  for (const masterId of filters.masterIds ?? []) {
+    chips.push({
+      id: `master-${masterId}`,
+      label: `${labels.masterField ?? labels.assigneeField}: ${labels.assignee(masterId)}`,
+      clear: (current) => ({
+        ...current,
+        masterIds: (current.masterIds ?? []).filter((id) => id !== masterId),
       }),
     });
   }

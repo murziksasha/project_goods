@@ -40,6 +40,21 @@ import type { ServiceCatalogItem } from '../../../../../entities/service-catalog
 import { CreateOrderCard } from './CreateOrderCard';
 import { CreateOrderSidePanel } from './CreateOrderSidePanel';
 
+const { getOccupiedSerialNumbersMock } = vi.hoisted(() => ({
+  getOccupiedSerialNumbersMock: vi.fn(async () => ({
+    occupied: [] as string[],
+  })),
+}));
+
+vi.mock('../../../../../entities/sale', async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import('../../../../../entities/sale')>();
+  return {
+    ...actual,
+    getOccupiedSerialNumbers: getOccupiedSerialNumbersMock,
+  };
+});
+
 const {
   createClientMock,
   deleteClientDeviceMock,
@@ -439,6 +454,7 @@ describe('CreateOrderCard', () => {
     vi.useRealTimers();
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
+    getOccupiedSerialNumbersMock.mockResolvedValue({ occupied: [] });
     getClientsMock.mockReset();
     getClientHistoryMock.mockReset();
     getClientDevicesMock.mockReset();
@@ -853,6 +869,10 @@ describe('CreateOrderCard', () => {
     expect(quantityInput).not.toBeDisabled();
 
     fireEvent.change(quantityInput!, { target: { value: '3' } });
+
+    expect(screen.getByRole('textbox', { name: 'Price' })).toHaveValue('100');
+    expect(screen.getByText('300 UAH')).toBeInTheDocument();
+
     fireEvent.click(screen.getByText('Save order'));
 
     await waitFor(() => {
@@ -869,7 +889,164 @@ describe('CreateOrderCard', () => {
             serialNumber: '',
             serialNumbers: undefined,
             quantity: '3',
-            price: '300',
+            price: '100',
+          }),
+        ],
+      }),
+    );
+  });
+
+  it('keeps retail price 50 as the unit price when quantity is set to 4', async () => {
+    const onSave = vi.fn(async () => null);
+    const panasonicStock = product({
+      id: 'panasonic-aaa-stock',
+      name: 'AAA Panasonic Alkaline',
+      article: 'BAT-PANA',
+      serialNumber: '',
+      price: 30,
+      salePriceOptions: [50, 45],
+    });
+
+    renderCreateOrderCard('sale', onSave, vi.fn(), [], {
+      products: [panasonicStock],
+      catalogProducts: [
+        {
+          id: 'catalog-panasonic',
+          name: 'AAA Panasonic Alkaline',
+          note: 'Catalog note',
+          isActive: true,
+          sourceTags: [],
+          lastSeenAt: '2026-01-01T00:00:00.000Z',
+          createdAt: '2026-01-01T00:00:00.000Z',
+          updatedAt: '2026-01-01T00:00:00.000Z',
+        },
+      ],
+    });
+
+    await afterDebouncedInput(
+      () =>
+        fireEvent.change(
+          screen.getByPlaceholderText('Name, serial or article'),
+          {
+            target: { value: 'Panasonic' },
+          },
+        ),
+      () => {
+        expect(
+          screen.getByRole('button', { name: /AAA Panasonic Alkaline/i }),
+        ).toBeInTheDocument();
+      },
+    );
+
+    fireEvent.click(
+      screen.getByRole('button', { name: /AAA Panasonic Alkaline/i }),
+    );
+
+    const quantityInput = screen
+      .getByText('Qty')
+      .closest('label')
+      ?.querySelector('input');
+    expect(quantityInput).not.toBeDisabled();
+
+    fireEvent.change(quantityInput!, { target: { value: '4' } });
+
+    expect(screen.getByRole('textbox', { name: 'Price' })).toHaveValue('50');
+    expect(screen.getByText('200 UAH')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText('Save order'));
+
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalled();
+    });
+
+    expect(onSave).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sourceTab: 'sale',
+        saleItems: [
+          expect.objectContaining({
+            name: 'AAA Panasonic Alkaline',
+            quantity: '4',
+            price: '50',
+          }),
+        ],
+      }),
+    );
+  });
+
+  it('saves manually edited unit price at quantity 4 without dividing by quantity', async () => {
+    const onSave = vi.fn(async () => null);
+    const panasonicStock = product({
+      id: 'panasonic-aaa-stock',
+      name: 'AAA Panasonic Alkaline',
+      article: 'BAT-PANA',
+      serialNumber: '',
+      price: 30,
+      salePriceOptions: [50, 45],
+    });
+
+    renderCreateOrderCard('sale', onSave, vi.fn(), [], {
+      products: [panasonicStock],
+      catalogProducts: [
+        {
+          id: 'catalog-panasonic',
+          name: 'AAA Panasonic Alkaline',
+          note: 'Catalog note',
+          isActive: true,
+          sourceTags: [],
+          lastSeenAt: '2026-01-01T00:00:00.000Z',
+          createdAt: '2026-01-01T00:00:00.000Z',
+          updatedAt: '2026-01-01T00:00:00.000Z',
+        },
+      ],
+    });
+
+    await afterDebouncedInput(
+      () =>
+        fireEvent.change(
+          screen.getByPlaceholderText('Name, serial or article'),
+          {
+            target: { value: 'Panasonic' },
+          },
+        ),
+      () => {
+        expect(
+          screen.getByRole('button', { name: /AAA Panasonic Alkaline/i }),
+        ).toBeInTheDocument();
+      },
+    );
+
+    fireEvent.click(
+      screen.getByRole('button', { name: /AAA Panasonic Alkaline/i }),
+    );
+
+    const quantityInput = screen
+      .getByText('Qty')
+      .closest('label')
+      ?.querySelector('input');
+    expect(quantityInput).not.toBeDisabled();
+
+    fireEvent.change(quantityInput!, { target: { value: '4' } });
+
+    const priceInput = screen.getByRole('textbox', { name: 'Price' });
+    fireEvent.change(priceInput, { target: { value: '80' } });
+
+    expect(screen.getByRole('textbox', { name: 'Price' })).toHaveValue('80');
+    expect(screen.getByText('320 UAH')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText('Save order'));
+
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalled();
+    });
+
+    expect(onSave).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sourceTab: 'sale',
+        saleItems: [
+          expect.objectContaining({
+            name: 'AAA Panasonic Alkaline',
+            quantity: '4',
+            price: '80',
           }),
         ],
       }),
@@ -929,6 +1106,48 @@ describe('CreateOrderCard', () => {
           }),
         ],
       }),
+    );
+  });
+
+  it('hides a serial that occupied-serials reports as bound', async () => {
+    getOccupiedSerialNumbersMock.mockResolvedValue({
+      occupied: ['S000003'],
+    });
+    renderCreateOrderCard('sale');
+
+    await afterDebouncedInput(
+      () =>
+        fireEvent.change(
+          screen.getByPlaceholderText('Name, serial or article'),
+          {
+            target: { value: 'S000003' },
+          },
+        ),
+      () => {
+        expect(getOccupiedSerialNumbersMock).toHaveBeenCalledWith({
+          serials: ['S000003'],
+        });
+        expect(screen.queryByText('iPhone 14')).not.toBeInTheDocument();
+      },
+    );
+  });
+
+  it('hides serialized suggestions when the occupancy request fails', async () => {
+    getOccupiedSerialNumbersMock.mockRejectedValue(new Error('offline'));
+    renderCreateOrderCard('sale');
+
+    await afterDebouncedInput(
+      () =>
+        fireEvent.change(
+          screen.getByPlaceholderText('Name, serial or article'),
+          {
+            target: { value: 'S000003' },
+          },
+        ),
+      () => {
+        expect(getOccupiedSerialNumbersMock).toHaveBeenCalled();
+        expect(screen.queryByText('iPhone 14')).not.toBeInTheDocument();
+      },
     );
   });
 
