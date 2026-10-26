@@ -131,7 +131,7 @@ This document defines current warehouse requirements for stock balances, receipt
 - Table requirements:
 
 1. header stays sticky while scrolling the stock table
-2. `Select` and `Name` stay sticky on horizontal scroll (`Name` sits immediately after `Select`); cell backgrounds are opaque across the border box (`background-clip: border-box`) so scrolled cells do not bleed through borders
+2. `Select` and `Name` stay sticky on horizontal scroll (`Name` sits immediately after `Select`); cell backgrounds are opaque across the border box (`background-clip: border-box`) so scrolled cells do not bleed through borders. That includes hover and a checked row. In dark theme the row wash (`--bg-soft-primary`) is translucent, so pinned cells paint it over `--bg-card` (odd) or `--bg-zebra` (even). Light theme uses the same rules; the wash token is already opaque.
 3. `Name` is resizable from the header handle; width adjusts the `<colgroup>` track and is stored on this device only (see 4.4.2)
 4. rows use compact spacing for dense scanning; truncated cells show a hover tooltip
 5. `Warehouse` and `Location` are displayed as readable badges; warehouse badge uses the service-center color when set
@@ -176,7 +176,7 @@ This document defines current warehouse requirements for stock balances, receipt
 - Only the `Name` column is operator-resizable (header `separator` handle).
 - Resizing Name changes the column track. The next column starts at the Name edge and never paints over it. Name text that does not fit is ellipsized.
 - Column track layout: `StockTable` renders an explicit `<colgroup>` for visible columns (`<col className="warehouse-stock-col-{columnKey}">`). `name` uses `nameColumnWidth`; all other columns use their preset widths in `warehouseStockColumnWidths`.
-- Sticky positioning: `Select` (`left: 0`) and `Name` (`left: 44px`) remain pinned horizontally. Opaque background is painted to the border box (`background-clip: border-box`) across header, zebra, child, and selected states so neighboring scrolled cells never bleed through cell borders.
+- Sticky positioning: `Select` (`left: 0`) and `Name` (`left: 44px`) remain pinned horizontally. Opaque background is painted to the border box (`background-clip: border-box`) across header, zebra, child, hover, and selected states so neighboring scrolled cells never bleed through cell borders. Dark theme `--bg-soft-primary` is translucent, so hover and checked pinned cells composite that wash over the row surface (`--bg-card` or `--bg-zebra`) instead of using the wash alone.
 - Name cell contents: `.warehouse-name-with-qty > .copyable-value` is clipped with `overflow: hidden; max-width: 100%`. Overflowing text ends in an ellipsis (`.warehouse-cell-truncate`), and the copy icon stays inside the cell. Full name remains accessible via `TruncatedTextTooltip` portal.
 - Width is applied as CSS variable `--warehouse-name-col-width` on `.warehouse-stock-table`.
 - Clamp: `180px` … `720px`; default `320px`.
