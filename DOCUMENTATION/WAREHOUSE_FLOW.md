@@ -131,8 +131,8 @@ This document defines current warehouse requirements for stock balances, receipt
 - Table requirements:
 
 1. header stays sticky while scrolling the stock table
-2. `Select` and `Name` stay sticky on horizontal scroll (`Name` sits immediately after `Select`)
-3. `Name` is resizable from the header handle; width is stored on this device only (see 4.4.2)
+2. `Select` and `Name` stay sticky on horizontal scroll (`Name` sits immediately after `Select`); cell backgrounds are opaque across the border box (`background-clip: border-box`) so scrolled cells do not bleed through borders
+3. `Name` is resizable from the header handle; width adjusts the `<colgroup>` track and is stored on this device only (see 4.4.2)
 4. rows use compact spacing for dense scanning; truncated cells show a hover tooltip
 5. `Warehouse` and `Location` are displayed as readable badges; warehouse badge uses the service-center color when set
 6. `Client order` and `Supplier order` links are displayed as compact badges. Hover shows a copy icon; only the icon copies the visible number. Badge click still opens the sale/order card or supplier-order modal.
@@ -160,6 +160,10 @@ This document defines current warehouse requirements for stock balances, receipt
 ### 4.4.2) Name Column Width (Device-Local)
 
 - Only the `Name` column is operator-resizable (header `separator` handle).
+- Resizing Name changes the column track. The next column starts at the Name edge and never paints over it. Name text that does not fit is ellipsized.
+- Column track layout: `StockTable` renders an explicit `<colgroup>` for visible columns (`<col className="warehouse-stock-col-{columnKey}">`). `name` uses `nameColumnWidth`; all other columns use their preset widths in `warehouseStockColumnWidths`.
+- Sticky positioning: `Select` (`left: 0`) and `Name` (`left: 44px`) remain pinned horizontally. Opaque background is painted to the border box (`background-clip: border-box`) across header, zebra, child, and selected states so neighboring scrolled cells never bleed through cell borders.
+- Name cell contents: `.warehouse-name-with-qty > .copyable-value` is clipped with `overflow: hidden; max-width: 100%`. Overflowing text ends in an ellipsis (`.warehouse-cell-truncate`), and the copy icon stays inside the cell. Full name remains accessible via `TruncatedTextTooltip` portal.
 - Width is applied as CSS variable `--warehouse-name-col-width` on `.warehouse-stock-table`.
 - Clamp: `180px` … `720px`; default `320px`.
 - Table `min-width` is `max(100%, sum of visible column widths)` so `Supplier order` / `Supplier` do not collapse when `Name` grows.
@@ -664,8 +668,12 @@ Implementation references:
 
 - If horizontal overflow appears, scrollbar must remain accessible at the bottom of app window.
 - Implemented via global shared component `GlobalHorizontalScrollbar`.
-- The component is mounted once in `DashboardPage` and synchronizes with visible `.catalog-table-wrap`.
-- Wrappers may opt out with `data-global-scrollbar="off"` when the local view already provides an appropriate scrollbar and the fixed bar would overlap nearby content.
+- The component is mounted once in `DashboardPage` and synchronizes with visible `.catalog-table-wrap`, `.orders-table-wrap`, and `.finance-table-wrap`.
+- The fixed bar follows the table. It must not write the table’s scroll position during a drag of the table’s own bar. It writes that position only when the user scrolls the fixed bar.
+- Dual-scrollbar snap prevention: When the user scrolls the table directly (e.g. dragging the native table scrollbar thumb), the fixed bottom scrollbar's `scrollLeft` is updated and a "from table" guard is held across the animation frame (`requestAnimationFrame`). Echo `scroll` events dispatched by the fixed bar are ignored while this guard is held, preventing programmatic overwrites of `table.scrollLeft` that would abort active pointer drag gestures in Chromium.
+- Sync optimization: `scheduleSync` skips writing `scrollLeft` while any guard is active, and skips state updates (`setMetrics`) when `left`, `width`, `scrollWidth`, and `visible` match previous values to prevent redundant renders.
+- Responsive and touch handling: Automatically hides on screens with `max-width: 1024px` or coarse pointer (`pointer: coarse`).
+- Wrappers may opt out with `data-global-scrollbar="off"` when the local view already provides an appropriate scrollbar and the fixed bar would overlap nearby content (e.g. `Transfers` stock list, see §12.5).
 
 ## Device-Local Warehouse Layout
 

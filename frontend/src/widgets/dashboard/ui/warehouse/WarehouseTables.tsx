@@ -38,6 +38,7 @@ import {
   getWarehouseBadgeAccentStyle,
   getWarehouseStockTableMinWidth,
   readWarehouseStockNameWidth,
+  warehouseStockColumnWidths,
   writeWarehouseStockNameWidth,
   type ProductWarehouseMeta,
   type ReceiptRow,
@@ -1320,6 +1321,21 @@ export const StockTable = ({
           } as CSSProperties
         }
       >
+        <colgroup>
+          {visibleColumns.map((columnKey) => (
+            <col
+              key={columnKey}
+              className={`warehouse-stock-col-${columnKey}`}
+              style={{
+                width: `${
+                  columnKey === 'name'
+                    ? nameColumnWidth
+                    : warehouseStockColumnWidths[columnKey]
+                }px`,
+              }}
+            />
+          ))}
+        </colgroup>
         <thead>
           <tr>
             {visibleColumns.map((columnKey) => (

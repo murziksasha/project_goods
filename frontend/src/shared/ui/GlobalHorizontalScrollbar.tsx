@@ -72,13 +72,23 @@ export const GlobalHorizontalScrollbar: React.FC = () => {
     if (!bar) return;
 
     let rafId = 0;
+    let tableGuardRafId = 0;
     let cleanupActive: (() => void) | null = null;
+
+    const clearTableGuard = () => {
+      if (tableGuardRafId) {
+        cancelAnimationFrame(tableGuardRafId);
+        tableGuardRafId = 0;
+      }
+      syncFromTableRef.current = false;
+    };
 
     const detachActive = () => {
       if (cleanupActive) {
         cleanupActive();
         cleanupActive = null;
       }
+      clearTableGuard();
       activeWrapRef.current = null;
     };
 
@@ -92,7 +102,13 @@ export const GlobalHorizontalScrollbar: React.FC = () => {
         if (syncFromBarRef.current) return;
         syncFromTableRef.current = true;
         bar.scrollLeft = nextWrap.scrollLeft;
-        syncFromTableRef.current = false;
+        if (tableGuardRafId) {
+          cancelAnimationFrame(tableGuardRafId);
+        }
+        tableGuardRafId = requestAnimationFrame(() => {
+          syncFromTableRef.current = false;
+          tableGuardRafId = 0;
+        });
       };
 
       nextWrap.addEventListener('scroll', onTableScroll, {
@@ -107,21 +123,36 @@ export const GlobalHorizontalScrollbar: React.FC = () => {
       const bestWrap = pickBestTableWrap();
       if (!bestWrap) {
         detachActive();
-        setMetrics((prev) => ({ ...prev, visible: false }));
+        setMetrics((prev) => {
+          if (!prev.visible) return prev;
+          return { ...prev, visible: false };
+        });
         return;
       }
 
       attachActive(bestWrap);
 
       const rect = bestWrap.getBoundingClientRect();
-      setMetrics({
+      const nextMetrics: Metrics = {
         left: rect.left,
         width: rect.width,
         scrollWidth: bestWrap.scrollWidth,
         visible: true,
+      };
+
+      setMetrics((prev) => {
+        if (
+          prev.left === nextMetrics.left &&
+          prev.width === nextMetrics.width &&
+          prev.scrollWidth === nextMetrics.scrollWidth &&
+          prev.visible === nextMetrics.visible
+        ) {
+          return prev;
+        }
+        return nextMetrics;
       });
 
-      if (!syncFromTableRef.current) {
+      if (!syncFromTableRef.current && !syncFromBarRef.current) {
         syncFromBarRef.current = true;
         bar.scrollLeft = bestWrap.scrollLeft;
         syncFromBarRef.current = false;
@@ -164,6 +195,7 @@ export const GlobalHorizontalScrollbar: React.FC = () => {
 
     return () => {
       if (rafId) cancelAnimationFrame(rafId);
+      clearTableGuard();
       detachActive();
       mutationObserver.disconnect();
       bar.removeEventListener('scroll', onBarScroll);

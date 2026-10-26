@@ -12,6 +12,7 @@ import type { Sale } from '../../../../entities/sale';
 import type { SupplierOrder } from '../../../../entities/supplier-order';
 import {
   getWarehouseStockTableMinWidth,
+  warehouseStockColumnWidths,
   warehouseStockNameWidthDefault,
   warehouseStockNameWidthStorageKey,
   type ReceiptRow,
@@ -583,6 +584,55 @@ describe('StockTable models view', () => {
     ).toBe('512px');
   });
 
+  it('matches the saved width on the Name col and updates on pointer drag while keeping Serial col fixed', () => {
+    HTMLElement.prototype.setPointerCapture = vi.fn();
+    HTMLElement.prototype.releasePointerCapture = vi.fn();
+
+    window.localStorage.setItem(
+      warehouseStockNameWidthStorageKey,
+      '380',
+    );
+
+    const { container } = render(
+      <StockTable
+        {...stockTableProps}
+        visibleColumns={['select', 'name', 'serial', 'article']}
+      />,
+    );
+
+    const table = container.querySelector(
+      '.warehouse-stock-table',
+    ) as HTMLElement;
+    const nameCol = table.querySelector(
+      'col.warehouse-stock-col-name',
+    ) as HTMLElement;
+    const serialCol = table.querySelector(
+      'col.warehouse-stock-col-serial',
+    ) as HTMLElement;
+
+    expect(nameCol).toBeInTheDocument();
+    expect(serialCol).toBeInTheDocument();
+    expect(nameCol.style.width).toBe('380px');
+    expect(serialCol.style.width).toBe(
+      `${warehouseStockColumnWidths.serial}px`,
+    );
+
+    const handle = screen.getByRole('separator', {
+      name: 'Resize name column',
+    });
+
+    fireEvent.pointerDown(handle, { clientX: 200, pointerId: 1 });
+    fireEvent.pointerMove(handle, { clientX: 300, pointerId: 1 });
+    fireEvent.pointerUp(handle, { pointerId: 1 });
+
+    expect(nameCol.style.width).toBe('480px');
+    expect(serialCol.style.width).toBe(
+      `${warehouseStockColumnWidths.serial}px`,
+    );
+    expect(
+      window.localStorage.getItem(warehouseStockNameWidthStorageKey),
+    ).toBe('480');
+  });
   it('sets a table min-width that fits supplier order and supplier headers', () => {
     const visibleColumns: StockColumnKey[] = [
       'select',

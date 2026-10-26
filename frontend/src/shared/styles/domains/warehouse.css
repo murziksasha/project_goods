@@ -290,7 +290,7 @@
 .warehouse-stock-cell-name {
   position: sticky;
   background: var(--bg-card);
-  background-clip: padding-box;
+  background-clip: border-box;
 }
 
 .warehouse-stock-cell-select {
@@ -361,21 +361,25 @@
   top: 0;
   z-index: 8;
   background: var(--bg-surface-subtle);
+  background-clip: border-box;
 }
 
 .warehouse-stock-table tbody tr:nth-child(even) .warehouse-stock-cell-select,
 .warehouse-stock-table tbody tr:nth-child(even) .warehouse-stock-cell-name {
   background: var(--bg-zebra);
+  background-clip: border-box;
 }
 
 .warehouse-stock-table tbody tr.warehouse-child-row .warehouse-stock-cell-select,
 .warehouse-stock-table tbody tr.warehouse-child-row .warehouse-stock-cell-name {
   background: var(--bg-surface-subtle);
+  background-clip: border-box;
 }
 
 .warehouse-stock-table tbody tr.warehouse-row-selected .warehouse-stock-cell-select,
 .warehouse-stock-table tbody tr.warehouse-row-selected .warehouse-stock-cell-name {
   background: var(--bg-soft-primary);
+  background-clip: border-box;
 }
 
 .warehouse-stock-cell-serial,
@@ -489,6 +493,9 @@
 
 .warehouse-cell-truncate {
   max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .warehouse-empty-value {
@@ -519,13 +526,16 @@
 }
 
 .warehouse-name-with-qty > .copyable-value {
-  overflow: visible;
+  overflow: hidden;
+  max-width: 100%;
 }
 
 .warehouse-name-with-qty > .settings-link-button,
 .warehouse-name-with-qty .warehouse-cell-truncate,
 .warehouse-name-with-qty .copyable-value-content {
   overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .warehouse-name-with-qty .warehouse-data-badge {
@@ -685,6 +695,7 @@
 .warehouse-stock-table tbody tr:hover .warehouse-stock-cell-select,
 .warehouse-stock-table tbody tr:hover .warehouse-stock-cell-name {
   background: var(--bg-soft-primary);
+  background-clip: border-box;
 }
 
 .warehouse-data-badge-warehouse {
