@@ -113,7 +113,7 @@ Shared table primitives: `.catalog-table`, `.catalog-table-wrap`, zebra rows, co
 
 ### Fixed layout, column resizing, and sticky pinning
 - Wide tables with resizable columns (e.g. warehouse stock balance) use `table-layout: fixed` and render explicit `<colgroup>` tracks. Resizing a column (e.g. `Name`) updates its `<col>` width so following columns (`Serial`, etc.) shift smoothly to the right without painting underneath pinned cells.
-- Sticky pinned columns (`Select` at `left: 0`, `Name` at `left: 44px`) maintain solid background fills with `background-clip: border-box` across header, zebra, child, and selected rows so scrolled content never bleeds through borders.
+- Sticky pinned columns (`Select` at `left: 0`, `Name` at `left: 44px`) maintain solid background fills with `background-clip: border-box` across header, zebra, child, hover, and selected rows so scrolled content never bleeds through borders. Dark theme `--bg-soft-primary` is translucent. On hover and on a checked row, pinned cells paint that wash over `--bg-card` (odd rows) or `--bg-zebra` (even rows). Light theme `--bg-soft-primary` is already opaque, so the wash looks the same.
 - Cell contents within resizable columns clip via `overflow: hidden; max-width: 100%` and end in an ellipsis (`.warehouse-cell-truncate`), keeping inline controls (such as copy icons) within the cell bounds while the full string remains accessible via hover tooltips (`TruncatedTextTooltip`).
 
 ## Hover copy icon

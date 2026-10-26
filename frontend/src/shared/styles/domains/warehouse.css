@@ -378,8 +378,18 @@
 
 .warehouse-stock-table tbody tr.warehouse-row-selected .warehouse-stock-cell-select,
 .warehouse-stock-table tbody tr.warehouse-row-selected .warehouse-stock-cell-name {
-  background: var(--bg-soft-primary);
+  /* Dark --bg-soft-primary is translucent. Keep an opaque row surface under the wash. */
+  background-color: var(--bg-card);
+  background-image: linear-gradient(
+    var(--bg-soft-primary),
+    var(--bg-soft-primary)
+  );
   background-clip: border-box;
+}
+
+.warehouse-stock-table tbody tr.warehouse-row-selected:nth-child(even) .warehouse-stock-cell-select,
+.warehouse-stock-table tbody tr.warehouse-row-selected:nth-child(even) .warehouse-stock-cell-name {
+  background-color: var(--bg-zebra);
 }
 
 .warehouse-stock-cell-serial,
@@ -691,11 +701,24 @@
 }
 
 .warehouse-stock-table tbody tr:hover td,
-.warehouse-receipts-table tbody tr:hover td,
-.warehouse-stock-table tbody tr:hover .warehouse-stock-cell-select,
-.warehouse-stock-table tbody tr:hover .warehouse-stock-cell-name {
+.warehouse-receipts-table tbody tr:hover td {
   background: var(--bg-soft-primary);
   background-clip: border-box;
+}
+
+.warehouse-stock-table tbody tr:hover .warehouse-stock-cell-select,
+.warehouse-stock-table tbody tr:hover .warehouse-stock-cell-name {
+  background-color: var(--bg-card);
+  background-image: linear-gradient(
+    var(--bg-soft-primary),
+    var(--bg-soft-primary)
+  );
+  background-clip: border-box;
+}
+
+.warehouse-stock-table tbody tr:nth-child(even):hover .warehouse-stock-cell-select,
+.warehouse-stock-table tbody tr:nth-child(even):hover .warehouse-stock-cell-name {
+  background-color: var(--bg-zebra);
 }
 
 .warehouse-data-badge-warehouse {
