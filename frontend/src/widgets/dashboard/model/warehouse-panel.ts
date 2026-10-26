@@ -350,6 +350,39 @@ export const readStoredWarehouseFilters = (
     return {};
   }
 };
+
+export const getWarehouseSeedPageSize = (
+  employeeId?: string,
+): number | undefined => {
+  if (typeof window === 'undefined' || !window.localStorage) return undefined;
+  if (employeeId?.trim()) {
+    try {
+      const userRaw = window.localStorage.getItem(
+        getWarehouseFiltersStorageKey(employeeId),
+      );
+      if (userRaw) {
+        const parsed = JSON.parse(userRaw);
+        if (typeof parsed?.pageSize === 'number') {
+          return parsed.pageSize;
+        }
+      }
+    } catch {
+      // Continue to common key if employee key fails to parse
+    }
+  }
+  try {
+    const commonRaw = window.localStorage.getItem(warehouseFiltersStorageKey);
+    if (commonRaw) {
+      const parsed = JSON.parse(commonRaw);
+      if (typeof parsed?.pageSize === 'number') {
+        return parsed.pageSize;
+      }
+    }
+  } catch {
+    return undefined;
+  }
+  return undefined;
+};
 export const warehouseColumnsStorageKey =
   'project-goods.warehouse-columns';
 export const warehouseStockNameWidthStorageKey =

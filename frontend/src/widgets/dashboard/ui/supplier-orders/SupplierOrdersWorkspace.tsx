@@ -7,6 +7,7 @@ import {
   useState,
 } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useStoredPageSize } from '../../../../shared/lib/page-size-preference';
 import type {
   CatalogProduct,
   CatalogProductFormValues,
@@ -147,7 +148,7 @@ export const SupplierOrdersWorkspace: React.FC<
   );
   const isLoading = supplierOrdersQuery.isLoading;
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(30);
+  const [pageSize, setPageSize] = useStoredPageSize('supplierOrders');
   const initialFilters = useMemo(
     () =>
       parseSupplierOrdersFilters(

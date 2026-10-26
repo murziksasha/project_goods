@@ -8,7 +8,10 @@ import {
 } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Product } from '../../../../../entities/product';
-import { reorderProducts } from '../../../../../entities/product';
+import {
+  useProductSuggestionReorder,
+  mergeProductsWithLatestSortOrders,
+} from '../../../model/product-suggestion-reorder';
 import {
   getOccupiedSerialNumbers,
   type Sale,
@@ -101,6 +104,7 @@ export const RapidSaleModal: React.FC<RapidSaleModalProps> = ({
   const [productSuggestions, setProductSuggestions] = useState<
     CreateOrderProductSuggestion[]
   >([]);
+  const productReorderCoordinator = useProductSuggestionReorder();
   const [isProductLookupLoading, setIsProductLookupLoading] =
     useState(false);
 
@@ -149,6 +153,22 @@ export const RapidSaleModal: React.FC<RapidSaleModalProps> = ({
       ),
     [products, selectedWarehouseId, warehouses],
   );
+  const productQueryRef = useRef(productQuery);
+  const salesRef = useRef(sales);
+  const draftItemsRef = useRef(draftItems);
+  const selectedSerialNumbersRef = useRef(selectedSerialNumbers);
+  const rapidSaleStockGateRef = useRef({
+    occupiedSerialNumbers: [] as string[],
+    occupancyUnavailable: false,
+  });
+  const warehouseFilteredProductsRef = useRef(warehouseFilteredProducts);
+  useEffect(() => {
+    productQueryRef.current = productQuery;
+    salesRef.current = sales;
+    draftItemsRef.current = draftItems;
+    selectedSerialNumbersRef.current = selectedSerialNumbers;
+    warehouseFilteredProductsRef.current = warehouseFilteredProducts;
+  });
   const selectedStockProduct = useMemo(
     () =>
       selectedProductId
@@ -208,9 +228,16 @@ export const RapidSaleModal: React.FC<RapidSaleModalProps> = ({
       return;
     }
 
+    if (productReorderCoordinator.hasUnsavedDrop(productQuery)) {
+      return;
+    }
+
     let isActive = true;
     const timeoutId = window.setTimeout(() => {
       void (async () => {
+        if (productReorderCoordinator.hasUnsavedDrop(productQuery)) {
+          return;
+        }
         setIsProductLookupLoading(true);
         try {
           const candidateSerials = collectRapidSaleCandidateSerials(
@@ -230,6 +257,13 @@ export const RapidSaleModal: React.FC<RapidSaleModalProps> = ({
             }
           }
           if (!isActive) return;
+          if (productReorderCoordinator.hasUnsavedDrop(productQuery)) {
+            return;
+          }
+          rapidSaleStockGateRef.current = {
+            occupiedSerialNumbers,
+            occupancyUnavailable,
+          };
           const suggestions = buildRapidSaleStockSuggestions({
             products: warehouseFilteredProducts,
             sales,
@@ -252,6 +286,7 @@ export const RapidSaleModal: React.FC<RapidSaleModalProps> = ({
     };
   }, [
     productQuery,
+    productReorderCoordinator,
     warehouseFilteredProducts,
     sales,
     selectedProductId,
@@ -410,20 +445,55 @@ export const RapidSaleModal: React.FC<RapidSaleModalProps> = ({
     onSelect: applyProductSuggestion,
     onReorder: async (newSuggestions) => {
       setProductSuggestions(newSuggestions);
-      const reorderItems = newSuggestions.map((suggestion, index) => ({
-        name: suggestion.name,
-        sortOrder: index,
-      }));
-      try {
-        await reorderProducts(reorderItems);
-      } catch (error) {
-        onError(
-          error instanceof Error
-            ? error.message
-            : t('orders.messages.errors.failedReorder'),
-        );
-      }
-    },
+      const dropQuery = productQuery;
+      await productReorderCoordinator.executeReorder({
+        newSuggestions,
+        query: dropQuery,
+        getName: (s) => s.name,
+        rebuildSuccess: (savedMap) => {
+          if (productQueryRef.current === dropQuery) {
+            const patchedProducts = mergeProductsWithLatestSortOrders(
+              warehouseFilteredProductsRef.current,
+              savedMap,
+            );
+            const suggestions = buildRapidSaleStockSuggestions({
+              products: patchedProducts,
+              sales: salesRef.current,
+              query: dropQuery,
+              draftItems: draftItemsRef.current,
+              pendingSerialNumbers: selectedSerialNumbersRef.current,
+              occupiedSerialNumbers:
+                rapidSaleStockGateRef.current.occupiedSerialNumbers,
+              occupancyUnavailable:
+                rapidSaleStockGateRef.current.occupancyUnavailable,
+            });
+            setProductSuggestions(suggestions);
+          }
+        },
+        snapBackFailure: () => {
+          if (productQueryRef.current === dropQuery) {
+            const suggestions = buildRapidSaleStockSuggestions({
+              products: warehouseFilteredProductsRef.current,
+              sales: salesRef.current,
+              query: dropQuery,
+              draftItems: draftItemsRef.current,
+              pendingSerialNumbers: selectedSerialNumbersRef.current,
+              occupiedSerialNumbers:
+                rapidSaleStockGateRef.current.occupiedSerialNumbers,
+              occupancyUnavailable:
+                rapidSaleStockGateRef.current.occupancyUnavailable,
+            });
+            setProductSuggestions(suggestions);
+          }
+        },
+        onError: (error) => {
+          onError(
+            error instanceof Error
+              ? error.message
+              : t('orders.messages.errors.failedReorder'),
+          );
+        },
+      });    },
     canReorder: canManageOrders && !isSaving,
     isVisible: isProductSuggestionsVisible,
   });

@@ -4,6 +4,7 @@ import {
   filterReceiptRows,
   getReceiptGroupTotals,
   getWarehouseFiltersStorageKey,
+  getWarehouseSeedPageSize,
   getWarehouseStockTableMinWidth,
   groupReceiptRowsByOrder,
   initialWarehouseFilters,
@@ -411,6 +412,42 @@ describe('warehouse filters storage key and persistence', () => {
       '{invalid-json',
     );
     expect(readStoredWarehouseFilters('emp-invalid')).toEqual({});
+  });
+
+  it('reads warehouse seed page size from employee key then common key', () => {
+    // When no keys exist
+    expect(getWarehouseSeedPageSize('emp-1')).toBeUndefined();
+
+    // When common key exists with pageSize
+    window.localStorage.setItem(
+      warehouseFiltersStorageKey,
+      JSON.stringify({ pageSize: 50 }),
+    );
+    expect(getWarehouseSeedPageSize('emp-1')).toBe(50);
+    expect(getWarehouseSeedPageSize()).toBe(50);
+
+    // When employee key exists with pageSize, it wins over common key
+    window.localStorage.setItem(
+      `${warehouseFiltersStorageKey}.emp-1`,
+      JSON.stringify({ pageSize: 100 }),
+    );
+    expect(getWarehouseSeedPageSize('emp-1')).toBe(100);
+    // Another employee without personal pageSize falls back to common key
+    expect(getWarehouseSeedPageSize('emp-2')).toBe(50);
+
+    // When employee key exists but without pageSize, falls back to common key
+    window.localStorage.setItem(
+      `${warehouseFiltersStorageKey}.emp-3`,
+      JSON.stringify({ activeTab: 'stock' }),
+    );
+    expect(getWarehouseSeedPageSize('emp-3')).toBe(50);
+
+    // Broken JSON in storage returns undefined safely
+    window.localStorage.setItem(
+      `${warehouseFiltersStorageKey}.emp-broken`,
+      '{invalid-json',
+    );
+    expect(getWarehouseSeedPageSize('emp-broken')).toBe(50); // falls back to common key
   });
 });
 

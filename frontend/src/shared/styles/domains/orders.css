@@ -2886,6 +2886,36 @@
 .repair-kanban-column[data-status='paid'] { --kanban-status-accent: #0ea47d; }
 .repair-kanban-column[data-status='away'] { --kanban-status-accent: #78716c; }
 
+.repair-kanban-column[data-status='ready']:not(.repair-kanban-column-collapsed) {
+  flex: 0 0 max-content;
+  min-width: 260px;
+}
+
+.repair-kanban-column[data-status='ready']:not(.repair-kanban-column-collapsed) .repair-kanban-column-body {
+  width: 0;
+  min-width: 100%;
+}
+
+.repair-kanban-column[data-status='ready']:not(.repair-kanban-column-collapsed) .repair-kanban-column-title {
+  flex: 0 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.repair-kanban-column-total {
+  flex: 0 0 auto;
+  white-space: nowrap;
+  font-size: 0.82rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-heading);
+}
+
+.repair-kanban-column[data-status='ready']:not(.repair-kanban-column-collapsed) .repair-kanban-column-count {
+  margin-left: auto;
+}
+
 .repair-kanban-column-collapsed {
   flex-basis: 72px;
   width: 72px;
@@ -3317,6 +3347,11 @@
     max-height: calc(100dvh - var(--kanban-chrome-offset));
   }
 
+  .repair-kanban-column[data-status='ready']:not(.repair-kanban-column-collapsed) {
+    flex: 0 0 max-content;
+    min-width: 260px;
+  }
+
   .repair-kanban-column-collapsed {
     width: auto;
     min-width: 0;
@@ -3366,6 +3401,11 @@
   .repair-kanban-column {
     flex: 0 0 100%;
   }
+
+  .repair-kanban-column[data-status='ready']:not(.repair-kanban-column-collapsed) {
+    flex: 0 0 max-content;
+    min-width: 260px;
+  }
 }
 
 /* Wide monitors: columns share the row and stay at least 200px so the rest scroll. */
@@ -3374,6 +3414,11 @@
     flex: 1 1 0;
     width: auto;
     min-width: 200px;
+  }
+
+  .repair-kanban-column[data-status='ready']:not(.repair-kanban-column-collapsed) {
+    flex: 0 0 max-content;
+    min-width: 260px;
   }
 
   .repair-kanban-column-collapsed {

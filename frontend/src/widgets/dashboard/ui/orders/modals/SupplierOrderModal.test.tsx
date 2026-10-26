@@ -8,11 +8,12 @@ import {
   within,
 } from '@testing-library/react';
 import type { ReactElement } from 'react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { CatalogProduct } from '../../../../../entities/catalog-product';
 import type { Supplier } from '../../../../../entities/supplier';
 import type { SupplierOrder } from '../../../../../entities/supplier-order';
 import { SupplierOrderModal } from './SupplierOrderModal';
+import { STOCK_RECEIPT_STORAGE_KEY } from '../../../model/stock-receipt-preferences';
 
 const { getWarehouseSettingsMock, getCatalogProductsMock } =
   vi.hoisted(() => ({
@@ -894,3 +895,339 @@ describe('SupplierOrderModal supplier suggestions reorder and navigation', () =>
     });
   });
 });
+
+describe('SupplierOrderModal stock receipt localStorage preferences', () => {
+  const multiWarehouseOptions = [
+    {
+      id: 'wh-1',
+      name: 'Warehouse 1',
+      locations: [
+        { id: 'loc-1-1', name: 'Shelf 1-1' },
+        { id: 'loc-1-2', name: 'Shelf 1-2' },
+      ],
+    },
+    {
+      id: 'wh-2',
+      name: 'Warehouse 2',
+      locations: [{ id: 'loc-2-1', name: 'Shelf 2-1' }],
+    },
+    {
+      id: 'wh-empty',
+      name: 'Warehouse Empty',
+      locations: [],
+    },
+  ];
+
+  beforeEach(() => {
+    window.localStorage.clear();
+  });
+
+  afterEach(() => {
+    cleanup();
+    document.body.style.overflow = '';
+    vi.clearAllMocks();
+    window.localStorage.clear();
+  });
+
+  it('empty storage keeps today\'s defaults and does not write to storage', () => {
+    renderModal(
+      <SupplierOrderModal
+        {...baseProps()}
+        warehouseOptions={multiWarehouseOptions}
+        onTakeOnCharge={vi.fn()}
+        editingOrder={editingOrder({
+          items: [
+            line(0, { productName: 'Single Item', quantity: 1, price: 50 }),
+            line(1, { productName: 'Multi Item', quantity: 3, price: 100 }),
+          ],
+        })}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Receive to stock' }));
+
+    expect(screen.getByText('Stock receipt')).toBeInTheDocument();
+
+    const autoSerialCheckbox = screen.getByLabelText('Auto-generate serial numbers');
+    expect(autoSerialCheckbox).toBeChecked();
+
+    const printSerialsCheckbox = screen.getByLabelText('Print serial numbers after receipt');
+    expect(printSerialsCheckbox).toBeChecked();
+
+    const warehouseSelect = screen.getByLabelText('Warehouse') as HTMLSelectElement;
+    expect(warehouseSelect.value).toBe('wh-1');
+
+    const locationSelect = screen.getByLabelText('Location') as HTMLSelectElement;
+    expect(locationSelect.value).toBe('loc-1-1');
+
+    // Quantity rule defaults:
+    // line 0 (qty 1) -> unchecked -> hint: "Leave blank for no article"
+    // line 1 (qty 3) -> checked -> hint: "Leave blank to auto-generate"
+    expect(screen.getByText('Leave blank for no article')).toBeInTheDocument();
+    expect(screen.getByText('Leave blank to auto-generate')).toBeInTheDocument();
+
+    // Top auto-articles is checked only if all lines are checked (here line 0 is false, so master is false)
+    const masterAutoArticlesCheckbox = screen.getByLabelText('Auto-generate articles');
+    expect(masterAutoArticlesCheckbox).not.toBeChecked();
+
+    // Storage is untouched
+    expect(window.localStorage.getItem(STOCK_RECEIPT_STORAGE_KEY)).toBeNull();
+  });
+
+  it('changing a top checkbox survives close and reopen', () => {
+    renderModal(
+      <SupplierOrderModal
+        {...baseProps()}
+        warehouseOptions={multiWarehouseOptions}
+        onTakeOnCharge={vi.fn()}
+        editingOrder={editingOrder({
+          items: [line(0, { productName: 'Item A', quantity: 1, price: 100 })],
+        })}
+      />,
+    );
+
+    // Open stock receipt
+    fireEvent.click(screen.getByRole('button', { name: 'Receive to stock' }));
+
+    // Uncheck top Auto-generate serial numbers
+    const autoSerialCheckbox = screen.getByLabelText('Auto-generate serial numbers');
+    expect(autoSerialCheckbox).toBeChecked();
+    fireEvent.click(autoSerialCheckbox);
+    expect(autoSerialCheckbox).not.toBeChecked();
+
+    // Uncheck print serials
+    const printSerialsCheckbox = screen.getByLabelText('Print serial numbers after receipt');
+    expect(printSerialsCheckbox).toBeChecked();
+    fireEvent.click(printSerialsCheckbox);
+    expect(printSerialsCheckbox).not.toBeChecked();
+
+    // Check storage has updated
+    const saved = JSON.parse(window.localStorage.getItem(STOCK_RECEIPT_STORAGE_KEY) ?? '{}');
+    expect(saved).toEqual(
+      expect.objectContaining({
+        autoGenerateSerialNumbers: false,
+        printSerialNumbers: false,
+      }),
+    );
+
+    // Close dialog
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(screen.queryByText('Stock receipt')).not.toBeInTheDocument();
+
+    // Reopen dialog
+    fireEvent.click(screen.getByRole('button', { name: 'Receive to stock' }));
+    expect(screen.getByText('Stock receipt')).toBeInTheDocument();
+
+    // The choices survived close and reopen
+    expect(screen.getByLabelText('Auto-generate serial numbers')).not.toBeChecked();
+    expect(screen.getByLabelText('Print serial numbers after receipt')).not.toBeChecked();
+  });
+
+  it('a multi-line per-item click does not write to storage', () => {
+    renderModal(
+      <SupplierOrderModal
+        {...baseProps()}
+        warehouseOptions={multiWarehouseOptions}
+        onTakeOnCharge={vi.fn()}
+        editingOrder={editingOrder({
+          items: [
+            line(0, { productName: 'Item A', quantity: 1, price: 100 }),
+            line(1, { productName: 'Item B', quantity: 1, price: 100 }),
+          ],
+        })}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Receive to stock' }));
+
+    // Both are qty 1, so both are unchecked initially
+    const getPerItemToggles = () =>
+      screen
+        .getAllByText('Auto-generate article')
+        .map((el) => el.closest('.supplier-item-article-toggle')!.querySelector('input')!);
+
+    const perItemToggles = getPerItemToggles();
+    expect(perItemToggles).toHaveLength(2);
+    expect(perItemToggles[0]).not.toBeChecked();
+    expect(perItemToggles[1]).not.toBeChecked();
+
+    // Click line 0 per-item checkbox
+    fireEvent.click(perItemToggles[0]!);
+    expect(perItemToggles[0]).toBeChecked();
+
+    // Storage is NOT written on per-line toggle
+    expect(window.localStorage.getItem(STOCK_RECEIPT_STORAGE_KEY)).toBeNull();
+
+    // Click line 1 per-item checkbox, making all lines checked
+    fireEvent.click(perItemToggles[1]!);
+    expect(perItemToggles[1]).toBeChecked();
+
+    // Master checkbox derives to checked, but storage stays unchanged
+    expect(screen.getByLabelText('Auto-generate articles')).toBeChecked();
+    expect(window.localStorage.getItem(STOCK_RECEIPT_STORAGE_KEY)).toBeNull();
+
+    // Close and reopen: because nothing was stored, quantity rule re-applies (both start unchecked)
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Receive to stock' }));
+
+    const reopenedToggles = getPerItemToggles();
+    expect(reopenedToggles[0]).not.toBeChecked();
+    expect(reopenedToggles[1]).not.toBeChecked();
+  });
+
+  it('a one-line side checkbox writes storage and applies to next open', () => {
+    renderModal(
+      <SupplierOrderModal
+        {...baseProps()}
+        warehouseOptions={multiWarehouseOptions}
+        onTakeOnCharge={vi.fn()}
+        editingOrder={editingOrder({
+          items: [line(0, { productName: 'Item A', quantity: 2, price: 100 })],
+        })}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Receive to stock' }));
+
+    const getSideCheckbox = () =>
+      screen.getByText('Auto-generate article').closest('.supplier-item-article-toggle')!.querySelector('input')!;
+
+    // Single item with qty 2 defaults to autoArticle: true
+    const sideCheckbox = getSideCheckbox();
+    expect(sideCheckbox).toBeChecked();
+
+    // Uncheck it
+    fireEvent.click(sideCheckbox);
+    expect(sideCheckbox).not.toBeChecked();
+
+    // On single-line receipt, this writes autoGenerateArticles: false to storage
+    const saved = JSON.parse(window.localStorage.getItem(STOCK_RECEIPT_STORAGE_KEY) ?? '{}');
+    expect(saved.autoGenerateArticles).toBe(false);
+
+    // Close and reopen
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Receive to stock' }));
+
+    // Even though qty = 2, stored false wins over quantity rule
+    const reopenedSideCheckbox = getSideCheckbox();
+    expect(reopenedSideCheckbox).not.toBeChecked();
+  });
+
+  it('warehouse change stores the pair and remembers location if valid in new warehouse', () => {
+    renderModal(
+      <SupplierOrderModal
+        {...baseProps()}
+        warehouseOptions={multiWarehouseOptions}
+        onTakeOnCharge={vi.fn()}
+        editingOrder={editingOrder({
+          items: [line(0, { productName: 'Item A', quantity: 1, price: 100 })],
+        })}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Receive to stock' }));
+
+    const warehouseSelect = screen.getByLabelText('Warehouse') as HTMLSelectElement;
+    const locationSelect = screen.getByLabelText('Location') as HTMLSelectElement;
+
+    // Change location to loc-1-2
+    fireEvent.change(locationSelect, { target: { value: 'loc-1-2' } });
+
+    let saved = JSON.parse(window.localStorage.getItem(STOCK_RECEIPT_STORAGE_KEY) ?? '{}');
+    expect(saved).toEqual({ locationId: 'loc-1-2' });
+
+    // Change warehouse to wh-2 (which only has loc-2-1, not loc-1-2)
+    fireEvent.change(warehouseSelect, { target: { value: 'wh-2' } });
+
+    saved = JSON.parse(window.localStorage.getItem(STOCK_RECEIPT_STORAGE_KEY) ?? '{}');
+    expect(saved).toEqual({ warehouseId: 'wh-2', locationId: 'loc-2-1' });
+
+    // Change warehouse to wh-empty (no locations)
+    fireEvent.change(warehouseSelect, { target: { value: 'wh-empty' } });
+
+    saved = JSON.parse(window.localStorage.getItem(STOCK_RECEIPT_STORAGE_KEY) ?? '{}');
+    expect(saved).toEqual({ warehouseId: 'wh-empty', locationId: '' });
+
+    // Close and reopen
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Receive to stock' }));
+
+    const reopenedWhSelect = screen.getByLabelText('Warehouse') as HTMLSelectElement;
+    const reopenedLocSelect = screen.getByLabelText('Location') as HTMLSelectElement;
+    expect(reopenedWhSelect.value).toBe('wh-empty');
+    expect(reopenedLocSelect.value).toBe('');
+  });
+
+  it('a missing warehouse id falls back to first active warehouse and leaves storage unchanged', () => {
+    window.localStorage.setItem(
+      STOCK_RECEIPT_STORAGE_KEY,
+      JSON.stringify({ warehouseId: 'wh-deleted', locationId: 'loc-deleted' }),
+    );
+
+    renderModal(
+      <SupplierOrderModal
+        {...baseProps()}
+        warehouseOptions={multiWarehouseOptions}
+        onTakeOnCharge={vi.fn()}
+        editingOrder={editingOrder({
+          items: [line(0, { productName: 'Item A', quantity: 1, price: 100 })],
+        })}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Receive to stock' }));
+
+    const warehouseSelect = screen.getByLabelText('Warehouse') as HTMLSelectElement;
+    const locationSelect = screen.getByLabelText('Location') as HTMLSelectElement;
+
+    // Falls back to first active warehouse and its first location
+    expect(warehouseSelect.value).toBe('wh-1');
+    expect(locationSelect.value).toBe('loc-1-1');
+
+    // Storage is NOT rewritten on fallback
+    const rawStorage = window.localStorage.getItem(STOCK_RECEIPT_STORAGE_KEY);
+    expect(JSON.parse(rawStorage ?? '{}')).toEqual({
+      warehouseId: 'wh-deleted',
+      locationId: 'loc-deleted',
+    });
+  });
+
+  it('article text and manual serials are blank on the next open', () => {
+    renderModal(
+      <SupplierOrderModal
+        {...baseProps()}
+        warehouseOptions={multiWarehouseOptions}
+        onTakeOnCharge={vi.fn()}
+        editingOrder={editingOrder({
+          items: [line(0, { productName: 'Item A', quantity: 1, price: 100 })],
+        })}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Receive to stock' }));
+
+    // Uncheck auto serial to display manual serial input
+    fireEvent.click(screen.getByLabelText('Auto-generate serial numbers'));
+
+    const serialInput = screen.getByPlaceholderText('Serial number');
+    fireEvent.change(serialInput, { target: { value: 'SN-ABC-999' } });
+    expect(serialInput).toHaveValue('SN-ABC-999');
+
+    // Single item article input placeholder
+    const articleInput = screen.getByPlaceholderText('Example: SSD-KINGSTON');
+    fireEvent.change(articleInput, { target: { value: 'ART-MANUAL-1' } });
+    expect(articleInput).toHaveValue('ART-MANUAL-1');
+
+    // Close and reopen
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Receive to stock' }));
+
+    // Reopened dialog (auto-serial is stored false, so manual input appears again)
+    const reopenedSerialInput = screen.getByPlaceholderText('Serial number');
+    expect(reopenedSerialInput).toHaveValue('');
+
+    const reopenedArticleInput = screen.getByPlaceholderText('Example: SSD-KINGSTON');
+    expect(reopenedArticleInput).toHaveValue('');
+  });
+});
+

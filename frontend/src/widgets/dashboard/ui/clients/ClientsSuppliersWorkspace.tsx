@@ -6,6 +6,7 @@ import {
   CompactPaginationPanel,
   PaginationPanel,
 } from '../../../../shared/ui/PaginationPanel';
+import { useStoredPageSize } from '../../../../shared/lib/page-size-preference';
 import type { Sale } from '../../../../entities/sale';
 import type {
   Client,
@@ -305,7 +306,7 @@ export const ClientsSuppliersWorkspace: React.FC<
   >(null);
   const [isMergeModalOpen, setIsMergeModalOpen] = useState(false);
   const [suppliersPage, setSuppliersPage] = useState(1);
-  const [suppliersPageSize, setSuppliersPageSize] = useState(30);
+  const [suppliersPageSize, setSuppliersPageSize] = useStoredPageSize('clientSuppliers');
   const [form, setForm] = useState<SupplierFormState>(
     defaultSupplierForm,
   );

@@ -719,3 +719,85 @@ describe('ReceiptsTable orders view', () => {
     expect(screen.getByText('Awaiting payment')).toBeInTheDocument();
   });
 });
+
+describe('StockTable row actions', () => {
+  it('opens portal action menu on clicking kebab button and triggers actions', () => {
+    const onDelete = vi.fn();
+    const onTransfer = vi.fn();
+
+    render(
+      <StockTable
+        {...stockTableProps}
+        visibleColumns={['name', 'action']}
+        onDelete={onDelete}
+        onTransfer={onTransfer}
+      />,
+    );
+
+    const menuButton = screen.getByRole('button', { name: /more actions|більше дій/i });
+    expect(menuButton).toBeInTheDocument();
+
+    // Menu is not open initially
+    expect(screen.queryByRole('button', { name: /delete|видалити/i })).not.toBeInTheDocument();
+
+    // Click to open portal menu
+    fireEvent.click(menuButton);
+
+    const transferButton = screen.getByRole('button', { name: /transfer|перемістити/i });
+    const deleteButton = screen.getByRole('button', { name: /delete|видалити/i });
+    expect(transferButton).toBeInTheDocument();
+    expect(deleteButton).toBeInTheDocument();
+
+    // Click transfer calls onTransfer and closes menu
+    fireEvent.click(transferButton);
+    expect(onTransfer).toHaveBeenCalledWith(product);
+    expect(screen.queryByRole('button', { name: /transfer|перемістити/i })).not.toBeInTheDocument();
+
+    // Reopen menu and click delete
+    fireEvent.click(menuButton);
+    const deleteButtonAgain = screen.getByRole('button', { name: /delete|видалити/i });
+    fireEvent.click(deleteButtonAgain);
+    expect(onDelete).toHaveBeenCalledWith(product);
+    expect(screen.queryByRole('button', { name: /delete|видалити/i })).not.toBeInTheDocument();
+  });
+
+  it('closes portal menu on Escape and click outside', () => {
+    render(
+      <StockTable
+        {...stockTableProps}
+        visibleColumns={['name', 'action']}
+      />,
+    );
+
+    const menuButton = screen.getByRole('button', { name: /more actions|більше дій/i });
+    fireEvent.click(menuButton);
+    expect(screen.getByRole('button', { name: /delete|видалити/i })).toBeInTheDocument();
+
+    // Press Escape closes menu
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(screen.queryByRole('button', { name: /delete|видалити/i })).not.toBeInTheDocument();
+
+    // Reopen and click outside
+    fireEvent.click(menuButton);
+    expect(screen.getByRole('button', { name: /delete|видалити/i })).toBeInTheDocument();
+
+    fireEvent.pointerDown(document.body);
+    expect(screen.queryByRole('button', { name: /delete|видалити/i })).not.toBeInTheDocument();
+  });
+
+  it('renders only delete button when onTransfer is omitted', () => {
+    render(
+      <StockTable
+        {...stockTableProps}
+        visibleColumns={['name', 'action']}
+        onTransfer={undefined}
+      />,
+    );
+
+    const menuButton = screen.getByRole('button', { name: /more actions|більше дій/i });
+    fireEvent.click(menuButton);
+
+    expect(screen.queryByRole('button', { name: /transfer|перемістити/i })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /delete|видалити/i })).toBeInTheDocument();
+  });
+});

@@ -27,6 +27,7 @@ import {
   resolveKanbanDropStatus,
   saleMatchesKanbanMasterFilter,
   shouldKeepKanbanPendingMove,
+  sumReadyColumnTotal,
 } from './repair-kanban';
 
 const repairSale = { kind: 'repair' } as Sale;
@@ -85,7 +86,77 @@ describe('repair kanban status model', () => {
     ]);
     expect(kanbanCollapsedRepairStatuses).toEqual([]);
   });
+
+  describe('sumReadyColumnTotal', () => {
+    it('returns 0 for an empty list', () => {
+      expect(sumReadyColumnTotal([])).toBe(0);
+    });
+
+    it('skips cards with no line items even if salePrice is set', () => {
+      const unpriced1 = {
+        id: '1',
+        status: 'ready',
+        salePrice: 500,
+        quantity: 1,
+        lineItems: [],
+      } as unknown as Sale;
+      const unpriced2 = {
+        id: '2',
+        status: 'ready',
+        salePrice: 300,
+        quantity: 2,
+      } as unknown as Sale;
+
+      expect(sumReadyColumnTotal([unpriced1, unpriced2])).toBe(0);
+    });
+
+    it('sums priced cards to the sum of their displayed kopiykas', () => {
+      const sale1 = {
+        id: '1',
+        status: 'ready',
+        lineItems: [{ price: 100.5, quantity: 1 }],
+      } as unknown as Sale;
+      const sale2 = {
+        id: '2',
+        status: 'ready',
+        lineItems: [{ price: 200.25, quantity: 1 }],
+      } as unknown as Sale;
+
+      expect(sumReadyColumnTotal([sale1, sale2])).toBe(300.75);
+    });
+
+    it('sums fractional totals so that a raw drift of 0.01 matches the displayed labels', () => {
+      // 10.004 rounds to 10.00 in formatCurrency (1000 kopiykas)
+      // 3 cards raw = 30.012 -> 30.01 (0.01 off)
+      // Rounded sum = 1000 * 3 = 3000 kopiykas = 30.00
+      const sale1 = {
+        id: '1',
+        lineItems: [{ price: 10.004, quantity: 1 }],
+      } as unknown as Sale;
+      const sale2 = {
+        id: '2',
+        lineItems: [{ price: 10.004, quantity: 1 }],
+      } as unknown as Sale;
+      const sale3 = {
+        id: '3',
+        lineItems: [{ price: 10.004, quantity: 1 }],
+      } as unknown as Sale;
+
+      expect(sumReadyColumnTotal([sale1, sale2, sale3])).toBe(30);
+    });
+
+    it('accounts for line item discounts properly', () => {
+      const saleWithDiscount = {
+        id: '1',
+        lineItems: [{ price: 100, quantity: 1 }],
+        discount: { mode: 'percent', value: 10 },
+      } as unknown as Sale;
+
+      expect(sumReadyColumnTotal([saleWithDiscount])).toBe(90);
+    });
+  });
 });
+
 
 describe('repair kanban visibility', () => {
   const sale = (id: string, status: string) =>

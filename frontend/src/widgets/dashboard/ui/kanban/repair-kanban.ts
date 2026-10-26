@@ -4,6 +4,8 @@ import {
   type CollisionDetection,
 } from '@dnd-kit/core';
 import type { Sale } from '../../../../entities/sale';
+import { roundCurrency } from '../../../../shared/lib/format';
+import { getSaleTotal } from '../../model/sales-analytics';
 import {
   kanbanVisibleRepairStatuses,
   normalizeOrderStatus,
@@ -284,4 +286,23 @@ export const computeColumnRankAfterDrop = (
     }
   });
   return result;
+};
+
+/**
+ * Sum displayed card prices for the Ready column.
+ * - Skips cards without line items (unpriced cards)
+ * - Rounds each line-item total using roundCurrency to match displayed label kopiykas
+ * - Sums in integer kopiykas to avoid fractional drift
+ * - Returns the hryvnia value ready for formatCurrency
+ */
+export const sumReadyColumnTotal = (sales: readonly Sale[]): number => {
+  let totalKopiykas = 0;
+  for (const sale of sales) {
+    if (!Array.isArray(sale.lineItems) || sale.lineItems.length === 0) {
+      continue;
+    }
+    const orderTotal = getSaleTotal(sale);
+    totalKopiykas += roundCurrency(orderTotal);
+  }
+  return totalKopiykas / 100;
 };
