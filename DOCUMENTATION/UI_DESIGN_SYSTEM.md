@@ -106,9 +106,10 @@ Shared table primitives: `.catalog-table`, `.catalog-table-wrap`, zebra rows, co
 
 ### Horizontal scrolling and fixed scrollbar
 - Wide table wrappers (`.catalog-table-wrap`, `.orders-table-wrap`, `.finance-table-wrap`) synchronize with [`GlobalHorizontalScrollbar`](../frontend/src/shared/ui/GlobalHorizontalScrollbar.tsx) mounted once at the dashboard root.
-- The fixed bottom scrollbar mirrors the table's horizontal scroll position.
-- **Echo guard**: Dragging the native table scrollbar thumb holds a guard across the animation frame (`requestAnimationFrame`). Echo `scroll` events from the fixed bar cannot overwrite the table's `scrollLeft` during that frame, ensuring native pointer drag gestures are not cancelled in Chromium.
-- **Opt-out**: Wrappers with self-contained horizontal scrolling opt out using `data-global-scrollbar="off"` (e.g. Warehouse transfer stock list). The fixed bar automatically hides on `@media (max-width: 1024px)` and `(pointer: coarse)`.
+- The fixed bottom scrollbar is the only horizontal scrollbar on desktop with a fine pointer (`min-width: 1025px` and not `pointer: coarse`). The wrapper keeps `overflow-x: auto` and hides its native bar (`scrollbar-width: none` plus a WebKit `::-webkit-scrollbar` reset in [`layout.css`](../frontend/src/shared/styles/layout.css)).
+- Dragging the fixed bar writes the table `scrollLeft`. Trackpad and Shift+wheel on the table still scroll it, and the fixed bar follows.
+- **Echo guard**: When the table scrolls directly, a guard is held across the animation frame (`requestAnimationFrame`). Echo `scroll` events from the fixed bar cannot overwrite the table's `scrollLeft` during that frame, so an in-progress scroll is not cancelled in Chromium.
+- **Opt-out and fallback**: Wrappers with self-contained horizontal scrolling opt out using `data-global-scrollbar="off"` (e.g. Warehouse transfer stock list) and keep their native bar. The fixed bar hides, and the native bar stays visible, on `@media (max-width: 1024px)` and `(pointer: coarse)`.
 
 ### Fixed layout, column resizing, and sticky pinning
 - Wide tables with resizable columns (e.g. warehouse stock balance) use `table-layout: fixed` and render explicit `<colgroup>` tracks. Resizing a column (e.g. `Name`) updates its `<col>` width so following columns (`Serial`, etc.) shift smoothly to the right without painting underneath pinned cells.

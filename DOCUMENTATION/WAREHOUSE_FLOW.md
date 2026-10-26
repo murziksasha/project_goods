@@ -138,6 +138,7 @@ This document defines current warehouse requirements for stock balances, receipt
 6. `Client order` and `Supplier order` links are displayed as compact badges. Hover shows a copy icon; only the icon copies the visible number. Badge click still opens the sale/order card or supplier-order modal.
 7. `Note` is a compact single-line column; long text is truncated with ellipsis and exposes the full note in the native hover tooltip
 8. `Action` is a kebab menu (`⋮`) with `Transfer` (when a transfer handler is provided) and `Delete`:
+   - rendered for unit rows, and on multi-unit group rows in `Models` view whenever at least one unit of that group is checked
    - rendered via a `document.body` portal (`createPortal`) with `position: fixed` so the menu is never clipped by table cell `overflow: hidden` or `.catalog-table-wrap` horizontal scrolling
    - uses fixed coordinates from trigger `getBoundingClientRect()`, right-aligned to the trigger button
    - smart vertical placement: opens below the button by default; flips above when remaining viewport space below is insufficient (`< 90px`) and there is enough room above
@@ -147,13 +148,26 @@ This document defines current warehouse requirements for stock balances, receipt
 
 ### 4.4.1) Stock View Modes (`Models` / `Units`)
 
-- `Units` lists one row per in-stock `Product` (serial-level).
+- `Units` lists one row per in-stock `Product` (serial-level). Mass actions exist only on the `Models` group row; `Units` view is unchanged. Checks survive switching between `Models` and `Units`.
 - `Models` groups filtered units by normalized `name` + `article` (`groupStockProductsByModel`).
-- A single-unit model renders as a normal unit row (no expand control).
+- A single-unit model renders as a normal unit row (no expand control) and keeps its unit kebab menu.
 - A multi-unit model collapses serials by default:
   1. parent row shows the model name, a quantity badge (`N pcs`), and empty `Serial #`
   2. expand control on the name cell reveals child serial rows
-  3. parent checkbox selects/deselects every unit in the group
+  3. parent checkbox indicates group selection:
+     - checked when all visible units in the group are selected
+     - indeterminate (via DOM `indeterminate` property) when some but not all visible units are selected
+     - click when not all are selected selects the rest (`toggleGroupSelection`)
+     - click when all are selected clears that group
+  4. parent row renders an Action cell (`⋮`) only while at least one unit in that group is checked, collapsed or expanded. No checks in the group means no group `⋮`.
+  5. multiple groups can be checked simultaneously; each group row displays its own `⋮` acting strictly on that group's checked units.
+  6. child-row `⋮` continues to act only on that one unit, even when siblings are checked.
+- Group Delete behavior:
+  1. stays on `Stock balances` without navigating away; does not trigger N browser confirms.
+  2. units with sales history in `salesByProductId` cannot be deleted.
+  3. if every checked unit is blocked by sales history: no confirm dialog, nothing deleted, an error toast lists those serials, and checks stay.
+  4. otherwise one in-app confirm dialog displays model name, count to delete, up to 10 serials in group-row order (plus "and N more" when longer), and any blocked serials with the sales-history reason.
+  5. on confirm, deletes deletable units via looped mutations without `window.confirm`. Deleted units are unchecked; failed units remain checked and are named. Single-unit delete retains today's browser confirm.
 - Pagination in `Models` counts model groups, not individual serials; `Units` counts product rows.
 - Page size and current page for this tab are restored per browser with the other warehouse workspace keys.
 
@@ -582,13 +596,17 @@ Implementation references:
 - `Transfers` header summary: `{n} movable rows`.
 - Workspace shows session KPI cards: movable stock count, session transfer count, and distinct destinations from session history.
 - Route strip shows `From` (current warehouse/location) → `To` (selected target) before submit.
-- The right-side stock list shows filtered stock items for the current `Transfers` tab.
-- Each visible row is clickable as a whole row.
-- Clicking a row selects that product into the transfer `Product` field.
-- The selected row must be visually highlighted.
-- Keyboard selection must work with `Enter` or `Space` on the focused row.
-- The `Product` select may include all currently filtered stock items, not only the current visible page.
-- `Transfer` from a stock-row kebab menu pre-fills the same form for that unit.
+- Opening the Transfers tab with no active batch displays the single-product dropdown and movable stock list.
+- Batch Transfer mode:
+  1. group row `⋮` -> Transfer opens the tab with a batch containing that group's visible checked units.
+  2. unit row `⋮` -> Transfer loads that single unit as a unit batch.
+  3. the single-product dropdown is hidden while a batch is on screen.
+  4. the right-side list displays the active batch units: serial, current warehouse, current location, stays status, and a row-level `Remove` button.
+  5. clicking `Remove` drops that unit and unchecks it. Units cannot be added from the Transfers tab.
+  6. while a group batch is active, the list is live: checking another unit of the same model adds a row; checked units of other models do not join.
+  7. if search/filters hide every member while checks remain: empty list, submit disabled, but destination and note stay preserved. Rows return when search displays them again.
+  8. if checks are cleared, or the last member is removed, and nothing is merely hidden: leave batch mode, restore single-product dropdown, and clear destination and note.
+  9. batch replacement: initiating Transfer from another group loads that group's checks and clears destination, location, and note. Initiating Transfer from the same group keeps destination, location, and note. A unit `⋮` loads only that unit and clears destination, location, and note.
 
 ### 12.2) Transfer Pagination
 
@@ -597,14 +615,16 @@ Implementation references:
 - Paging in `Transfers` must advance/return by 8 stock rows.
 - This transfer page size does not change the user-selected page size for `Stock balances` or `Receipts`.
 
-### 12.3) Transfer Validation
+### 12.3) Transfer Validation & Stays
 
-- Operator must choose a product, target warehouse, and target location.
-- Transfer action is disabled until all required values are present.
-- Transfer to the same current warehouse/location is blocked with an explicit error.
+- Operator must choose target warehouse and target location.
+- After a destination is chosen in batch mode, units already residing there are marked as stays.
+- Submit button indicates the count of moving units: `Transfer {N}`.
+- At zero movers (all units are stays or no units), submit button remains disabled.
+- Single-transfer mode blocks transfer to the same current warehouse/location with an explicit error.
 - Current location is displayed from product warehouse metadata.
 
-### 12.4) Transfer Persistence
+### 12.4) Transfer Persistence & History
 
 - Transfer saves to product warehouse metadata:
 
@@ -618,16 +638,13 @@ Implementation references:
 1. serial is visible only in the target warehouse dropdown
 2. serial must not remain visible in the source warehouse dropdown because of stale `purchasePlace`
 
-- If operator enters a transfer note, it is appended to product note as transfer context.
-- After successful transfer, product data must be refreshed from API/query cache.
-- Successful transfer is recorded in the local session transfer history table with:
-
-1. date
-2. product/serial
-3. source warehouse/location
-4. target warehouse/location
-5. operator
-6. note
+- Batch execution:
+  1. submit attempts transfer for every non-stay unit.
+  2. successfully moved units uncheck; failures stay checked and are named in a single summary message (no toast per unit).
+  3. no undo of moves that saved. Destination and note stay so the operator can submit again.
+  4. note is appended to each moved unit's Note as `Transfer note: ...`. An empty note does not change notes. Stays are not touched.
+  5. if all batch members move successfully and no checks remain, batch mode exits and destination/note clear.
+  6. session transfer history records one row per moved unit (date, product/serial, source, target, operator, note).
 
 ### 12.5) Transfer Scroll Behavior
 
@@ -666,14 +683,15 @@ Implementation references:
 
 ### 15) Horizontal Scrollbar Accessibility
 
-- If horizontal overflow appears, scrollbar must remain accessible at the bottom of app window.
+- If horizontal overflow appears, one scrollbar must remain accessible at the bottom of the app window. The table wrapper must not show a second horizontal bar above pagination.
 - Implemented via global shared component `GlobalHorizontalScrollbar`.
 - The component is mounted once in `DashboardPage` and synchronizes with visible `.catalog-table-wrap`, `.orders-table-wrap`, and `.finance-table-wrap`.
-- The fixed bar follows the table. It must not write the table’s scroll position during a drag of the table’s own bar. It writes that position only when the user scrolls the fixed bar.
-- Dual-scrollbar snap prevention: When the user scrolls the table directly (e.g. dragging the native table scrollbar thumb), the fixed bottom scrollbar's `scrollLeft` is updated and a "from table" guard is held across the animation frame (`requestAnimationFrame`). Echo `scroll` events dispatched by the fixed bar are ignored while this guard is held, preventing programmatic overwrites of `table.scrollLeft` that would abort active pointer drag gestures in Chromium.
+- On desktop with a fine pointer (`min-width: 1025px` and not `pointer: coarse`), those wrappers hide the native scrollbar and keep `overflow-x: auto`. The fixed bottom bar is the only horizontal scrollbar. Trackpad and Shift+wheel on the table still scroll it.
+- The fixed bar follows the table. It writes the table scroll position only when the user scrolls the fixed bar.
+- Scroll echo guard: When the user scrolls the table directly (trackpad or Shift+wheel), the fixed bottom scrollbar's `scrollLeft` is updated and a "from table" guard is held across the animation frame (`requestAnimationFrame`). Echo `scroll` events dispatched by the fixed bar are ignored while this guard is held, preventing programmatic overwrites of `table.scrollLeft` that would abort an in-progress scroll in Chromium.
 - Sync optimization: `scheduleSync` skips writing `scrollLeft` while any guard is active, and skips state updates (`setMetrics`) when `left`, `width`, `scrollWidth`, and `visible` match previous values to prevent redundant renders.
-- Responsive and touch handling: Automatically hides on screens with `max-width: 1024px` or coarse pointer (`pointer: coarse`).
-- Wrappers may opt out with `data-global-scrollbar="off"` when the local view already provides an appropriate scrollbar and the fixed bar would overlap nearby content (e.g. `Transfers` stock list, see §12.5).
+- Responsive and touch handling: The fixed bar hides on screens with `max-width: 1024px` or coarse pointer (`pointer: coarse`). The native table scrollbar stays visible in those cases.
+- Wrappers may opt out with `data-global-scrollbar="off"` when the local view already provides an appropriate scrollbar and the fixed bar would overlap nearby content (e.g. `Transfers` stock list, see §12.5). Opted-out wrappers keep their native scrollbar.
 
 ## Device-Local Warehouse Layout
 

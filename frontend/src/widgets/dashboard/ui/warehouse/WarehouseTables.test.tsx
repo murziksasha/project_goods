@@ -851,3 +851,165 @@ describe('StockTable row actions', () => {
     expect(screen.getByRole('button', { name: /delete|видалити/i })).toBeInTheDocument();
   });
 });
+
+describe('StockTable models view group actions', () => {
+  const p1: Product = {
+    ...product,
+    id: 'prod-1',
+    name: 'TerraE 30E',
+    article: 'INR18650',
+    serialNumber: 'S001',
+  };
+  const p2: Product = {
+    ...product,
+    id: 'prod-2',
+    name: 'TerraE 30E',
+    article: 'INR18650',
+    serialNumber: 'S002',
+  };
+  const p3: Product = {
+    ...product,
+    id: 'prod-3',
+    name: 'TerraE 30E',
+    article: 'INR18650',
+    serialNumber: 'S003',
+  };
+  const group = {
+    id: 'terrae-30e',
+    name: 'TerraE 30E',
+    article: 'INR18650',
+    products: [p1, p2, p3],
+  };
+
+  it('renders indeterminate checkbox when partially selected, checked when all selected, unchecked when none', () => {
+    const { rerender } = render(
+      <StockTable
+        {...stockTableProps}
+        products={[p1, p2, p3]}
+        groups={[group]}
+        view='models'
+        visibleColumns={['select', 'name', 'action']}
+        selectedProductIds={[]}
+      />,
+    );
+    const checkbox = screen.getByRole('checkbox', {
+      name: /select all units of terrae 30e/i,
+    }) as HTMLInputElement;
+    expect(checkbox.checked).toBe(false);
+    expect(checkbox.indeterminate).toBe(false);
+
+    rerender(
+      <StockTable
+        {...stockTableProps}
+        products={[p1, p2, p3]}
+        groups={[group]}
+        view='models'
+        visibleColumns={['select', 'name', 'action']}
+        selectedProductIds={['prod-1']}
+      />,
+    );
+    expect(checkbox.checked).toBe(false);
+    expect(checkbox.indeterminate).toBe(true);
+
+    rerender(
+      <StockTable
+        {...stockTableProps}
+        products={[p1, p2, p3]}
+        groups={[group]}
+        view='models'
+        visibleColumns={['select', 'name', 'action']}
+        selectedProductIds={['prod-1', 'prod-2', 'prod-3']}
+      />,
+    );
+    expect(checkbox.checked).toBe(true);
+    expect(checkbox.indeterminate).toBe(false);
+  });
+
+  it('renders no kebab on group row when no units in group are checked', () => {
+    render(
+      <StockTable
+        {...stockTableProps}
+        products={[p1, p2, p3]}
+        groups={[group]}
+        view='models'
+        visibleColumns={['select', 'name', 'action']}
+        selectedProductIds={[]}
+      />,
+    );
+    expect(
+      screen.queryByRole('button', { name: /more actions|більше дій/i }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('renders kebab on collapsed group row and menu actions operate on checked units only', () => {
+    const onDelete = vi.fn();
+    const onTransfer = vi.fn();
+
+    render(
+      <StockTable
+        {...stockTableProps}
+        products={[p1, p2, p3]}
+        groups={[group]}
+        view='models'
+        visibleColumns={['select', 'name', 'action']}
+        selectedProductIds={['prod-1', 'prod-3']}
+        onDelete={onDelete}
+        onTransfer={onTransfer}
+      />,
+    );
+
+    const kebab = screen.getByRole('button', {
+      name: /more actions|більше дій/i,
+    });
+    expect(kebab).toBeInTheDocument();
+
+    fireEvent.click(kebab);
+    const transferBtn = screen.getByRole('button', {
+      name: /transfer|перемістити/i,
+    });
+    fireEvent.click(transferBtn);
+    expect(onTransfer).toHaveBeenCalledWith([p1, p3]);
+
+    fireEvent.click(kebab);
+    const deleteBtn = screen.getByRole('button', {
+      name: /delete|видалити/i,
+    });
+    fireEvent.click(deleteBtn);
+    expect(onDelete).toHaveBeenCalledWith([p1, p3]);
+  });
+
+  it('child row kebab still operates on that one unit even when siblings are checked', () => {
+    const onDelete = vi.fn();
+    const onTransfer = vi.fn();
+
+    render(
+      <StockTable
+        {...stockTableProps}
+        products={[p1, p2, p3]}
+        groups={[group]}
+        view='models'
+        visibleColumns={['select', 'name', 'action']}
+        selectedProductIds={['prod-1', 'prod-2']}
+        onDelete={onDelete}
+        onTransfer={onTransfer}
+      />,
+    );
+
+    const expandBtn = screen.getByRole('button', {
+      name: /show serials for terrae 30e/i,
+    });
+    fireEvent.click(expandBtn);
+
+    const kebabs = screen.getAllByRole('button', {
+      name: /more actions|більше дій/i,
+    });
+    expect(kebabs).toHaveLength(4);
+
+    fireEvent.click(kebabs[2]);
+    const transferBtn = screen.getByRole('button', {
+      name: /transfer|перемістити/i,
+    });
+    fireEvent.click(transferBtn);
+    expect(onTransfer).toHaveBeenCalledWith(p2);
+  });
+});

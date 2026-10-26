@@ -20,7 +20,7 @@ One topic → one source of truth. Other files **link**, they do not copy the ru
 | Employees / RBAC | [EMPLOYEES_SPEC.md](./EMPLOYEES_SPEC.md) | [Permission_Flow.md](./Permission_Flow.md) |
 | Settings | [SETTINGS_SPEC.md](./SETTINGS_SPEC.md) | [PRINT_FORMS_SPEC.md](./PRINT_FORMS_SPEC.md), [BUSINESS_DASHBOARD.md](./BUSINESS_DASHBOARD.md) |
 | Hover copy icon (tables) | [UI_DESIGN_SYSTEM.md — Hover copy icon](./UI_DESIGN_SYSTEM.md#hover-copy-icon) | Orders, Sales, Supplier Order, warehouse, clients, catalog Suppliers phone, serial bind supplier-order number |
-| Table horizontal scroll / resizable columns | [UI_DESIGN_SYSTEM.md — Tables](./UI_DESIGN_SYSTEM.md#tables) | GlobalHorizontalScrollbar echo guard, colgroup track sizing, sticky pinned columns, WAREHOUSE_FLOW §4.4.2 & §15 |
+| Table horizontal scroll / resizable columns | [UI_DESIGN_SYSTEM.md — Tables](./UI_DESIGN_SYSTEM.md#tables) | Fixed bottom bar only on desktop; native bar on small/coarse screens and `data-global-scrollbar="off"`; echo guard; colgroup track sizing; sticky pinned columns; WAREHOUSE_FLOW §4.4.2 & §15 |
 
 ## 1. Start here
 
