@@ -103,6 +103,9 @@ const renderWorkspace = (
       isSaving={overrides?.isSaving ?? false}
       onFormChange={onFormChange}
       onSubmit={onSubmit}
+      batchMode={overrides?.batchMode}
+      batchProducts={overrides?.batchProducts}
+      onRemoveBatchItem={overrides?.onRemoveBatchItem}
     />,
   );
   return { onFormChange, onSubmit };
@@ -172,5 +175,132 @@ describe('TransferWorkspace', () => {
       (screen.getByRole('button', { name: 'Transfer stock' }) as HTMLButtonElement)
         .disabled,
     ).toBe(false);
+  });
+});
+
+describe('TransferWorkspace batch mode', () => {
+  const p1: Product = {
+    ...product,
+    id: 'prod-1',
+    name: 'TerraE 30E',
+    serialNumber: 'S001',
+  };
+  const p2: Product = {
+    ...product,
+    id: 'prod-2',
+    name: 'TerraE 30E',
+    serialNumber: 'S002',
+  };
+  const batchMeta: Record<string, ProductWarehouseMeta> = {
+    'prod-1': {
+      warehouseId: 'w-1',
+      warehouseName: 'Main',
+      locationId: 'l-1',
+      locationName: 'A1',
+    },
+    'prod-2': {
+      warehouseId: 'w-2',
+      warehouseName: 'Shop',
+      locationId: 'l-2',
+      locationName: 'Counter',
+    },
+  };
+
+  it('hides single-product dropdown and displays batch table with serials and locations', () => {
+    const onRemoveBatchItem = vi.fn();
+    renderWorkspace({
+      batchMode: { type: 'group', groupId: 'terrae-30e' },
+      batchProducts: [p1, p2],
+      productWarehouseMetaById: batchMeta,
+      onRemoveBatchItem,
+    });
+
+    // Dropdown is hidden
+    expect(
+      screen.queryByRole('combobox', { name: /product/i }),
+    ).not.toBeInTheDocument();
+
+    // Table lists both products with serials
+    expect(screen.getByText('S001')).toBeInTheDocument();
+    expect(screen.getByText('S002')).toBeInTheDocument();
+
+    // Remove buttons are present
+    const removeButtons = screen.getAllByRole('button', {
+      name: /remove|видалити/i,
+    });
+    expect(removeButtons).toHaveLength(2);
+
+    fireEvent.click(removeButtons[0]);
+    expect(onRemoveBatchItem).toHaveBeenCalledWith(p1);
+  });
+
+  it('marks stays when target destination matches, displays movers count on submit, and disables submit at 0 movers', () => {
+    const onSubmit = vi.fn();
+
+    // Target is w-1 / l-1 (Main / A1): prod-1 stays, prod-2 moves (1 mover)
+    const { rerender } = render(
+      <TransferWorkspace
+        products={[p1, p2]}
+        selectableProducts={[p1, p2]}
+        warehouses={warehouses}
+        productWarehouseMetaById={batchMeta}
+        form={{
+          productId: '',
+          toWarehouseId: 'w-1',
+          toLocationId: 'l-1',
+          note: '',
+        }}
+        selectedProduct={null}
+        targetLocations={warehouses[0].locations}
+        history={[]}
+        isSaving={false}
+        onFormChange={vi.fn()}
+        onSubmit={onSubmit}
+        batchMode={{ type: 'group', groupId: 'terrae-30e' }}
+        batchProducts={[p1, p2]}
+        onRemoveBatchItem={vi.fn()}
+      />,
+    );
+
+    // Stays badge on prod-1
+    expect(document.querySelector('.warehouse-data-badge-stay')).toHaveTextContent(/stays|залишається/i);
+
+    // Submit button shows "Transfer 1"
+    const submitBtn = screen.getByRole('button', {
+      name: /transfer 1|перемістити 1/i,
+    }) as HTMLButtonElement;
+    expect(submitBtn).toBeInTheDocument();
+    expect(submitBtn.disabled).toBe(false);
+
+    // Now change batch to only prod-1 (which stays at w-1 / l-1) -> 0 movers
+    rerender(
+      <TransferWorkspace
+        products={[p1, p2]}
+        selectableProducts={[p1, p2]}
+        warehouses={warehouses}
+        productWarehouseMetaById={batchMeta}
+        form={{
+          productId: '',
+          toWarehouseId: 'w-1',
+          toLocationId: 'l-1',
+          note: '',
+        }}
+        selectedProduct={null}
+        targetLocations={warehouses[0].locations}
+        history={[]}
+        isSaving={false}
+        onFormChange={vi.fn()}
+        onSubmit={onSubmit}
+        batchMode={{ type: 'group', groupId: 'terrae-30e' }}
+        batchProducts={[p1]}
+        onRemoveBatchItem={vi.fn()}
+      />,
+    );
+
+    const submitBtnDisabled = screen.getByRole('button', {
+      name: /transfer 0|перемістити 0/i,
+    }) as HTMLButtonElement;
+    expect(submitBtnDisabled).toBeInTheDocument();
+    expect(submitBtnDisabled.disabled).toBe(true);
   });
 });
