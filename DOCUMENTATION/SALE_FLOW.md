@@ -19,6 +19,10 @@ Related: [SALE_CARD.md](./SALE_CARD.md) · [ORDER_FLOW.md](./ORDER_FLOW.md) · [
 - If client does not exist and phone+name are provided, a new client is created only when the operator presses `Save order` and hard validation passes (same rule as repair orders). Lookup/suggestions for existing clients are unchanged.
 - Client card `Sales` numbers use the same `getOrderLink(saleId, 'sale')` pattern as Orders: left click opens the sale card in-app; right-click / middle-click / Ctrl+click opens a new browser tab. Spec: [BROWSER_NAVIGATION.md](./BROWSER_NAVIGATION.md) · [CLIENTS_RULES.md](./CLIENTS_RULES.md).
 
+## Sales Toolbar Count (2026-10-28)
+
+- The Sales tab toolbar shows `Sales: N` / `Продажів: N` after the pager and left of **Filter**. `N` is the total number of sales matching search, applied filters, and starred (all pages). Shared rules: [ORDER_FLOW.md](./ORDER_FLOW.md#toolbar-record-count-chip-2026-10-28).
+
 ## Rapid Sale (2026-06-24, UX updates 2026-06-30)
 
 Compact counter-sale flow for walk-in customers: no client form, warehouse stock products + services only, immediate issue path.
