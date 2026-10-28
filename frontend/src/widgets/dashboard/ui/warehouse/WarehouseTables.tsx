@@ -38,6 +38,7 @@ import {
   getWarehouseBadgeAccentStyle,
   getWarehouseStockTableMinWidth,
   readWarehouseStockNameWidth,
+  warehouseStockColumnWidths,
   writeWarehouseStockNameWidth,
   type ProductWarehouseMeta,
   type ReceiptRow,
@@ -648,20 +649,51 @@ export const ReceiptsTable: React.FC<ReceiptsTableProps> = ({
   );
 };
 
+const StockCheckbox = ({
+  checked,
+  indeterminate,
+  ariaLabel,
+  onChange,
+}: {
+  checked: boolean;
+  indeterminate?: boolean;
+  ariaLabel: string;
+  onChange: () => void;
+}) => {
+  const ref = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    if (ref.current) {
+      ref.current.indeterminate = Boolean(indeterminate);
+    }
+  }, [indeterminate]);
+
+  return (
+    <input
+      ref={ref}
+      type='checkbox'
+      aria-label={ariaLabel}
+      checked={checked}
+      onChange={onChange}
+    />
+  );
+};
+
 const StockRowActions = ({
   product,
   onDelete,
   onTransfer,
 }: {
-  product: Product;
-  onDelete: (product: Product) => void;
-  onTransfer?: (product: Product) => void;
+  product: Product | Product[];
+  onDelete: (product: Product | Product[]) => void;
+  onTransfer?: (product: Product | Product[]) => void;
 }) => {
   const { t } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
   const [menuPosition, setMenuPosition] = useState<{ top: number; left: number } | null>(null);
   const buttonRef = useRef<HTMLButtonElement | null>(null);
   const panelRef = useRef<HTMLDivElement | null>(null);
+  const initialButtonRectRef = useRef<DOMRect | null>(null);
 
   const handleToggle = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -671,6 +703,7 @@ const StockRowActions = ({
     }
     if (!buttonRef.current) return;
     const rect = buttonRef.current.getBoundingClientRect();
+    initialButtonRectRef.current = rect;
     const menuWidth = 140;
     const menuHeight = onTransfer ? 82 : 46;
     const spaceBelow = window.innerHeight - rect.bottom;
@@ -706,6 +739,14 @@ const StockRowActions = ({
     const handleScrollOrResize = (event: Event) => {
       if (panelRef.current?.contains(event.target as Node)) {
         return;
+      }
+      if (buttonRef.current && initialButtonRectRef.current) {
+        const currentRect = buttonRef.current.getBoundingClientRect();
+        const dx = Math.abs(currentRect.left - initialButtonRectRef.current.left);
+        const dy = Math.abs(currentRect.top - initialButtonRectRef.current.top);
+        if (dx < 2 && dy < 2) {
+          return;
+        }
       }
       setIsOpen(false);
     };
@@ -796,6 +837,8 @@ export const StockTable = ({
   onOpenSerial,
   onDelete,
   onTransfer,
+  onDeleteGroup,
+  onTransferGroup,
   onOpenSupplierOrder,
   onOpenSaleCard,
 }: {
@@ -816,8 +859,10 @@ export const StockTable = ({
   onEdit: (product: Product) => void;
   onOpenModel: (product: Product) => void;
   onOpenSerial: (product: Product) => void;
-  onDelete: (product: Product) => void;
-  onTransfer?: (product: Product) => void;
+  onDelete: (product: Product | Product[]) => void;
+  onTransfer?: (product: Product | Product[]) => void;
+  onDeleteGroup?: (products: Product[]) => void;
+  onTransferGroup?: (products: Product[]) => void;
   onOpenSupplierOrder: (
     supplierOrderId: string,
     itemIndex: number,
@@ -967,17 +1012,21 @@ export const StockTable = ({
     const groupProducts = options?.groupProducts ?? [product];
     const isGroup =
       options?.isGroup === true && groupProducts.length > 1;
+    const isGroupFullySelected =
+      isGroup &&
+      groupProducts.every((item) => selectedProductIds.includes(item.id));
+    const isGroupPartiallySelected =
+      isGroup &&
+      !isGroupFullySelected &&
+      groupProducts.some((item) => selectedProductIds.includes(item.id));
     const isSelected = isGroup
-      ? groupProducts.every((item) =>
-          selectedProductIds.includes(item.id),
-        )
+      ? isGroupFullySelected
       : selectedProductIds.includes(product.id);
 
     if (columnKey === 'select') {
       return (
-        <input
-          type='checkbox'
-          aria-label={
+        <StockCheckbox
+          ariaLabel={
             isGroup
               ? t('warehouse.tables.stock.selectModelAriaLabel', {
                   name: product.name,
@@ -987,6 +1036,7 @@ export const StockTable = ({
                 })
           }
           checked={isSelected}
+          indeterminate={isGroup ? isGroupPartiallySelected : false}
           onChange={() =>
             isGroup
               ? onToggleGroupSelection(
@@ -1206,7 +1256,31 @@ export const StockTable = ({
         </button>
       );
     }
-    if (isGroup) return null;
+    if (isGroup) {
+      const checkedGroupProducts = groupProducts.filter((item) =>
+        selectedProductIds.includes(item.id),
+      );
+      if (checkedGroupProducts.length === 0) return null;
+      return (
+        <StockRowActions
+          product={checkedGroupProducts}
+          onDelete={(items) => {
+            const list = Array.isArray(items) ? items : [items];
+            if (onDeleteGroup) onDeleteGroup(list);
+            else onDelete(list);
+          }}
+          onTransfer={
+            onTransfer || onTransferGroup
+              ? (items) => {
+                  const list = Array.isArray(items) ? items : [items];
+                  if (onTransferGroup) onTransferGroup(list);
+                  else onTransfer?.(list);
+                }
+              : undefined
+          }
+        />
+      );
+    }
     return (
       <StockRowActions
         product={product}
@@ -1320,6 +1394,21 @@ export const StockTable = ({
           } as CSSProperties
         }
       >
+        <colgroup>
+          {visibleColumns.map((columnKey) => (
+            <col
+              key={columnKey}
+              className={`warehouse-stock-col-${columnKey}`}
+              style={{
+                width: `${
+                  columnKey === 'name'
+                    ? nameColumnWidth
+                    : warehouseStockColumnWidths[columnKey]
+                }px`,
+              }}
+            />
+          ))}
+        </colgroup>
         <thead>
           <tr>
             {visibleColumns.map((columnKey) => (

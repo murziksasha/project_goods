@@ -684,6 +684,7 @@
     },
     "kanban": {
       "ordersCount": "Orders: {{count}}",
+      "salesCount": "Sales: {{count}}",
       "dragHandle": "Drag to another column",
       "move": "Move",
       "moveTo": "Move to column",
@@ -1986,7 +1987,14 @@
       "phone": "Phone",
       "saving": "Saving...",
       "productTitle": "Product",
-      "productName": "Product name"
+      "productName": "Product name",
+      "deleteGroup": {
+        "title": "Delete stock units",
+        "confirmQuestion": "Delete {{count}} stock units of {{name}}?",
+        "andMore": "and {{count}} more",
+        "blockedNotice": "The following units have sales history and will not be deleted:",
+        "delete": "Delete"
+      }
     },
     "information": {
       "sectionLabel": "Warehouse analytics",
@@ -2176,7 +2184,15 @@
           "note": "Note"
         },
         "empty": "No transfers in this session."
-      }
+      },
+      "transferCount": "Transfer {{count}}",
+      "stays": "Stays",
+      "remove": "Remove",
+      "summarySuccess": "Successfully transferred {{count}} items.",
+      "summaryPartialError": "Transferred {{movedCount}} items. Failed to transfer: {{failedSerials}}.",
+      "summaryAllFailed": "Failed to transfer: {{failedSerials}}.",
+      "batchEmpty": "No batch items visible for current filter.",
+      "batchStockTitle": "Batch stock to move"
     },
     "print": {
       "serialNumbersTitle": "Serial numbers",
@@ -2283,7 +2299,9 @@
         "selectTarget": "Select target warehouse and location.",
         "inactiveWarehouse": "Target warehouse is inactive.",
         "alreadyInLocation": "Product is already in the selected location.",
-        "failedCreateReceiptOrder": "Failed to create receipt order."
+        "failedCreateReceiptOrder": "Failed to create receipt order.",
+        "allBlockedSalesHistory": "Cannot delete selected units because they have sales history: {{serials}}.",
+        "batchDeleteFailed": "Failed to delete: {{failedSerials}} ({{deletedCount}} deleted)."
       },
       "success": {
         "serviceCenterSaved": "Service center saved.",
@@ -2291,7 +2309,8 @@
         "administratorSaved": "Administrator settings saved.",
         "productTransferred": "Product transferred.",
         "receiptOrderUpdated": "Receipt order updated.",
-        "receiptOrderCreated": "Receipt order created."
+        "receiptOrderCreated": "Receipt order created.",
+        "batchDeleted": "Deleted {{count}} units."
       }
     },
     "emptySection": "Select a warehouse section.",

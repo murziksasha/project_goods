@@ -19,7 +19,10 @@ Project Goods - full-stack приложение для учета товаров
 - It is mounted in:
   - `frontend/src/pages/dashboard/ui/DashboardPage.tsx`
 - Scope:
-  - works for all table wrappers with class `.catalog-table-wrap` when horizontal overflow exists.
+  - `.catalog-table-wrap`, `.orders-table-wrap`, and `.finance-table-wrap` when horizontal overflow exists.
+  - On desktop with a fine pointer the wrapper native bar is hidden. The fixed bar at the bottom of the window is the only horizontal scrollbar.
+  - The native bar stays on `max-width: 1024px`, coarse pointers, and wrappers with `data-global-scrollbar="off"`.
+- Rules: [UI_DESIGN_SYSTEM.md — Tables](./DOCUMENTATION/UI_DESIGN_SYSTEM.md#tables), [WAREHOUSE_FLOW.md §15](./DOCUMENTATION/WAREHOUSE_FLOW.md).
 
 ## Технологии
 - Frontend: React 19, TypeScript, Vite, Axios, TanStack Query, i18next, custom CSS design system

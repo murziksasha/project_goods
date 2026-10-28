@@ -1093,6 +1093,84 @@ export const useDashboardPage = (
           setIsProductSaving(false);
         }
       },
+      transferProducts: async (
+        products: Product[],
+        target: {
+          warehouseId: string;
+          locationId: string;
+          note: string;
+        },
+      ) => {
+        setIsProductSaving(true);
+        const moved: Product[] = [];
+        const failed: Product[] = [];
+
+        for (const product of products) {
+          try {
+            await updateProductMutation.mutateAsync({
+              productId: product.id,
+              payload: {
+                ...toProductForm(product),
+                warehouseId: target.warehouseId,
+                locationId: target.locationId,
+                note: target.note
+                  ? [
+                      product.note,
+                      i18n.t('dashboard.actions.notes.transferNote', {
+                        note: target.note,
+                      }),
+                    ]
+                      .filter(Boolean)
+                      .join('\n')
+                  : product.note,
+              },
+            });
+            moved.push(product);
+          } catch {
+            failed.push(product);
+          }
+        }
+
+        try {
+          await queryClient.invalidateQueries({
+            queryKey: queryKeys.products,
+          });
+          setLastSyncAt(new Date().toISOString());
+        } catch {
+          // Invalidation failure is non-fatal
+        } finally {
+          setIsProductSaving(false);
+        }
+
+        return { moved, failed };
+      },
+      deleteProducts: async (products: Product[]) => {
+        setIsProductSaving(true);
+        const deleted: Product[] = [];
+        const failed: Product[] = [];
+
+        for (const product of products) {
+          try {
+            await deleteProductMutation.mutateAsync(product.id);
+            deleted.push(product);
+          } catch {
+            failed.push(product);
+          }
+        }
+
+        try {
+          await queryClient.invalidateQueries({
+            queryKey: queryKeys.products,
+          });
+          setLastSyncAt(new Date().toISOString());
+        } catch {
+          // Invalidation failure is non-fatal
+        } finally {
+          setIsProductSaving(false);
+        }
+
+        return { deleted, failed };
+      },
       setStatsPeriod: (value: StatsPeriod) => {
         setStatsPeriod(value);
         setAnalyticsDateRange(null);

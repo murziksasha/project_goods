@@ -106,6 +106,8 @@ export const useDashboardPage = vi.fn(() => ({
     createCatalogProductCard: vi.fn(),
     deleteCatalogProductCard: vi.fn(),
     transferProduct: vi.fn(),
+    transferProducts: vi.fn(),
+    deleteProducts: vi.fn(),
     updateProductModelCard: vi.fn(),
     onEmployeeChange: vi.fn(),
     saveEmployee: vi.fn(),

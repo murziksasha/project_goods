@@ -12,7 +12,11 @@ import type { Supplier } from '../../../../entities/supplier';
 import type { SupplierOrder } from '../../../../entities/supplier-order';
 import type { SupplierOrdersColumnKey } from '../../model/supplier-orders-workspace';
 import * as clipboard from '../../../../shared/lib/clipboard';
-import { SupplierOrdersTable } from './SupplierOrdersWorkspaceSections';
+import {
+  SupplierOrdersTable,
+  SupplierOrdersToolbar,
+  type SupplierOrdersToolbarProps,
+} from './SupplierOrdersWorkspaceSections';
 
 const catalogProduct: CatalogProduct = {
   id: 'cat-1',
@@ -742,5 +746,49 @@ describe('SupplierOrdersTable', () => {
         }),
       ).toBeNull();
     });
+  });
+});
+
+describe('SupplierOrdersToolbar', () => {
+  afterEach(() => {
+    cleanup();
+  });
+
+  const toolbarProps: SupplierOrdersToolbarProps = {
+    activeTab: 'supplierOrders',
+    activeFiltersCount: 0,
+    filteredOrdersCount: 308,
+    isColumnsMenuOpen: false,
+    isFilterBarOpen: false,
+    isInformationTab: false,
+    columnsMenuRef: { current: null },
+    page: 1,
+    pageSize: 30,
+    query: '',
+    favoritesOnly: false,
+    visibleColumns: [],
+    visibleTabs: ['orders', 'sales', 'supplierOrders'],
+    canManageSupplierOrders: true,
+    onActiveTabChange: vi.fn(),
+    onCreateOrder: vi.fn(),
+    onColumnsMenuOpenChange: vi.fn(),
+    onFilterBarOpenChange: vi.fn(),
+    onPageChange: vi.fn(),
+    onQueryChange: vi.fn(),
+    onFavoritesOnlyChange: vi.fn(),
+    onToggleColumnVisibility: vi.fn(),
+    onResetColumns: vi.fn(),
+  };
+
+  it('shows the Orders count left of Filter on the supplier orders tab', () => {
+    render(<SupplierOrdersToolbar {...toolbarProps} />);
+
+    const chip = screen.getByLabelText('Orders: 308');
+    const filterButton = screen.getByRole('button', { name: /^filter/i });
+    expect(chip.tagName).toBe('SPAN');
+    expect(
+      chip.compareDocumentPosition(filterButton) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
   });
 });
