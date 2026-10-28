@@ -84,6 +84,22 @@ Related: [ORDER_CARD.md](./ORDER_CARD.md) · [SALE_FLOW.md](./SALE_FLOW.md) · [
 - There is no prepayment input block in the create-order modal.
 - New orders are created with `paidAmount = 0` and empty `paymentHistory`.
 
+## Toolbar Record Count Chip (2026-10-28)
+
+The Orders, Sales, and Supplier Order tabs show the same count chip as the Kanban toolbar (`orders-kanban-count`), placed after the compact pager (`‹ 1/1 ›`) and immediately to the **left of Filter**:
+
+| Tab | EN | UK | `N` |
+| --- | --- | --- | --- |
+| Kanban | `Orders: N` | `Замовлень: N` | Cards on the board ([REPAIR_KANBAN_SPEC.md](./REPAIR_KANBAN_SPEC.md#toolbar-kanban-only)) |
+| Orders | `Orders: N` | `Замовлень: N` | `total` from `GET /sales` for the tab with search + applied filters + starred (all pages, not just the current page) |
+| Sales | `Sales: N` | `Продажів: N` | Same as Orders, for the Sales tab |
+| Supplier Order | `Supplier orders: N` | `Замовлень постачальникам: N` | Supplier orders after search + applied filters + starred (all pages) |
+| Information (supplier) | `Orders: N` | `Замовлень: N` | Unchanged: chip replaces the pager |
+
+- i18n keys: `orders.kanban.ordersCount`, `orders.kanban.salesCount`, `orders.kanban.supplierOrdersCount` (`en.json` / `uk.json`).
+- The chip is a static label. When the search field is non-empty and `N === 1`, it becomes a button that opens the single match, and the pager is hidden (same as before).
+- Components: `OrdersWorkspaceListHeader.tsx` (Orders / Kanban / Sales), `SupplierOrdersToolbar` in `SupplierOrdersWorkspaceSections.tsx` (Supplier Order / Information).
+
 ## Orders List Columns (`Orders` tab)
 
 - Column `Received` is renamed to `Issued`.
