@@ -684,6 +684,8 @@
     },
     "kanban": {
       "ordersCount": "Orders: {{count}}",
+      "salesCount": "Sales: {{count}}",
+      "supplierOrdersCount": "Supplier orders: {{count}}",
       "dragHandle": "Drag to another column",
       "move": "Move",
       "moveTo": "Move to column",

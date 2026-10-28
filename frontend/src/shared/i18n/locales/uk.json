@@ -684,6 +684,8 @@
     },
     "kanban": {
       "ordersCount": "Замовлень: {{count}}",
+      "salesCount": "Продажів: {{count}}",
+      "supplierOrdersCount": "Замовлень постачальникам: {{count}}",
       "dragHandle": "Перетягнути в іншу колонку",
       "move": "Перемістити",
       "moveTo": "Перемістити в колонку",
