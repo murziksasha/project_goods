@@ -108,12 +108,9 @@ export const SupplierOrdersToolbar: React.FC<
     Boolean(onOpenSingleMatch) &&
     query.trim().length > 0 &&
     filteredOrdersCount === 1;
-  const countLabel = t(
-    isInformationTab
-      ? 'orders.kanban.ordersCount'
-      : 'orders.kanban.supplierOrdersCount',
-    { count: filteredOrdersCount },
-  );
+  const countLabel = t('orders.kanban.ordersCount', {
+    count: filteredOrdersCount,
+  });
   const countChip = canOpenSingleMatch ? (
     <button
       type='button'

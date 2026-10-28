@@ -757,7 +757,7 @@ describe('SupplierOrdersToolbar', () => {
   const toolbarProps: SupplierOrdersToolbarProps = {
     activeTab: 'supplierOrders',
     activeFiltersCount: 0,
-    filteredOrdersCount: 7,
+    filteredOrdersCount: 308,
     isColumnsMenuOpen: false,
     isFilterBarOpen: false,
     isInformationTab: false,
@@ -780,10 +780,10 @@ describe('SupplierOrdersToolbar', () => {
     onResetColumns: vi.fn(),
   };
 
-  it('shows the supplier orders count left of Filter on the supplier orders tab', () => {
+  it('shows the Orders count left of Filter on the supplier orders tab', () => {
     render(<SupplierOrdersToolbar {...toolbarProps} />);
 
-    const chip = screen.getByLabelText('Supplier orders: 7');
+    const chip = screen.getByLabelText('Orders: 308');
     const filterButton = screen.getByRole('button', { name: /^filter/i });
     expect(chip.tagName).toBe('SPAN');
     expect(

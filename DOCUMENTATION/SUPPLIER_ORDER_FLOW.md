@@ -14,7 +14,7 @@ Extracted from [ORDER_FLOW.md](./ORDER_FLOW.md) for focused maintenance. Covers 
 
 ## Toolbar and filter panel
 
-- Toolbar pattern matches Orders/Sales: left pagination, then the count chip `Supplier orders: N` / `Замовлень постачальникам: N` (filtered total across all pages; on a unique search match the chip replaces the pager and opens the match), **Filter** (badge = applied drawer filters), columns gear + **Reset columns**, star, search; right `Order from supplier`.
+- Toolbar pattern matches Orders/Sales: left pagination, then the count chip `Orders: N` / `Замовлень: N` (e.g. `Orders: 308`) (filtered total across all pages; on a unique search match the chip replaces the pager and opens the match), **Filter** (badge = applied drawer filters), columns gear + **Reset columns**, star, search; right `Order from supplier`.
 - `Supplier Order` + `Information` tabs require `supplierOrders.view` or `supplierOrders.manage`.
 - `Order from supplier` requires `supplierOrders.manage`.
 - Filter drawer (draft → Apply / Clear): order statuses, payment statuses (multi; empty = all), supplier, created by, product, order number, date from/to, date field (`delivery` default or `created`).
@@ -22,7 +22,7 @@ Extracted from [ORDER_FLOW.md](./ORDER_FLOW.md) for focused maintenance. Covers 
 - Removable chips under the toolbar cover statuses, payment, supplier, created by, product, number, dates, date-field, search query, and starred.
 - Toolbar search is live (number, product, supplier, created by, note). Enter / count chip opens the unique match.
 - Starred-only is a live toolbar toggle. Column visibility persists in `project-goods.supplier-orders-columns`.
-- Information tab uses the same applied filters. Gear, star, search, and create stay hidden. Its chip keeps the `Orders: N` label and replaces the pager.
+- Information tab uses the same applied filters. Gear, star, search, and create stay hidden. Its chip uses the same `Orders: N` label and replaces the pager.
 - Count chip rules shared with Orders/Sales/Kanban: [ORDER_FLOW.md](./ORDER_FLOW.md#toolbar-record-count-chip-2026-10-28).
 
 ## Table columns (gear)

@@ -93,10 +93,10 @@ The Orders, Sales, and Supplier Order tabs show the same count chip as the Kanba
 | Kanban | `Orders: N` | `Замовлень: N` | Cards on the board ([REPAIR_KANBAN_SPEC.md](./REPAIR_KANBAN_SPEC.md#toolbar-kanban-only)) |
 | Orders | `Orders: N` | `Замовлень: N` | `total` from `GET /sales` for the tab with search + applied filters + starred (all pages, not just the current page) |
 | Sales | `Sales: N` | `Продажів: N` | Same as Orders, for the Sales tab |
-| Supplier Order | `Supplier orders: N` | `Замовлень постачальникам: N` | Supplier orders after search + applied filters + starred (all pages) |
+| Supplier Order | `Orders: N` | `Замовлень: N` | Supplier orders after search + applied filters + starred (all pages) |
 | Information (supplier) | `Orders: N` | `Замовлень: N` | Unchanged: chip replaces the pager |
 
-- i18n keys: `orders.kanban.ordersCount`, `orders.kanban.salesCount`, `orders.kanban.supplierOrdersCount` (`en.json` / `uk.json`).
+- i18n keys: `orders.kanban.ordersCount`, `orders.kanban.salesCount` (`en.json` / `uk.json`). Supplier Order reuses `orders.kanban.ordersCount`.
 - The chip is a static label. When the search field is non-empty and `N === 1`, it becomes a button that opens the single match, and the pager is hidden (same as before).
 - Components: `OrdersWorkspaceListHeader.tsx` (Orders / Kanban / Sales), `SupplierOrdersToolbar` in `SupplierOrdersWorkspaceSections.tsx` (Supplier Order / Information).
 

@@ -42,7 +42,7 @@ Hidden (no column): `issued`, `issuedWithoutRepair`, `clientRejected`, `notPicke
 
 - Count label `Orders: N` / `Замовлень: N` (no pagination arrows). `N` is the number of cards currently shown on the board: search + toolbar filters, summed across visible columns. Hidden statuses (`issued`, `issuedWithoutRepair`, `clientRejected`, `notPickedUp`) are excluded.
 - When the search field is non-empty and `N === 1`, the count is a button: click (or Enter/Space) opens that order the same way as clicking the Kanban card. The same single-search open applies on the Orders list tab (the left count / `Orders: 1` chip). Empty search + one visible card stays a static label.
-- The same chip style is reused on the Orders, Sales, and Supplier Order tabs (after the pager, left of Filter) with `Orders: N`, `Sales: N`, `Supplier orders: N`. See [ORDER_FLOW.md](./ORDER_FLOW.md#toolbar-record-count-chip-2026-10-28).
+- The same chip style is reused on the Orders, Sales, and Supplier Order tabs (after the pager, left of Filter) with `Orders: N` (Orders and Supplier Order) and `Sales: N` (Sales). See [ORDER_FLOW.md](./ORDER_FLOW.md#toolbar-record-count-chip-2026-10-28).
 - Search + favorites star.
 - Simplified Filter panel fields: **Master** ([multi-choice menu](#master-filter-kanban-toolbar-only)), **Date from/to** (+ inline **Save filter** after Date to).
 - **Saved filters** reuse the same per-employee Orders saved-filter API (`scope=orders`, `tab=kanban`): list / save drawer / delete. Applying a saved Kanban filter runs `toKanbanFilters`, including the legacy `assigneeId` migration below.
@@ -242,4 +242,4 @@ Shared parking status for repair orders and product sales. On Kanban it is the l
 - 2026-09-20: Added within-column card up/down reordering (drag-and-drop + Up/Down buttons) persisting via `kanbanRank`.
 - 2026-10-10: Added open status `pendingApproval` (EN Pending approval / UK На Узгодженні) as the column after `diagnostics`. Moved `clientApproved` to sit before `waitingParts` on the board and in the Home funnel. Same drop permission as `diagnostics`. Card stays editable.
 - 2026-10-17: Kanban master filter is a multi-choice menu: All, Without master (`master` null or missing), and any set of coworkers (`masterIds`). Checked rows are a union, each row has its own chip, and the choice is applied on `GET /sales`. Orders and Sales stay on a single `assigneeId`. See [Master filter](#master-filter-kanban-toolbar-only).
-- 2026-10-28: Kanban count chip reused on Orders (`Orders: N`), Sales (`Sales: N`), and Supplier Order (`Supplier orders: N`) toolbars, left of Filter.
+- 2026-10-28: Kanban count chip reused on Orders (`Orders: N`), Sales (`Sales: N`), and Supplier Order (`Orders: N`) toolbars, left of Filter.
