@@ -262,6 +262,12 @@ Canonical UI for `Serials x/y` → `SerialBindModal` on **opened sale and repair
 - This modal does **not** show Latest/Reserved badges, serial copy icons, or print checkboxes (those stay on product-model §4.4).
 - Wiring: `SerialBindModal` receives `supplierOrders` + `onOpenSupplierOrder` from `OrderDetailLineItemsPanel` (same callback the product-model modal uses).
 - Tests: `SerialBindModal.test.tsx` (price, empty `—`, copy without select, click without select); `OrderDetailCard.test.tsx` (number click opens existing supplier-order modal; bind dialog remains).
+- Height and scrolling rules (`.serial-bind-modal`):
+  1. Available-serial list height is sized to its content, capped at 220px including the title line. One serial stays one row. The list scrolls inside itself when content exceeds 220px.
+  2. The parent modal body (`.catalog-edit-body`) is a column flex (`min-height: 0; overflow-y: auto`) and does not shrink the list below content size (`flex: 0 0 auto`). On a short screen, the modal body scrolls.
+  3. Dialog layout uses a three-row grid (`grid-template-rows: auto minmax(0, 1fr) auto`). The dialog header and the Order / Cancel / Save footer stay on screen outside the body scroller.
+  4. Wheel and touch over the available-serial list never scroll the modal body (`overscroll-behavior: contain`), including when the list does not overflow and when it is already at an end.
+  5. Short-screen floor guarantee: at least the title line plus two full serial rows, or two stacked candidate cards under 640px (where titles are hidden and add no height). If two cards are taller than 220px, the 220px cap wins.
 
 ### 4.4) Product Model Detail Modal
 
