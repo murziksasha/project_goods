@@ -528,6 +528,25 @@
   height: 1px;
 }
 
+/* Desktop fine pointer: the fixed bar is the only horizontal scrollbar.
+   Overflow stays so wheel, trackpad, and the fixed bar still scroll the table.
+   Native bar stays when the fixed bar is hidden (≤1024px, coarse pointer, or opt-out). */
+@media (min-width: 1025px) and (not (pointer: coarse)) {
+  .catalog-table-wrap:not([data-global-scrollbar='off']),
+  .orders-table-wrap:not([data-global-scrollbar='off']),
+  .finance-table-wrap:not([data-global-scrollbar='off']) {
+    scrollbar-width: none;
+  }
+
+  .catalog-table-wrap:not([data-global-scrollbar='off'])::-webkit-scrollbar,
+  .orders-table-wrap:not([data-global-scrollbar='off'])::-webkit-scrollbar,
+  .finance-table-wrap:not([data-global-scrollbar='off'])::-webkit-scrollbar {
+    height: 0;
+    width: 0;
+    display: none;
+  }
+}
+
 .receipt-payment-status {
   display: inline-flex;
   align-items: center;

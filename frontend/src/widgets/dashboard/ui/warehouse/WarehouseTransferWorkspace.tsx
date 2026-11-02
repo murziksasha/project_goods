@@ -10,6 +10,12 @@ import type {
   WarehouseLocation,
   WarehouseItem,
 } from '../../model/warehouse-panel';
+import {
+  classifyTransferProducts,
+  type WarehouseBatchMode,
+} from '../../model/warehouse-batch-actions';
+
+const emptyMark = '—';
 
 const locationLabel = (
   warehouseName?: string,
@@ -31,6 +37,9 @@ export interface TransferWorkspaceProps {
   isSaving: boolean;
   onFormChange: Dispatch<SetStateAction<TransferFormState>>;
   onSubmit: () => void;
+  batchMode?: WarehouseBatchMode | null;
+  batchProducts?: Product[];
+  onRemoveBatchItem?: (product: Product) => void;
 }
 
 export const TransferWorkspace: React.FC<TransferWorkspaceProps> = ({
@@ -45,42 +54,95 @@ export const TransferWorkspace: React.FC<TransferWorkspaceProps> = ({
   isSaving,
   onFormChange,
   onSubmit,
+  batchMode,
+  batchProducts,
+  onRemoveBatchItem,
 }) => {
   const { t } = useTranslation();
+  const isBatch = Boolean(batchMode);
+  const activeBatchList = useMemo(
+    () => batchProducts ?? [],
+    [batchProducts],
+  );
+
+  const classification = useMemo(
+    () =>
+      classifyTransferProducts(
+        activeBatchList,
+        productWarehouseMetaById,
+        form.toWarehouseId,
+        form.toLocationId,
+      ),
+    [
+      activeBatchList,
+      productWarehouseMetaById,
+      form.toWarehouseId,
+      form.toLocationId,
+    ],
+  );
+
+  const stayIdSet = useMemo(
+    () => new Set(classification.stays.map((p) => p.id)),
+    [classification.stays],
+  );
+
   const currentMeta = selectedProduct
     ? productWarehouseMetaById[selectedProduct.id]
     : undefined;
+  const firstBatchMeta =
+    isBatch && activeBatchList.length > 0
+      ? productWarehouseMetaById[activeBatchList[0].id]
+      : undefined;
+
   const targetWarehouse = warehouses.find(
     (warehouse) => warehouse.id === form.toWarehouseId,
   );
   const targetLocation = targetLocations.find(
     (location) => location.id === form.toLocationId,
   );
-  const fromLabel = locationLabel(
-    currentMeta?.warehouseName,
-    currentMeta?.locationName,
-  );
+  const fromLabel = isBatch
+    ? locationLabel(
+        firstBatchMeta?.warehouseName,
+        firstBatchMeta?.locationName,
+      )
+    : locationLabel(
+        currentMeta?.warehouseName,
+        currentMeta?.locationName,
+      );
   const toLabel = locationLabel(
     targetWarehouse?.name,
     targetLocation?.name,
   );
   const isSameLocation =
+    !isBatch &&
     Boolean(selectedProduct) &&
     currentMeta?.warehouseId === form.toWarehouseId &&
     currentMeta?.locationId === form.toLocationId;
-  const canSubmit =
-    Boolean(selectedProduct) &&
-    Boolean(form.toWarehouseId) &&
-    Boolean(form.toLocationId) &&
-    !isSameLocation &&
-    !isSaving;
-  const submitHint = !selectedProduct
-    ? t('warehouse.transfer.warnings.selectProduct')
-    : !form.toWarehouseId || !form.toLocationId
+
+  const canSubmit = isBatch
+    ? Boolean(form.toWarehouseId) &&
+      Boolean(form.toLocationId) &&
+      classification.movers.length > 0 &&
+      !isSaving
+    : Boolean(selectedProduct) &&
+      Boolean(form.toWarehouseId) &&
+      Boolean(form.toLocationId) &&
+      !isSameLocation &&
+      !isSaving;
+
+  const submitHint = isBatch
+    ? !form.toWarehouseId || !form.toLocationId
       ? t('warehouse.messages.errors.selectTarget')
-      : isSameLocation
+      : classification.movers.length === 0 && activeBatchList.length > 0
         ? t('warehouse.messages.errors.alreadyInLocation')
-        : null;
+        : null
+    : !selectedProduct
+      ? t('warehouse.transfer.warnings.selectProduct')
+      : !form.toWarehouseId || !form.toLocationId
+        ? t('warehouse.messages.errors.selectTarget')
+        : isSameLocation
+          ? t('warehouse.messages.errors.alreadyInLocation')
+          : null;
 
   const destinationShares = useMemo(() => {
     if (history.length === 0) return [];
@@ -174,23 +236,25 @@ export const TransferWorkspace: React.FC<TransferWorkspaceProps> = ({
             </div>
           </div>
 
-          <label className='orders-filter-field'>
-            <span>{t('warehouse.transfer.product')}</span>
-            <select
-              value={form.productId}
-              onChange={(event) => selectProduct(event.target.value)}
-              disabled={isSaving}
-            >
-              <option value=''>
-                {t('warehouse.transfer.selectStockItem')}
-              </option>
-              {selectableProducts.map((product) => (
-                <option key={product.id} value={product.id}>
-                  {`${product.name} / ${product.serialNumber || product.article}`}
+          {!isBatch ? (
+            <label className='orders-filter-field'>
+              <span>{t('warehouse.transfer.product')}</span>
+              <select
+                value={form.productId}
+                onChange={(event) => selectProduct(event.target.value)}
+                disabled={isSaving}
+              >
+                <option value=''>
+                  {t('warehouse.transfer.selectStockItem')}
                 </option>
-              ))}
-            </select>
-          </label>
+                {selectableProducts.map((product) => (
+                  <option key={product.id} value={product.id}>
+                    {`${product.name} / ${product.serialNumber || product.article}`}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : null}
 
           <label className='orders-filter-field'>
             <span>{t('warehouse.transfer.targetWarehouse')}</span>
@@ -284,7 +348,11 @@ export const TransferWorkspace: React.FC<TransferWorkspaceProps> = ({
             >
               {isSaving
                 ? t('warehouse.transfer.transferring')
-                : t('warehouse.transfer.transferStock')}
+                : isBatch
+                  ? t('warehouse.transfer.transferCount', {
+                      count: classification.movers.length,
+                    })
+                  : t('warehouse.transfer.transferStock')}
             </button>
           </div>
 
@@ -320,9 +388,93 @@ export const TransferWorkspace: React.FC<TransferWorkspaceProps> = ({
 
         <div className='warehouse-transfer-list-card'>
           <h3 className='warehouse-transfer-section-title'>
-            {t('warehouse.transfer.stockTable.title')}
+            {isBatch
+              ? t('warehouse.transfer.batchStockTitle')
+              : t('warehouse.transfer.stockTable.title')}
           </h3>
-          {products.length === 0 ? (
+          {isBatch ? (
+            activeBatchList.length === 0 ? (
+              <p className='empty-state warehouse-transfer-empty'>
+                {t('warehouse.transfer.batchEmpty')}
+              </p>
+            ) : (
+              <div
+                className='catalog-table-wrap warehouse-transfer-list'
+                data-global-scrollbar='off'
+              >
+                <table className='catalog-table table-card-stack'>
+                  <thead>
+                    <tr>
+                      <th>
+                        {t('warehouse.transfer.stockTable.columns.product')}
+                      </th>
+                      <th>
+                        {t('warehouse.transfer.stockTable.columns.serial')}
+                      </th>
+                      <th>
+                        {t('warehouse.transfer.stockTable.columns.warehouse')}
+                      </th>
+                      <th>
+                        {t('warehouse.transfer.stockTable.columns.location')}
+                      </th>
+                      <th>
+                        {t('warehouse.transfer.stays')}
+                      </th>
+                      <th>
+                        {t('warehouse.tables.stock.columns.action')}
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {activeBatchList.map((product) => {
+                      const meta = productWarehouseMetaById[product.id];
+                      const isStay = stayIdSet.has(product.id);
+                      return (
+                        <tr key={product.id} className='warehouse-transfer-row'>
+                          <td>
+                            <span
+                              className='warehouse-cell-truncate'
+                              title={product.name}
+                            >
+                              {product.name}
+                            </span>
+                          </td>
+                          <td>
+                            <span
+                              className='warehouse-cell-truncate'
+                              title={product.serialNumber}
+                            >
+                              {product.serialNumber || emptyMark}
+                            </span>
+                          </td>
+                          <td>{meta?.warehouseName || emptyMark}</td>
+                          <td>{meta?.locationName || emptyMark}</td>
+                          <td>
+                            {isStay ? (
+                              <span className='warehouse-data-badge warehouse-data-badge-stay'>
+                                {t('warehouse.transfer.stays')}
+                              </span>
+                            ) : (
+                              emptyMark
+                            )}
+                          </td>
+                          <td>
+                            <button
+                              type='button'
+                              className='settings-link-button warehouse-transfer-remove-button'
+                              onClick={() => onRemoveBatchItem?.(product)}
+                            >
+                              {t('warehouse.transfer.remove')}
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )
+          ) : products.length === 0 ? (
             <p className='empty-state warehouse-transfer-empty'>
               {t('warehouse.transfer.stockTable.empty')}
             </p>

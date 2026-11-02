@@ -141,12 +141,15 @@ export const SupplierOrdersToolbar: React.FC<
           {isInformationTab || canOpenSingleMatch ? (
             countChip
           ) : (
-            <CompactPaginationPanel
-              totalItems={filteredOrdersCount}
-              page={page}
-              pageSize={pageSize}
-              onPageChange={onPageChange}
-            />
+            <>
+              <CompactPaginationPanel
+                totalItems={filteredOrdersCount}
+                page={page}
+                pageSize={pageSize}
+                onPageChange={onPageChange}
+              />
+              {countChip}
+            </>
           )}
           <button
             type='button'

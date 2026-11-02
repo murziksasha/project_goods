@@ -684,6 +684,7 @@
     },
     "kanban": {
       "ordersCount": "Замовлень: {{count}}",
+      "salesCount": "Продажів: {{count}}",
       "dragHandle": "Перетягнути в іншу колонку",
       "move": "Перемістити",
       "moveTo": "Перемістити в колонку",
@@ -1986,7 +1987,14 @@
       "phone": "Телефон",
       "saving": "Збереження...",
       "productTitle": "Товар",
-      "productName": "Назва товару"
+      "productName": "Назва товару",
+      "deleteGroup": {
+        "title": "Видалення одиниць товару",
+        "confirmQuestion": "Видалити {{count}} од. товару {{name}}?",
+        "andMore": "та ще {{count}}",
+        "blockedNotice": "Наступні одиниці мають історію продажів і не будуть видалені:",
+        "delete": "Видалити"
+      }
     },
     "information": {
       "sectionLabel": "Аналітика складу",
@@ -2176,7 +2184,15 @@
           "note": "Примітка"
         },
         "empty": "У цій сесії переміщень немає."
-      }
+      },
+      "transferCount": "Перемістити {{count}}",
+      "stays": "Залишається",
+      "remove": "Видалити",
+      "summarySuccess": "Успішно переміщено {{count}} од.",
+      "summaryPartialError": "Переміщено {{movedCount}} од. Помилка переміщення: {{failedSerials}}.",
+      "summaryAllFailed": "Помилка переміщення: {{failedSerials}}.",
+      "batchEmpty": "Немає видимих одиниць партії для поточного фільтра.",
+      "batchStockTitle": "Залишки партії для переміщення"
     },
     "print": {
       "serialNumbersTitle": "Серійні номери",
@@ -2283,7 +2299,9 @@
         "selectTarget": "Оберіть цільовий склад і локацію.",
         "inactiveWarehouse": "Цільовий склад неактивний.",
         "alreadyInLocation": "Товар уже знаходиться в обраній локації.",
-        "failedCreateReceiptOrder": "Не вдалося створити прийом."
+        "failedCreateReceiptOrder": "Не вдалося створити прийом.",
+        "allBlockedSalesHistory": "Неможливо видалити вибрані одиниці, оскільки вони мають історію продажів: {{serials}}.",
+        "batchDeleteFailed": "Не вдалося видалити: {{failedSerials}} (видалено {{deletedCount}})."
       },
       "success": {
         "serviceCenterSaved": "Сервісний центр збережено.",
@@ -2291,7 +2309,8 @@
         "administratorSaved": "Налаштування адміністратора збережено.",
         "productTransferred": "Товар переміщено.",
         "receiptOrderUpdated": "Прийом оновлено.",
-        "receiptOrderCreated": "Прийом створено."
+        "receiptOrderCreated": "Прийом створено.",
+        "batchDeleted": "Видалено {{count}} од."
       }
     },
     "emptySection": "Оберіть розділ складу.",

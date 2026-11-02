@@ -146,6 +146,48 @@ describe('GlobalHorizontalScrollbar', () => {
     expect(table.scrollLeft).toBe(320);
   });
 
+  it('holds guard on table scroll so bar scroll in same turn does not change table, then updates after frame', () => {
+    const rafQueue: Array<(time: number) => void> = [];
+    mockRaf.mockImplementation((cb: FrameRequestCallback) => {
+      rafQueue.push(cb);
+      return 1;
+    });
+
+    const table = createTableWrap('orders-table-wrap', {
+      left: 10,
+      width: 400,
+      scrollWidth: 1000,
+      clientWidth: 400,
+      scrollLeft: 0,
+    });
+
+    const { container } = render(<GlobalHorizontalScrollbar />);
+    const bar = container.querySelector(
+      '.global-fixed-h-scrollbar',
+    ) as HTMLElement;
+
+    // Flush initial scheduleSync
+    rafQueue.shift()?.(0);
+
+    // Table scrolls -> scrollbar updates and guard is held until next frame
+    table.scrollLeft = 150;
+    fireEvent.scroll(table);
+    expect(bar.scrollLeft).toBe(150);
+
+    // Fixed bar scrolls in same turn -> table does NOT change
+    bar.scrollLeft = 280;
+    fireEvent.scroll(bar);
+    expect(table.scrollLeft).toBe(150);
+
+    // Next animation frame fires -> guard clears
+    expect(rafQueue.length).toBeGreaterThan(0);
+    rafQueue.shift()?.(16);
+
+    // After frame, fixed bar scroll updates table
+    bar.scrollLeft = 320;
+    fireEvent.scroll(bar);
+    expect(table.scrollLeft).toBe(320);
+  });
   it('ignores table wrap when data-global-scrollbar="off"', () => {
     createTableWrap('catalog-table-wrap', {
       globalScrollbar: 'off',

@@ -79,6 +79,36 @@ describe('OrdersWorkspaceListHeader', () => {
     expect(screen.getByLabelText('Orders: 18').tagName).toBe('SPAN');
   });
 
+  it('shows the orders count next to pagination, left of Filter, on the orders tab', () => {
+    render(
+      <OrdersWorkspaceListHeader
+        {...baseProps}
+        activeTab="orders"
+        filteredOrdersCount={33}
+      />,
+    );
+
+    const chip = screen.getByLabelText('Orders: 33');
+    const filterButton = screen.getByRole('button', { name: /^filter/i });
+    expect(chip.tagName).toBe('SPAN');
+    expect(
+      chip.compareDocumentPosition(filterButton) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  it('shows the sales count on the sales tab', () => {
+    render(
+      <OrdersWorkspaceListHeader
+        {...baseProps}
+        activeTab="sales"
+        filteredOrdersCount={12}
+      />,
+    );
+
+    expect(screen.getByLabelText('Sales: 12')).toBeInTheDocument();
+  });
+
   it('makes the orders count clickable when search matches one order', () => {
     const onOpenSingleMatch = vi.fn();
 

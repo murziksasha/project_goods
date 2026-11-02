@@ -1804,7 +1804,9 @@ export const DashboardPage: React.FC = () => {
                 onProductCancelEdit={actions.resetProductEditor}
                 onProductEdit={actions.editProduct}
                 onProductDelete={actions.deleteProduct}
+                onProductsDelete={actions.deleteProducts}
                 onProductTransfer={actions.transferProduct}
+                onProductsTransfer={actions.transferProducts}
                 onCreateSupplier={actions.createSupplierCard}
                 onUpdateSupplier={actions.updateSupplierCard}
                 onUpdateCatalogProduct={

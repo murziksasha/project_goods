@@ -57,7 +57,15 @@ import {
   buildProductWarehouseMetaById,
   filterStockProducts,
   groupStockProductsByModel,
+  getStockModelGroupId,
 } from '../../model/stock-balance';
+import {
+  classifyTransferProducts,
+  getActiveBatchProducts,
+  getSerialPreview,
+  partitionDeleteProducts,
+  type WarehouseBatchMode,
+} from '../../model/warehouse-batch-actions';
 import { buildLocationUsageByWarehouse } from '../../model/warehouse-information';
 import { ProductModelModal } from '../orders/modals/ProductModelModal';
 import { ModalShell } from './WarehouseModalShell';
@@ -131,7 +139,11 @@ export const WarehousePanel: React.FC<WarehousePanelProps> = ({
   onProductSubmit,
   onProductEdit,
   onProductDelete,
+  onProductsDelete,
+  onDeleteProducts,
   onProductTransfer,
+  onProductsTransfer,
+  onTransferProducts,
   suppliers,
   onCreateSupplier,
   onUpdateSupplier,
@@ -410,6 +422,14 @@ export const WarehousePanel: React.FC<WarehousePanelProps> = ({
   const [transferHistory, setTransferHistory] = useState<
     TransferHistoryRow[]
   >([]);
+  const [transferBatch, setTransferBatch] =
+    useState<WarehouseBatchMode | null>(null);
+  const [deleteConfirmState, setDeleteConfirmState] = useState<{
+    isOpen: boolean;
+    modelName: string;
+    deletable: Product[];
+    blocked: Product[];
+  } | null>(null);
   const persistWarehouseSettings = async (payload?: {
     serviceCenters?: ServiceCenter[];
     warehouses?: WarehouseItem[];
@@ -832,11 +852,11 @@ export const WarehousePanel: React.FC<WarehousePanelProps> = ({
   useEffect(() => {
     setSelectedStockProductIds((current) => {
       const next = current.filter((productId) =>
-        filteredProducts.some((product) => product.id === productId),
+        products.some((product) => product.id === productId),
       );
       return next.length === current.length ? current : next;
     });
-  }, [filteredProducts]);
+  }, [products]);
   const paginatedTransferProducts = useMemo(() => {
     const start = (currentPage - 1) * transferPageSize;
     return filteredProducts.slice(start, start + transferPageSize);
@@ -848,6 +868,36 @@ export const WarehousePanel: React.FC<WarehousePanelProps> = ({
       ) ?? null,
     [filteredProducts, transferForm.productId],
   );
+  const batchResolution = useMemo(
+    () =>
+      getActiveBatchProducts(
+        transferBatch,
+        products,
+        filteredProducts,
+        selectedStockProductIds,
+      ),
+    [transferBatch, products, filteredProducts, selectedStockProductIds],
+  );
+
+  useEffect(() => {
+    if (
+      transferBatch &&
+      batchResolution.totalBatchUnitsCount === 0 &&
+      !batchResolution.isMerelyHidden
+    ) {
+      setTransferBatch(null);
+      setTransferForm({
+        productId: '',
+        toWarehouseId: '',
+        toLocationId: '',
+        note: '',
+      });
+    }
+  }, [
+    transferBatch,
+    batchResolution.totalBatchUnitsCount,
+    batchResolution.isMerelyHidden,
+  ]);
   const transferLocationOptions = useMemo(
     () =>
       locationOptionsByWarehouseId[transferForm.toWarehouseId] ?? [],
@@ -1702,6 +1752,202 @@ export const WarehousePanel: React.FC<WarehousePanelProps> = ({
     );
   };
 
+  const submitBatchTransfer = async () => {
+    const targetWarehouse = warehouses.find(
+      (warehouse) => warehouse.id === transferForm.toWarehouseId,
+    );
+    const targetLocation = targetWarehouse?.locations.find(
+      (location) => location.id === transferForm.toLocationId,
+    );
+    if (!targetWarehouse || !targetLocation) {
+      onError(i18n.t('warehouse.messages.errors.selectTarget'));
+      return;
+    }
+    if (!targetWarehouse.isActive) {
+      onError(i18n.t('warehouse.messages.errors.inactiveWarehouse'));
+      return;
+    }
+
+    const { movers } = classifyTransferProducts(
+      batchResolution.activeProducts,
+      productWarehouseMetaById,
+      targetWarehouse.id,
+      targetLocation.id,
+    );
+    if (movers.length === 0) return;
+
+    const transferHandler = onProductsTransfer ?? onTransferProducts;
+    if (!transferHandler) return;
+
+    const { moved, failed } = await transferHandler(movers, {
+      warehouseId: targetWarehouse.id,
+      locationId: targetLocation.id,
+      note: transferForm.note.trim(),
+    });
+
+    if (moved.length > 0) {
+      const newHistoryRows: TransferHistoryRow[] = moved.map((p) => {
+        const sourceMeta = productWarehouseMetaById[p.id];
+        return {
+          id: `transfer-${p.id}-${Date.now()}`,
+          productName: p.name,
+          serialNumber: p.serialNumber,
+          fromWarehouseName: sourceMeta?.warehouseName ?? '-',
+          fromLocationName: sourceMeta?.locationName ?? '-',
+          toWarehouseName: targetWarehouse.name,
+          toLocationName: targetLocation.name,
+          note: transferForm.note.trim(),
+          createdAt: new Date().toISOString(),
+          createdBy: currentEmployeeName || t('common.administrator'),
+        };
+      });
+      setTransferHistory((current) => [...newHistoryRows, ...current]);
+
+      const movedIds = new Set(moved.map((p) => p.id));
+      setSelectedStockProductIds((current) =>
+        current.filter((id) => !movedIds.has(id)),
+      );
+    }
+
+    if (failed.length > 0) {
+      const failedSerials = failed
+        .map((p) => p.serialNumber?.trim() || p.id)
+        .join(', ');
+      onError(
+        i18n.t('warehouse.transfer.summaryPartialError', {
+          failedSerials,
+          movedCount: moved.length,
+        }),
+      );
+    } else if (moved.length > 0) {
+      onSuccess(
+        i18n.t('warehouse.transfer.summarySuccess', {
+          count: moved.length,
+        }),
+      );
+    }
+
+    if (transferBatch?.type === 'unit' && moved.length > 0) {
+      setTransferBatch(null);
+      setTransferForm({
+        productId: '',
+        toWarehouseId: '',
+        toLocationId: '',
+        note: '',
+      });
+    }
+  };
+
+  const handleStockDelete = (productOrProducts: Product | Product[]) => {
+    if (!Array.isArray(productOrProducts)) {
+      onProductDelete(productOrProducts);
+      return;
+    }
+    const { deletable, blocked } = partitionDeleteProducts(
+      productOrProducts,
+      salesByProductId,
+    );
+    if (deletable.length === 0) {
+      const blockedSerials = blocked
+        .map((p) => p.serialNumber?.trim() || p.id)
+        .join(', ');
+      onError(
+        i18n.t('warehouse.messages.errors.allBlockedSalesHistory', {
+          serials: blockedSerials,
+        }),
+      );
+      return;
+    }
+    setDeleteConfirmState({
+      isOpen: true,
+      modelName: productOrProducts[0]?.name ?? '',
+      deletable,
+      blocked,
+    });
+  };
+
+  const confirmBatchDelete = async () => {
+    if (!deleteConfirmState) return;
+    const { deletable } = deleteConfirmState;
+    const deleteHandler = onProductsDelete ?? onDeleteProducts;
+    if (!deleteHandler) return;
+
+    try {
+      const { deleted, failed } = await deleteHandler(deletable);
+      const deletedIds = new Set(deleted.map((p) => p.id));
+      setSelectedStockProductIds((current) =>
+        current.filter((id) => !deletedIds.has(id)),
+      );
+
+      if (failed.length > 0) {
+        const failedSerials = failed
+          .map((p) => p.serialNumber?.trim() || p.id)
+          .join(', ');
+        onError(
+          i18n.t('warehouse.messages.errors.batchDeleteFailed', {
+            failedSerials,
+            deletedCount: deleted.length,
+          }),
+        );
+      } else if (deleted.length > 0) {
+        onSuccess(
+          i18n.t('warehouse.messages.success.batchDeleted', {
+            count: deleted.length,
+          }),
+        );
+      }
+    } finally {
+      setDeleteConfirmState(null);
+    }
+  };
+
+  const handleStockTransfer = (productOrProducts: Product | Product[]) => {
+    if (!Array.isArray(productOrProducts)) {
+      setTransferBatch({ type: 'unit', productId: productOrProducts.id });
+      setTransferForm({
+        productId: productOrProducts.id,
+        toWarehouseId: '',
+        toLocationId: '',
+        note: '',
+      });
+      setActiveTab('transfers');
+      return;
+    }
+
+    if (productOrProducts.length === 0) return;
+    const groupId = getStockModelGroupId(productOrProducts[0]);
+    const isSameGroup =
+      transferBatch?.type === 'group' && transferBatch.groupId === groupId;
+
+    setTransferBatch({ type: 'group', groupId });
+    setActiveTab('transfers');
+
+    if (!isSameGroup) {
+      setTransferForm({
+        productId: '',
+        toWarehouseId: '',
+        toLocationId: '',
+        note: '',
+      });
+    }
+  };
+
+  const handleRemoveBatchItem = (product: Product) => {
+    if (transferBatch?.type === 'unit') {
+      setTransferBatch(null);
+      setTransferForm({
+        productId: '',
+        toWarehouseId: '',
+        toLocationId: '',
+        note: '',
+      });
+      return;
+    }
+    setSelectedStockProductIds((current) =>
+      current.filter((id) => id !== product.id),
+    );
+  };
+
   return (
     <section className='panel warehouse-panel'>
       <div
@@ -2275,14 +2521,10 @@ export const WarehousePanel: React.FC<WarehousePanelProps> = ({
                 printProduct: product,
               })
             }
-            onDelete={onProductDelete}
-            onTransfer={(product) => {
-              setActiveTab('transfers');
-              setTransferForm((current) => ({
-                ...current,
-                productId: product.id,
-              }));
-            }}
+            onDelete={handleStockDelete}
+            onDeleteGroup={handleStockDelete}
+            onTransfer={handleStockTransfer}
+            onTransferGroup={handleStockTransfer}
             onOpenSaleCard={onOpenSaleCard}
             onOpenSupplierOrder={openSupplierOrderById}
           />
@@ -2425,7 +2667,10 @@ export const WarehousePanel: React.FC<WarehousePanelProps> = ({
           history={transferHistory}
           isSaving={isProductSaving}
           onFormChange={setTransferForm}
-          onSubmit={submitTransfer}
+          onSubmit={transferBatch ? submitBatchTransfer : submitTransfer}
+          batchMode={transferBatch}
+          batchProducts={batchResolution.activeProducts}
+          onRemoveBatchItem={handleRemoveBatchItem}
         />
       ) : (
         <p className='empty-state'>{t('warehouse.emptySection')}</p>
@@ -2451,6 +2696,65 @@ export const WarehousePanel: React.FC<WarehousePanelProps> = ({
         onClose={() => setWarehouseModalId(null)}
         onSubmit={saveWarehouse}
       />
+      {deleteConfirmState?.isOpen ? (
+        <Modal
+          isOpen
+          title={t('warehouse.modals.deleteGroup.title')}
+          onClose={() => setDeleteConfirmState(null)}
+          closeLabel={t('common.close')}
+          className='warehouse-settings-modal'
+          bodyClassName='warehouse-settings-modal-body'
+          footerClassName='warehouse-settings-modal-footer'
+          showDefaultFooter
+          cancelLabel={t('common.cancel')}
+          submitLabel={t('warehouse.modals.deleteGroup.delete')}
+          onSubmit={confirmBatchDelete}
+          canSubmit={!isProductSaving}
+        >
+          <div className='warehouse-delete-group-confirm'>
+            <p>
+              {t('warehouse.modals.deleteGroup.confirmQuestion', {
+                count: deleteConfirmState.deletable.length,
+                name: deleteConfirmState.modelName,
+              })}
+            </p>
+            {(() => {
+              const { visibleSerials, remainderCount } = getSerialPreview(
+                deleteConfirmState.deletable,
+                10,
+              );
+              return (
+                <div className='warehouse-delete-group-serials'>
+                  <strong>
+                    {t('warehouse.transfer.stockTable.columns.serial')}:
+                  </strong>{' '}
+                  <span>
+                    {visibleSerials.join(', ')}
+                    {remainderCount > 0 ? (
+                      <>
+                        {' '}
+                        <em>
+                          {t('warehouse.modals.deleteGroup.andMore', {
+                            count: remainderCount,
+                          })}
+                        </em>
+                      </>
+                    ) : null}
+                  </span>
+                </div>
+              );
+            })()}
+            {deleteConfirmState.blocked.length > 0 ? (
+              <p className='warehouse-transfer-hint warehouse-transfer-hint-warn'>
+                {t('warehouse.modals.deleteGroup.blockedNotice')}{' '}
+                {deleteConfirmState.blocked
+                  .map((p) => p.serialNumber?.trim() || p.id)
+                  .join(', ')}
+              </p>
+            ) : null}
+          </div>
+        </Modal>
+      ) : null}
       {isReceiptModalOpen ? (
         <ModalShell
           title={t('warehouse.modals.createReceiptOrder')}

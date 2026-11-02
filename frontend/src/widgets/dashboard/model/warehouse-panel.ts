@@ -232,6 +232,12 @@ export type WarehousePanelProps = {
   onProductCancelEdit: () => void;
   onProductEdit: (product: Product) => void;
   onProductDelete: (product: Product) => void;
+  onProductsDelete?: (
+    products: Product[],
+  ) => Promise<{ deleted: Product[]; failed: Product[] }>;
+  onDeleteProducts?: (
+    products: Product[],
+  ) => Promise<{ deleted: Product[]; failed: Product[] }>;
   onProductTransfer: (
     product: Product,
     target: {
@@ -240,6 +246,22 @@ export type WarehousePanelProps = {
       note: string;
     },
   ) => Promise<boolean>;
+  onProductsTransfer?: (
+    products: Product[],
+    target: {
+      warehouseId: string;
+      locationId: string;
+      note: string;
+    },
+  ) => Promise<{ moved: Product[]; failed: Product[] }>;
+  onTransferProducts?: (
+    products: Product[],
+    target: {
+      warehouseId: string;
+      locationId: string;
+      note: string;
+    },
+  ) => Promise<{ moved: Product[]; failed: Product[] }>;
   suppliers: Supplier[];
   onCreateSupplier: (payload: SupplierFormValues) => Promise<boolean>;
   onUpdateSupplier: (

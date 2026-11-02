@@ -13,6 +13,9 @@ import {
 } from './orders-workspace-shared';
 import { OrdersWorkspaceTabList } from './OrdersWorkspaceTabList';
 
+const getOrdersCountLabelKey = (tab: OrdersTab) =>
+  tab === 'sales' ? 'orders.kanban.salesCount' : 'orders.kanban.ordersCount';
+
 export interface OrdersWorkspaceListHeaderProps {
   activeTab: OrdersTab;
   visibleTabs: OrdersTab[];
@@ -75,7 +78,7 @@ export const OrdersWorkspaceListHeader: React.FC<OrdersWorkspaceListHeaderProps>
     Boolean(onOpenSingleMatch) &&
     searchValue.trim().length > 0 &&
     filteredOrdersCount === 1;
-  const countLabel = t('orders.kanban.ordersCount', {
+  const countLabel = t(getOrdersCountLabelKey(activeTab), {
     count: filteredOrdersCount,
   });
   const countChip = canOpenSingleMatch ? (
@@ -105,17 +108,18 @@ export const OrdersWorkspaceListHeader: React.FC<OrdersWorkspaceListHeaderProps>
 
       <div className="orders-toolbar">
         <div className="orders-toolbar-left">
-          {activeTab === 'kanban' ? (
-            countChip
-          ) : canOpenSingleMatch ? (
+          {activeTab === 'kanban' || canOpenSingleMatch ? (
             countChip
           ) : (
-            <CompactPaginationPanel
-              totalItems={filteredOrdersCount}
-              page={currentPage}
-              pageSize={currentPageSize}
-              onPageChange={onPageChange}
-            />
+            <>
+              <CompactPaginationPanel
+                totalItems={filteredOrdersCount}
+                page={currentPage}
+                pageSize={currentPageSize}
+                onPageChange={onPageChange}
+              />
+              {countChip}
+            </>
           )}
           <button
             type="button"
