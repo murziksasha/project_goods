@@ -1028,7 +1028,7 @@ describe('order status menu position', () => {
 });
 
 describe('sale list extra-lines dropdown items', () => {
-  it('maps every line item with serial fallback and quantity in price', () => {
+  it('maps current rows without snapshot serial fallback and keeps quantity in price', () => {
     const saleRow = repairSale({
       kind: 'sale',
       product: {
@@ -1073,7 +1073,7 @@ describe('sale list extra-lines dropdown items', () => {
     expect(items).toHaveLength(3);
     expect(items[0]).toMatchObject({
       name: 'Wireless mouse M22',
-      serial: 'SNAP-1',
+      serial: EMPTY_LINE_ITEM_SERIAL,
       price: 500,
       quantity: 1,
     });
@@ -1086,6 +1086,7 @@ describe('sale list extra-lines dropdown items', () => {
     expect(items[2].serial).toBe('SN-9');
     expect(formatSaleListDropdownPrice(items[0])).not.toContain('×');
     expect(formatSaleListDropdownPrice(items[1])).toContain('× 2');
+    expect(getPrimaryItemExtraLineCount(saleRow)).toBe(2);
   });
 });
 
@@ -1197,7 +1198,7 @@ describe('orders list dates and columns', () => {
       product: {
         id: 'product-1',
         article: 'ART-1',
-        name: 'Wireless mouse M22',
+        name: 'Removed diagnostics',
         serialNumber: 'S000003',
       },
     });
@@ -1205,9 +1206,19 @@ describe('orders list dates and columns', () => {
       'Wireless mouse M22',
     );
     expect(getPrimaryItemCellContent(saleRow, 'orders')).toBe(
-      'Wireless mouse M22',
+      'Removed diagnostics',
     );
     expect(getPrimaryItemExtraLineCount(saleRow)).toBe(1);
+  });
+
+  it('shows a localized empty Sales label without changing the repair label', async () => {
+    const emptySale = repairSale({ kind: 'sale', lineItems: [] });
+    expect(getPrimaryItemCellContent(emptySale, 'sales')).toBe('No items');
+    expect(getPrimaryItemCellContent(emptySale, 'orders')).toBe('Repair device');
+    expect(getPrimaryItemExtraLineCount(emptySale)).toBe(0);
+    expect(getSaleListDropdownItems(emptySale)).toEqual([]);
+    await i18n.changeLanguage('uk');
+    expect(getPrimaryItemCellContent(emptySale, 'sales')).toBe('Немає позицій');
   });
 });
 

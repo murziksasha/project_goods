@@ -201,6 +201,7 @@ export const CreateOrderCard: React.FC<CreateOrderCardProps> = ({
   const [selectedClient, setSelectedClient] = useState<Client | null>(
     null,
   );
+  const syncedClientStampRef = useRef<string | null>(null);
   const [clientHistory, setClientHistory] =
     useState<ClientHistory | null>(null);
   const [clientSuggestions, setClientSuggestions] = useState<
@@ -584,6 +585,36 @@ export const CreateOrderCard: React.FC<CreateOrderCardProps> = ({
       window.clearTimeout(timeoutId);
     };
   }, [clientLookupQuery, clients, shouldShowClientSuggestions]);
+
+  useEffect(() => {
+    if (!selectedClientId) return;
+    const fresh = clients.find((item) => item.id === selectedClientId);
+    if (!fresh) return;
+    setSelectedClient((current) => {
+      if (
+        !current ||
+        current.id !== fresh.id ||
+        current.updatedAt === fresh.updatedAt
+      ) {
+        return current;
+      }
+      return fresh;
+    });
+  }, [clients, selectedClientId]);
+
+  useEffect(() => {
+    if (!selectedClient) {
+      syncedClientStampRef.current = null;
+      return;
+    }
+    const stamp = `${selectedClient.id}:${selectedClient.updatedAt}`;
+    const previous = syncedClientStampRef.current;
+    if (previous === stamp) return;
+    syncedClientStampRef.current = stamp;
+    if (!previous?.startsWith(`${selectedClient.id}:`)) return;
+    setClientName(selectedClient.name);
+    setClientPhone(getPrimaryClientPhone(selectedClient));
+  }, [selectedClient]);
 
   // Auto-apply exact phone match from suggestions so that an existing client by phone
   // is preferred (even if user typed a different name). This prevents accidental

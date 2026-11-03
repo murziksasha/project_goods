@@ -34,6 +34,8 @@ cd frontend && npm run test:e2e:ui           # Playwright UI mode
 Specs:
 
 - `e2e/login-page.spec.ts` — logged-out Login / Sign in.
+- `e2e/orders-hover-copy.spec.ts` — Orders/Kanban copy controls, Sales current product/service name plus each S/N, and opened repair/sale card fields: independent hover targets, clipboard payloads, navigation, keyboard phone copy and `tel:` links, long-name containment, narrow viewport, and touch visibility.
+- `e2e/sales-current-items.spec.ts` — Regular/Rapid sale card edits update the Sales Product label, serial, raw-row count and menu without a page reload; empty sales remain clickable and removed snapshot items do not match item search.
 - `e2e/accounting-operation-modal.spec.ts` — **Confirm** (outline, stay open) and **Confirm and close** (filled); no large-amount warning.
 - `e2e/repair-kanban-master-filter.spec.ts` — Kanban master menu: several coworkers plus Without master, chips, Clear back to All, saved filter, and Orders/Sales still a single assignee. Spec: [REPAIR_KANBAN_SPEC.md](./REPAIR_KANBAN_SPEC.md#master-filter-kanban-toolbar-only).
 
@@ -41,7 +43,7 @@ Specs:
 
 - Co-located `*.test.tsx` / `*.test.ts` next to components and hooks.
 - High-value suites: `OrdersWorkspace`, `OrderDetailCard`, `CreateOrderCard`, `AccountingPanel`, `DashboardPage`.
-- Sales list `+N` extra-lines dropdown: `OrdersWorkspace.test.tsx` (toggle, contents, does not open the card); `orders-workspace-shared.test.tsx` (serial fallback, qty price, above-placement pins to the trigger). Spec: [SALE_FLOW.md → Product extra-lines dropdown](./SALE_FLOW.md#product-extra-lines-dropdown).
+- Sales list current items: `sale-product.test.ts` (current primary row, individual/combined serials, empty/missing composition, removed snapshot search, article stock-ID guard); `OrdersWorkspace.test.tsx` (Regular/Rapid labels, independent product/service-name and serial copy, text opens the sale, empty-card link without copy, current-item search and filters, `+N` toggle/contents without opening the card); `orders-workspace-shared.test.tsx` (no snapshot serial fallback, raw-row count, qty price, above-placement pins to the trigger). Spec: [SALE_FLOW.md → Sales List Columns](./SALE_FLOW.md#sales-list-columns-orders---sales).
 - Kanban master filter: `repair-kanban.test.ts` (All, one master, Without master, union, manager-created order with no master, assigned order excluded); `orders-workspace-shared.test.tsx` (`toKanbanFilters` migrates legacy `assigneeId` and clears it); `orders-sales-query.test.ts` (Kanban sends `masterIds` / `includeUnassignedMaster` and not `masterId`; Orders still sends `assigneeId`); `OrdersActiveFilterChips.test.tsx` (one chip per row, × removes one row, last × is All); `OrdersWorkspaceFilterPanel.test.tsx` (closed-field text and checkbox draft). Spec: [REPAIR_KANBAN_SPEC.md](./REPAIR_KANBAN_SPEC.md#master-filter-kanban-toolbar-only).
 - Product grouping: `order-line-item-groups.test.ts` (card key + print key with price); `OrderDetailCard.test.tsx` (collapsed `×N` groups); `orders-workspace-shared.test.tsx` (print `products_table` / invoice merge-vs-split).
 - Product model serial table: `product-model.test.ts` (latest batch, reserved-on-other-sale, supplier-order provenance); `ProductModelModal.test.tsx` (Latest / Reserved badges, serial + supplier-order hover copy, empty `—`). Nested modal Escape: `Modal.test.tsx`.

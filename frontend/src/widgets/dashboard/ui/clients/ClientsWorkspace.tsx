@@ -92,6 +92,8 @@ export interface ClientsWorkspaceProps {
   onOpenSaleCard: (sale: Sale) => void;
   openClientCardRequestId?: string | null;
   onOpenClientCardHandled?: () => void;
+  revealClientId?: string | null;
+  onRevealClientHandled?: () => void;
   clientDevices: ClientDevice[];
   onUpdateClientDevice: (
     deviceId: string,
@@ -166,6 +168,8 @@ export const ClientsWorkspace: React.FC<ClientsWorkspaceProps> = ({
   onOpenSaleCard,
   openClientCardRequestId = null,
   onOpenClientCardHandled,
+  revealClientId = null,
+  onRevealClientHandled,
   clientDevices,
   onUpdateClientDevice,
   onDeleteClientDevice,
@@ -313,6 +317,34 @@ export const ClientsWorkspace: React.FC<ClientsWorkspaceProps> = ({
     const start = (clientsPage - 1) * clientsPageSize;
     return filteredClients.slice(start, start + clientsPageSize);
   }, [clientsPage, clientsPageSize, filteredClients]);
+
+  useEffect(() => {
+    if (!revealClientId || isClientsLoading) return;
+    const index = filteredClients.findIndex(
+      (client) => client.id === revealClientId,
+    );
+    if (index < 0) {
+      onRevealClientHandled?.();
+      return;
+    }
+    const nextPage = Math.floor(index / clientsPageSize) + 1;
+    if (clientsPage !== nextPage) {
+      setClientsPage(nextPage);
+      return;
+    }
+    const row = document.querySelector(
+      `[data-client-id="${CSS.escape(revealClientId)}"]`,
+    );
+    row?.scrollIntoView({ block: 'center' });
+    onRevealClientHandled?.();
+  }, [
+    clientsPage,
+    clientsPageSize,
+    filteredClients,
+    isClientsLoading,
+    onRevealClientHandled,
+    revealClientId,
+  ]);
 
   const selectedClient = useMemo(
     () =>

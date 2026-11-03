@@ -49,15 +49,21 @@ Related: [ORDER_FLOW.md](./ORDER_FLOW.md) · [SALE_FLOW.md](./SALE_FLOW.md) · [
   - phone + “total for client” share one meta row (desktop/tablet); stack vertically under ~530px;
   - history table becomes label/value cards under ~720px (same pattern as other orders tables);
   - modal uses `100dvh` / full-width near phone widths so content is not clipped.
-- Default tab on open: `Main`. Last tab is persisted in `localStorage` (`project-goods.client-card-tab`); legacy `services` migrates to `orders`.
+- Default tab on open from `Clients & suppliers`: `Main`. Last tab is persisted in `localStorage` (`project-goods.client-card-tab`); legacy `services` migrates to `orders`.
+- Opening the same card from the Orders or Sales list, an order card, a sale card, or the Create-order blacklist warning does **not** switch the sidebar to Clients. The page stays `orders`. The overlay is portaled to `document.body`, so its backdrop covers the left menu and the top bar. A click on that dimmed area only closes the card. The Clients-menu card stays inside the page column. The URL gains `clientCard=<id>` beside the current `ordersTab` and any `saleId` or `createOrder`. That overlay always starts on `Main` and does not read or write `project-goods.client-card-tab`. Tab changes last only until the overlay closes. Back closes only the overlay; Forward reopens it on `Main`. Refresh with `clientCard` in the URL reopens it. A direct load has no overlay history flag, so closing then replaces the URL and strips `clientCard`.
+- The orders overlay footer has **Client list** (`Список клієнтів`) on every tab, immediately left of Cancel when Cancel is shown. The Clients-menu card does not show this button. Clicking it discards unsaved client edits with no confirm, closes the overlay, and opens `Clients & suppliers` on the Clients tab (`project-goods.clients-suppliers-tab` = `clients`). This client's row is selected, the list jumps to the page that contains the row (`createdAt` desc, stored page size), and the row scrolls into view. The card stays closed. Filters and search that hide the row are cleared and that clear is saved in `project-goods.clients-active-filters`. Named saved-filter presets stay. From Create order, Client list also leaves and discards the create-order draft with no confirm. Back from that Clients screen returns to the previous order screen, not the overlay.
+- A peek from Orders does not change the Clients list `selectedClientId`, filters, or scroll. Only **Client list** does.
+- Saving the client still uses the existing update. The server rewrites `Sale.clientSnapshot`. The browser patches name, phone, phones, and status on the visible orders/sales list, the open order or sale card, and a Create-order draft that still has this client selected. Unsaved device, serial, master, items, prices, and notes on that order stay.
+- Unsaved client edits are discarded with no confirm on Cancel, Esc, X, backdrop, Back, Client list, and opening an order from the modal. Only **Save client** writes.
 - On `Orders`, the item column is **Device** (repair device name from the sale `product` snapshot / product line). It must not list service line items.
 - On `Sales`, the item column remains **Sale** (product line items).
 - On `Orders` / `Sales`, hover on the order/sale number (`r000768`) shows a copy icon. Only the icon copies; a plain left-click on the number still opens the card. Spec: [UI_DESIGN_SYSTEM.md — Hover copy icon](./UI_DESIGN_SYSTEM.md#hover-copy-icon).
 - On `Orders` / `Sales`, a bound serial shows as `S/N: {serial}` under the item names. Hover on that serial shows a copy icon. Only the icon copies the serial (`SN-1`, not the `S/N:` prefix). Empty / whitespace / repair-placeholder serials have no line and no icon. Row click still opens the sale/order card. Spec: [UI_DESIGN_SYSTEM.md — Hover copy icon](./UI_DESIGN_SYSTEM.md#hover-copy-icon).
 - Search on `Orders` matches number, device, serial, and status (placeholder: “Search by number, device, serial, status”).
 - Search on `Sales` matches number, product, serial, and status (placeholder: “Search by number, product, serial, status”).
-- On `Orders` / `Sales`, row click or a plain left-click on the number opens that sale/order card in-app (closes the client modal).
-- Order/sale numbers are real links (`<a href={getOrderLink(id, kind)}>`) so the browser context menu offers **Open link in new tab**. Middle-click / Ctrl+click opens the deep link in a new tab. Spec: [BROWSER_NAVIGATION.md](./BROWSER_NAVIGATION.md).
+- On the Clients-menu card, row click or a plain left-click on the number opens that sale/order card in-app (closes the client modal) and pushes a history entry.
+- On the orders overlay, the same left click replaces the overlay history entry with that order (`saleId` set, `clientCard` removed, `createOrder` removed) and closes the modal. Back then returns to the list or the previous card, not the overlay. From Create order, that left click opens `getOrderLink` in a new tab (`noopener`); the overlay and the draft stay.
+- Order/sale numbers are real links (`<a href={getOrderLink(id, kind)}>`) so the browser context menu offers **Open link in new tab**. Middle-click / Ctrl+click opens the deep link in a new tab and does not run the in-app or forced-new-tab handler. Spec: [BROWSER_NAVIGATION.md](./BROWSER_NAVIGATION.md).
 - On `Orders` / `Sales`, total is inline next to the phone (`label — amount`); the list starts directly below.
 - `Client devices` lists active `Clients goods` records for the selected client only.
 - Each device row shows device name, note, activity, and an `Unbind` action.
@@ -73,7 +79,7 @@ Related: [ORDER_FLOW.md](./ORDER_FLOW.md) · [SALE_FLOW.md](./SALE_FLOW.md) · [
 - Clients list rows with `blacklist` status must be visually marked with a red warning treatment and the `blacklist` badge.
 - Client lookup suggestions in order creation must visually mark `blacklist` clients before the operator selects them.
 - Create-order client lookup and client/supplier merge search follow the dismiss-without-select rule: [SPEC_SUGGESTIONS_BEHAVIOR.md](./SPEC_SUGGESTIONS_BEHAVIOR.md#dismiss-without-select-rule).
-- The blacklist warning in order creation must open the matched client card when clicked, so the operator can inspect the note/reason.
+- The blacklist warning in order creation must open the matched client card over Create order when clicked, so the operator can inspect the note/reason. It uses the orders overlay above (`page` stays `orders`). It does not switch to the Clients menu.
 - `blacklist` is a warning state, not a hard validation block: creating repair and sale orders remains allowed.
 
 ## Additional Client Phones

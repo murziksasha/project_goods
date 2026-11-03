@@ -9,6 +9,7 @@ export const queryKeys = {
   clientDevices: ['clientDevices'] as const,
   services: ['services'] as const,
   clients: ['clients'] as const,
+  clientHistory: (clientId: string) => ['clientHistory', clientId] as const,
   catalogProducts: ['catalogProducts'] as const,
   employees: ['employees'] as const,
   suppliers: ['suppliers'] as const,

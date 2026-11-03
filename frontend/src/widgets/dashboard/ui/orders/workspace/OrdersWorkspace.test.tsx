@@ -26,6 +26,7 @@ import type { Employee } from '../../../../../entities/employee/model/types';
 import type { Sale } from '../../../../../entities/sale/model/types';
 import type { Cashbox } from '../../../../../entities/finance/model/types';
 import type { PrintForm } from '../../../../../entities/settings/model/types';
+import * as clipboard from '../../../../../shared/lib/clipboard';
 import { OrdersWorkspace } from './OrdersWorkspace';
 import {
   activeOrdersFiltersStorageKey,
@@ -479,6 +480,229 @@ describe('OrdersWorkspace', () => {
     ).toBeInTheDocument();
     expect(scrollDashboardMainToTopMock).toHaveBeenCalledTimes(1);
   });
+
+  it('copies the device name and the client name from the orders list', async () => {
+    const copySpy = vi
+      .spyOn(clipboard, 'copyTextToClipboard')
+      .mockResolvedValue(true);
+    renderWorkspace({
+      sales: [
+        {
+          ...sale,
+          product: {
+            ...sale.product!,
+            name: 'Saturn TV',
+            serialNumber: 'R0035759',
+          },
+        },
+      ],
+    });
+
+    const deviceCell = document.querySelector(
+      '.order-device-cell',
+    ) as HTMLElement;
+    const deviceCopies = within(deviceCell).getAllByRole('button', {
+      name: 'Copy',
+    });
+    expect(deviceCopies).toHaveLength(1);
+    const serialButton = within(deviceCell).getByRole('button', {
+      name: /s\/n: r0035759/i,
+    });
+    expect(serialButton.closest('.copyable-value')).toBeNull();
+    fireEvent.click(deviceCopies[0]);
+    await waitFor(() => {
+      expect(copySpy).toHaveBeenCalledWith('Saturn TV');
+    });
+
+    const clientCell = document.querySelector(
+      '.orders-client-cell',
+    ) as HTMLElement;
+    fireEvent.click(
+      within(clientCell).getAllByRole('button', { name: 'Copy' })[0],
+    );
+    await waitFor(() => {
+      expect(copySpy).toHaveBeenCalledWith('Client');
+    });
+
+    const phoneRow = clientCell.querySelector('small') as HTMLElement;
+    fireEvent.click(
+      within(phoneRow).getByRole('button', { name: 'Copy' }),
+    );
+    await waitFor(() => {
+      expect(copySpy).toHaveBeenCalledWith('+380000000000');
+    });
+  });
+
+  it('opens the order from the device name and keeps the sales client copy action', async () => {
+    vi.spyOn(window, 'requestAnimationFrame').mockImplementation(
+      (callback) => {
+        callback(0);
+        return 0;
+      },
+    );
+    renderWorkspace({
+      sales: [
+        {
+          ...sale,
+          product: {
+            ...sale.product!,
+            name: 'Saturn TV',
+          },
+        },
+      ],
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Saturn TV' }));
+    expect(
+      await screen.findByLabelText('Order card'),
+    ).toBeInTheDocument();
+
+    cleanup();
+    renderWorkspace({
+      activeTab: 'sales',
+      sales: [
+        {
+          ...sale,
+          kind: 'sale',
+          product: {
+            ...sale.product!,
+            name: 'Phone case',
+          },
+          lineItems: [
+            {
+              id: 'li-1',
+              kind: 'product',
+              name: 'Phone case',
+              price: 100,
+              quantity: 1,
+              warrantyPeriod: 0,
+            },
+          ],
+        },
+      ],
+    });
+
+    const productCell = document.querySelector(
+      '.order-device-cell',
+    ) as HTMLElement;
+    expect(
+      within(productCell).getAllByRole('button', { name: 'Copy' }),
+    ).toHaveLength(1);
+    expect(screen.getByText('Phone case')).toBeInTheDocument();
+    const salesClient = document.querySelector(
+      '.orders-client-cell',
+    ) as HTMLElement;
+    const copySpy = vi
+      .spyOn(clipboard, 'copyTextToClipboard')
+      .mockResolvedValue(true);
+    fireEvent.click(
+      within(salesClient).getAllByRole('button', { name: 'Copy' })[0],
+    );
+    await waitFor(() => {
+      expect(copySpy).toHaveBeenCalledWith('Client');
+    });
+  });
+
+  it.each([
+    { kind: 'product', isRapidSale: false },
+    { kind: 'product', isRapidSale: true },
+    { kind: 'service', isRapidSale: false },
+    { kind: 'service', isRapidSale: true },
+  ] as const)(
+    'copies the full current $kind name without opening the sale (rapid=$isRapidSale)',
+    async ({ kind, isRapidSale }) => {
+      const copySpy = vi
+        .spyOn(clipboard, 'copyTextToClipboard')
+        .mockResolvedValue(true);
+      const onSelectedSaleIdChange = vi.fn();
+      const name = 'Current item with a complete name that exceeds the visible Product column';
+      renderWorkspace({
+        activeTab: 'sales',
+        onSelectedSaleIdChange,
+        sales: [{
+          ...sale,
+          kind: 'sale',
+          isRapidSale,
+          product: { ...sale.product!, name: 'Removed item' },
+          lineItems: [{
+            id: 'current-item',
+            kind,
+            name: `  ${name}  `,
+            price: 100,
+            quantity: 1,
+            warrantyPeriod: 0,
+          }],
+        }],
+      });
+
+      const cell = document.querySelector('.order-device-cell') as HTMLElement;
+      const nameButton = within(cell).getByRole('button', { name });
+      const nameValue = nameButton.closest('.copyable-value') as HTMLElement;
+      expect(nameValue.parentElement).toBe(cell);
+      fireEvent.click(within(nameValue).getByRole('button', { name: 'Copy' }));
+      await waitFor(() => expect(copySpy).toHaveBeenCalledExactlyOnceWith(name));
+      expect(screen.queryByLabelText('Sale card')).not.toBeInTheDocument();
+      expect(onSelectedSaleIdChange).not.toHaveBeenCalledWith(sale.id);
+
+      fireEvent.click(nameButton);
+      expect(await screen.findByLabelText('Sale card')).toBeInTheDocument();
+      expect(onSelectedSaleIdChange).toHaveBeenCalledWith(sale.id);
+      expect(copySpy).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  it.each([false, true])(
+    'copies each Sales serial independently and opens the sale from either serial (rapid=%s)',
+    async (isRapidSale) => {
+      const copySpy = vi
+        .spyOn(clipboard, 'copyTextToClipboard')
+        .mockResolvedValue(true);
+      const onSelectedSaleIdChange = vi.fn();
+      renderWorkspace({
+        activeTab: 'sales',
+        onSelectedSaleIdChange,
+        sales: [{
+          ...sale,
+          kind: 'sale',
+          isRapidSale,
+          lineItems: [{
+            id: 'current-item',
+            kind: 'product',
+            name: 'Adapter',
+            price: 100,
+            quantity: 2,
+            warrantyPeriod: 0,
+            serialNumbers: [' S000011 ', '', '  ', ' S000012 '],
+          }],
+        }],
+      });
+
+      const cell = document.querySelector('.order-device-cell') as HTMLElement;
+      const serialRow = cell.querySelector('.order-sale-serials') as HTMLElement;
+      expect(serialRow).toHaveTextContent('S/N: S000011, S000012');
+      expect(serialRow.querySelectorAll('.order-sale-serial-value')).toHaveLength(2);
+      expect(within(cell).getAllByRole('button', { name: 'Copy' })).toHaveLength(3);
+
+      for (const serial of ['S000011', 'S000012']) {
+        const serialButton = within(cell).getByRole('button', { name: `S/N: ${serial}` });
+        const serialValue = serialButton.closest('.copyable-value') as HTMLElement;
+        fireEvent.click(within(serialValue).getByRole('button', { name: 'Copy' }));
+        await waitFor(() => expect(copySpy).toHaveBeenLastCalledWith(serial));
+        expect(screen.queryByLabelText('Sale card')).not.toBeInTheDocument();
+        expect(onSelectedSaleIdChange).not.toHaveBeenCalledWith(sale.id);
+      }
+      expect(copySpy.mock.calls.map(([value]) => value)).toEqual(['S000011', 'S000012']);
+
+      for (const serial of ['S000011', 'S000012']) {
+        fireEvent.click(within(cell).getByRole('button', { name: `S/N: ${serial}` }));
+        expect(await screen.findByLabelText('Sale card')).toBeInTheDocument();
+        fireEvent.click(screen.getByLabelText('Close order card'));
+        await waitFor(() => expect(screen.queryByLabelText('Sale card')).not.toBeInTheDocument());
+      }
+      expect(onSelectedSaleIdChange).toHaveBeenCalledWith(sale.id);
+      expect(copySpy).toHaveBeenCalledTimes(2);
+    },
+  );
 
   it('labels created date Created and hides Non-urgent term text', () => {
     renderWorkspace({ sales: [sale] });
@@ -1590,7 +1814,7 @@ describe('OrdersWorkspace', () => {
     });
   });
 
-  it('shows rapid sale label instead of client name in sales list', () => {
+  it('shows rapid sale label instead of client name in sales list', async () => {
     renderWorkspace({
       activeTab: 'sales',
       sales: [
@@ -1625,6 +1849,16 @@ describe('OrdersWorkspace', () => {
     expect(
       screen.queryByRole('button', { name: 'Rapid sale' }),
     ).not.toBeInTheDocument();
+    const rapidCopy = within(
+      document.querySelector('.orders-client-cell') as HTMLElement,
+    ).getByRole('button', { name: 'Copy' });
+    const copySpy = vi
+      .spyOn(clipboard, 'copyTextToClipboard')
+      .mockResolvedValue(true);
+    fireEvent.click(rapidCopy);
+    await waitFor(() => {
+      expect(copySpy).toHaveBeenCalledWith('Rapid sale');
+    });
     expect(
       screen.getByRole('columnheader', { name: 'Product' }),
     ).toBeInTheDocument();
@@ -1686,6 +1920,97 @@ describe('OrdersWorkspace', () => {
     expect(
       document.querySelector('.orders-money-unpaid'),
     ).toBeTruthy();
+  });
+
+  it.each([false, true])(
+    'renders current Sales composition instead of the snapshot (rapid=%s)',
+    async (isRapidSale) => {
+      renderWorkspace({
+        activeTab: 'sales',
+        sales: [{
+          ...sale,
+          kind: 'sale',
+          isRapidSale,
+          product: { ...sale.product!, name: 'Removed diagnostics', serialNumber: 'REMOVED-SN' },
+          lineItems: [
+            { id: 'service', kind: 'service', name: 'Setup', price: 50, quantity: 1, warrantyPeriod: 0 },
+            { id: 'first', kind: 'product', name: 'Adapter', price: 100, quantity: 1, warrantyPeriod: 0, serialNumbers: [' S000011 ', ' S000012 '] },
+            { id: 'second', kind: 'product', name: 'Adapter', price: 100, quantity: 2, warrantyPeriod: 0 },
+          ],
+        }],
+      });
+
+      expect(screen.getByRole('button', { name: 'Adapter' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'S/N: S000011' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'S/N: S000012' })).toBeInTheDocument();
+      expect(screen.getByText('+2')).toBeInTheDocument();
+      expect(screen.queryByText('Removed diagnostics')).not.toBeInTheDocument();
+      expect(screen.queryByText(/REMOVED-SN/)).not.toBeInTheDocument();
+      fireEvent.click(screen.getByRole('button', { name: 'Show items in this order' }));
+      const menu = await screen.findByRole('listbox');
+      expect([...menu.querySelectorAll('strong')].map((node) => node.textContent)).toEqual(['Setup', 'Adapter', 'Adapter']);
+      expect(within(menu).getAllByText('—')).toHaveLength(2);
+    },
+  );
+
+  it('opens an empty sale from No items without restoring the old serial', async () => {
+    renderWorkspace({
+      activeTab: 'sales',
+      sales: [{ ...sale, kind: 'sale', product: { ...sale.product!, serialNumber: 'REMOVED-SN' }, lineItems: [] }],
+    });
+    expect(screen.queryByText(/REMOVED-SN/)).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Show items in this order' })).not.toBeInTheDocument();
+    const cell = document.querySelector('.order-device-cell') as HTMLElement;
+    expect(within(cell).queryByRole('button', { name: 'Copy' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'No items' }));
+    expect(await screen.findByLabelText('Sale card')).toBeInTheDocument();
+  });
+
+  it.each([
+    ['Removed diagnostics', false],
+    ['REMOVED-SN', false],
+    ['Setup', true],
+    ['S000011', true],
+  ])('matches Sales item search %s against current rows only', (searchValue, matches) => {
+    renderWorkspace({
+      activeTab: 'sales',
+      searchValue,
+      sales: [{
+        ...sale,
+        kind: 'sale',
+        product: { ...sale.product!, name: 'Removed diagnostics', serialNumber: 'REMOVED-SN' },
+        lineItems: [
+          { id: 'first', kind: 'product', name: 'Adapter', price: 100, quantity: 1, warrantyPeriod: 0, serialNumbers: ['S000011'] },
+          { id: 'service', kind: 'service', name: 'Setup', price: 50, quantity: 1, warrantyPeriod: 0 },
+        ],
+      }],
+    });
+    expect(screen.queryByRole('link', { name: /r000001/i }) !== null).toBe(matches);
+  });
+
+  it.each([
+    ['Product name', 'Removed diagnostics', false],
+    ['Product name', 'Adapter', true],
+    ['Product name', 'Setup', false],
+    ['Service name', 'Removed diagnostics', false],
+    ['Service name', 'Setup', true],
+  ])('filters %s by current %s rows', (placeholder, value, matches) => {
+    renderWorkspace({
+      activeTab: 'sales',
+      sales: [{
+        ...sale,
+        kind: 'sale',
+        product: { ...sale.product!, name: 'Removed diagnostics' },
+        lineItems: [
+          { id: 'first', kind: 'product', name: 'Adapter', price: 100, quantity: 1, warrantyPeriod: 0 },
+          { id: 'service', kind: 'service', name: 'Setup', price: 50, quantity: 1, warrantyPeriod: 0 },
+        ],
+      }],
+    });
+    fireEvent.click(screen.getByRole('button', { name: /Filter/i }));
+    fireEvent.change(screen.getByPlaceholderText(placeholder), { target: { value } });
+    fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
+    expect(screen.queryByRole('link', { name: /r000001/i }) !== null).toBe(matches);
   });
 
   it('does not show extra-lines control for a single-item sale', () => {
@@ -1776,7 +2101,7 @@ describe('OrdersWorkspace', () => {
     expect(within(menu).getByText('Phone case')).toBeInTheDocument();
     expect(within(menu).getByText('Setup')).toBeInTheDocument();
     expect(within(menu).getByText('SN-CASE')).toBeInTheDocument();
-    expect(within(menu).getByText('-')).toBeInTheDocument();
+    expect(within(menu).getByText('—')).toBeInTheDocument();
     const prices = [
       ...menu.querySelectorAll('.order-extra-lines-price'),
     ].map((el) => el.textContent ?? '');

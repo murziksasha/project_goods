@@ -25,6 +25,7 @@ describe('dashboard-navigation', () => {
       createOrder: null,
       saleId: 'sale-1',
       accountingTab: null,
+      clientCard: null,
     });
 
     expect(
@@ -34,6 +35,7 @@ describe('dashboard-navigation', () => {
         createOrder: null,
         saleId: 'sale-1',
         accountingTab: null,
+        clientCard: null,
       }),
     ).toBe('/?page=orders&ordersTab=sales&saleId=sale-1');
   });
@@ -47,6 +49,7 @@ describe('dashboard-navigation', () => {
       createOrder: 'sale',
       saleId: null,
       accountingTab: null,
+      clientCard: null,
     });
   });
 
@@ -59,6 +62,7 @@ describe('dashboard-navigation', () => {
       createOrder: null,
       saleId: null,
       accountingTab: 'reports',
+      clientCard: null,
     });
 
     expect(
@@ -69,6 +73,7 @@ describe('dashboard-navigation', () => {
       createOrder: null,
       saleId: null,
       accountingTab: 'information',
+      clientCard: null,
     });
 
     expect(
@@ -89,6 +94,7 @@ describe('dashboard-navigation', () => {
       createOrder: null,
       saleId: 'sale-9',
       accountingTab: null,
+      clientCard: null,
     });
 
     expect(
@@ -98,8 +104,58 @@ describe('dashboard-navigation', () => {
         createOrder: null,
         saleId: 'sale-9',
         accountingTab: null,
+        clientCard: null,
       }),
     ).toBe('/?page=orders&ordersTab=kanban&saleId=sale-9');
+  });
+
+  it('keeps clientCard on the orders page beside saleId or createOrder', () => {
+    expect(
+      parseDashboardLocation(
+        '?page=orders&ordersTab=orders&saleId=sale-2&clientCard=client-2',
+      ),
+    ).toEqual({
+      page: 'orders',
+      ordersTab: 'orders',
+      createOrder: null,
+      saleId: 'sale-2',
+      accountingTab: null,
+      clientCard: 'client-2',
+    });
+
+    expect(
+      parseDashboardLocation(
+        '?page=orders&ordersTab=sales&createOrder=sale&clientCard=client-3',
+      ).clientCard,
+    ).toBe('client-3');
+
+    expect(
+      parseDashboardLocation('?page=clients&clientCard=client-4').clientCard,
+    ).toBeNull();
+
+    expect(
+      buildDashboardHref({
+        page: 'orders',
+        ordersTab: 'sales',
+        createOrder: 'sale',
+        saleId: 'sale-9',
+        accountingTab: null,
+        clientCard: 'client-3',
+      }),
+    ).toBe(
+      '/?page=orders&ordersTab=sales&createOrder=sale&clientCard=client-3',
+    );
+
+    expect(
+      buildDashboardHref({
+        page: 'clients',
+        ordersTab: 'orders',
+        createOrder: null,
+        saleId: null,
+        accountingTab: null,
+        clientCard: 'client-4',
+      }),
+    ).toBe('/?page=clients');
   });
 
   it('builds sidebar hrefs through getDashboardHref', () => {

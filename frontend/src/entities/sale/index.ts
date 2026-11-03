@@ -3,6 +3,8 @@ export * from './api/shipmentApi';
 export * from './api/useSaleDetail';
 export * from './lib/sale-client-display';
 export * from './lib/sale-kind';
+export * from './lib/sale-list-items';
+export * from './lib/patch-sale-client';
 export * from './lib/sale-product';
 export * from './model/forms';
 export * from './model/types';
