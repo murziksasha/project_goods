@@ -50,6 +50,7 @@ import { Notifications } from '../../../widgets/dashboard/ui/shared/Notification
 import { applyPrintFormLocalOverrides } from '../../../widgets/dashboard/model/print-form-local-overrides';
 import { isProductSale, isRepairOrder } from '../../../entities/sale';
 import type { Sale } from '../../../entities/sale';
+import { defaultClientStats } from '../../../entities/client';
 import { GlobalHorizontalScrollbar } from '../../../shared/ui/GlobalHorizontalScrollbar';
 import { ScrollToTopButton } from '../../../shared/ui/ScrollToTopButton';
 import { AccessDeniedPanel } from '../../../shared/ui/AccessDeniedPanel';
@@ -71,11 +72,19 @@ import {
 import { DashboardMobileNav } from '../../../widgets/dashboard-mobile-nav';
 import type { AccountingTab } from '../../../widgets/dashboard/model/accounting';
 import {
+  buildDashboardHref,
+  clientCardOverlayHistoryState,
+  getCurrentDashboardHref,
   getDashboardHref,
+  isClientCardOverlayHistoryState,
   navigateDashboard,
   parseDashboardLocationFromWindow,
   type DashboardLocation,
 } from '../model/dashboard-navigation';
+import {
+  getClientStatsMap,
+  relaxStoredClientFiltersForClient,
+} from '../../../widgets/dashboard/model/clients-workspace';
 import {
   canHideOrdersTab,
   resolveDisplayedOrdersTabs,
@@ -132,6 +141,11 @@ const WarehousePanel = lazy(() =>
 const ClientsSuppliersWorkspace = lazy(() =>
   import('../../../widgets/dashboard/ui/clients/ClientsSuppliersWorkspace').then(
     (module) => ({ default: module.ClientsSuppliersWorkspace }),
+  ),
+);
+const ClientCardOverlay = lazy(() =>
+  import('../../../widgets/dashboard/ui/clients/ClientCardOverlay').then(
+    (module) => ({ default: module.ClientCardOverlay }),
   ),
 );
 const SupplierOrdersWorkspace = lazy(() =>
@@ -334,8 +348,13 @@ export const DashboardPage: React.FC = () => {
   const [urlSelectedSaleId, setUrlSelectedSaleId] = useState<
     string | null
   >(() => getSaleIdFromUrl() || null);
-  const [openClientCardRequestId, setOpenClientCardRequestId] =
-    useState<string | null>(null);
+  const [clientCardId, setClientCardId] = useState<string | null>(
+    () => parseDashboardLocationFromWindow().clientCard,
+  );
+  const [revealClientId, setRevealClientId] = useState<string | null>(
+    null,
+  );
+  const clientCardErrorHandledRef = useRef<string | null>(null);
   const [pendingPaymentSale, setPendingPaymentSale] =
     useState<Sale | null>(null);
   const [syncedAccountingTab, setSyncedAccountingTab] =
@@ -467,9 +486,11 @@ export const DashboardPage: React.FC = () => {
             : null,
         accountingTab:
           activePage === 'accounting' ? parsed.accountingTab : null,
+        clientCard: activePage === 'orders' ? clientCardId : null,
       };
     }, [
       activePage,
+      clientCardId,
       effectiveOrdersTab,
       isCreateOrderOpen,
       urlSelectedSaleId,
@@ -481,6 +502,9 @@ export const DashboardPage: React.FC = () => {
       setIsCreateOrderOpen(Boolean(location.createOrder));
       setUrlSelectedSaleId(location.saleId);
       setExternalSelectedSaleId(location.saleId);
+      setClientCardId(
+        location.page === 'orders' ? location.clientCard : null,
+      );
       if (location.page !== 'orders') {
         setIsCreateOrderOpen(false);
       }
@@ -514,6 +538,9 @@ export const DashboardPage: React.FC = () => {
 
       if (location.page !== 'accounting') {
         location.accountingTab = null;
+      }
+      if (location.page !== 'orders') {
+        location.clientCard = null;
       }
 
       applyLocationToState(location);
@@ -826,6 +853,7 @@ export const DashboardPage: React.FC = () => {
       saleId: parsed.saleId,
       accountingTab:
         page === 'accounting' ? parsed.accountingTab : null,
+      clientCard: page === 'orders' ? parsed.clientCard : null,
     };
 
     applyLocationToState(initialLocation);
@@ -1116,14 +1144,102 @@ export const DashboardPage: React.FC = () => {
       actions.showError(t('errors.permissionClients'));
       return;
     }
-    navigateTo({
-      page: 'clients',
-      createOrder: null,
-      saleId: null,
-      accountingTab: null,
-    });
-    setOpenClientCardRequestId(clientId);
+    const location: DashboardLocation = {
+      ...buildLocationFromState(),
+      page: 'orders',
+      clientCard: clientId,
+    };
+    applyLocationToState(location);
+    const href = buildDashboardHref(location);
+    if (href !== getCurrentDashboardHref()) {
+      window.history.pushState(clientCardOverlayHistoryState, '', href);
+    }
   };
+
+  const closeOrderClientCard = useCallback(() => {
+    if (isClientCardOverlayHistoryState(window.history.state)) {
+      window.history.back();
+      return;
+    }
+    navigateTo(
+      {
+        page: 'orders',
+        clientCard: null,
+      },
+      { replace: true },
+    );
+  }, [navigateTo]);
+
+  const openSaleReplacingClientCard = (sale: {
+    id: string;
+    kind: 'repair' | 'sale';
+  }) => {
+    navigateTo(
+      {
+        page: 'orders',
+        ordersTab: sale.kind === 'sale' ? 'sales' : 'orders',
+        createOrder: null,
+        saleId: sale.id,
+        clientCard: null,
+        accountingTab: null,
+      },
+      { replace: true },
+    );
+    setExternalSelectedSaleId(sale.id);
+  };
+
+  const openClientListFromOrderCard = (clientId: string) => {
+    const client = state.allClients.find((item) => item.id === clientId);
+    if (client) {
+      relaxStoredClientFiltersForClient(
+        client,
+        getClientStatsMap(state.sales).get(client.id) ??
+          defaultClientStats,
+      );
+    }
+    actions.setSelectedClientId(clientId);
+    setRevealClientId(clientId);
+    navigateTo(
+      {
+        page: 'clients',
+        clientCard: null,
+        createOrder: null,
+        saleId: null,
+        accountingTab: null,
+      },
+      { replace: true },
+    );
+  };
+
+  useEffect(() => {
+    if (!currentEmployee || !clientCardId) return;
+    if (canManageClients && state.isClientsLoading) return;
+
+    const clientIsKnown = state.allClients.some(
+      (client) => client.id === clientCardId,
+    );
+    if (canManageClients && clientIsKnown) {
+      clientCardErrorHandledRef.current = null;
+      return;
+    }
+    if (clientCardErrorHandledRef.current === clientCardId) return;
+    clientCardErrorHandledRef.current = clientCardId;
+    actions.showError(
+      canManageClients
+        ? t('errors.clientNotFound')
+        : t('errors.permissionClients'),
+    );
+    closeOrderClientCard();
+  }, [
+    actions,
+    canManageClients,
+    clientCardId,
+    closeOrderClientCard,
+    currentEmployee,
+    state.allClients,
+    state.isClientsLoading,
+    t,
+  ]);
 
   const handleLogin = async () => {
     setIsLoggingIn(true);
@@ -1697,10 +1813,8 @@ export const DashboardPage: React.FC = () => {
                 onCreateSupplier={actions.createSupplierCard}
                 onUpdateSupplier={actions.updateSupplierCard}
                 onOpenSaleCard={openSaleFromClientCard}
-                openClientCardRequestId={openClientCardRequestId}
-                onOpenClientCardHandled={() =>
-                  setOpenClientCardRequestId(null)
-                }
+                revealClientId={revealClientId}
+                onRevealClientHandled={() => setRevealClientId(null)}
                 clientDevices={state.clientDevices}
                 onUpdateClientDevice={actions.updateClientDeviceCard}
                 onDeleteClientDevice={actions.deleteClientDeviceCard}
@@ -1858,6 +1972,29 @@ export const DashboardPage: React.FC = () => {
         </div>
         <GlobalHorizontalScrollbar />
         <ScrollToTopButton />
+        {activePage === 'orders' && clientCardId && canManageClients ? (
+          <Suspense fallback={null}>
+            <ClientCardOverlay
+              key={clientCardId}
+              clientId={clientCardId}
+              client={
+                state.allClients.find(
+                  (client) => client.id === clientCardId,
+                ) ?? null
+              }
+              sales={state.sales}
+              clientDevices={state.clientDevices}
+              isSaving={state.isClientSaving}
+              saleLinkMode={isCreateOrderOpen ? 'new-tab' : 'in-app'}
+              onClose={closeOrderClientCard}
+              onOpenSaleCard={openSaleReplacingClientCard}
+              onOpenClientList={openClientListFromOrderCard}
+              onUpdateClient={actions.updateClientCard}
+              onUpdateClientDevice={actions.updateClientDeviceCard}
+              onDeleteClientDevice={actions.deleteClientDeviceCard}
+            />
+          </Suspense>
+        ) : null}
         <DashboardMobileNav
           items={sidebarItems}
           activePage={activePage}

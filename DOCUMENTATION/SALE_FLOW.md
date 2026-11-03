@@ -15,9 +15,9 @@ Related: [SALE_CARD.md](./SALE_CARD.md) · [ORDER_FLOW.md](./ORDER_FLOW.md) · [
 - Soft length hint does not skip client or line-item requirements.
 - If the entered phone or exact client name matches a client with status `blacklist`, the sales order form shows a non-blocking warning directly below the client fields.
 - The blacklist warning must include the client name/phone and must not prevent saving the sales order.
-- Clicking the blacklist warning opens the matched client card so the operator can read the client note/reason before continuing.
+- Clicking the blacklist warning opens the matched client card over Create order so the operator can read the client note/reason before continuing. The sidebar stays on Orders. See [CLIENTS_RULES.md](./CLIENTS_RULES.md#client-card-tabs).
 - If client does not exist and phone+name are provided, a new client is created only when the operator presses `Save order` and hard validation passes (same rule as repair orders). Lookup/suggestions for existing clients are unchanged.
-- Client card `Sales` numbers use the same `getOrderLink(saleId, 'sale')` pattern as Orders: left click opens the sale card in-app; right-click / middle-click / Ctrl+click opens a new browser tab. Spec: [BROWSER_NAVIGATION.md](./BROWSER_NAVIGATION.md) · [CLIENTS_RULES.md](./CLIENTS_RULES.md).
+- Client card `Sales` numbers use the same `getOrderLink(saleId, 'sale')` pattern as Orders. From the Clients menu, left click opens the sale card in-app. From the orders overlay, left click replaces the overlay entry with that sale. From Create order, left click opens a new tab and keeps the draft. Right-click / middle-click / Ctrl+click opens a new browser tab. Spec: [BROWSER_NAVIGATION.md](./BROWSER_NAVIGATION.md) · [CLIENTS_RULES.md](./CLIENTS_RULES.md).
 
 ## Sales Toolbar Count (2026-10-28)
 
@@ -463,7 +463,7 @@ Shown only on **Orders → Sales** (not the repair Orders tab) when `lineItems.l
 
 ## Sales list copy
 
-- In `Orders -> Sales`, the sale number, client name, client phone, current product/service name, and each current serial have independent hover copy targets. Product name and serial text clicks open the sale card; `No items` stays a sale-card link with no icon. Number click still opens the sale card. A normal client name click still opens the client card. A rapid-sale row copies the rapid-sale label. Copy payloads, hover/focus/touch behavior, and interaction rules: [UI_DESIGN_SYSTEM.md — Hover copy icon](./UI_DESIGN_SYSTEM.md#hover-copy-icon). The `+N` informational menu is unchanged.
+- In `Orders -> Sales`, the sale number, client name, client phone, current product/service name, and each current serial have independent hover copy targets. Product name and serial text clicks open the sale card; `No items` stays a sale-card link with no icon. Number click still opens the sale card. A normal client name click opens the client card over the sales list (`page` stays `orders`). A rapid-sale row copies the rapid-sale label and is not a client link. Copy payloads, hover/focus/touch behavior, and interaction rules: [UI_DESIGN_SYSTEM.md — Hover copy icon](./UI_DESIGN_SYSTEM.md#hover-copy-icon). The `+N` informational menu is unchanged. Overlay rules: [CLIENTS_RULES.md](./CLIENTS_RULES.md#client-card-tabs).
 
 ## Status Dropdown UX
 

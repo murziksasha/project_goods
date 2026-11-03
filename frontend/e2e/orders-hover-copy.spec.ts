@@ -423,3 +423,138 @@ test('kanban card copies number, client, and device', async ({
   await copyFrom('.repair-kanban-card-device', 'Saturn TV');
   await expect(page.getByLabel('Order card')).toHaveCount(0);
 });
+
+const detailFixture = (kind: 'repair' | 'sale'): Sale => ({
+  ...(kind === 'repair' ? repair : productSale),
+  recordNumber: kind === 'repair' ? 'r001311' : 'r001308',
+  manager: { id: 'manager-1', name: 'Card manager with a long full name', role: 'manager' },
+  issuedBy: { id: 'issuer-1', name: 'Card issuer with a long full name', role: 'manager' },
+  product: {
+    ...repair.product,
+    name: longProductName,
+    serialNumber: 'SN-1234567890123456789012345678901234567890',
+  },
+});
+
+const openDetailCard = async (page: Page, kind: 'repair' | 'sale') => {
+  await boot(page, kind === 'repair' ? 'orders' : 'sales', [detailFixture(kind)]);
+  await page.locator('.order-number-button').click();
+  const card = page.locator('article.order-detail-card');
+  await expect(card).toBeVisible();
+  return card;
+};
+
+const detailField = (card: Locator, label: string) =>
+  card.locator('.order-detail-list dt').filter({ hasText: new RegExp(`^${label}$`) }).locator('..');
+
+for (const kind of ['repair', 'sale'] as const) {
+  test(`opened ${kind} card has independent hover copy and keyboard phone copy`, async ({ page }) => {
+    const fixture = detailFixture(kind);
+    const card = await openDetailCard(page, kind);
+    const client = detailField(card, 'Client');
+    const phone = detailField(card, 'Phone');
+    const clientIcon = client.locator('.copyable-value-copy');
+    const phoneIcon = phone.locator('.copyable-value-copy');
+    await card.locator('.section-label').hover();
+    await expect(clientIcon).toHaveCSS('opacity', '0');
+    await expect(phoneIcon).toHaveCSS('opacity', '0');
+    await client.locator('.orders-client-link').hover();
+    await expect(clientIcon).toHaveCSS('opacity', '1');
+    await expect(phoneIcon).toHaveCSS('opacity', '0');
+
+    const phoneLink = phone.getByRole('link');
+    await expect(phoneLink).toHaveAttribute('href', `tel:${fixture.client.phone}`);
+    await expect(phoneLink).toHaveText(kind === 'repair' ? '099 111 22 33' : '050 111 22 33');
+    await phoneLink.hover();
+    await expect(phoneIcon).toHaveCSS('opacity', '1');
+    await expect(clientIcon).toHaveCSS('opacity', '0');
+    await card.locator('.section-label').hover();
+    await phoneLink.focus();
+    await expect(phoneIcon).toHaveCSS('opacity', '1');
+    await page.keyboard.press('Tab');
+    await expect(phoneIcon).toBeFocused();
+    await page.keyboard.press('Enter');
+    await expectClipboard(page, fixture.client.phone);
+    await expect(card).toBeVisible();
+
+    const targets: Array<[Locator, string]> = [
+      [card.locator('h2'), fixture.recordNumber!],
+      [client, fixture.client.name],
+      [detailField(card, kind === 'repair' ? 'Manager' : 'Created order'), fixture.manager!.name],
+      [detailField(card, kind === 'repair' ? 'Issued' : 'Issued order'), fixture.issuedBy!.name],
+    ];
+    if (kind === 'repair') {
+      targets.push([detailField(card, 'Device'), fixture.product!.name], [detailField(card, 'S/N'), fixture.product!.serialNumber]);
+      const change = detailField(card, 'Device').getByRole('button', { name: 'Change', exact: true });
+      await change.hover();
+      await expect(detailField(card, 'Device').locator('.copyable-value-copy')).toHaveCSS('opacity', '0');
+    }
+    for (const [field, payload] of targets) {
+      const wrapper = field.locator('.order-detail-copy-value');
+      const icon = wrapper.locator('.copyable-value-copy');
+      await wrapper.hover();
+      await expect(icon).toHaveCSS('opacity', '1');
+      await expectIconInsideCell(field, icon);
+      await icon.click();
+      await expectClipboard(page, payload);
+      await expect(card).toBeVisible();
+      await expect(page.getByRole('dialog')).toHaveCount(0);
+    }
+    await expect(detailField(card, 'Created').locator('.copyable-value-copy')).toHaveCount(0);
+    if (kind === 'repair') {
+      await expect(detailField(card, 'Master').locator('.copyable-value-copy')).toHaveCount(0);
+      await card.getByRole('button', { name: 'Change device', exact: true }).click();
+      await expect(page.getByRole('dialog')).toBeVisible();
+      await page.getByRole('dialog').getByRole('button', { name: 'Cancel', exact: true }).click();
+      await detailField(card, 'Device').getByRole('button', { name: 'Change', exact: true }).click();
+      await expect(page.getByRole('dialog')).toBeVisible();
+    }
+  });
+
+  test(`opened ${kind} card copy icons fit long values on a narrow viewport`, async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    const card = await openDetailCard(page, kind);
+    for (const wrapper of await card.locator('.order-detail-copy-value').all()) {
+      const icon = wrapper.locator('.copyable-value-copy');
+      await wrapper.hover();
+      await expect(icon).toHaveCSS('opacity', '1');
+      await expectIconInsideCell(wrapper.locator('..'), icon);
+    }
+    if (kind === 'repair') {
+      const device = detailField(card, 'Device');
+      const icon = device.locator('.copyable-value-copy');
+      await device.locator('.copyable-value').hover();
+      const iconBox = await icon.boundingBox();
+      const changeBox = await device.getByRole('button', { name: 'Change', exact: true }).boundingBox();
+      expect(iconBox!.x + iconBox!.width).toBeLessThanOrEqual(changeBox!.x);
+      await icon.click();
+      await expectClipboard(page, longProductName);
+    }
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  });
+
+  test(`opened ${kind} card touch copy needs no hover`, async ({ browser, baseURL }) => {
+    const context = await browser.newContext({
+      baseURL,
+      viewport: { width: 390, height: 844 },
+      isMobile: true,
+      hasTouch: true,
+    });
+    try {
+      const page = await context.newPage();
+      const card = await openDetailCard(page, kind);
+      expect(await page.evaluate(() => matchMedia('(hover: none)').matches)).toBe(true);
+      const icons = card.locator('.order-detail-copy-value .copyable-value-copy');
+      await expect(icons).toHaveCount(kind === 'repair' ? 7 : 5);
+      for (const icon of await icons.all()) {
+        await expect(icon).toHaveCSS('opacity', '1');
+      }
+      await detailField(card, 'Phone').locator('.copyable-value-copy').tap();
+      await expectClipboard(page, detailFixture(kind).client.phone);
+      await expect(card).toBeVisible();
+      await expect(page.getByRole('dialog')).toHaveCount(0);
+    } finally {
+      await context.close();
+    }
+  });
+}

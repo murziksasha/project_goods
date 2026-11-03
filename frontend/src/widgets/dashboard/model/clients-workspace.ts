@@ -61,6 +61,8 @@ export type ClientMainForm = ClientDraft & {
 
 export const clientsFiltersStorageKey =
   'project-goods.clients-active-filters';
+export const clientsSuppliersTabStorageKey =
+  'project-goods.clients-suppliers-tab';
 export const clientsSuppliersSavedFiltersStorageKey =
   'project-goods.clients-suppliers-saved-filters';
 export const clientCardTabStorageKey = 'project-goods.client-card-tab';
@@ -435,4 +437,96 @@ export const getFilteredClients = (
       return true;
     })
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+};
+
+export type StoredClientListFilters = {
+  draftFilters: ClientFilters;
+  appliedFilters: ClientFilters;
+  searchValue: string;
+  isFilterOpen: boolean;
+};
+
+const emptyStoredClientListFilters = (): StoredClientListFilters => ({
+  draftFilters: { ...emptyFilters },
+  appliedFilters: { ...emptyFilters },
+  searchValue: '',
+  isFilterOpen: false,
+});
+
+export const readStoredClientListFilters = (): StoredClientListFilters => {
+  try {
+    const parsed = JSON.parse(
+      window.localStorage.getItem(clientsFiltersStorageKey) ?? '{}',
+    ) as Partial<StoredClientListFilters>;
+    return {
+      draftFilters: { ...emptyFilters, ...(parsed.draftFilters ?? {}) },
+      appliedFilters: {
+        ...emptyFilters,
+        ...(parsed.appliedFilters ?? {}),
+      },
+      searchValue: parsed.searchValue ?? '',
+      isFilterOpen: Boolean(parsed.isFilterOpen),
+    };
+  } catch {
+    return emptyStoredClientListFilters();
+  }
+};
+
+const clientIsHiddenByFilters = (
+  client: Client,
+  filters: ClientFilters,
+  stats: ClientStats,
+) =>
+  getFilteredClients(
+    [client],
+    filters,
+    new Map([[client.id, stats]]),
+  ).length === 0;
+
+export const relaxStoredClientFiltersForClient = (
+  client: Client,
+  stats: ClientStats,
+): StoredClientListFilters => {
+  const stored = readStoredClientListFilters();
+  let applied = { ...stored.appliedFilters };
+
+  if (clientIsHiddenByFilters(client, applied, stats)) {
+    const textFields = [
+      'query',
+      'clientId',
+      'orderNumber',
+      'dateFrom',
+      'dateTo',
+      'visitsFrom',
+      'visitsTo',
+      'incomeFrom',
+      'incomeTo',
+    ] as const;
+
+    for (const field of textFields) {
+      if (!clientIsHiddenByFilters(client, applied, stats)) break;
+      if (!applied[field]) continue;
+      applied = { ...applied, [field]: '' };
+    }
+
+    if (
+      clientIsHiddenByFilters(client, applied, stats) &&
+      applied.status !== 'all'
+    ) {
+      applied = { ...applied, status: 'all' };
+    }
+  }
+
+  const next: StoredClientListFilters = {
+    ...stored,
+    appliedFilters: applied,
+    draftFilters: { ...applied },
+    searchValue: applied.query,
+  };
+  window.localStorage.setItem(
+    clientsFiltersStorageKey,
+    JSON.stringify(next),
+  );
+  window.localStorage.setItem(clientsSuppliersTabStorageKey, 'clients');
+  return next;
 };

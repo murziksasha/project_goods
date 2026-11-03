@@ -581,12 +581,43 @@
   overflow-wrap: anywhere;
 }
 
-.order-detail-device-button {
+.order-detail-copy-value:has(> .copyable-value-copy) {
   display: inline-grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: baseline;
+  grid-template-columns: minmax(0, 1fr) 22px;
+}
+
+.order-detail-copy-value .copyable-value-content {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.order-detail-copy-value .orders-client-link {
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.order-detail-phone-link {
+  color: inherit;
+  text-decoration: none;
+}
+
+.order-detail-phone-link:hover {
+  text-decoration: underline;
+}
+
+.order-detail-list dd.order-detail-device-value {
+  display: flex;
+  align-items: center;
   gap: 8px;
-  width: 100%;
+}
+
+.order-detail-device-value > .copyable-value {
+  flex: 0 1 auto;
+}
+
+.order-detail-device-button,
+.order-detail-device-change {
   min-width: 0;
   border: 0;
   background: transparent;
@@ -598,26 +629,28 @@
   cursor: pointer;
 }
 
-.order-detail-device-button span {
-  min-width: 0;
+.order-detail-device-button {
   overflow-wrap: anywhere;
 }
 
-.order-detail-device-button small {
+.order-detail-device-change {
+  flex: 0 0 auto;
+  margin-left: auto;
   color: var(--color-primary-hover);
   font-weight: 800;
   white-space: nowrap;
 }
 
-.order-detail-device-button:hover small {
+.order-detail-device-change:hover {
   text-decoration: underline;
 }
 
-.order-detail-device-button:disabled {
+.order-detail-device-button:disabled,
+.order-detail-device-change:disabled {
   cursor: default;
 }
 
-.order-detail-device-button:disabled small {
+.order-detail-device-change:disabled {
   color: #9aa8b7;
   text-decoration: none;
 }

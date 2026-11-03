@@ -83,7 +83,6 @@ import {
   getLineItemsTotal,
   getOrderBaseTotal,
   getOrderTotal,
-  getPrimaryDeviceName,
   getPrimaryDeviceSerial,
   getProductLinesMissingWarehouseSerials,
   getRemainingPayment,
@@ -105,6 +104,7 @@ import {
   isPlainLeftClick,
 } from '../workspace/orders-workspace-shared';
 import { PrinterIcon } from '../modals/PrinterIcon';
+import { CopyableValue } from '../../../../../shared/ui/CopyableValue';
 import { UnboundSerialIssueModal } from '../modals/UnboundSerialIssueModal';
 import { OrderDetailDeviceModal } from './OrderDetailDeviceModal';
 import { OrderDetailLineItemsPanel } from './OrderDetailLineItemsPanel';
@@ -120,6 +120,13 @@ export type { OrderDetailCardProps } from './order-detail-card-types';
 const COLLAPSE_ICON_EXPANDED = '\u2303';
 const COLLAPSE_ICON_COLLAPSED = '\u2304';
 const EM_DASH = '\u2014';
+
+const getDetailCopyValue = (value: string | null | undefined) => {
+  const trimmed = value?.trim() ?? '';
+  return ['-', EM_DASH, 'r------'].includes(trimmed.toLowerCase())
+    ? ''
+    : trimmed;
+};
 
 const COMPACT_LAYOUT_MEDIA_QUERY = '(max-width: 1024px)';
 const ORDER_RELATED_LIST_SCROLL_THRESHOLD = 6;
@@ -417,11 +424,14 @@ export const OrderDetailCard: React.FC<OrderDetailCardProps> = ({
       // Ignore localStorage write errors.
     }
   }, [relatedTab]);
+  const deviceNameFromSale = getSaleProductName(sale);
+  const serialFromSale = getPrimaryDeviceSerial(sale);
+  const masterIdFromSale = sale.master?.id ?? '';
   useEffect(() => {
-    setDeviceNameInput(getPrimaryDeviceName(sale));
-    setSerialNumberInput(getPrimaryDeviceSerial(sale));
-    setMasterIdInput(sale.master?.id ?? '');
-  }, [sale]);
+    setDeviceNameInput(deviceNameFromSale);
+    setSerialNumberInput(serialFromSale);
+    setMasterIdInput(masterIdFromSale);
+  }, [sale.id, deviceNameFromSale, serialFromSale, masterIdFromSale]);
   useEffect(() => {
     if (!isDeviceModalOpen) {
       setDeviceSearch('');
@@ -582,7 +592,7 @@ export const OrderDetailCard: React.FC<OrderDetailCardProps> = ({
     [employees],
   );
   const isMainInfoDirty =
-    deviceNameInput.trim() !== getPrimaryDeviceName(sale).trim() ||
+    deviceNameInput.trim() !== getSaleProductName(sale).trim() ||
     serialNumberInput.trim().toUpperCase() !==
       getPrimaryDeviceSerial(sale).trim().toUpperCase() ||
     masterIdInput !== (sale.master?.id ?? '') ||
@@ -1112,6 +1122,14 @@ export const OrderDetailCard: React.FC<OrderDetailCardProps> = ({
     };
   }, [openRelatedStatusOrder]);
 
+  const cardNumber = getDetailCopyValue(sale.recordNumber);
+  const clientName = getDetailCopyValue(sale.client.name);
+  const clientPhone = getDetailCopyValue(sale.client.phone);
+  const deviceName = getDetailCopyValue(deviceNameInput);
+  const deviceSerial = getDetailCopyValue(serialNumberInput);
+  const managerName = getDetailCopyValue(sale.manager?.name);
+  const issuedByName = getDetailCopyValue(sale.issuedBy?.name);
+
   return (
     <article
       className='order-detail-card'
@@ -1147,7 +1165,11 @@ export const OrderDetailCard: React.FC<OrderDetailCardProps> = ({
               <PrinterIcon />
             </button>
           </div>
-          <h2>{sale.recordNumber ?? 'r------'}</h2>
+          <h2 aria-label={cardNumber || 'r------'}>
+            <CopyableValue value={cardNumber} className='order-detail-copy-value'>
+              <span>{cardNumber || 'r------'}</span>
+            </CopyableValue>
+          </h2>
           <p className='order-detail-header-meta'>
             <span className='order-detail-header-meta-label'>
               {t('orders.payment.toPay')}
@@ -1289,40 +1311,61 @@ export const OrderDetailCard: React.FC<OrderDetailCardProps> = ({
               <div>
                 <dt>{t('orders.detail.client')}</dt>
                 <dd>
-                  <button
-                    type='button'
-                    className='orders-client-link'
-                    onClick={onOpenClientCard}
-                  >
-                    {sale.client.name}
-                  </button>
+                  <CopyableValue value={clientName} className='order-detail-copy-value'>
+                    <button
+                      type='button'
+                      className='orders-client-link'
+                      onClick={onOpenClientCard}
+                    >
+                      {clientName || '-'}
+                    </button>
+                  </CopyableValue>
                 </dd>
               </div>
               <div>
                 <dt>{t('orders.detail.phone')}</dt>
-                <dd>{formatPhoneNumber(sale.client.phone)}</dd>
+                <dd>
+                  <CopyableValue value={clientPhone} className='order-detail-copy-value'>
+                    {clientPhone ? (
+                      <a className='order-detail-phone-link' href={`tel:${clientPhone}`}>
+                        {formatPhoneNumber(clientPhone)}
+                      </a>
+                    ) : '-'}
+                  </CopyableValue>
+                </dd>
               </div>
               {isSaleCard ? null : (
                 <>
                   <div>
                     <dt>{t('orders.detail.device')}</dt>
-                    <dd>
+                    <dd className='order-detail-device-value'>
+                      <CopyableValue value={deviceName} className='order-detail-copy-value'>
+                        <button
+                          type='button'
+                          className='order-detail-device-button'
+                          onClick={() => setIsDeviceModalOpen(true)}
+                          disabled={isContentLocked}
+                          aria-label={t('orders.detail.changeDevice')}
+                        >
+                          {deviceName || '-'}
+                        </button>
+                      </CopyableValue>
                       <button
                         type='button'
-                        className='order-detail-device-button'
+                        className='order-detail-device-change'
                         onClick={() => setIsDeviceModalOpen(true)}
                         disabled={isContentLocked}
-                        aria-label={t('orders.detail.changeDevice')}
                       >
-                        <span>{deviceNameInput || '-'}</span>
-                        <small>{t('orders.detail.change')}</small>
+                        {t('orders.detail.change')}
                       </button>
                     </dd>
                   </div>
                   <div>
                     <dt>{t('orders.detail.serialNumberShort')}</dt>
                     <dd className='order-detail-serial-value'>
-                      <span>{serialNumberInput || '-'}</span>
+                      <CopyableValue value={deviceSerial} className='order-detail-copy-value'>
+                        <span>{deviceSerial || '-'}</span>
+                      </CopyableValue>
                     </dd>
                   </div>
                 </>
@@ -1337,7 +1380,11 @@ export const OrderDetailCard: React.FC<OrderDetailCardProps> = ({
                     ? t('orders.detail.createdOrder')
                     : t('orders.detail.manager')}
                 </dt>
-                <dd>{sale.manager?.name || '-'}</dd>
+                <dd>
+                  <CopyableValue value={managerName} className='order-detail-copy-value'>
+                    <span>{managerName || '-'}</span>
+                  </CopyableValue>
+                </dd>
               </div>
               {isSaleCard ? null : (
                 <div>
@@ -1364,17 +1411,18 @@ export const OrderDetailCard: React.FC<OrderDetailCardProps> = ({
                   </dd>
                 </div>
               )}
-              {isSaleCard ? (
-                <div>
-                  <dt>{t('orders.detail.issuedOrder')}</dt>
-                  <dd>{sale.issuedBy?.name || '-'}</dd>
-                </div>
-              ) : (
-                <div>
-                  <dt>{t('orders.detail.issued')}</dt>
-                  <dd>{sale.issuedBy?.name || '-'}</dd>
-                </div>
-              )}
+              <div>
+                <dt>
+                  {isSaleCard
+                    ? t('orders.detail.issuedOrder')
+                    : t('orders.detail.issued')}
+                </dt>
+                <dd>
+                  <CopyableValue value={issuedByName} className='order-detail-copy-value'>
+                    <span>{issuedByName || '-'}</span>
+                  </CopyableValue>
+                </dd>
+              </div>
               {isMainInfoDirty ? (
                 <div className='order-detail-notes-row'>
                   <dt>&nbsp;</dt>
