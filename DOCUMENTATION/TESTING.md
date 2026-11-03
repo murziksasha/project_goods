@@ -36,6 +36,8 @@ Specs:
 - `e2e/login-page.spec.ts` — logged-out Login / Sign in.
 - `e2e/orders-hover-copy.spec.ts` — Orders/Kanban copy controls, Sales current product/service name plus each S/N, and opened repair/sale card fields: independent hover targets, clipboard payloads, navigation, keyboard phone copy and `tel:` links, long-name containment, narrow viewport, and touch visibility.
 - `e2e/sales-current-items.spec.ts` — Regular/Rapid sale card edits update the Sales Product label, serial, raw-row count and menu without a page reload; empty sales remain clickable and removed snapshot items do not match item search.
+- `e2e/list-phone-search.spec.ts` — Orders, Sales, Clients, and Suppliers list search: Ukrainian and punctuated phones, additional numbers beside the primary, bare `+380`, serials, notes, manager names, the client filter, and the single-result count.
+  - This spec mocks `/api/sales`; backend phone regex and server pagination behavior are verified by backend unit tests.
 - `e2e/accounting-operation-modal.spec.ts` — **Confirm** (outline, stay open) and **Confirm and close** (filled); no large-amount warning.
 - `e2e/repair-kanban-master-filter.spec.ts` — Kanban master menu: several coworkers plus Without master, chips, Clear back to All, saved filter, and Orders/Sales still a single assignee. Spec: [REPAIR_KANBAN_SPEC.md](./REPAIR_KANBAN_SPEC.md#master-filter-kanban-toolbar-only).
 
@@ -58,6 +60,7 @@ Specs:
 
 - Domain services: `backend/src/domain/**/service*.test.ts` — business rules without HTTP.
 - Sales list master query: `backend/src/domain/sale/list-sales-query.test.ts` — `masterIds` `$in`, `{ master: null }`, `$or`, invalid id dropped, legacy `masterId` unchanged. Spec: [API.md](./API.md).
+- List phone search: `backend/src/shared/lib/phone-search.test.ts` and `backend/src/domain/sale/list-sales-query.test.ts` check generated phone regexes against canonical and legacy formatted values, partial Ukrainian prefixes, and Rapid sale aliases. Frontend matcher and list tests cover local filtering and matched additional-phone display.
 - Route helpers: `backend/src/routes/sale.routes.test.ts`.
 - **API integration:** `backend/src/routes/api.integration.test.ts` (supertest)
   - 401 without token / invalid token

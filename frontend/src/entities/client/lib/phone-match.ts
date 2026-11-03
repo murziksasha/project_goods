@@ -1,4 +1,8 @@
 import { normalizePhone } from '../../../shared/lib/phoneFormatter';
+import {
+  isPhoneLikeQuery,
+  phonesMatchQuery,
+} from '../../../shared/lib/phone-search';
 import type { Sale } from '../../../shared/types/domain';
 import { getClientPhones } from '../model/forms';
 import type { Client } from '../model/types';
@@ -39,38 +43,17 @@ export const clientMatchesPhoneQuery = (
     return true;
   }
 
-  const queryDigits = normalizePhone(query);
-  const queryIdentity = queryDigits
-    ? normalizeClientPhoneIdentity(query)
-    : '';
+  if (phonesMatchQuery(getClientPhones(client), query)) {
+    return true;
+  }
 
-  return getClientPhones(client).some((phone) => {
-    if (phone.toLowerCase().includes(normalizedQuery)) {
-      return true;
-    }
+  if (isPhoneLikeQuery(query)) {
+    return false;
+  }
 
-    if (!queryDigits) {
-      return false;
-    }
-
-    const phoneDigits = normalizePhone(phone);
-    if (
-      phoneDigits.includes(queryDigits) ||
-      queryDigits.includes(phoneDigits)
-    ) {
-      return true;
-    }
-
-    if (queryIdentity.length < 3) {
-      return false;
-    }
-
-    const phoneIdentity = normalizeClientPhoneIdentity(phone);
-    return (
-      phoneIdentity.includes(queryIdentity) ||
-      queryIdentity.includes(phoneIdentity)
-    );
-  });
+  return getClientPhones(client).some((phone) =>
+    phone.toLowerCase().includes(normalizedQuery),
+  );
 };
 
 export const formatClientPhonesLabel = (
@@ -116,36 +99,15 @@ export const saleMatchesPhoneQuery = (
     return true;
   }
 
-  const queryDigits = normalizePhone(query);
-  const queryIdentity = queryDigits
-    ? normalizeClientPhoneIdentity(query)
-    : '';
+  if (phonesMatchQuery(getSaleClientPhones(sale), query)) {
+    return true;
+  }
 
-  return getSaleClientPhones(sale).some((phone) => {
-    if (phone.toLowerCase().includes(normalizedQuery)) {
-      return true;
-    }
+  if (isPhoneLikeQuery(query)) {
+    return false;
+  }
 
-    if (!queryDigits) {
-      return false;
-    }
-
-    const phoneDigits = normalizePhone(phone);
-    if (
-      phoneDigits.includes(queryDigits) ||
-      queryDigits.includes(phoneDigits)
-    ) {
-      return true;
-    }
-
-    if (queryIdentity.length < 3) {
-      return false;
-    }
-
-    const phoneIdentity = normalizeClientPhoneIdentity(phone);
-    return (
-      phoneIdentity.includes(queryIdentity) ||
-      queryIdentity.includes(phoneIdentity)
-    );
-  });
+  return getSaleClientPhones(sale).some((phone) =>
+    phone.toLowerCase().includes(normalizedQuery),
+  );
 };

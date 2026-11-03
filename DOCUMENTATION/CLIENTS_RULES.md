@@ -170,12 +170,12 @@ a later feature explicitly adds phone selection per order.
 5. Keep `onValidatePhone` behavior but adapt it to validate all non-empty phone
    rows. It should return false if any row is invalid or duplicated.
 6. Update client search/filter helpers so query matching includes additional
-   phones.
+   phones. The list phone rule is in [Search Rule](#search-rule).
 7. Update blacklist matching to compare the input phone against every phone on
    blacklist clients.
 8. Client lookup, merge search, client filters, and order filters must match
-   any stored phone. Suggestion rows may show all phones compactly; selected
-   client fields keep the primary phone for display.
+   any stored phone with that same rule. Suggestion rows may show all phones
+   compactly; selected client fields keep the primary phone for display.
 
 ### Merge Rule
 
@@ -203,8 +203,10 @@ a later feature explicitly adds phone selection per order.
 ### Search Rule
 
 - Every normalized phone on a client is globally unique.
-- Search by any phone must find that client in clients list, merge lookup,
-  order creation lookup, and order filters.
+- For phone-like input (digits and common phone punctuation, without letters), ignore separators in both the query and stored phone. Ukrainian `+380…`, `380…`, and `0…` compare as the local `0…` form; other countries retain their typed digits. Match a fragment anywhere after three local digits: `+38063` and `063` both match `063…`; `+3806` and bare `+380` do not trigger phone matches. Lettered order numbers, serials, and product codes keep literal text matching.
+- Apply this rule to primary and additional phones in Clients and Suppliers list search, their filters, `GET /clients?query=` / `GET /suppliers?query=`, order and sale list `q` and client filters (including legacy snapshots), and client/supplier merge search. Existing create-order client lookup also uses the client phone matcher. Other domain lookups keep their existing query behavior.
+- A list row keeps the primary phone visible and shows the first matching additional phone when a phone query or filter is active. Each shown number has its own copy control; Clients and Suppliers numbers retain their `tel:` links ([UI_DESIGN_SYSTEM.md — Hover copy icon](./UI_DESIGN_SYSTEM.md#hover-copy-icon)). Matching notes remain inside the card.
+- Clients list text search covers ID, name, email, address, registration ID, IBAN, and note; Suppliers covers name, note, and supplier order. Status remains in its dedicated filter.
 - Use `backend/src/scripts/backfill-client-phones.ts` with dry-run before
   applying legacy phone backfill in production.
 

@@ -150,7 +150,7 @@ Shared control: [`frontend/src/shared/ui/CopyableValue.tsx`](../frontend/src/sha
 
 | Place | Hover targets | Wiring |
 | --- | --- | --- |
-| `Orders` / `Sales` tables | Order number, client name, client phone. Orders tab also: device name (not the S/N line). Sales tab also: current product/service name and each individual S/N, in independent sibling copy wrappers. Name/serial text clicks open the sale card; `No items` has no copy icon. Sales `+N` menu remains informational | `OrdersWorkspace.tsx` |
+| `Orders` / `Sales` tables | Order number, client name, client phone, and a matched additional phone when shown; each phone has its own copy target. Orders tab also: device name (not the S/N line). Sales tab also: current product/service name and each individual S/N, in independent sibling copy wrappers. Name/serial text clicks open the sale card; `No items` has no copy icon. Sales `+N` menu remains informational | `OrdersWorkspace.tsx` |
 | Repair Kanban cards | Order number, client name, device name (not the phone, total, or master menu) | `RepairKanbanBoard.tsx` |
 | Opened repair card | Number, Client, Device, Phone, S/N, Manager, Issued | `OrderDetailCard.tsx` |
 | Opened sale card | Number, Client, Phone, Created order, Issued order; rapid sales use the stored client snapshot | `OrderDetailCard.tsx` |
@@ -159,7 +159,7 @@ Shared control: [`frontend/src/shared/ui/CopyableValue.tsx`](../frontend/src/sha
 | Warehouse `Stock balances` | Name, Serial #, Client order, Supplier order (**not** Article / Note) | `WarehouseTables.tsx` |
 | Product model modal `Purchase by serial` | Serial #, Supplier order number (order click still opens `SupplierOrderModal`; Latest/Reserved stay outside the serial copy target) | `ProductModelModal.tsx` |
 | Serial bind modal candidate rows | Supplier order number (order click still opens `SupplierOrderModal`; bind modal stays open; serial toggle is separate). Spec: [WAREHOUSE_FLOW.md §4.3.2](./WAREHOUSE_FLOW.md#432-bind-modal-candidate-row-purchase-price--supplier-order) | `SerialBindModal.tsx` |
-| `Clients & suppliers` → Clients / Suppliers | Name, phone | `ClientsTable.tsx`, `ClientsSuppliersWorkspace.tsx` |
+| `Clients & suppliers` → Clients / Suppliers | Name, primary phone, and a matched additional phone when shown; each phone keeps an independent copy icon and `tel:` link | `ClientsTable.tsx`, `ClientsSuppliersWorkspace.tsx` |
 | Client card header | Blue `tel:` phone | `ClientCardModal.tsx` |
 | Client card `Orders` / `Sales` | Order/sale number, device / product serial (`S/N:` line; icon copies the serial). Number click still opens the card | `ClientCardModal.tsx` |
 | Products & Services → Client devices / Products / Services | Name | `CatalogCopyableName` in `ProductCatalogTables.tsx` |

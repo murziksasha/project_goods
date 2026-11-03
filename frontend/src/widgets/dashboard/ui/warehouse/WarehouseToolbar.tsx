@@ -1,5 +1,13 @@
 import type React from 'react';
-import type { Dispatch, ReactNode, RefObject, SetStateAction } from 'react';
+import {
+  useEffect,
+  useRef,
+  useState,
+  type Dispatch,
+  type ReactNode,
+  type RefObject,
+  type SetStateAction,
+} from 'react';
 import { useTranslation } from 'react-i18next';
 import { PageHeader } from '../../../../shared/ui/PageHeader';
 import {
@@ -18,6 +26,92 @@ import {
   type WarehouseTab,
 } from '../../model/warehouse-panel';
 import { PrinterIcon } from '../orders/modals/PrinterIcon';
+
+export const WAREHOUSE_SEARCH_COMMIT_MS = 300;
+
+const useCommittedSearchDraft = ({
+  query,
+  setQuery,
+  setCurrentPage,
+}: {
+  query: string;
+  setQuery: Dispatch<SetStateAction<string>>;
+  setCurrentPage: Dispatch<SetStateAction<number>>;
+}) => {
+  const [draft, setDraft] = useState(query);
+  const draftRef = useRef(query);
+  const committedRef = useRef(query);
+  const timerRef = useRef<ReturnType<typeof window.setTimeout> | null>(
+    null,
+  );
+  const setQueryRef = useRef(setQuery);
+  const setCurrentPageRef = useRef(setCurrentPage);
+
+  useEffect(() => {
+    setQueryRef.current = setQuery;
+    setCurrentPageRef.current = setCurrentPage;
+  }, [setQuery, setCurrentPage]);
+
+  const cancelTimer = () => {
+    if (timerRef.current === null) return;
+    window.clearTimeout(timerRef.current);
+    timerRef.current = null;
+  };
+
+  const commitNow = (value: string, forcePageReset: boolean) => {
+    cancelTimer();
+    draftRef.current = value;
+    setDraft(value);
+    const changed = committedRef.current !== value;
+    committedRef.current = value;
+    if (changed) setQueryRef.current(value);
+    if (changed || forcePageReset) setCurrentPageRef.current(1);
+  };
+
+  const onDraftChange = (value: string) => {
+    draftRef.current = value;
+    setDraft(value);
+    cancelTimer();
+    timerRef.current = window.setTimeout(() => {
+      timerRef.current = null;
+      if (draftRef.current !== value) return;
+      if (committedRef.current === value) return;
+      committedRef.current = value;
+      setQueryRef.current(value);
+      setCurrentPageRef.current(1);
+    }, WAREHOUSE_SEARCH_COMMIT_MS);
+  };
+
+  useEffect(() => {
+    // A query this toolbar just committed matches the ref. Any other value
+    // came from outside, so the draft follows it.
+    if (query === committedRef.current) return;
+    cancelTimer();
+    committedRef.current = query;
+    draftRef.current = query;
+    setDraft(query);
+  }, [query]);
+
+  useEffect(() => {
+    return () => {
+      if (timerRef.current !== null) {
+        window.clearTimeout(timerRef.current);
+        timerRef.current = null;
+      }
+      const pending = draftRef.current;
+      if (pending === committedRef.current) return;
+      committedRef.current = pending;
+      setQueryRef.current(pending);
+      setCurrentPageRef.current(1);
+    };
+  }, []);
+
+  const commitDraft = (forcePageReset: boolean) => {
+    commitNow(draftRef.current, forcePageReset);
+  };
+
+  return { draft, onDraftChange, commitNow, commitDraft };
+};
 
 export interface WarehouseToolbarProps {
   activeTab: WarehouseTab;
@@ -87,6 +181,12 @@ export const WarehouseToolbar: React.FC<WarehouseToolbarProps> = ({
   setCurrentPage,
 }) => {
   const { t } = useTranslation();
+  const { draft, onDraftChange, commitNow, commitDraft } =
+    useCommittedSearchDraft({
+      query,
+      setQuery,
+      setCurrentPage,
+    });
 
   const getColumnLabel = (
     columnKey: StockColumnKey | ReceiptsColumnKey,
@@ -272,8 +372,8 @@ export const WarehouseToolbar: React.FC<WarehouseToolbarProps> = ({
               aria-label={t('warehouse.toolbar.searchModeAria')}
               value={searchMode}
               onChange={(event) => {
+                commitDraft(true);
                 setSearchMode(event.target.value as WarehouseSearchMode);
-                setCurrentPage(1);
               }}
             >
               {searchModes.map((mode) => (
@@ -285,28 +385,30 @@ export const WarehouseToolbar: React.FC<WarehouseToolbarProps> = ({
           ) : null}
           <div className='orders-search-group warehouse-search-group'>
             <input
-              value={query}
+              value={draft}
               onChange={(event) => {
-                setQuery(event.target.value);
-                setCurrentPage(1);
+                onDraftChange(event.target.value);
+              }}
+              onKeyDown={(event) => {
+                if (event.key !== 'Enter') return;
+                event.preventDefault();
+                commitDraft(true);
               }}
               placeholder={searchPlaceholder}
             />
-            {query ? (
+            {draft ? (
               <span
                 role='button'
                 tabIndex={0}
                 className='warehouse-search-clear'
                 aria-label={t('warehouse.toolbar.clearSearch')}
                 onClick={() => {
-                  setQuery('');
-                  setCurrentPage(1);
+                  commitNow('', true);
                 }}
                 onKeyDown={(event) => {
                   if (event.key === 'Enter' || event.key === ' ') {
                     event.preventDefault();
-                    setQuery('');
-                    setCurrentPage(1);
+                    commitNow('', true);
                   }
                 }}
               >

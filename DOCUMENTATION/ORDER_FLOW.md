@@ -98,11 +98,14 @@ The Orders, Sales, and Supplier Order tabs show the same count chip as the Kanba
 | Information (supplier) | `Orders: N` | `Замовлень: N` | Unchanged: chip replaces the pager |
 
 - i18n keys: `orders.kanban.ordersCount`, `orders.kanban.salesCount` (`en.json` / `uk.json`). Supplier Order reuses `orders.kanban.ordersCount`.
-- The chip is a static label. When the search field is non-empty and `N === 1`, it becomes a button that opens the single match, and the pager is hidden (same as before).
+- The chip is a static label. When the search field is non-empty and `N === 1`, it becomes a button that opens the single match, and the pager is hidden (same as before). Orders and Sales `N` uses the same phone and text rules as the rows, so the chip opens the row the list shows.
 - Components: `OrdersWorkspaceListHeader.tsx` (Orders / Kanban / Sales), `SupplierOrdersToolbar` in `SupplierOrdersWorkspaceSections.tsx` (Supplier Order / Information).
 
 ## Orders List Columns (`Orders` tab)
 
+- Toolbar search placeholder: `Order, client, phone, note or device`. `q` matches the order number, client name, notes, snapshot device name/serial/article, current line names/serials, and snapshot phones. The client filter matches client name, record number, and those phones. Both check the primary phone, additional phones, and legacy snapshots that only store `phone`.
+- Phone matching follows [CLIENTS_RULES.md — Search Rule](./CLIENTS_RULES.md#search-rule). Status stays on the dedicated filter.
+- Server rows, pagination `total`, and the browser filter use that phone rule. When an additional phone matches, the primary phone stays visible and the first matched additional number is shown beside it with the existing copy control. A matching note stays in the card. Kanban cards still show only the primary phone. Kanban `q` uses the repair search above and does not search manager names.
 - Column `Received` is renamed to `Issued`.
 - Column `Master` is added.
 - `Issued` displays only the employee who performed the status change to one of handoff repair statuses:
