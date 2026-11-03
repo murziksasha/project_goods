@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { flexiblePhonePattern } from '../../shared/lib/phone-search';
 import {
   buildSalesFilter,
   hasSalesListFilters,
@@ -204,6 +205,119 @@ describe('list-sales-query', () => {
         ]);
       },
     );
+  });
+
+  describe('phone, note, and manager search', () => {
+    const phoneMatch = {
+      $regex: flexiblePhonePattern('063'),
+      $options: 'i',
+    };
+
+    const regexFor = (branches: Array<Record<string, unknown>>, field: string) => {
+      const match = branches.find((branch) => field in branch)?.[field] as
+        | { $regex: string; $options: string }
+        | undefined;
+      expect(match).toBeDefined();
+      return new RegExp(match!.$regex, match!.$options);
+    };
+
+    it('matches primary and additional snapshot phones from three local digits', () => {
+      const branches = buildSalesFilter({ kind: 'repair', q: '+38063' }).$or as Array<
+        Record<string, unknown>
+      >;
+
+      expect(branches).toEqual(
+        expect.arrayContaining([
+          { note: { $regex: '\\+38063', $options: 'i' } },
+          { userNote: { $regex: '\\+38063', $options: 'i' } },
+          { 'clientSnapshot.phone': phoneMatch },
+          { 'clientSnapshot.phones': phoneMatch },
+        ]),
+      );
+      expect(branches.some((branch) => 'managerSnapshot.name' in branch)).toBe(false);
+    });
+
+    it('does not phone-match a bare country code or a serial', () => {
+      const bare = buildSalesFilter({ kind: 'sale', q: '+380' }).$or as Array<
+        Record<string, unknown>
+      >;
+      expect(bare.some((branch) => 'clientSnapshot.phone' in branch)).toBe(false);
+      expect(bare).toEqual(
+        expect.arrayContaining([
+          { note: { $regex: '\\+380', $options: 'i' } },
+          { 'managerSnapshot.name': { $regex: '\\+380', $options: 'i' } },
+          { 'issuedBySnapshot.name': { $regex: '\\+380', $options: 'i' } },
+        ]),
+      );
+
+      const serial = buildSalesFilter({ kind: 'sale', q: 'S000123' }).$or as Array<
+        Record<string, unknown>
+      >;
+      expect(serial).toEqual(
+        expect.arrayContaining([
+          { 'clientSnapshot.phone': { $regex: 'S000123', $options: 'i' } },
+          { 'lineItems.serialNumbers': { $regex: 'S000123', $options: 'i' } },
+        ]),
+      );
+    });
+
+    it('applies the same phone rule to the client filter', () => {
+      const fullPhone = {
+        $regex: flexiblePhonePattern('0631112233'),
+        $options: 'i',
+      };
+      const filter = buildSalesFilter({ client: '(063) 111-22-33' });
+      expect(filter.$or).toEqual(
+        expect.arrayContaining([
+          { 'clientSnapshot.name': { $regex: '\\(063\\) 111-22-33', $options: 'i' } },
+          { 'clientSnapshot.phone': fullPhone },
+          { 'clientSnapshot.phones': fullPhone },
+          { recordNumber: { $regex: '\\(063\\) 111-22-33', $options: 'i' } },
+        ]),
+      );
+    });
+
+    it('executes q and client phone regexes against legacy separators', () => {
+      const query = '+380/63–111 22 33';
+      const legacyPhone = '+380—63/111.22.33';
+      const qBranches = buildSalesFilter({ kind: 'sale', q: query }).$or as Array<
+        Record<string, unknown>
+      >;
+      const clientBranches = buildSalesFilter({ kind: 'sale', client: query }).$or as Array<
+        Record<string, unknown>
+      >;
+
+      expect(regexFor(qBranches, 'clientSnapshot.phone').test(legacyPhone)).toBe(true);
+      expect(regexFor(qBranches, 'clientSnapshot.phones').test(legacyPhone)).toBe(true);
+      expect(regexFor(clientBranches, 'clientSnapshot.phone').test(legacyPhone)).toBe(true);
+      expect(regexFor(clientBranches, 'clientSnapshot.phones').test(legacyPhone)).toBe(true);
+    });
+
+    it.each([
+      'Rapid sale',
+      'rapid',
+      'pid sa',
+      'Швидкий продаж',
+      'швид',
+      'видкий про',
+    ])('matches rapid-sale alias %s in q and client filters', (alias) => {
+      const qBranches = buildSalesFilter({ kind: 'sale', q: alias }).$or as Array<
+        Record<string, unknown>
+      >;
+      const clientBranches = buildSalesFilter({ kind: 'sale', client: alias }).$or as Array<
+        Record<string, unknown>
+      >;
+
+      expect(qBranches).toContainEqual({ isRapidSale: true });
+      expect(clientBranches).toContainEqual({ isRapidSale: true });
+    });
+
+    it('keeps rapid-sale aliases scoped to sale results', () => {
+      const repair = buildSalesFilter({ kind: 'repair', q: 'rapid' });
+      const unrelated = buildSalesFilter({ kind: 'sale', q: 'Olena' });
+      expect(repair.$or).not.toContainEqual({ isRapidSale: true });
+      expect(unrelated.$or).not.toContainEqual({ isRapidSale: true });
+    });
   });
 
   describe('kanban master query filters', () => {

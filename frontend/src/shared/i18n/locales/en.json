@@ -716,8 +716,8 @@
       "starOrder": "Star {{orderNumber}}",
       "unstarOrder": "Remove star from {{orderNumber}}",
       "searchPlaceholder": {
-        "orders": "Order, client, phone or device",
-        "sales": "Order, client, phone, product or manager"
+        "orders": "Order, client, phone, note or device",
+        "sales": "Order, client, phone, product, note or manager"
       },
       "loading": "Loading orders...",
       "empty": {
@@ -752,7 +752,7 @@
       "orderNumber": "Order number",
       "orderNumberPlaceholder": "Order #",
       "client": "Client",
-      "clientPlaceholder": "Client name or phone",
+      "clientPlaceholder": "Client name or phone (+38063, 063)",
       "assignee": "Master / manager",
       "master": "Master",
       "withoutMaster": "Without master",
@@ -1501,7 +1501,7 @@
     },
     "toolbar": {
       "filter": "Filter",
-      "searchPlaceholder": "Search by name or phone",
+      "searchPlaceholder": "Search by name, phone or note",
       "searchAriaLabel": "Search client",
       "clearSearchAriaLabel": "Clear search text",
       "importXls": "Import XLS",
@@ -1553,8 +1553,8 @@
       "clear": "Clear filter",
       "saveFilter": "Save filter",
       "saveFilterRequiresEmployee": "Employee profile is required to save filters.",
-      "searchLabel": "Search by name or phone",
-      "searchPlaceholder": "Ivan, +38067...",
+      "searchLabel": "Search by name, phone or note",
+      "searchPlaceholder": "Ivan, +38063 or 063",
       "filterByStatus": "Filter by status"
     },
     "card": {
@@ -1683,7 +1683,7 @@
     "suppliers": {
       "toolbar": {
         "filter": "Filter",
-        "searchPlaceholder": "Search by name, phone or supplier order",
+        "searchPlaceholder": "Search by name, phone, note or supplier order",
         "searchAriaLabel": "Search supplier",
         "clearSearchAriaLabel": "Clear search text",
         "importXls": "Import XLS",
@@ -1695,7 +1695,7 @@
       },
       "filters": {
         "namePhoneOrOrder": "Name / phone / order",
-        "namePhoneOrOrderPlaceholder": "Supplier name or phone",
+        "namePhoneOrOrderPlaceholder": "Supplier name or phone (+38063, 063)",
         "supplierId": "Supplier ID",
         "supplierIdPlaceholder": "ID",
         "status": "Status",

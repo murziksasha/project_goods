@@ -230,7 +230,7 @@ describe('ClientsSuppliersWorkspace suppliers filters', () => {
     fireEvent.click(screen.getByRole('tab', { name: /Suppliers/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Filter' }));
     fireEvent.change(
-      screen.getByPlaceholderText('Supplier name or phone'),
+      screen.getByPlaceholderText(/supplier name or phone/i),
       {
         target: { value: 'Alt' },
       },

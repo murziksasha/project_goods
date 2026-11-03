@@ -1,4 +1,9 @@
 import mongoose from 'mongoose';
+import {
+  flexiblePhonePattern,
+  getPhoneSearchKey,
+  isPhoneLikeQuery,
+} from '../../shared/lib/phone-search';
 import { escapeRegExp } from '../../shared/lib/query';
 
 /** Hard cap when `limit` query is provided (LAN safety). */
@@ -213,28 +218,68 @@ const currentSaleArticleMatch = (pattern: string): SalesMongoFilter => ({
   },
 });
 
-const textOr = (pattern: string, kind?: SaleKind) => [
-  { recordNumber: { $regex: pattern, $options: 'i' } },
-  { note: { $regex: pattern, $options: 'i' } },
-  { userNote: { $regex: pattern, $options: 'i' } },
-  { 'clientSnapshot.name': { $regex: pattern, $options: 'i' } },
-  { 'clientSnapshot.phone': { $regex: pattern, $options: 'i' } },
-  { 'clientSnapshot.phones': { $regex: pattern, $options: 'i' } },
-  ...(kind === 'sale'
-    ? [currentSaleArticleMatch(pattern)]
-    : [
-        { 'productSnapshot.name': { $regex: pattern, $options: 'i' } },
-        {
-          'productSnapshot.serialNumber': {
-            $regex: pattern,
-            $options: 'i',
-          },
-        },
-        { 'productSnapshot.article': { $regex: pattern, $options: 'i' } },
-      ]),
-  { 'lineItems.name': { $regex: pattern, $options: 'i' } },
-  { 'lineItems.serialNumbers': { $regex: pattern, $options: 'i' } },
-];
+const textMatch = (pattern: string) => ({
+  $regex: pattern,
+  $options: 'i',
+});
+
+const snapshotPhoneBranches = (rawQuery: string): SalesMongoFilter[] => {
+  const key = getPhoneSearchKey(rawQuery);
+  if (key) {
+    const phoneMatch = textMatch(flexiblePhonePattern(key));
+    return [
+      { 'clientSnapshot.phone': phoneMatch },
+      { 'clientSnapshot.phones': phoneMatch },
+    ];
+  }
+
+  if (isPhoneLikeQuery(rawQuery)) return [];
+
+  const literal = textMatch(escapeRegExp(rawQuery));
+  return [
+    { 'clientSnapshot.phone': literal },
+    { 'clientSnapshot.phones': literal },
+  ];
+};
+
+const RAPID_SALE_ALIASES = ['Rapid sale', 'Швидкий продаж'] as const;
+
+const rapidSaleAliasBranches = (
+  rawQuery: string,
+  kind?: SaleKind,
+): SalesMongoFilter[] => {
+  if (kind === 'repair') return [];
+  const query = rawQuery.trim().toLowerCase();
+  return query && RAPID_SALE_ALIASES.some((alias) => alias.toLowerCase().includes(query))
+    ? [{ isRapidSale: true }]
+    : [];
+};
+
+const textOr = (rawQuery: string, kind?: SaleKind) => {
+  const pattern = escapeRegExp(rawQuery);
+  const match = textMatch(pattern);
+  return [
+    { recordNumber: match },
+    { note: match },
+    { userNote: match },
+    { 'clientSnapshot.name': match },
+    ...rapidSaleAliasBranches(rawQuery, kind),
+    ...snapshotPhoneBranches(rawQuery),
+    ...(kind === 'sale'
+      ? [
+          currentSaleArticleMatch(pattern),
+          { 'managerSnapshot.name': match },
+          { 'issuedBySnapshot.name': match },
+        ]
+      : [
+          { 'productSnapshot.name': match },
+          { 'productSnapshot.serialNumber': match },
+          { 'productSnapshot.article': match },
+        ]),
+    { 'lineItems.name': match },
+    { 'lineItems.serialNumbers': match },
+  ];
+};
 
 export const buildSalesFilter = (
   options: ListSalesOptions,
@@ -334,21 +379,18 @@ export const buildSalesFilter = (
   }
 
   if (options.q) {
-    and.push({ $or: textOr(escapeRegExp(options.q), options.kind) });
+    and.push({ $or: textOr(options.q, options.kind) });
   }
 
   if (options.client) {
     const pattern = escapeRegExp(options.client);
+    const match = textMatch(pattern);
     and.push({
       $or: [
-        { 'clientSnapshot.name': { $regex: pattern, $options: 'i' } },
-        {
-          'clientSnapshot.phone': { $regex: pattern, $options: 'i' },
-        },
-        {
-          'clientSnapshot.phones': { $regex: pattern, $options: 'i' },
-        },
-        { recordNumber: { $regex: pattern, $options: 'i' } },
+        { 'clientSnapshot.name': match },
+        ...rapidSaleAliasBranches(options.client, options.kind),
+        ...snapshotPhoneBranches(options.client),
+        { recordNumber: match },
       ],
     });
   }

@@ -234,7 +234,9 @@ for (const isRapidSale of [false, true]) {
     await expect(page.getByLabel('Sale card', { exact: true })).toHaveCount(0);
     await page.keyboard.press('Escape');
 
-    const search = page.getByPlaceholder('Order, client, phone, product or manager');
+    const search = page.getByPlaceholder(
+      'Order, client, phone, product, note or manager',
+    );
     await search.fill('AAA Panasonic Alkaline');
     await expect(firstCell).toContainText(productName);
     await search.fill('Diagnostics');

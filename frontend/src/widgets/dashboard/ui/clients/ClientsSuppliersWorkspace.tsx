@@ -33,8 +33,14 @@ import { CatalogRecordMergeModal } from '../../../../features/catalog-duplicate-
 import { Button } from '../../../../shared/ui/Button';
 import { PageHeader } from '../../../../shared/ui/PageHeader';
 import { StatusBadge } from '../../../../shared/ui/StatusBadge';
+import {
+  findFirstMatchedAdditionalPhone,
+  isPhoneLikeQuery,
+  phonesMatchQuery,
+} from '../../../../shared/lib/phone-search';
+import { supplierMatchesListQuery } from './supplier-list-search';
 import { CopyableValue } from '../../../../shared/ui/CopyableValue';
-import { PhoneNumber } from '../shared/PhoneNumber';
+import { ListedPhones } from '../shared/ListedPhones';
 import { ClientsWorkspace } from './ClientsWorkspace';
 import { SupplierEditorModal } from './SupplierEditorModal';
 import { filterIconOptions } from '../orders/workspace/orders-workspace-shared';
@@ -153,16 +159,6 @@ const getActiveSupplierFiltersCount = (filters: SupplierFilters) =>
 const toSupplierPayload = (
   form: SupplierFormState,
 ): SupplierFormValues => mapSupplierFormToPayload(form);
-
-const getSearchText = (supplier: Supplier) =>
-  [
-    supplier.name,
-    ...getSupplierPhones(supplier),
-    supplier.note,
-    supplier.supplierOrder,
-  ]
-    .join(' ')
-    .toLowerCase();
 
 const normalizeSupplierPhoneDigits = (phone: string) =>
   phone.replace(/\D/g, '');
@@ -338,10 +334,7 @@ export const ClientsSuppliersWorkspace: React.FC<
     );
 
     return sortedSuppliers.filter((supplier) => {
-      if (
-        normalized &&
-        !getSearchText(supplier).includes(normalized)
-      ) {
+      if (normalized && !supplierMatchesListQuery(supplier, filters.query)) {
         return false;
       }
       if (
@@ -759,11 +752,17 @@ export const ClientsSuppliersWorkspace: React.FC<
           }
           getRecordNote={(supplier) => supplier.note}
           matchesRecord={(supplier, query) => {
-            const normalized = query.trim().toLowerCase();
-            if (!normalized) return true;
-            return `${supplier.name} ${getSupplierPhones(supplier).join(' ')}`
-              .toLowerCase()
-              .includes(normalized);
+            const trimmed = query.trim();
+            if (!trimmed) return true;
+            if (supplier.name.toLowerCase().includes(trimmed.toLowerCase())) {
+              return true;
+            }
+            const phones = getSupplierPhones(supplier);
+            if (phonesMatchQuery(phones, trimmed)) return true;
+            if (isPhoneLikeQuery(trimmed)) return false;
+            return phones.some((phone) =>
+              phone.toLowerCase().includes(trimmed.toLowerCase()),
+            );
           }}
         />
       ) : null}
@@ -921,6 +920,7 @@ const SuppliersWorkspace = ({
     />
     <SuppliersTable
       suppliers={suppliers}
+      searchQuery={query}
       onOpenEditModal={onOpenEditModal}
     />
     <PaginationPanel
@@ -1243,9 +1243,11 @@ const SuppliersFilterPanel = ({
 
 const SuppliersTable = ({
   suppliers,
+  searchQuery,
   onOpenEditModal,
 }: {
   suppliers: Supplier[];
+  searchQuery: string;
   onOpenEditModal: (supplier: Supplier) => void;
 }) => {
   const { t } = useTranslation();
@@ -1274,6 +1276,10 @@ const SuppliersTable = ({
           ) : (
             suppliers.map((supplier) => {
               const phone = getPrimarySupplierPhone(supplier);
+              const matchedAdditional = findFirstMatchedAdditionalPhone(
+                getSupplierPhones(supplier),
+                searchQuery,
+              );
               return (
                 <tr
                   key={supplier.id}
@@ -1299,14 +1305,11 @@ const SuppliersTable = ({
                   </td>
                   <td data-label={columns.phone}>
                     {phone ? (
-                      <CopyableValue value={phone}>
-                        <a
-                          href={`tel:${phone}`}
-                          onClick={(event) => event.stopPropagation()}
-                        >
-                          <PhoneNumber value={phone} />
-                        </a>
-                      </CopyableValue>
+                      <ListedPhones
+                        link
+                        primary={phone}
+                        matchedAdditional={matchedAdditional}
+                      />
                     ) : (
                       '-'
                     )}
