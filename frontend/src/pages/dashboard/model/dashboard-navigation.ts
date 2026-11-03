@@ -15,6 +15,7 @@ export type DashboardLocation = {
   createOrder: CreateOrderTab | null;
   saleId: string | null;
   accountingTab: AccountingTab | null;
+  clientCard: string | null;
 };
 
 const resolveOrdersTab = (
@@ -58,6 +59,8 @@ export const parseDashboardLocation = (
     page === 'accounting' && isAccountingTab(accountingTabParam)
       ? accountingTabParam
       : null;
+  const clientCard =
+    page === 'orders' ? params.get('clientCard')?.trim() || null : null;
 
   return {
     page,
@@ -65,6 +68,7 @@ export const parseDashboardLocation = (
     createOrder,
     saleId,
     accountingTab,
+    clientCard,
   };
 };
 
@@ -84,6 +88,7 @@ export const buildDashboardHref = (
   const createOrder = location.createOrder ?? null;
   const saleId = location.saleId ?? null;
   const accountingTab = location.accountingTab ?? null;
+  const clientCard = location.clientCard ?? null;
 
   if (page === 'home') {
     url.searchParams.delete('page');
@@ -114,6 +119,12 @@ export const buildDashboardHref = (
     url.searchParams.set('saleId', saleId);
   } else {
     url.searchParams.delete('saleId');
+  }
+
+  if (page === 'orders' && clientCard) {
+    url.searchParams.set('clientCard', clientCard);
+  } else {
+    url.searchParams.delete('clientCard');
   }
 
   return `${url.pathname}${url.search}${url.hash}`;
@@ -164,4 +175,20 @@ export const getOrderLink = (saleId: string, kind: 'repair' | 'sale') =>
     createOrder: null,
     saleId,
     accountingTab: null,
+    clientCard: null,
   });
+
+export const clientCardOverlayHistoryState = {
+  clientCardOverlay: true,
+} as const;
+
+export const isClientCardOverlayHistoryState = (
+  state: unknown,
+): boolean =>
+  Boolean(
+    state &&
+      typeof state === 'object' &&
+      'clientCardOverlay' in state &&
+      (state as { clientCardOverlay?: unknown }).clientCardOverlay ===
+        true,
+  );

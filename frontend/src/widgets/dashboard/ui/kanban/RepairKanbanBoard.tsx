@@ -25,6 +25,7 @@ import { hasEmployeePermission } from '../../../../entities/employee';
 import type { Employee } from '../../../../entities/employee';
 import type { Sale } from '../../../../entities/sale';
 import { formatCurrency } from '../../../../shared/lib/format';
+import { CopyableValue } from '../../../../shared/ui/CopyableValue';
 import { getSaleTotal } from '../../model/sales-analytics';
 import { getSaleClientDisplayName } from '../../model/sale-client-display';
 import { getSaleClientPhones } from '../../../../entities/client';
@@ -142,24 +143,46 @@ const KanbanCard = ({
       }}
     >
       <span className='repair-kanban-card-header'>
-        <span className='repair-kanban-card-number'>
-          #{orderNumber}
-        </span>
+        <CopyableValue
+          value={orderNumber}
+          className='repair-kanban-card-number'
+        >
+          <span className='repair-kanban-card-number-text'>
+            #{orderNumber}
+          </span>
+        </CopyableValue>
         {formattedClientPhone ? (
           <strong className='repair-kanban-card-phone'>
             {formattedClientPhone}
           </strong>
         ) : null}
       </span>
-      <span className='repair-kanban-card-client' title={clientName}>
-        {clientName}
-      </span>
-      <span
-        className='repair-kanban-card-device'
-        title={deviceName || undefined}
+      <CopyableValue
+        value={clientName}
+        className='repair-kanban-card-client'
       >
-        {deviceName || '—'}
-      </span>
+        <span
+          className='repair-kanban-card-client-text'
+          title={clientName}
+        >
+          {clientName}
+        </span>
+      </CopyableValue>
+      {deviceName.trim() ? (
+        <CopyableValue
+          value={deviceName}
+          className='repair-kanban-card-device'
+        >
+          <span
+            className='repair-kanban-card-device-text'
+            title={deviceName}
+          >
+            {deviceName}
+          </span>
+        </CopyableValue>
+      ) : (
+        <span className='repair-kanban-card-device'>—</span>
+      )}
       {hasLineItems ? (
         <span className='repair-kanban-card-total'>
           {formatCurrency(orderTotal)}

@@ -90,6 +90,7 @@ export const ClientsTable: React.FC<ClientsTableProps> = ({
               return (
                 <tr
                   key={client.id}
+                  data-client-id={client.id}
                   className={rowClassName}
                   title={
                     isBlacklisted

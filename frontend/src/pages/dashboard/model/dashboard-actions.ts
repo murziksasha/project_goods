@@ -47,7 +47,10 @@ import type {
   Sale,
   SaleFormValues,
 } from '../../../entities/sale';
-import { getSaleProductName } from '../../../entities/sale';
+import {
+  getSaleProductName,
+  mapCachedSalesClientSnapshot,
+} from '../../../entities/sale';
 import {
   getCreateOrderSaleTitle,
   validateCreateOrderSaleLineItems,
@@ -1009,6 +1012,16 @@ export const createDashboardActions = ({
         const updatedClient = await mutateUpdateClient(
           clientId,
           payload,
+        );
+        const patchCachedSales = (current: unknown) =>
+          mapCachedSalesClientSnapshot(current, updatedClient);
+        queryClient.setQueriesData(
+          { queryKey: queryKeys.sales },
+          patchCachedSales,
+        );
+        queryClient.setQueriesData(
+          { queryKey: ['saleDetail'] },
+          patchCachedSales,
         );
         await safeRefresh(
           refreshClients,

@@ -106,16 +106,17 @@ For any mutation that can affect shared screens (orders, sales, stock, client de
 - Active dashboard tabs must persist across browser reload (`F5`) so users return to the last working view instead of falling back to `Main`.
 - The persisted tab state is stored in `localStorage` and restored automatically on mount unless a deeper navigation state explicitly overrides it.
 - This applies to the main dashboard page, `Settings`, `Accounting`, `Products & Services`, `Clients & Suppliers`, `Warehouse`, and the nested workflow tabs inside create/edit cards.
-- Nested examples that must remember their last tab: `Accounting -> Finance settings`, `Clients -> client card`, `Clients -> create client modal`, `Orders -> order detail related block`, and `Create order -> request tabs`.
+- Nested examples that must remember their last tab: `Accounting -> Finance settings`, `Clients -> client card` (Clients menu only; `project-goods.client-card-tab`), `Clients -> create client modal`, `Orders -> order detail related block`, and `Create order -> request tabs`.
+- The client card opened from Orders (`clientCard` on `page=orders`) does not read or write that tab key. Each open starts on `Main`. Switching tabs lasts until the overlay closes.
 - URL-driven navigation still wins when the user opens a specific page/tab via route or link, but ordinary refresh should preserve the last active tab selection.
 
 ## Browser Back/Forward Navigation (2026-06-22)
 
 - In-app navigation must stay inside the SPA when the user presses browser **Back** or **Forward**.
-- Implementation uses the native History API (`history.pushState` for user steps, `history.replaceState` only for auth, permission redirects, and one-time URL normalization).
+- Implementation uses the native History API (`history.pushState` for user steps, `history.replaceState` for auth, permission redirects, one-time URL normalization, and the orders client-card cases in [BROWSER_NAVIGATION.md](./BROWSER_NAVIGATION.md)).
 - React Router is intentionally not used; overhead is one `popstate` listener in `DashboardPage` plus lightweight URL strings.
 - **URL is the source of truth** during `popstate`; `localStorage` tab fallbacks apply on first load / empty URL, not when traversing history.
-- Route-level state lives in query params (`page`, `ordersTab`, `saleId`, `createOrder`, `accountingTab`). Heavy payloads (sales lists, client history, workspace data) must not be stored in `history.state`.
+- Route-level state lives in query params (`page`, `ordersTab`, `saleId`, `createOrder`, `clientCard`, `accountingTab`). `clientCard` is only valid on `page=orders`. Heavy payloads (sales lists, client history, workspace data) must not be stored in `history.state`. The orders client-card overlay may store only `{ clientCardOverlay: true }` so Back closes the modal. Full rules: [BROWSER_NAVIGATION.md](./BROWSER_NAVIGATION.md).
 - Central module: `frontend/src/pages/dashboard/model/dashboard-navigation.ts`.
 - Full spec: [BROWSER_NAVIGATION.md](./BROWSER_NAVIGATION.md).
 

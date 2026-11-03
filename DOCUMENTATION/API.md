@@ -139,6 +139,7 @@ Permission: `system.backups.manage` (except finance snapshot read).
   - `isFavorite` / `isRapidSale` — boolean (`true`/`false`/`1`/`0`)
   - `clientId` — ObjectId клиента
   - `q` (или `query`) — поиск по номеру, клиенту, товару, заметкам
+  - With `kind=sale`, item matching for `q` uses current `lineItems.name` and `lineItems.serialNumbers`, never the original snapshot name or serial. Snapshot article matching requires a current product line with `productId` equal to the sale's stored `product` reference. Product and Service filters match current line names of their respective kind. Empty/missing line items do not restore snapshot items. Rows and pagination `total` use the same filter. Other query fields and repair/unscoped searches retain their existing behavior. UI rules: [SALE_FLOW.md → Sales List Columns](./SALE_FLOW.md#sales-list-columns-orders---sales).
   - `limit` — максимум записей (cap 5000); без `limit` и без `page` — полный список
   - `page` / `pageSize` — если `page` задан, ответ `{ items, total, page, pageSize }` (default pageSize 30, cap 500). Таблица Orders/Sales использует этот режим.
   - `statuses` — CSV/`$in`; `excludeStatuses` — `$nin`

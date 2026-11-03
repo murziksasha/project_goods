@@ -119,6 +119,7 @@
     "permissionCreateOrder": "Current employee does not have permission to create orders.",
     "permissionPage": "Current employee does not have permission to open this page.",
     "permissionClients": "Current employee does not have permission to manage clients.",
+    "clientNotFound": "Client not found.",
     "permissionTab": "Current employee does not have permission to open this tab.",
     "failedToSaveService": "Failed to save service.",
     "failedLoadProducts": "Failed to load products.",
@@ -730,6 +731,7 @@
       "serialPrefix": "S/N: {{serial}}",
       "extraLines": "+{{count}}",
       "extraLinesShow": "Show items in this order",
+      "noItems": "No items",
       "warehouseLabel": "Warehouse: Service center",
       "assignee": {
         "master": "{{name}} (Master)",
@@ -1623,6 +1625,7 @@
       "setPrimaryPhoneAriaLabel": "Set as primary phone",
       "removePhoneAriaLabel": "Remove phone",
       "saveClient": "Save client",
+      "openClientList": "Client list",
       "saving": "Saving...",
       "statusAutoHint": "Auto: {{status}}",
       "history": {

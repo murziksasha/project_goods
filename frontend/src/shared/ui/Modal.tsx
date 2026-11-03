@@ -6,6 +6,7 @@ import {
   type MouseEvent as ReactMouseEvent,
   type ReactNode,
 } from 'react';
+import { createPortal } from 'react-dom';
 import { useModalBackgroundScrollLock } from '../lib/useModalBackgroundScrollLock';
 import { Button } from './Button';
 
@@ -36,6 +37,11 @@ export interface ModalProps {
   closeOnEscape?: boolean;
   initialFocusSelector?: string;
   role?: 'dialog' | 'alertdialog';
+  /**
+   * Render on document.body. The orders client card uses this so the
+   * backdrop covers the sidebar. dashboard-main clips position:fixed.
+   */
+  usePortal?: boolean;
 }
 
 const FOCUSABLE_SELECTOR = [
@@ -92,6 +98,7 @@ export const Modal: React.FC<ModalProps> = ({
   closeOnEscape = true,
   initialFocusSelector,
   role = 'dialog',
+  usePortal = false,
 }) => {
   const titleId = useId();
   const dialogRef = useRef<HTMLDivElement>(null);
@@ -204,7 +211,7 @@ export const Modal: React.FC<ModalProps> = ({
     }
   };
 
-  return (
+  const dialog = (
     <div
       className='modal-backdrop'
       role='presentation'
@@ -283,4 +290,10 @@ export const Modal: React.FC<ModalProps> = ({
       </div>
     </div>
   );
+
+  if (usePortal && typeof document !== 'undefined') {
+    return createPortal(dialog, document.body);
+  }
+
+  return dialog;
 };

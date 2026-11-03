@@ -91,6 +91,8 @@ export const CopyableValue: React.FC<CopyableValueProps> = ({
           }`}
           onClick={(event) => void handleCopy(event)}
           onMouseDown={(event) => event.stopPropagation()}
+          onPointerDown={(event) => event.stopPropagation()}
+          onKeyDown={(event) => event.stopPropagation()}
           aria-label={label}
           title={label}
         >
