@@ -6,7 +6,7 @@ Related: [SALE_FLOW.md](./SALE_FLOW.md) · [ORDER_CARD.md](./ORDER_CARD.md) · [
 
 - Rapid sales (`isRapidSale: true`) are created from the compact rapid-sale modal (full creation UX: [SALE_FLOW.md](./SALE_FLOW.md#rapid-sale-2026-06-24-ux-updates-2026-06-30)) and may still be opened later as a normal sale card from the sales list.
 - Creation-time retail/wholesale selection happens in the **product entry row** (`ProductSalePriceField`, R/W badges in the Price label) and the **service entry row** (`ServiceSalePriceField`, R/W1/W2 when wholesale options are set). Post-add price edits use the pinned **draft items table** (plain `NumberStepper` per line before `Issued`). After the sale exists, line-item price rules follow the normal sale card sections below. Service wholesale on the opened card lives in the Services price column header (same pattern as product R/W).
-- In the sales list client column only, rapid sales display `Rapid sale` instead of the linked system client name; phone shows `-`. The Product column still shows the sold item (`getSaleProductName`).
+- In the sales list client column only, rapid sales display `Rapid sale` instead of the linked system client name; phone shows `-`. Product labels, serials, and item search follow [SALE_FLOW.md → Sales List Columns](./SALE_FLOW.md#sales-list-columns-orders---sales).
 - Client card link is disabled in the list for rapid sales (`isRapidSaleClientLinkDisabled`).
 - Inside an opened sale card, client fields continue to use stored system-client snapshot data (not the `Rapid sale` list label).
 - Post-create edit from the sales list (including after **Accept to cashbox** without issue) follows normal sale-card field rules; see [SALE_FLOW.md → Opened Rapid Sale Card](./SALE_FLOW.md#opened-rapid-sale-card-post-create-edit).
@@ -14,7 +14,7 @@ Related: [SALE_FLOW.md](./SALE_FLOW.md) · [ORDER_CARD.md](./ORDER_CARD.md) · [
 ## Service-Only Sales
 
 - A sale may contain only service line items (no product rows). This is valid for both `Create order -> Sales order` and `Rapid sale`.
-- When no product snapshot or product line exists, list/search labels and opened-card product title fall back to the first service line name via `getSaleProductName`.
+- Sales list labels and item search follow [SALE_FLOW.md → Sales List Columns](./SALE_FLOW.md#sales-list-columns-orders---sales). Opened-card product titles retain their existing `getSaleProductName` fallback to the first service when no product snapshot or product line exists.
 
 ## Sections And Defaults
 

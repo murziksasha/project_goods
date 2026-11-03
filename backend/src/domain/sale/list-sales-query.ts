@@ -189,21 +189,49 @@ export const parseListSalesQuery = (
 
 export type SalesMongoFilter = Record<string, unknown>;
 
-const textOr = (pattern: string) => [
+const currentSaleArticleMatch = (pattern: string): SalesMongoFilter => ({
+  product: { $ne: null },
+  'productSnapshot.article': { $regex: pattern, $options: 'i' },
+  $expr: {
+    $gt: [
+      {
+        $size: {
+          $filter: {
+            input: { $ifNull: ['$lineItems', []] },
+            as: 'item',
+            cond: {
+              $and: [
+                { $eq: ['$$item.kind', 'product'] },
+                { $eq: ['$$item.productId', '$product'] },
+              ],
+            },
+          },
+        },
+      },
+      0,
+    ],
+  },
+});
+
+const textOr = (pattern: string, kind?: SaleKind) => [
   { recordNumber: { $regex: pattern, $options: 'i' } },
   { note: { $regex: pattern, $options: 'i' } },
   { userNote: { $regex: pattern, $options: 'i' } },
   { 'clientSnapshot.name': { $regex: pattern, $options: 'i' } },
   { 'clientSnapshot.phone': { $regex: pattern, $options: 'i' } },
   { 'clientSnapshot.phones': { $regex: pattern, $options: 'i' } },
-  { 'productSnapshot.name': { $regex: pattern, $options: 'i' } },
-  {
-    'productSnapshot.serialNumber': {
-      $regex: pattern,
-      $options: 'i',
-    },
-  },
-  { 'productSnapshot.article': { $regex: pattern, $options: 'i' } },
+  ...(kind === 'sale'
+    ? [currentSaleArticleMatch(pattern)]
+    : [
+        { 'productSnapshot.name': { $regex: pattern, $options: 'i' } },
+        {
+          'productSnapshot.serialNumber': {
+            $regex: pattern,
+            $options: 'i',
+          },
+        },
+        { 'productSnapshot.article': { $regex: pattern, $options: 'i' } },
+      ]),
   { 'lineItems.name': { $regex: pattern, $options: 'i' } },
   { 'lineItems.serialNumbers': { $regex: pattern, $options: 'i' } },
 ];
@@ -306,7 +334,7 @@ export const buildSalesFilter = (
   }
 
   if (options.q) {
-    and.push({ $or: textOr(escapeRegExp(options.q)) });
+    and.push({ $or: textOr(escapeRegExp(options.q), options.kind) });
   }
 
   if (options.client) {
@@ -327,21 +355,26 @@ export const buildSalesFilter = (
 
   if (options.product) {
     const pattern = escapeRegExp(options.product);
-    and.push({
-      $or: [
-        {
-          'productSnapshot.name': { $regex: pattern, $options: 'i' },
+    const productLineFilter = {
+      lineItems: {
+        $elemMatch: {
+          kind: 'product',
+          name: { $regex: pattern, $options: 'i' },
         },
-        {
-          lineItems: {
-            $elemMatch: {
-              kind: 'product',
-              name: { $regex: pattern, $options: 'i' },
-            },
+      },
+    };
+    and.push(
+      options.kind === 'sale'
+        ? productLineFilter
+        : {
+            $or: [
+              {
+                'productSnapshot.name': { $regex: pattern, $options: 'i' },
+              },
+              productLineFilter,
+            ],
           },
-        },
-      ],
-    });
+    );
   }
 
   if (options.service) {

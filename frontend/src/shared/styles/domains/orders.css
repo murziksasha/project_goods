@@ -2369,6 +2369,84 @@
   justify-items: start;
 }
 
+.order-device-cell > .copyable-value,
+.orders-client-cell > .copyable-value {
+  display: inline-flex;
+  width: auto;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.order-device-cell > .copyable-value .copyable-value-content,
+.orders-client-cell > .copyable-value .copyable-value-content {
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.order-device-button.order-device-name-button,
+.orders-client-cell > .copyable-value .orders-client-link,
+.orders-client-cell > .copyable-value .orders-client-rapid-sale {
+  display: block;
+  width: auto;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.order-device-serial {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--text-soft);
+  font: inherit;
+  font-weight: 500;
+  line-height: 1.2;
+  text-align: left;
+  cursor: pointer;
+  min-width: 0;
+  max-width: 100%;
+  white-space: normal;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+.order-device-serial:hover {
+  text-decoration: underline;
+}
+
+.order-sale-serials {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 0.25em;
+  min-width: 0;
+  max-width: 100%;
+  color: var(--text-soft);
+  font-weight: 500;
+}
+
+.order-sale-serial-value {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.order-sale-serial-value > .copyable-value {
+  flex: 0 1 auto;
+}
+
+.order-sale-serial-value .copyable-value-content {
+  overflow: hidden;
+}
+
+.order-sale-serial-value .order-device-serial {
+  display: block;
+  width: auto;
+  overflow: hidden;
+}
+
 .order-device-button {
   display: grid;
   gap: 2px;
@@ -3093,6 +3171,27 @@
   min-width: 0;
 }
 
+.repair-kanban-card-header > .copyable-value {
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.repair-kanban-card .copyable-value-content {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.repair-kanban-card-number-text,
+.repair-kanban-card-client-text,
+.repair-kanban-card-device-text {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .repair-kanban-card-phone {
   flex-shrink: 0;
   font-weight: 700;
@@ -3105,6 +3204,17 @@
 .repair-kanban-card-client,
 .repair-kanban-card-device {
   font-size: 0.82rem;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.repair-kanban-card-client.copyable-value,
+.repair-kanban-card-device.copyable-value {
+  display: flex;
+  width: 100%;
+}
+
+.repair-kanban-card-device:not(.copyable-value) {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

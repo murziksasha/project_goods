@@ -101,6 +101,111 @@ describe('list-sales-query', () => {
     expect(options.repairType).toBe('warranty');
   });
 
+  describe('current sale item filters', () => {
+    it('searches every current line name and serial without old snapshot labels', () => {
+      const filter = buildSalesFilter({ kind: 'sale', q: 'Diagnostics [old]' });
+      const branches = filter.$or as Array<Record<string, unknown>>;
+      const textMatch = { $regex: 'Diagnostics \\[old\\]', $options: 'i' };
+
+      expect(branches).toEqual(
+        expect.arrayContaining([
+          { recordNumber: textMatch },
+          { note: textMatch },
+          { userNote: textMatch },
+          { 'clientSnapshot.name': textMatch },
+          { 'clientSnapshot.phone': textMatch },
+          { 'clientSnapshot.phones': textMatch },
+          { 'lineItems.name': textMatch },
+          { 'lineItems.serialNumbers': textMatch },
+        ]),
+      );
+      expect(branches.some((branch) => 'productSnapshot.name' in branch)).toBe(false);
+      expect(branches.some((branch) => 'productSnapshot.serialNumber' in branch)).toBe(false);
+    });
+
+    it('guards article lookup with a nonnull stock ID still present on a current product', () => {
+      const filter = buildSalesFilter({ kind: 'sale', q: 'ART-1' });
+      const branches = filter.$or as Array<Record<string, unknown>>;
+      const articleBranches = branches.filter(
+        (branch) => 'productSnapshot.article' in branch,
+      );
+
+      expect(articleBranches).toEqual([
+        {
+          product: { $ne: null },
+          'productSnapshot.article': { $regex: 'ART-1', $options: 'i' },
+          $expr: {
+            $gt: [
+              {
+                $size: {
+                  $filter: {
+                    input: { $ifNull: ['$lineItems', []] },
+                    as: 'item',
+                    cond: {
+                      $and: [
+                        { $eq: ['$$item.kind', 'product'] },
+                        { $eq: ['$$item.productId', '$product'] },
+                      ],
+                    },
+                  },
+                },
+              },
+              0,
+            ],
+          },
+        },
+      ]);
+    });
+
+    it('matches Product only against current product names', () => {
+      expect(buildSalesFilter({ kind: 'sale', product: 'Cable' })).toEqual({
+        kind: 'sale',
+        lineItems: {
+          $elemMatch: {
+            kind: 'product',
+            name: { $regex: 'Cable', $options: 'i' },
+          },
+        },
+      });
+    });
+
+    it('matches Service only against current service names', () => {
+      expect(buildSalesFilter({ kind: 'sale', service: 'Setup' })).toEqual({
+        kind: 'sale',
+        lineItems: {
+          $elemMatch: {
+            kind: 'service',
+            name: { $regex: 'Setup', $options: 'i' },
+          },
+        },
+      });
+    });
+
+    it.each(['repair', undefined] as const)(
+      'keeps snapshot search and Product matching for kind=%s',
+      (kind) => {
+        const textFilter = buildSalesFilter({ kind, q: 'Original item' });
+        const textMatch = { $regex: 'Original item', $options: 'i' };
+
+        expect(textFilter.$or).toEqual(
+          expect.arrayContaining([
+            { 'productSnapshot.name': textMatch },
+            { 'productSnapshot.serialNumber': textMatch },
+            { 'productSnapshot.article': textMatch },
+          ]),
+        );
+        expect(buildSalesFilter({ kind, product: 'Original item' }).$or).toEqual([
+          { 'productSnapshot.name': textMatch },
+          {
+            lineItems: {
+              $elemMatch: { kind: 'product', name: textMatch },
+            },
+          },
+        ]);
+      },
+    );
+  });
+
   describe('kanban master query filters', () => {
     const validId1 = '507f1f77bcf86cd799439011';
     const validId2 = '507f191e810c19729de860ea';

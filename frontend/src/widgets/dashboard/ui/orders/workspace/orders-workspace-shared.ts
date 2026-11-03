@@ -4,6 +4,9 @@ import type { Employee } from '../../../../../entities/employee';
 import type { Sale } from '../../../../../entities/sale';
 import { isRepairOrder } from '../../../../../entities/sale';
 import {
+  getSaleListItemSerial,
+  getSaleListLineItems,
+  getSaleListPrimaryItem,
   getSaleProductArticle,
   getSaleProductId,
   getSaleProductName,
@@ -1176,7 +1179,7 @@ export const ORDER_STATUS_MENU_MAX_HEIGHT = 260;
 export const ORDER_STATUS_MENU_GAP = 4;
 export const ORDER_STATUS_MENU_VIEWPORT_PADDING = 8;
 export const ORDER_STATUS_MENU_MIN_HEIGHT = 120;
-export const EMPTY_LINE_ITEM_SERIAL = '-';
+export const EMPTY_LINE_ITEM_SERIAL = '—';
 
 export type OrderStatusMenuPosition = {
   top?: number;
@@ -2111,10 +2114,11 @@ export const getPrimaryItemCellContent = (
 ) =>
   isRepairOrdersTab(activeTab)
     ? getPrimaryDeviceName(sale)
-    : getSaleProductName(sale);
+    : getSaleListPrimaryItem(sale)?.name?.trim() ||
+      i18n.t('orders.toolbar.noItems');
 
 export const getPrimaryItemExtraLineCount = (sale: Sale) => {
-  const count = (sale.lineItems ?? []).length;
+  const count = getSaleListLineItems(sale).length;
   return count > 1 ? count - 1 : 0;
 };
 
@@ -2127,40 +2131,16 @@ export type SaleListDropdownItem = {
 };
 
 export const getSaleListDropdownItemSerial = (
-  item: Pick<
-    OrderLineItem,
-    'kind' | 'name' | 'productId' | 'serialNumbers'
-  >,
-  sale: Pick<Sale, 'product'>,
-) => {
-  const fromLine = (item.serialNumbers ?? [])
-    .map((serial) => serial.trim())
-    .filter(Boolean)
-    .join(', ');
-  if (fromLine) return fromLine;
-
-  if (item.kind !== 'product') return EMPTY_LINE_ITEM_SERIAL;
-
-  const snapshotSerial = getSaleProductSerialNumber(sale);
-  if (!snapshotSerial) return EMPTY_LINE_ITEM_SERIAL;
-
-  const snapshotName = sale.product?.name?.trim() ?? '';
-  const snapshotId = sale.product?.id ?? '';
-  const itemName = item.name?.trim() ?? '';
-  const matchesSnapshot =
-    (Boolean(snapshotId) && item.productId === snapshotId) ||
-    (Boolean(snapshotName) && itemName === snapshotName);
-
-  return matchesSnapshot ? snapshotSerial : EMPTY_LINE_ITEM_SERIAL;
-};
+  item: Pick<OrderLineItem, 'serialNumbers'>,
+) => getSaleListItemSerial(item) || EMPTY_LINE_ITEM_SERIAL;
 
 export const getSaleListDropdownItems = (
   sale: Sale,
 ): SaleListDropdownItem[] =>
-  (sale.lineItems ?? []).map((item, index) => ({
+  getSaleListLineItems(sale).map((item, index) => ({
     id: item.id || `line-${index}`,
     name: item.name?.trim() || '',
-    serial: getSaleListDropdownItemSerial(item, sale),
+    serial: getSaleListDropdownItemSerial(item),
     price: item.price,
     quantity: item.quantity,
   }));

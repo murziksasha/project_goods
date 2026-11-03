@@ -577,7 +577,7 @@ Scope: `Orders -> Supplier Order` table only. Warehouse receipts, Accounting pay
 - The tooltip must remain open while the pointer moves from the truncated value into the tooltip.
 - Tooltip text must be selectable so the operator can copy names, order numbers, serial numbers, notes, and other clipped values.
 - The same behavior should be reusable across orders, sales, supplier orders, warehouse tables, accounting tables, and compact cards.
-- Order number and client phone in the `Orders` / `Sales` tables also expose a hover copy icon. Icon-only copy; number/phone clicks stay unchanged. Spec: [UI_DESIGN_SYSTEM.md — Hover copy icon](./UI_DESIGN_SYSTEM.md#hover-copy-icon).
+- Order number, client name, and client phone in the `Orders` / `Sales` tables expose a hover copy icon. The Orders device name does too; the S/N line and the Sales product name do not. Icon-only copy; number, name, phone, and device clicks stay unchanged. Spec: [UI_DESIGN_SYSTEM.md — Hover copy icon](./UI_DESIGN_SYSTEM.md#hover-copy-icon). Kanban cards: [REPAIR_KANBAN_SPEC.md — Card hover copy](./REPAIR_KANBAN_SPEC.md#card-hover-copy).
 
 ## Supplier Order Information Tab (2026-05-29)
 

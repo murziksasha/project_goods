@@ -730,6 +730,7 @@
       "serialPrefix": "S/N: {{serial}}",
       "extraLines": "+{{count}}",
       "extraLinesShow": "Показати позиції в цьому замовленні",
+      "noItems": "Немає позицій",
       "warehouseLabel": "Склад: Service center",
       "assignee": {
         "master": "{{name}} (Майстер)",

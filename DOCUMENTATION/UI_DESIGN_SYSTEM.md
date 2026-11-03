@@ -139,12 +139,16 @@ Shared control: [`frontend/src/shared/ui/CopyableValue.tsx`](../frontend/src/sha
 | --- | --- |
 | Name, serial, order number, product, supplier | Visible string |
 | Phone | Stored canonical value (`+380…`), not the grouped display |
+| Kanban order number | `buildOrderNumber` with no leading `#` (the card still shows `#`) |
+| Sales Product name | Full current product/service name, trimmed, including text hidden by ellipsis |
+| Sales Product serial | Each icon copies its own trimmed current serial without `S/N:` or adjacent serials |
 
 ### Surfaces
 
 | Place | Hover targets | Wiring |
 | --- | --- | --- |
-| `Orders` / `Sales` tables | Order number, client phone | `OrdersWorkspace.tsx` |
+| `Orders` / `Sales` tables | Order number, client name, client phone. Orders tab also: device name (not the S/N line). Sales tab also: current product/service name and each individual S/N, in independent sibling copy wrappers. Name/serial text clicks open the sale card; `No items` has no copy icon. Sales `+N` menu remains informational | `OrdersWorkspace.tsx` |
+| Repair Kanban cards | Order number, client name, device name (not the phone, total, or master menu) | `RepairKanbanBoard.tsx` |
 | `Supplier Order` table | Order number (parent and child), Product, Supplier (not collapsed `N items` / child `—`) | `SupplierOrdersWorkspaceSections.tsx` |
 | Warehouse `Receipts` | Order number (lines + grouped parent) | `WarehouseTables.tsx` |
 | Warehouse `Stock balances` | Name, Serial #, Client order, Supplier order (**not** Article / Note) | `WarehouseTables.tsx` |
@@ -161,7 +165,8 @@ Shared control: [`frontend/src/shared/ui/CopyableValue.tsx`](../frontend/src/sha
 - Product model modal title copy (separate `.product-model-copy-button` control)
 - Warehouse Stock `Article` / `Note`
 - Employee phones
-- Kanban cards
+- Kanban card phone, total, and master menu
+- Order card Device field
 
 Domain links: [ORDER_FLOW.md](./ORDER_FLOW.md) · [SALE_FLOW.md](./SALE_FLOW.md) · [SUPPLIER_ORDER_FLOW.md](./SUPPLIER_ORDER_FLOW.md) · [WAREHOUSE_FLOW.md](./WAREHOUSE_FLOW.md) · [CLIENTS_RULES.md](./CLIENTS_RULES.md) · [CATALOG_PRODUCT_CREATE_MODAL_SPEC.md](./CATALOG_PRODUCT_CREATE_MODAL_SPEC.md)
 

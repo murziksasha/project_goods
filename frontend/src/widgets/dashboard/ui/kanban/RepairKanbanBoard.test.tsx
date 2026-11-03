@@ -2,11 +2,13 @@ import {
   fireEvent,
   render,
   screen,
+  waitFor,
   within,
 } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import type { Sale } from '../../../../entities/sale';
 import { formatCurrency } from '../../../../shared/lib/format';
+import * as clipboard from '../../../../shared/lib/clipboard';
 import { RepairKanbanBoard } from './RepairKanbanBoard';
 
 const sale = {
@@ -133,6 +135,88 @@ describe('RepairKanbanBoard', () => {
     expect(phone.tagName).toBe('STRONG');
     expect(phone).toHaveClass('repair-kanban-card-phone');
     expect(screen.getByText('#r0001')).toBeInTheDocument();
+  });
+
+  it('copies the order number, client name, and device without opening the card', async () => {
+    const onOpenSale = vi.fn();
+    const copySpy = vi
+      .spyOn(clipboard, 'copyTextToClipboard')
+      .mockResolvedValue(true);
+    const { container } = render(
+      <RepairKanbanBoard
+        sales={[
+          {
+            ...sale,
+            client: {
+              name: 'Client A',
+              phone: '+380990569080',
+            },
+          } as Sale,
+        ]}
+        employees={[]}
+        canUpdateStatus
+        canUpdateMaster={false}
+        onStatusChange={vi.fn()}
+        onMasterChange={vi.fn()}
+        onOpenSale={onOpenSale}
+      />,
+    );
+
+    const copyIn = (selector: string) =>
+      within(
+        container.querySelector(selector) as HTMLElement,
+      ).getByRole('button', { name: 'Copy' });
+
+    fireEvent.click(copyIn('.repair-kanban-card-number'));
+    await waitFor(() => {
+      expect(copySpy).toHaveBeenCalledWith('r0001');
+    });
+    expect(onOpenSale).not.toHaveBeenCalled();
+    expect(screen.getByText('#r0001')).toBeInTheDocument();
+
+    fireEvent.click(copyIn('.repair-kanban-card-client'));
+    await waitFor(() => {
+      expect(copySpy).toHaveBeenCalledWith('Client A');
+    });
+    fireEvent.click(copyIn('.repair-kanban-card-device'));
+    await waitFor(() => {
+      expect(copySpy).toHaveBeenCalledWith('Saeco');
+    });
+    expect(
+      container.querySelector('.repair-kanban-card-phone button'),
+    ).toBeNull();
+    expect(onOpenSale).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByText('Client A'));
+    expect(onOpenSale).toHaveBeenCalledTimes(1);
+  });
+
+  it('copies the fallback device label when the order has no stored device name', () => {
+    const { container } = render(
+      <RepairKanbanBoard
+        sales={[
+          {
+            ...sale,
+            product: { ...sale.product!, name: '' },
+            lineItems: [],
+          } as Sale,
+        ]}
+        employees={[]}
+        canUpdateStatus
+        canUpdateMaster={false}
+        onStatusChange={vi.fn()}
+        onMasterChange={vi.fn()}
+        onOpenSale={vi.fn()}
+      />,
+    );
+
+    const device = container.querySelector(
+      '.repair-kanban-card-device',
+    ) as HTMLElement;
+    expect(device).toHaveTextContent('Device');
+    expect(
+      within(device).getByRole('button', { name: 'Copy' }),
+    ).toBeTruthy();
   });
 
   it('hides the phone when the client number is empty', () => {

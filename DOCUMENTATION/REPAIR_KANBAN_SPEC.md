@@ -127,12 +127,23 @@ Orders and Sales keep using `assigneeId` and do not read these fields.
 - **Move sheet:** every card with `canUpdateStatus` has **Move**. Opens a bottom sheet of the 10 visible statuses and calls the same `onStatusChange` path as a drop.
 - **Move sheet:** every card with `canUpdateStatus` has **Move**. Opens a bottom sheet of the 10 visible statuses and calls the same `onStatusChange` path as a drop, placing the card at the end of the destination column.
 - **Layout:** phone ≤720 one full-width column (no 86vw peek); tablet 721–1024 two 50% columns; desktop ~260px columns. Column height uses `--kanban-chrome-offset` so the last card clears the mobile bottom nav.
-- **Click** card (outside master, handle, and Move) opens the existing Order Detail panel/modal while staying on the Kanban tab.
+- **Click** card (outside master, handle, Move, and copy icons) opens the existing Order Detail panel/modal while staying on the Kanban tab. Copy icons: [Card hover copy](#card-hover-copy).
 - **Device name** on the card uses primary-blue (`--color-primary-strong`) so the appliance is scannable.
 - **Total** (`formatCurrency(getSaleTotal(sale))`) is shown on the card only when `sale.lineItems.length > 0` (includes discount). Empty line items → no amount.
 - **Ready header total** (`formatCurrency(sumReadyColumnTotal(sales))`) is shown only in the Ready column header, placed immediately after the word Ready and before the count pill. Sums `getSaleTotal(sale)` (line items after discount) for cards with `lineItems.length > 0`, rounded to integer kopiykas with `roundCurrency` to match displayed card labels without fractional drift. Cards with no line items add nothing. Computed client-side from the Ready cards array rendered by the column (honoring search, master, dates, favorites, and the 500-order cap; drag or pending move out of Ready immediately deducts the amount). Expanded Ready always shows the total (including 0 when empty or unpriced); the collapsed 72px strip omits it.
 - **Master select** on the card uses the same employee options as Order Detail (`master` role or `repairs.execute`); change persists via the same main-info workspace save and stays in sync with the open order card.
 - Column/card left accent uses status color tokens (aligned with the Home repair funnel).
+
+## Card hover copy
+
+Hover copy uses the shared control. Interaction rules: [UI_DESIGN_SYSTEM.md — Hover copy icon](./UI_DESIGN_SYSTEM.md#hover-copy-icon).
+
+- Order number, client name, and device name each show a copy icon on hover or keyboard focus of that line.
+- The order number is still shown as `#` plus the number. The icon copies `buildOrderNumber(sale)` with no `#`.
+- Client name and device name copy the text on the card. A missing device stays `—` and has no icon.
+- The phone, the total, and the master menu have no copy icon.
+- Clicking the client name, the device name, or the rest of the card still opens the order. The icon does not open the order and does not start a drag.
+- Touch screens with no hover keep the icons visible, same as the orders list.
 
 ## Card order
 
@@ -243,3 +254,4 @@ Shared parking status for repair orders and product sales. On Kanban it is the l
 - 2026-10-10: Added open status `pendingApproval` (EN Pending approval / UK На Узгодженні) as the column after `diagnostics`. Moved `clientApproved` to sit before `waitingParts` on the board and in the Home funnel. Same drop permission as `diagnostics`. Card stays editable.
 - 2026-10-17: Kanban master filter is a multi-choice menu: All, Without master (`master` null or missing), and any set of coworkers (`masterIds`). Checked rows are a union, each row has its own chip, and the choice is applied on `GET /sales`. Orders and Sales stay on a single `assigneeId`. See [Master filter](#master-filter-kanban-toolbar-only).
 - 2026-10-28: Kanban count chip reused on Orders (`Orders: N`), Sales (`Sales: N`), and Supplier Order (`Orders: N`) toolbars, left of Filter.
+- 2026-11-02: Kanban cards copy the order number (no `#`), client name, and device name from a hover icon. Phone, total, and master stay without an icon. See [Card hover copy](#card-hover-copy).
