@@ -46,7 +46,7 @@ parseDashboardLocation() -> applyLocationToState()
 ### What is NOT stored in history
 
 - API payloads, client history, workspace lists, or other heavy data
-- `history.state` is always `null`; only the URL query string carries route-level UI state
+- `history.state` stays `null` for ordinary navigation. The only exception is the orders client-card overlay, which pushes `{ clientCardOverlay: true }` so Back can close just the modal. The client id itself lives in the `clientCard` query param, not in `history.state`.
 - Business data stays in React state / TanStack Query and is re-fetched as needed after refresh
 
 ## URL contract
@@ -59,7 +59,8 @@ All dashboard views share one path (`/` or the deployed SPA root). Section state
 | `ordersTab` | `page=orders` | `orders`, `kanban`, `sales`, `supplierOrders`, `supplierInformation` |
 | legacy `page=kanban` | parse only | remapped to `page=orders&ordersTab=kanban` (keeps `saleId`) |
 | `createOrder` | Create-order card open | `repair`, `sale` |
-| `saleId` | Order/sale detail card open | Sale document id |
+| `saleId` | Order/sale detail card open | Sale document id. Omitted while `createOrder` is set. |
+| `clientCard` | Client card opened from Orders | Client id. Kept only while `page=orders`. May sit beside `saleId` or `createOrder`. Dropped on every other page, including the Clients menu. Sidebar links do not include it. |
 | `accountingTab` | `page=accounting` | `cashboxes`, `transactions`, `orders`, `information`, `reports` |
 | `inviteToken` | Invitation registration | Unrelated to dashboard navigation; preserved on auth flows |
 
@@ -68,6 +69,8 @@ Examples:
 - Home: `/`
 - Orders workspace: `/?page=orders&ordersTab=orders`
 - Open repair card: `/?page=orders&ordersTab=orders&saleId=<id>`
+- Client card over that repair: `/?page=orders&ordersTab=orders&saleId=<id>&clientCard=<clientId>`
+- Client card over Create sale: `/?page=orders&ordersTab=sales&createOrder=sale&clientCard=<clientId>`
 - Create sale: `/?page=orders&ordersTab=sales&createOrder=sale`
 - Accounting transactions: `/?page=accounting&accountingTab=transactions`
 - Accounting reports: `/?page=accounting&accountingTab=reports`
@@ -81,6 +84,10 @@ Examples:
 | Orders / supplier tab change | `pushState` |
 | Open / close create-order card | `pushState` |
 | Open / close order or sale detail card | `pushState` |
+| Open client card from Orders, Sales, an order/sale card, or Create-order blacklist | `pushState` with `{ clientCardOverlay: true }`. Sidebar stays on Orders. |
+| Close that overlay with Back, Esc, X, Cancel, or backdrop | `history.back()` when the current entry has the overlay flag. Otherwise `replaceState` strips `clientCard` (refresh / direct load). |
+| **Client list** from that overlay | `replaceState` to `page=clients` (no `clientCard`). Back returns to the previous order screen. |
+| Left-click an order/sale from that overlay (list or open card, not Create order) | `replaceState` to that `saleId` and drop `clientCard`. Back does not reopen the overlay. |
 | Accounting sub-tab change | `pushState` |
 | Warehouse stock → client order link (left click) | `pushState` |
 | Login / logout / invite cleanup | `replaceState` |
@@ -125,11 +132,13 @@ On **Back / Forward**, the URL is authoritative. `localStorage` must not overrid
 
 ### Client card
 
-- `Clients & suppliers -> Client card -> Orders` / `Sales` numbers expose a valid `href` via `getOrderLink(saleId, kind)` (`ordersTab=orders` for repair, `ordersTab=sales` for sale).
-- **Left click** opens the order/sale card inside the SPA (`onOpenSaleCard` → `navigateTo()`), closing the client modal — no full page reload.
-- **Right-click** shows the native browser “Open link in new tab”. **Middle click / Ctrl+click** opens the deep-link URL in a new tab (`?page=orders&ordersTab=...&saleId=...`).
+- `Clients & suppliers -> Client card -> Orders` / `Sales` numbers expose a valid `href` via `getOrderLink(saleId, kind)` (`ordersTab=orders` for repair, `ordersTab=sales` for sale). `getOrderLink` never includes `clientCard`.
+- **Clients menu.** Left click opens the order/sale card inside the SPA (`onOpenSaleCard` → `navigateTo()` push), closing the client modal. The Clients menu does not push the overlay history flag.
+- **Orders overlay** (`clientCard` on `page=orders`). Left click of a history row or number replaces the overlay entry with that order and closes the modal. From Create order (`createOrder` still set), the same left click opens the link in a new tab and leaves the overlay and the draft in place.
+- **Right-click** shows the native browser “Open link in new tab”. **Middle click / Ctrl+click** opens the deep-link URL in a new tab (`?page=orders&ordersTab=...&saleId=...`) and is not handled as an in-app or forced-new-tab click.
 - Number-cell clicks always `stopPropagation` so a modified click does not also fire the row handler in the current tab.
 - Hover copy icon on the number copies the visible `recordNumber` and does not navigate. Spec: [UI_DESIGN_SYSTEM.md — Hover copy icon](./UI_DESIGN_SYSTEM.md#hover-copy-icon).
+- Full overlay rules (Client list button, no page change, save patch): [CLIENTS_RULES.md](./CLIENTS_RULES.md#client-card-tabs).
 
 ### Accounting
 

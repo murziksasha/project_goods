@@ -78,4 +78,17 @@ describe('CopyableValue', () => {
     });
     expect(onRowClick).not.toHaveBeenCalled();
   });
+
+  it('stops pointerdown so a parent drag listener does not see it', () => {
+    const onPointerDown = vi.fn();
+
+    render(
+      <div onPointerDown={onPointerDown}>
+        <CopyableValue value="Saeco">Saeco</CopyableValue>
+      </div>,
+    );
+
+    fireEvent.pointerDown(screen.getByRole('button', { name: 'Copy' }));
+    expect(onPointerDown).not.toHaveBeenCalled();
+  });
 });

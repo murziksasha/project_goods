@@ -40,6 +40,7 @@ import { SupplierEditorModal } from './SupplierEditorModal';
 import { filterIconOptions } from '../orders/workspace/orders-workspace-shared';
 import {
   clientsSuppliersSavedFiltersStorageKey,
+  clientsSuppliersTabStorageKey,
   type ClientFilters,
 } from '../../model/clients-workspace';
 import {
@@ -64,8 +65,6 @@ type SupplierFilters = {
   note: string;
 };
 
-const clientsSuppliersTabStorageKey =
-  'project-goods.clients-suppliers-tab';
 const supplierFiltersStorageKey =
   'project-goods.suppliers-active-filters';
 const defaultSupplierForm: SupplierFormState = {
@@ -234,6 +233,8 @@ export interface ClientsSuppliersWorkspaceProps {
   onOpenSaleCard: (sale: Sale) => void;
   openClientCardRequestId?: string | null;
   onOpenClientCardHandled?: () => void;
+  revealClientId?: string | null;
+  onRevealClientHandled?: () => void;
   onCreateSupplier: (payload: SupplierFormValues) => Promise<boolean>;
   onUpdateSupplier: (
     supplierId: string,
@@ -275,6 +276,8 @@ export const ClientsSuppliersWorkspace: React.FC<
   onOpenSaleCard,
   openClientCardRequestId,
   onOpenClientCardHandled,
+  revealClientId = null,
+  onRevealClientHandled,
   onCreateSupplier,
   onMergeSuppliers,
   onUpdateSupplier,
@@ -658,6 +661,8 @@ export const ClientsSuppliersWorkspace: React.FC<
           onOpenSaleCard={onOpenSaleCard}
           openClientCardRequestId={openClientCardRequestId}
           onOpenClientCardHandled={onOpenClientCardHandled}
+          revealClientId={revealClientId}
+          onRevealClientHandled={onRevealClientHandled}
           clientDevices={clientDevices}
           onUpdateClientDevice={onUpdateClientDevice}
           onDeleteClientDevice={onDeleteClientDevice}

@@ -359,5 +359,73 @@ describe('ClientCardModal', () => {
     expect(screen.getByText('Old TV')).toBeInTheDocument();
     expect(screen.queryByText(/S\/N:/)).not.toBeInTheDocument();
   });
+
+  it('hides Client list unless the orders overlay asks for it', () => {
+    renderCard();
+    expect(
+      screen.queryByRole('button', { name: 'Client list' }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('shows Client list on a non-main tab and calls onOpenClientList', () => {
+    const onOpenClientList = vi.fn();
+    renderCard({
+      clientCardTab: 'orders',
+      showClientListButton: true,
+      onOpenClientList,
+      activeHistoryRows: [repairSale],
+    });
+
+    expect(
+      screen.queryByRole('button', { name: 'Save client' }),
+    ).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Client list' }));
+    expect(onOpenClientList).toHaveBeenCalledTimes(1);
+  });
+
+  it('opens a history row in a new tab from Create order', () => {
+    const onOpenSaleCard = vi.fn();
+    const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null);
+    renderCard({
+      clientCardTab: 'orders',
+      activeHistoryRows: [repairSale],
+      saleLinkMode: 'new-tab',
+      onOpenSaleCard,
+    });
+
+    fireEvent.click(screen.getByRole('link', { name: 'r000770' }));
+    expect(onOpenSaleCard).not.toHaveBeenCalled();
+    expect(openSpy).toHaveBeenCalledWith(
+      expect.stringContaining('saleId=sale-repair-1'),
+      '_blank',
+      'noopener,noreferrer',
+    );
+
+    openSpy.mockClear();
+    fireEvent.click(screen.getByText('Dell monitor'));
+    expect(onOpenSaleCard).not.toHaveBeenCalled();
+    expect(openSpy).toHaveBeenCalledWith(
+      expect.stringContaining('saleId=sale-repair-1'),
+      '_blank',
+      'noopener,noreferrer',
+    );
+  });
+
+  it('does not force a new tab when the order number is Ctrl+clicked', () => {
+    const onOpenSaleCard = vi.fn();
+    const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null);
+    renderCard({
+      clientCardTab: 'orders',
+      activeHistoryRows: [repairSale],
+      saleLinkMode: 'new-tab',
+      onOpenSaleCard,
+    });
+
+    fireEvent.click(screen.getByRole('link', { name: 'r000770' }), {
+      ctrlKey: true,
+    });
+    expect(onOpenSaleCard).not.toHaveBeenCalled();
+    expect(openSpy).not.toHaveBeenCalled();
+  });
 });
 

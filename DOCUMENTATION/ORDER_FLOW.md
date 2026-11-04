@@ -17,7 +17,7 @@ Related: [ORDER_CARD.md](./ORDER_CARD.md) · [SALE_FLOW.md](./SALE_FLOW.md) · [
 - Soft length hint ≠ skipping required fields: empty client or missing device still rejects Save.
 - If the entered phone or exact client name matches a client with status `blacklist`, the repair order form shows a non-blocking warning directly below the client fields.
 - The blacklist warning must include the client name/phone and must not prevent saving the repair order.
-- Clicking the blacklist warning opens the matched client card so the operator can read the client note/reason before continuing.
+- Clicking the blacklist warning opens the matched client card over Create order so the operator can read the client note/reason before continuing. The sidebar stays on Orders and the URL stays `page=orders` with `clientCard` added. It does not open the Clients menu. See [CLIENTS_RULES.md](./CLIENTS_RULES.md#client-card-tabs).
 - If client is not found, phone+name remain draft fields until save. A new client is created only when the operator presses `Save order` (repair or sale) and hard validation passes.
 - Focusing `Device #1` only looks up and applies an **existing** client (by phone); it must not call create-client.
 - Mid-form `Create new` for a client device requires an already existing/selected client. For a brand-new client, the client device is created on save together with the order when needed.
@@ -30,8 +30,9 @@ Related: [ORDER_CARD.md](./ORDER_CARD.md) · [SALE_FLOW.md](./SALE_FLOW.md) · [
 
 - Left-click navigation inside the dashboard (sidebar, orders tabs, open/close cards) uses client-side History API (`pushState`) and does **not** reload the page.
 - Browser **Back** / **Forward** restore the previous in-app view (page, tab, open card) from the URL query string.
-- Opening an order/sale card from the orders workspace, client card, or warehouse stock table updates `saleId` in the URL and pushes a history entry; closing the card clears `saleId` so Back can reopen the card.
-- Client card `Orders` / `Sales` numbers are real `getOrderLink()` hrefs. Left click opens the card in-app (closes the client modal). Right-click / middle-click / Ctrl+click opens a new browser tab. Spec: [BROWSER_NAVIGATION.md](./BROWSER_NAVIGATION.md) · [CLIENTS_RULES.md](./CLIENTS_RULES.md).
+- Opening an order/sale card from the orders workspace, the Clients-menu client card, or the warehouse stock table updates `saleId` in the URL and pushes a history entry; closing the card clears `saleId` so Back can reopen the card.
+- Opening a client from the Orders or Sales list, or from an order/sale card, pushes `clientCard` on the current orders URL and does not change `page`. Back closes only that modal. See [BROWSER_NAVIGATION.md](./BROWSER_NAVIGATION.md) · [CLIENTS_RULES.md](./CLIENTS_RULES.md).
+- Client card `Orders` / `Sales` numbers are real `getOrderLink()` hrefs. From the Clients menu, left click opens the card in-app and closes the modal. From the orders overlay, left click replaces the overlay history entry with that order. From Create order, left click opens a new tab and keeps the draft. Right-click / middle-click / Ctrl+click opens a new browser tab in every case. Spec: [BROWSER_NAVIGATION.md](./BROWSER_NAVIGATION.md) · [CLIENTS_RULES.md](./CLIENTS_RULES.md).
 - Create-order `Client requests` links remain `target="_blank"` (new tab) — they are intentionally outside the in-app history stack.
 - URL helpers: `getOrderLink()` / `buildDashboardHref()` in `frontend/src/pages/dashboard/model/dashboard-navigation.ts`.
 - See [BROWSER_NAVIGATION.md](./BROWSER_NAVIGATION.md).
@@ -577,7 +578,7 @@ Scope: `Orders -> Supplier Order` table only. Warehouse receipts, Accounting pay
 - The tooltip must remain open while the pointer moves from the truncated value into the tooltip.
 - Tooltip text must be selectable so the operator can copy names, order numbers, serial numbers, notes, and other clipped values.
 - The same behavior should be reusable across orders, sales, supplier orders, warehouse tables, accounting tables, and compact cards.
-- Order number and client phone in the `Orders` / `Sales` tables also expose a hover copy icon. Icon-only copy; number/phone clicks stay unchanged. Spec: [UI_DESIGN_SYSTEM.md — Hover copy icon](./UI_DESIGN_SYSTEM.md#hover-copy-icon).
+- Order number, client name, and client phone in the `Orders` / `Sales` tables expose a hover copy icon. The Orders device name does too; the S/N line and the Sales product name do not. Icon-only copy. A normal client-name click opens the client card over the current list (`page` stays `orders`). A rapid-sale row is not a client link. Number, phone, and device clicks stay unchanged. Kanban cards are unchanged. Spec: [UI_DESIGN_SYSTEM.md — Hover copy icon](./UI_DESIGN_SYSTEM.md#hover-copy-icon) · [CLIENTS_RULES.md](./CLIENTS_RULES.md#client-card-tabs). Kanban cards: [REPAIR_KANBAN_SPEC.md — Card hover copy](./REPAIR_KANBAN_SPEC.md#card-hover-copy).
 
 ## Supplier Order Information Tab (2026-05-29)
 

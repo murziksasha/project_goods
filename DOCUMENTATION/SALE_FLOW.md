@@ -15,9 +15,9 @@ Related: [SALE_CARD.md](./SALE_CARD.md) · [ORDER_FLOW.md](./ORDER_FLOW.md) · [
 - Soft length hint does not skip client or line-item requirements.
 - If the entered phone or exact client name matches a client with status `blacklist`, the sales order form shows a non-blocking warning directly below the client fields.
 - The blacklist warning must include the client name/phone and must not prevent saving the sales order.
-- Clicking the blacklist warning opens the matched client card so the operator can read the client note/reason before continuing.
+- Clicking the blacklist warning opens the matched client card over Create order so the operator can read the client note/reason before continuing. The sidebar stays on Orders. See [CLIENTS_RULES.md](./CLIENTS_RULES.md#client-card-tabs).
 - If client does not exist and phone+name are provided, a new client is created only when the operator presses `Save order` and hard validation passes (same rule as repair orders). Lookup/suggestions for existing clients are unchanged.
-- Client card `Sales` numbers use the same `getOrderLink(saleId, 'sale')` pattern as Orders: left click opens the sale card in-app; right-click / middle-click / Ctrl+click opens a new browser tab. Spec: [BROWSER_NAVIGATION.md](./BROWSER_NAVIGATION.md) · [CLIENTS_RULES.md](./CLIENTS_RULES.md).
+- Client card `Sales` numbers use the same `getOrderLink(saleId, 'sale')` pattern as Orders. From the Clients menu, left click opens the sale card in-app. From the orders overlay, left click replaces the overlay entry with that sale. From Create order, left click opens a new tab and keeps the draft. Right-click / middle-click / Ctrl+click opens a new browser tab. Spec: [BROWSER_NAVIGATION.md](./BROWSER_NAVIGATION.md) · [CLIENTS_RULES.md](./CLIENTS_RULES.md).
 
 ## Sales Toolbar Count (2026-10-28)
 
@@ -225,7 +225,7 @@ Related: [BROWSER_NAVIGATION.md](./BROWSER_NAVIGATION.md) (URL behavior), [API.m
 - Operator may add multiple service rows before `Save order`; saved sale persists them as `lineItems[]` with `kind: service`.
 - **Product lines are optional.** A sales order may contain only services (one or more). Empty product entry rows are ignored on save.
 - Save validation requires at least one normalized line item: product **or** service (`dashboard.actions.errors.saleLineItemsRequired`). The legacy repair-oriented `deviceNameMinLength` check does not apply to the sales tab.
-- When only services are present, the sale title / `productSnapshot.name` comes from the first service line; list views use the same fallback via `getSaleProductName`.
+- When only services are present at creation, the sale title / `productSnapshot.name` comes from the first service line. Subsequent list display follows [Sales List Columns](#sales-list-columns-orders---sales), using the current composition rather than that creation-time snapshot.
 - Operators may remove the last empty product row after at least one service has been added.
 
 ## Product Suggestions
@@ -401,25 +401,28 @@ Service catalog stores three prices: retail (`service.price`), wholesale 1 (`sal
 - Default visible columns: `Order #`, `Client`, `Product`, `Status`, `Price`, `Paid`, `Manager`, `Created`.
 - Column picker extras: `Issued` (`issuedBy`). Repair-only columns stay off this tab: `Term`, `Master`, `Warehouse`, `Ready date`.
 - Saved 6-column sales layouts (`Order #`, `Client`, `Status`, `Price`, `Paid`, `Created`) migrate to the default set; `Reset columns` restores defaults.
-- `Product` shows `getSaleProductName` (first product, else first service). Serial subtitle uses `S/N:`; extra lines show `+N` when more than one line item exists. Clicking `+N` opens a dropdown of every `lineItems[]` row (name, serial, price) — see **Product extra-lines dropdown** below. Clicking the product name still opens the sale card.
+- `Product` describes the current `lineItems[]`: the first product in stored order, otherwise the first service. The original `product` snapshot name is not a display fallback. Empty or missing line items, including legacy snapshot-only sales, show the localized, clickable `No items` label and still open the sale card.
+- The `S/N:` subtitle uses only the selected line's trimmed `serialNumbers` in stored order, separated by `, ` after one shared prefix; hide it when empty. Each serial is an independent clickable/copyable value, and the row may wrap on narrow screens. Never fall back to the snapshot serial. Name, serial, extra-lines menu, and search update from the current sale after a card save without a page reload. These rules apply to both Regular and Rapid sale; repair Device labels and stored stock references retain their existing rules.
+- Extra lines show `+N` when more than one line item exists. Clicking `+N` opens a dropdown of every current `lineItems[]` row (name, serial, price) — see **Product extra-lines dropdown** below. Clicking the product name still opens the sale card.
 - Rapid sales keep the Client label **`Rapid sale`** (see Rapid Sale → Sales List Display And Search). The Product column still shows the sold item.
-- Toolbar search placeholder: `Order, client, phone, product or manager`. Server `q` matches record number, client, product snapshot (name/serial/article), **every** `lineItems.name` / `lineItems.serialNumbers`, and manager. Client re-filter uses the same haystack (`getSaleListSearchValues`) so a good on the card as a second Products row (shown as `+N`) is still found. Product column still shows the first item plus `+N`.
+- Toolbar search placeholder: `Order, client, phone, product or manager`. Item search on the server (`kind=sale`) and client (`getSaleListSearchValues`) uses **every current** `lineItems.name` / `lineItems.serialNumbers`, including extra rows. Original snapshot names and serials do not match. Snapshot article search is allowed only while a current product line's `productId` matches the snapshot product ID. Other search fields retain their existing behavior. The server uses the same filter for rows and `total`.
 - Filters on this tab:
   - hide `Repair type`
   - assignee is **Manager**, a single select (active managers/owners/`sales.manage`/`orders.manage`), sent as `assigneeId`. This is not the Kanban master menu. Spec: [REPAIR_KANBAN_SPEC.md](./REPAIR_KANBAN_SPEC.md#master-filter-kanban-toolbar-only).
   - **Sale type**: `All` / `Rapid sale` / `Regular` (wired to `GET /sales?isRapidSale=`)
-  - product, service, payment method, and dates stay available
+  - Product and Service match only current line names of the corresponding kind; empty sales do not restore a snapshot/default row for filtering
+  - payment method and dates stay available
 
 ### Product extra-lines dropdown
 
-Shown only on **Orders → Sales** (not the repair Orders tab) when `lineItems.length > 1`. Visible label is `+N` (`orders.toolbar.extraLines`); `N` is `lineItems.length - 1`.
+Shown only on **Orders → Sales** (not the repair Orders tab) when `lineItems.length > 1`. Visible label is `+N` (`orders.toolbar.extraLines`); `N` is `lineItems.length - 1`. Count stored rows, not distinct names or total quantity: separate serial rows count separately and a row with `quantity > 1` still counts once.
 
-- Product **name** (and `S/N:` subtitle) stay a separate control and still open the sale card.
+- Product **name** and each serial are separate controls and still open the sale card. Their copy icons are separate from `+N`.
 - **`+N` is its own control.** Click toggles the dropdown and must not open the sale card (or fire the row click).
 - Dropdown lists **every** `lineItems[]` row in stored order (products and services), not only the extras.
 - Each row shows three fields, using the project suggestion-list chrome (`.create-suggestions` / `.create-suggestion-item`):
   - **Name** — `lineItems[].name`
-  - **Serial** — trimmed `serialNumbers` joined with `, `. Empty → `-`. If a product row has no serials but matches the sale product snapshot (`productId` or name), fall back to `product.serialNumber`.
+  - **Serial** — only the current row's trimmed `serialNumbers`, joined with `, `. Empty → `—`. No snapshot fallback.
   - **Price** — unit `formatCurrency(lineItems[].price)`. If `quantity > 1`, append ` × {quantity}`.
 - Rows are informational (not links). Clicking a row does not open the sale card or product model.
 - Close on: second `+N` click, outside click, Escape, tab change, table scroll, window resize, opening the status menu, or opening a sale card.
@@ -460,7 +463,7 @@ Shown only on **Orders → Sales** (not the repair Orders tab) when `lineItems.l
 
 ## Sales list copy
 
-- In `Orders -> Sales`, hover on the sale number and client phone shows a copy icon. Only the icon copies; number click still opens the sale card. Spec: [UI_DESIGN_SYSTEM.md — Hover copy icon](./UI_DESIGN_SYSTEM.md#hover-copy-icon).
+- In `Orders -> Sales`, the sale number, client name, client phone, current product/service name, and each current serial have independent hover copy targets. Product name and serial text clicks open the sale card; `No items` stays a sale-card link with no icon. Number click still opens the sale card. A normal client name click opens the client card over the sales list (`page` stays `orders`). A rapid-sale row copies the rapid-sale label and is not a client link. Copy payloads, hover/focus/touch behavior, and interaction rules: [UI_DESIGN_SYSTEM.md — Hover copy icon](./UI_DESIGN_SYSTEM.md#hover-copy-icon). The `+N` informational menu is unchanged. Overlay rules: [CLIENTS_RULES.md](./CLIENTS_RULES.md#client-card-tabs).
 
 ## Status Dropdown UX
 

@@ -15,7 +15,12 @@ import {
 } from '../../../../../entities/employee';
 import type { Sale } from '../../../../../entities/sale';
 import { isRepairOrder } from '../../../../../entities/sale';
-import { getSaleListSearchValues } from '../../../../../entities/sale';
+import {
+  getSaleListItemSerialNumbers,
+  getSaleListLineItems,
+  getSaleListPrimaryItem,
+  getSaleListSearchValues,
+} from '../../../../../entities/sale';
 import { formatCurrency } from '../../../../../shared/lib/format';
 import { scrollDashboardMainToTop } from '../../../../../shared/lib/scrollDashboardMain';
 import { parseMoney } from '../../../../../shared/lib/decimal';
@@ -577,9 +582,11 @@ export const OrdersWorkspace: React.FC<OrdersWorkspaceProps> = ({
       }
       const orderNumber = buildOrderNumber(sale);
       const status = normalizeOrderStatus(sale.status);
-      const lineItems = sale.lineItems?.length
-        ? sale.lineItems
-        : getDefaultLineItems(sale);
+      const lineItems = isRepairOrdersTab(activeTab)
+        ? sale.lineItems?.length
+          ? sale.lineItems
+          : getDefaultLineItems(sale)
+        : getSaleListLineItems(sale);
       const hasWarrantyService = lineItems.some(
         (item) => item.kind === 'service' && item.warrantyPeriod > 0,
       );
@@ -711,7 +718,9 @@ export const OrdersWorkspace: React.FC<OrdersWorkspaceProps> = ({
       if (
         productValue &&
         ![
-          getPrimaryDeviceName(sale),
+          ...(isRepairOrdersTab(activeTab)
+            ? [getPrimaryDeviceName(sale)]
+            : []),
           ...lineItems
             .filter((item) => item.kind === 'product')
             .map((item) => item.name),
@@ -1954,35 +1963,92 @@ export const OrdersWorkspace: React.FC<OrdersWorkspaceProps> = ({
           </div>
         );
       case 'primaryItem': {
+        const isRepair = isRepairOrdersTab(activeTab);
+        const primarySaleItem = isRepair
+          ? null
+          : getSaleListPrimaryItem(sale);
         const primaryItemText = getPrimaryItemCellContent(
           sale,
           activeTab,
         );
-        const primaryDeviceSerial = getPrimaryDeviceSerial(sale);
-        const extraLineCount = isRepairOrdersTab(activeTab)
+        const primaryDeviceSerial = isRepair
+          ? getPrimaryDeviceSerial(sale)
+          : '';
+        const saleSerialNumbers =
+          getSaleListItemSerialNumbers(primarySaleItem);
+        const showNameCopy = isRepair || Boolean(primarySaleItem?.name.trim());
+        const extraLineCount = isRepair
           ? 0
           : getPrimaryItemExtraLineCount(sale);
         const isExtraLinesOpen = openExtraLinesSaleId === sale.id;
+        const serialLabel = primaryDeviceSerial
+          ? t('orders.toolbar.serialPrefix', {
+              serial: primaryDeviceSerial,
+            })
+          : '';
+        const nameButton = (
+          <button
+            type='button'
+            className='order-device-button order-device-name-button'
+            onClick={() => openSaleCard(sale)}
+            title={primaryItemText}
+          >
+            <TruncatedTextTooltip
+              text={primaryItemText}
+              className='orders-table-cell-truncate'
+            />
+          </button>
+        );
         return (
           <div className='order-device-cell'>
-            <button
-              type='button'
-              className='order-device-button'
-              onClick={() => openSaleCard(sale)}
-              title={primaryItemText}
-            >
-              <TruncatedTextTooltip
-                text={primaryItemText}
-                className='orders-table-cell-truncate'
-              />
-              {primaryDeviceSerial ? (
-                <small title={primaryDeviceSerial}>
-                  {t('orders.toolbar.serialPrefix', {
-                    serial: primaryDeviceSerial,
-                  })}
-                </small>
-              ) : null}
-            </button>
+            {showNameCopy ? (
+              <CopyableValue value={primaryItemText}>
+                {nameButton}
+              </CopyableValue>
+            ) : (
+              nameButton
+            )}
+            {isRepair && serialLabel ? (
+              <button
+                type='button'
+                className='order-device-serial'
+                onClick={() => openSaleCard(sale)}
+                title={primaryDeviceSerial}
+              >
+                {serialLabel}
+              </button>
+            ) : null}
+            {!isRepair && saleSerialNumbers.length > 0 ? (
+              <small className='order-sale-serials'>
+                <span>
+                  {t('orders.toolbar.serialPrefix', { serial: '' })}
+                </span>
+                {saleSerialNumbers.map((serial, index) => (
+                  <span
+                    key={`${serial}-${index}`}
+                    className='order-sale-serial-value'
+                  >
+                    <CopyableValue value={serial}>
+                      <button
+                        type='button'
+                        className='order-device-serial'
+                        onClick={() => openSaleCard(sale)}
+                        aria-label={t('orders.toolbar.serialPrefix', {
+                          serial,
+                        })}
+                        title={serial}
+                      >
+                        <TruncatedTextTooltip
+                          text={serial}
+                          className='orders-table-cell-truncate'
+                        />
+                      </button>
+                    </CopyableValue>
+                    {index < saleSerialNumbers.length - 1 ? ', ' : null}
+                  </span>
+                ))}
+              </small>
+            ) : null}
             {extraLineCount > 0 ? (
               <button
                 type='button'
@@ -2049,17 +2115,21 @@ export const OrdersWorkspace: React.FC<OrdersWorkspaceProps> = ({
         return (
           <div className='orders-client-cell'>
             {isRapidSale ? (
-              <span className='orders-client-rapid-sale'>
-                <TruncatedTextTooltip text={clientDisplayName} />
-              </span>
+              <CopyableValue value={clientDisplayName}>
+                <span className='orders-client-rapid-sale'>
+                  <TruncatedTextTooltip text={clientDisplayName} />
+                </span>
+              </CopyableValue>
             ) : (
-              <button
-                type='button'
-                className='orders-client-link'
-                onClick={() => onOpenClientCard(sale.client.id)}
-              >
-                <TruncatedTextTooltip text={clientDisplayName} />
-              </button>
+              <CopyableValue value={clientDisplayName}>
+                <button
+                  type='button'
+                  className='orders-client-link'
+                  onClick={() => onOpenClientCard(sale.client.id)}
+                >
+                  <TruncatedTextTooltip text={clientDisplayName} />
+                </button>
+              </CopyableValue>
             )}
             <small>
               {!isRapidSale ? (

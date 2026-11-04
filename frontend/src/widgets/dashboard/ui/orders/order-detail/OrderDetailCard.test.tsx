@@ -27,6 +27,7 @@ import type { SupplierOrder } from '../../../../../entities/supplier-order';
 import * as warehouseSettingsApi from '../../../../../entities/warehouse-settings';
 import type { WarehouseSettings } from '../../../../../entities/warehouse-settings';
 import { formatCurrency } from '../../../../../shared/lib/format';
+import * as clipboard from '../../../../../shared/lib/clipboard';
 import {
   OrderDetailCard,
   type OrderDetailCardProps,
@@ -357,6 +358,7 @@ const buildCardElement = ({
   saleOverride,
   salesOverride,
   onOpenRelatedSale = vi.fn(),
+  onOpenClientCard = vi.fn(),
   status,
   statusOptions,
   lineItems = [],
@@ -419,6 +421,7 @@ const buildCardElement = ({
   saleOverride?: Partial<Sale>;
   salesOverride?: Sale[];
   onOpenRelatedSale?: (sale: Sale) => void;
+  onOpenClientCard?: () => void;
   status?: OrderStatus;
   statusOptions?: Array<{ key: OrderStatus; labelKey: string }>;
   lineItems?: OrderLineItem[];
@@ -471,7 +474,7 @@ const buildCardElement = ({
       onOpenPrint={vi.fn()}
       onRefundPayment={vi.fn()}
       onDiscountChange={onDiscountChange}
-      onOpenClientCard={vi.fn()}
+      onOpenClientCard={onOpenClientCard}
       onSupplierOrderCreated={onSupplierOrderCreated}
       onCreateClientDevice={onCreateClientDevice}
       onUpdateClientDevice={onUpdateClientDevice}
@@ -640,6 +643,118 @@ describe('OrderDetailCard create order header action', () => {
       'aria-disabled',
       'true',
     );
+  });
+});
+
+describe('OrderDetailCard hover copy', () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  const field = (label: string) =>
+    screen.getByText(label, { selector: '.order-detail-list dt', exact: true })
+      .parentElement!;
+
+  const copyFixture: Partial<Sale> = {
+    recordNumber: 'r001311',
+    client: { id: 'client-1', name: ' Ada Client ', phone: '+380991112233', status: 'ok' },
+    product: { id: 'device-1', name: ' Full device model name ', serialNumber: ' SN-123 ', article: '' },
+    manager: { id: 'manager-1', name: ' Manager Name ', role: 'manager' },
+    issuedBy: { id: 'issuer-1', name: ' Issuer Name ', role: 'manager' },
+  };
+
+  describe.each(['repair', 'sale'] as const)('%s card', (kind) => {
+    it.each([false, true])('copies each requested value with read-only=%s', async (isReadOnly) => {
+      const copySpy = vi.spyOn(clipboard, 'copyTextToClipboard').mockResolvedValue(true);
+      const onOpenClientCard = vi.fn();
+      const onSaveMainInfo = vi.fn(async () => undefined);
+      renderCard({
+        saleOverride: { ...copyFixture, kind },
+        isReadOnly,
+        onOpenClientCard,
+        onSaveMainInfo,
+      });
+
+      const targets: Array<[HTMLElement, string]> = [
+        [screen.getByRole('heading', { name: 'r001311' }), 'r001311'],
+        [field('Client'), 'Ada Client'],
+        [field('Phone'), '+380991112233'],
+        [field(kind === 'repair' ? 'Manager' : 'Created order'), 'Manager Name'],
+        [field(kind === 'repair' ? 'Issued' : 'Issued order'), 'Issuer Name'],
+      ];
+      if (kind === 'repair') {
+        targets.push([field('Device'), 'Full device model name'], [field('S/N'), 'SN-123']);
+        expect(screen.getByLabelText('Change device')).toHaveProperty('disabled', isReadOnly);
+        expect(within(field('Master')).queryByRole('button', { name: 'Copy' })).toBeNull();
+      }
+      expect(within(field('Created')).queryByRole('button', { name: 'Copy' })).toBeNull();
+
+      for (const [target, expected] of targets) {
+        fireEvent.click(within(target).getByRole('button', { name: 'Copy' }));
+        await waitFor(() => expect(copySpy).toHaveBeenLastCalledWith(expected));
+      }
+      expect(onOpenClientCard).not.toHaveBeenCalled();
+      expect(onSaveMainInfo).not.toHaveBeenCalled();
+      expect(screen.queryByRole('dialog')).toBeNull();
+
+      const phone = within(field('Phone')).getByRole('link', { name: '099 111 22 33' });
+      expect(phone).toHaveAttribute('href', 'tel:+380991112233');
+      fireEvent.click(screen.getByRole('button', { name: 'Ada Client' }));
+      expect(onOpenClientCard).toHaveBeenCalledTimes(1);
+      expect(copySpy).toHaveBeenCalledTimes(targets.length);
+    });
+
+    it.each(['', '   ', '-', '—', 'r------'])('omits copy controls and phone links for placeholder %j', (empty) => {
+      renderCard({
+        saleOverride: {
+          kind,
+          recordNumber: empty,
+          client: { id: 'client-1', name: empty, phone: empty, status: 'ok' },
+          product: { id: '', name: empty, serialNumber: empty, article: '' },
+          manager: { id: 'manager-1', name: empty, role: 'manager' },
+          issuedBy: { id: 'issuer-1', name: empty, role: 'manager' },
+        },
+      });
+      const card = screen.getByRole('article', { name: kind === 'repair' ? 'Order card' : 'Sale card' });
+      expect(within(card).queryByRole('button', { name: 'Copy' })).toBeNull();
+      expect(within(field('Phone')).queryByRole('link')).toBeNull();
+      expect(screen.getByRole('heading', { name: 'r------' })).toBeInTheDocument();
+    });
+  });
+
+  it('copies stored client data in an opened rapid sale', async () => {
+    const copySpy = vi.spyOn(clipboard, 'copyTextToClipboard').mockResolvedValue(true);
+    renderCard({ saleOverride: { ...copyFixture, isRapidSale: true } });
+    fireEvent.click(within(field('Client')).getByRole('button', { name: 'Copy' }));
+    await waitFor(() => expect(copySpy).toHaveBeenCalledWith('Ada Client'));
+  });
+
+  it.each(['name', 'Change'])('keeps the device %s action separate from copying', (action) => {
+    const copySpy = vi.spyOn(clipboard, 'copyTextToClipboard').mockResolvedValue(true);
+    renderCard({ saleOverride: { ...copyFixture, kind: 'repair' } });
+    fireEvent.click(action === 'name'
+      ? screen.getByLabelText('Change device')
+      : within(field('Device')).getByRole('button', { name: 'Change' }));
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    expect(copySpy).not.toHaveBeenCalled();
+  });
+
+  it('copies the unsaved device draft and stops offering the cleared serial', async () => {
+    const copySpy = vi.spyOn(clipboard, 'copyTextToClipboard').mockResolvedValue(true);
+    const onSaveMainInfo = vi.fn(async () => undefined);
+    renderCard({
+      saleOverride: { ...copyFixture, kind: 'repair' },
+      clientDevices: [clientDevice({ name: 'Replacement tablet' })],
+      onSaveMainInfo,
+    });
+    fireEvent.click(screen.getByLabelText('Change device'));
+    fireEvent.click(screen.getByLabelText('Clear S/N for this order'));
+    fireEvent.click(screen.getByRole('button', { name: /Replacement tablet/ }));
+
+    fireEvent.click(within(field('Device')).getByRole('button', { name: 'Copy' }));
+    await waitFor(() => expect(copySpy).toHaveBeenCalledWith('Replacement tablet'));
+    expect(within(field('S/N')).queryByRole('button', { name: 'Copy' })).toBeNull();
+    expect(field('S/N')).toHaveTextContent('-');
+    expect(onSaveMainInfo).not.toHaveBeenCalled();
+    expect(screen.getByText('Save changes')).toBeInTheDocument();
   });
 });
 

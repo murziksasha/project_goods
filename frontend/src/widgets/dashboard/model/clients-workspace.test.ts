@@ -1,10 +1,18 @@
 import { describe, expect, it } from 'vitest';
+import type { Client } from '../../../entities/client';
 import type { Sale } from '../../../entities/sale';
 import {
+  clientsFiltersStorageKey,
+  clientsSuppliersSavedFiltersStorageKey,
+  clientsSuppliersTabStorageKey,
   collectClientHistorySerials,
+  defaultClientStats,
+  emptyFilters,
   formatItemList,
   getClientStatsMap,
   getStoredClientCardTab,
+  relaxStoredClientFiltersForClient,
+  type ClientFilters,
 } from './clients-workspace';
 
 const baseSale: Sale = {
@@ -225,5 +233,92 @@ describe('collectClientHistorySerials', () => {
       'S000001',
       'S000002',
     ]);
+  });
+});
+
+const revealClient = (patch: Partial<Client> = {}): Client => ({
+  id: 'client-olga',
+  phone: '+380501111111',
+  phones: ['+380501111111'],
+  name: 'Olga',
+  email: '',
+  address: '',
+  registrationId: '',
+  iban: '',
+  note: '',
+  status: 'new',
+  createdAt: '2026-01-01T00:00:00.000Z',
+  updatedAt: '2026-01-01T00:00:00.000Z',
+  ...patch,
+});
+
+const writeStoredFilters = (applied: Partial<ClientFilters>) => {
+  const filters = { ...emptyFilters, ...applied };
+  window.localStorage.setItem(
+    clientsFiltersStorageKey,
+    JSON.stringify({
+      draftFilters: filters,
+      appliedFilters: filters,
+      searchValue: filters.query,
+      isFilterOpen: true,
+    }),
+  );
+};
+
+describe('relaxStoredClientFiltersForClient', () => {
+  it('clears a status filter that hides the client and remembers Clients tab', () => {
+    writeStoredFilters({ status: 'vip' });
+
+    const next = relaxStoredClientFiltersForClient(
+      revealClient(),
+      defaultClientStats,
+    );
+
+    expect(next.appliedFilters.status).toBe('all');
+    expect(next.draftFilters.status).toBe('all');
+    expect(next.searchValue).toBe('');
+    expect(window.localStorage.getItem(clientsSuppliersTabStorageKey)).toBe(
+      'clients',
+    );
+  });
+
+  it('clears a search query that hides the client', () => {
+    writeStoredFilters({ query: 'Petr' });
+
+    const next = relaxStoredClientFiltersForClient(
+      revealClient(),
+      defaultClientStats,
+    );
+
+    expect(next.appliedFilters.query).toBe('');
+    expect(next.draftFilters.query).toBe('');
+    expect(next.searchValue).toBe('');
+  });
+
+  it('keeps a query that already matches the client name', () => {
+    writeStoredFilters({ query: 'Olga' });
+
+    const next = relaxStoredClientFiltersForClient(
+      revealClient(),
+      defaultClientStats,
+    );
+
+    expect(next.appliedFilters.query).toBe('Olga');
+    expect(next.searchValue).toBe('Olga');
+    expect(next.isFilterOpen).toBe(true);
+  });
+
+  it('does not touch named saved-filter presets', () => {
+    writeStoredFilters({ query: 'Petr' });
+    window.localStorage.setItem(
+      clientsSuppliersSavedFiltersStorageKey,
+      '{"kept":true}',
+    );
+
+    relaxStoredClientFiltersForClient(revealClient(), defaultClientStats);
+
+    expect(
+      window.localStorage.getItem(clientsSuppliersSavedFiltersStorageKey),
+    ).toBe('{"kept":true}');
   });
 });

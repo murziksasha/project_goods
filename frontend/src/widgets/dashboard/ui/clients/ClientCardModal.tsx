@@ -83,10 +83,15 @@ export interface ClientCardModalProps {
   onClose: () => void;
   onMainTabFormChange: Dispatch<SetStateAction<ClientMainForm>>;
   onOpenSaleCard: (sale: Sale) => void;
+  onOpenClientList?: () => void;
   onSaveMainTab: () => void;
   onTabChange: (tab: ClientCardTab) => void;
   onValidatePhone: (phone: string) => boolean;
   onClearPhoneError: () => void;
+  showClientListButton?: boolean;
+  /** Cover the sidebar. Used by the orders overlay only. */
+  usePortal?: boolean;
+  saleLinkMode?: 'in-app' | 'new-tab';
   clientDevices: ClientDevice[];
   onUpdateClientDevice: (
     deviceId: string,
@@ -119,10 +124,14 @@ export const ClientCardModal: React.FC<ClientCardModalProps> = ({
   onClose,
   onMainTabFormChange,
   onOpenSaleCard,
+  onOpenClientList,
   onSaveMainTab,
   onTabChange,
   onValidatePhone,
   onClearPhoneError,
+  showClientListButton = false,
+  usePortal = false,
+  saleLinkMode = 'in-app',
   clientDevices,
   onUpdateClientDevice,
   onDeleteClientDevice,
@@ -376,6 +385,7 @@ export const ClientCardModal: React.FC<ClientCardModalProps> = ({
       closeLabel={t('common.close')}
       closeOnBackdrop={!isSaving}
       closeOnEscape={!isSaving}
+      usePortal={usePortal}
       shellClassName="clients-card-modal modal-dialog"
       headerClassName="clients-card-header"
       bodyClassName="clients-card-body"
@@ -389,24 +399,38 @@ export const ClientCardModal: React.FC<ClientCardModalProps> = ({
         ) : null
       }
       footer={
-        clientCardTab === 'main' && selectedClientId ? (
+        showClientListButton ||
+        (clientCardTab === 'main' && selectedClientId) ? (
           <footer className="catalog-edit-footer clients-modal-footer">
-            <Button
-              variant="secondary"
-              onClick={onClose}
-              disabled={isSaving}
-            >
-              {t('common.cancel')}
-            </Button>
-            <Button
-              variant="primary"
-              onClick={onSaveMainTab}
-              disabled={!canSaveMain}
-            >
-              {isSaving
-                ? t('clients.card.saving')
-                : t('clients.card.saveClient')}
-            </Button>
+            {showClientListButton ? (
+              <Button
+                variant="secondary"
+                onClick={onOpenClientList}
+                disabled={isSaving}
+              >
+                {t('clients.card.openClientList')}
+              </Button>
+            ) : null}
+            {clientCardTab === 'main' && selectedClientId ? (
+              <>
+                <Button
+                  variant="secondary"
+                  onClick={onClose}
+                  disabled={isSaving}
+                >
+                  {t('common.cancel')}
+                </Button>
+                <Button
+                  variant="primary"
+                  onClick={onSaveMainTab}
+                  disabled={!canSaveMain}
+                >
+                  {isSaving
+                    ? t('clients.card.saving')
+                    : t('clients.card.saveClient')}
+                </Button>
+              </>
+            ) : null}
           </footer>
         ) : null
       }
@@ -529,6 +553,7 @@ export const ClientCardModal: React.FC<ClientCardModalProps> = ({
               rows={paginatedHistory.pageItems}
               tab={clientCardTab}
               onOpenSaleCard={onOpenSaleCard}
+              saleLinkMode={saleLinkMode}
             />
           )}
         </div>
@@ -981,14 +1006,24 @@ const ClientHistoryItemCell = ({
   );
 };
 
+const openSaleInNewTab = (sale: Sale) => {
+  window.open(
+    getOrderLink(sale.id, sale.kind),
+    '_blank',
+    'noopener,noreferrer',
+  );
+};
+
 const ClientHistoryTable = ({
   rows,
   tab,
   onOpenSaleCard,
+  saleLinkMode,
 }: {
   rows: Sale[];
   tab: ClientCardTab;
   onOpenSaleCard: (sale: Sale) => void;
+  saleLinkMode: 'in-app' | 'new-tab';
 }) => {
   const { t } = useTranslation();
   const itemColumnLabel =
@@ -1013,7 +1048,13 @@ const ClientHistoryTable = ({
             <tr
               key={sale.id}
               className='clients-history-row'
-              onClick={() => onOpenSaleCard(sale)}
+              onClick={() => {
+                if (saleLinkMode === 'new-tab') {
+                  openSaleInNewTab(sale);
+                  return;
+                }
+                onOpenSaleCard(sale);
+              }}
             >
               <td data-label={t('clients.card.history.columns.number')}>
                 <CopyableValue
@@ -1026,6 +1067,10 @@ const ClientHistoryTable = ({
                       event.stopPropagation();
                       if (!isPlainLeftClick(event)) return;
                       event.preventDefault();
+                      if (saleLinkMode === 'new-tab') {
+                        openSaleInNewTab(sale);
+                        return;
+                      }
                       onOpenSaleCard(sale);
                     }}
                   >

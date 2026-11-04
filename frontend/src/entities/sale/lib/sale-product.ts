@@ -1,4 +1,5 @@
 import type { Sale, SaleProductSnapshot } from '../model/types';
+import { getSaleListLineItems } from './sale-list-items';
 
 const repairPlaceholderNames = new Set(['REPAIR PLACEHOLDER']);
 const repairPlaceholderSerials = new Set(['REPAIR-PLACEHOLDER']);
@@ -44,17 +45,24 @@ export const getSaleProductId = (sale: Sale) =>
   (sale.lineItems ?? []).find((item) => item.kind === 'product')?.productId ??
   '';
 
-/** Toolbar/list search haystack: every card line, not only the first Product cell. */
+/** Sales item search uses current rows; snapshot article requires its stock link. */
 export const getSaleListSearchValues = (
   sale: Pick<Sale, 'product' | 'lineItems'>,
 ): string[] => {
-  const values: string[] = [
-    sale.product?.name ?? '',
-    sale.product?.article ?? '',
-    getSaleProductSerialNumber(sale),
-  ];
+  const values: string[] = [];
+  const items = getSaleListLineItems(sale);
+  const snapshotProductId = sale.product?.id;
+  if (
+    snapshotProductId &&
+    items.some(
+      (item) =>
+        item.kind === 'product' && item.productId === snapshotProductId,
+    )
+  ) {
+    values.push(sale.product?.article ?? '');
+  }
 
-  (sale.lineItems ?? []).forEach((item) => {
+  items.forEach((item) => {
     values.push(item.name ?? '');
     (item.serialNumbers ?? []).forEach((serial) => values.push(serial));
   });
