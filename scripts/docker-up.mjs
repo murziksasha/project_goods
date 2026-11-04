@@ -8,6 +8,7 @@ import {
   productionComposeArgs,
   productionImageRefs,
   keyfileCheckArgs,
+  dockerStepFailureMessage,
 } from './production-env.mjs';
 import {
   assertImagesPresent,
@@ -66,32 +67,32 @@ environment.DOCKER_BUILDKIT = '1';
 environment.COMPOSE_DOCKER_CLI_BUILD = '1';
 
 const composeArgs = production ? productionComposeArgs : ['compose'];
-const runDocker = (args) => {
+const runDocker = (step, args) => {
   const result = spawnSync('docker', args, {
     cwd: rootDir,
     stdio: 'inherit',
     env: environment,
   });
-  if (result.error) {
-    console.error(`Docker could not start: ${result.error.message}`);
-    process.exit(1);
+  const message = dockerStepFailureMessage(step, args, result, productionConfig?.projectName);
+  if (message) {
+    console.error(message);
+    process.exit(result.error ? 1 : result.status || 1);
   }
-  if (result.status !== 0) process.exit(result.status ?? 1);
 };
 
 if (production) {
-  runDocker([...composeArgs, 'config', '-q']);
+  runDocker('validate Compose configuration', [...composeArgs, 'config', '-q']);
   try {
     assertImagesPresent(productionImageRefs(gitSha));
   } catch (error) {
     console.error(error.message);
     process.exit(1);
   }
-  runDocker(['image', 'inspect', 'mongo:7', '--format', '{{.Id}}']);
-  runDocker([...composeArgs, ...keyfileCheckArgs]);
+  runDocker('check mongo:7 image is present', ['image', 'inspect', 'mongo:7', '--format', '{{.Id}}']);
+  runDocker('check MongoDB keyfile volume', [...composeArgs, ...keyfileCheckArgs]);
 }
 
-runDocker([
+runDocker(production ? 'start production containers' : 'build and start containers', [
   ...composeArgs,
   'up',
   '-d',

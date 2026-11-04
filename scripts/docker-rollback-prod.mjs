@@ -4,6 +4,7 @@ import {
   assertProductionEnvironment,
   assertProductionVolumeEnvironment,
   keyfileCheckArgs,
+  dockerStepFailureMessage,
   noAuthRollbackComposeArgs,
   productionChildEnvironment,
   projectRoot,
@@ -82,6 +83,13 @@ export const buildRollbackPlan = ({ auth }) => {
   };
 };
 
+export const rollbackStepName = (args) => {
+  if (args.includes('mongo-keyfile-init')) return 'check MongoDB keyfile volume';
+  if (args.includes('config')) return 'validate Compose configuration';
+  if (args.includes('up')) return 'start rollback containers';
+  return 'docker command';
+};
+
 export const missingRollbackImageMessage = (imageRef) =>
   `Rollback image ${imageRef} not found. Rollback tags are saved by npm run docker:build:prod (or update:prod) from the running containers; nothing was changed.`;
 
@@ -113,9 +121,10 @@ export const readImageBuildSha = (imageRef, { inspectDocker = inspectDockerObjec
 
 const main = () => {
   let mode;
+  let config;
   try {
     mode = parseRollbackArgs(process.argv.slice(2));
-    const config = mode.auth ? assertProductionEnvironment() : assertProductionVolumeEnvironment();
+    config = mode.auth ? assertProductionEnvironment() : assertProductionVolumeEnvironment();
     const absent = describeAbsentContainers(
       assertProductionDockerState(config, { requireBackend: mode.auth }),
     );
@@ -132,10 +141,12 @@ const main = () => {
 
   const rollbackSha = readImageBuildSha(rollbackImageRefs[0]);
   const environment = productionChildEnvironment(rollbackSha ? { GIT_SHA: rollbackSha } : {});
-  const runDocker = (args) => {
+  const runDocker = (args, index) => {
     const result = spawnSync('docker', args, { cwd: projectRoot, stdio: 'inherit', env: environment });
-    if (result.error || result.status !== 0) {
-      console.error(result.error?.message ?? 'Docker command failed.');
+    const step = `rollback step ${index + 1}: ${rollbackStepName(args)}`;
+    const message = dockerStepFailureMessage(step, args, result, config?.projectName);
+    if (message) {
+      console.error(message);
       process.exit(result.status || 1);
     }
   };
@@ -144,7 +155,7 @@ const main = () => {
     `Rolling back to ${rollbackImageRefs.join(', ')}${rollbackSha ? ` (build ${rollbackSha})` : ''} ` +
       `${mode.auth ? 'with MongoDB auth (keyfile + .env.production MONGO_URI)' : 'WITHOUT MongoDB auth'}.`,
   );
-  for (const step of buildRollbackPlan(mode).steps) runDocker(step);
+  buildRollbackPlan(mode).steps.forEach((step, index) => runDocker(step, index));
 
   console.log(
     mode.auth

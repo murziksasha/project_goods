@@ -152,3 +152,9 @@ Before changing containers it validates `.env.production` (including the authent
 `npm run docker:rollback:noauth -- --confirm-noauth` is an **emergency-only** command for reverting the auth migration itself on a host where the users or keyfile do not work yet. It starts the same rollback images on the base MongoDB command/URI **without access control**: anyone who can reach `127.0.0.1:27017` on the host can read or delete all data. Without `--confirm-noauth` it only prints the warning and exits. Do not use it for routine release rollbacks.
 
 If the commit-tagged images are missing (for example, after deleting images in Docker Desktop), `npm run docker:up:prod` stops before changing containers with `Image project-goods/<service>:<sha> not found. Run npm run docker:build:prod first.` `npm run update:prod` builds them automatically.
+
+## Troubleshooting production start
+
+- **`MongoDB keyfile not found (missing or empty) in volume <project>_mongo-keyfile`** — the keyfile volume is new or empty (typical on a server that never ran the authenticated stack). Run `npm run mongo:keyfile:prepare:prod`. If this server has never had auth enabled, first create the `project_goods_admin` and `project_goods_app` users in its database while MongoDB still runs without auth (see "Authenticated production stack on an existing volume" above), using the passwords from this server's `.env.production`.
+- **`MongoDB keyfile has wrong permissions or owner`** — the keyfile must be mode 400 and its directory 700, both owned by uid/gid 999. Re-run `npm run mongo:keyfile:prepare:prod`.
+- **`Step failed: <step> (docker exited with status N)`** — `docker:up:prod`, `update:prod` and `docker:rollback:prod` name the failing Docker step; Docker's own error is printed above that line.
