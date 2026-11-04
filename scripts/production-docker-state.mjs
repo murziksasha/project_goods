@@ -105,3 +105,17 @@ export const collectRollbackImages = (pairs, { inspectDocker = inspectDockerObje
   }
   return { tag, skipped };
 };
+
+export const missingImageMessage = (imageRef) =>
+  `Image ${imageRef} not found. Run npm run docker:build:prod first.`;
+
+// Verifies that every commit-tagged production image exists locally before
+// `docker compose up --no-build` is attempted, so a missing build is reported
+// clearly instead of as a raw Docker daemon error.
+export const assertImagesPresent = (imageRefs, { inspectDocker = inspectDockerObject } = {}) => {
+  for (const imageRef of imageRefs) {
+    if (inspectDocker(['image', 'inspect', imageRef, '--format', '{{.Id}}']) === null) {
+      throw new Error(missingImageMessage(imageRef));
+    }
+  }
+};

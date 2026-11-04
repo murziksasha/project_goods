@@ -124,3 +124,20 @@ npm run db:stats --prefix backend
 - `npm run docker:stop:prod` runs `docker compose --env-file .env.production -f docker-compose.yml -f docker-compose.prod.yml stop`. It only stops containers; volumes, the keyfile, and data are preserved. Restart with `npm run docker:up:prod`. Never use `down -v` on production.
 - `npm run docker:logs:prod` runs the same Compose command with `logs -f --tail=200`. Pass service names after `--`, e.g. `npm run docker:logs:prod -- backend`; add `--no-follow` to print and exit.
 - Both commands refuse to run when `.env.production` is missing or invalid.
+
+## Updating production to a new commit
+
+Use this for every routine release after the authenticated stack is in place.
+
+1. **Backup.** In the app, Settings → Backups: create a backup, download it, and keep it off the host (USB drive, cloud, another PC).
+2. **Pull.** From a clean checkout on the release branch: `git pull --ff-only`. `update:prod` never pulls by itself.
+3. **Update.** `npm run update:prod`. It:
+   - validates `.env.production` and requires a clean Git checkout;
+   - runs the same steps as `npm run docker:build:prod` (tags the running backend/frontend images as `:rollback`, builds images for the current short `GIT_SHA`; running containers keep serving);
+   - runs the same steps as `npm run docker:up:prod` (volume/project checks, image and keyfile checks, `up -d --no-build --pull never` on the existing volumes);
+   - polls `http://127.0.0.1:5000/api/health` and `http://127.0.0.1:5173/api/health` for up to 90 seconds (override with `UPDATE_PROD_HEALTH_TIMEOUT_MS`) and requires `mongoOk: true` and `buildSha` equal to the current commit on both;
+   - on success prints `docker compose ps` and a summary; on failure prints the last 80 backend log lines, the hint `npm run docker:rollback:prod`, and exits with code 1. It never rolls back, runs `down`, or removes volumes automatically.
+4. **Verify.** Sign in, open sales, stock, and finance lists; check `/api/health` shows the new `buildSha`.
+5. **Rollback if needed.** `npm run docker:rollback:prod` starts the images saved in step 3 on the same volumes.
+
+If the commit-tagged images are missing (for example, after deleting images in Docker Desktop), `npm run docker:up:prod` stops before changing containers with `Image project-goods/<service>:<sha> not found. Run npm run docker:build:prod first.` `npm run update:prod` builds them automatically.

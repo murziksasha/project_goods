@@ -102,6 +102,7 @@ Docker-запуск всего стека (MongoDB + backend + frontend) и пе
 Рабочий сервер запускается отдельными командами с авторизацией MongoDB и приватным незакоммиченным `.env.production` (шаблон `.env.production.example`):
 
 ```bash
+npm run update:prod            # обновление одной командой: build:prod + up:prod + проверка /api/health
 npm run docker:build:prod      # сохранить rollback-образы и собрать новые, сервисы не перезапускаются
 npm run mongo:keyfile:prepare:prod
 npm run docker:up:prod         # отказывает без .env.production / MONGO_URI
@@ -110,6 +111,16 @@ npm run docker:stop:prod       # остановить prod-контейнеры 
 npm run docker:logs:prod       # логи prod (-f, последние 200 строк); сервис: npm run docker:logs:prod -- backend
                                # без слежения: npm run docker:logs:prod -- backend --no-follow
 ```
+
+Обновление рабочего сервера на новый коммит:
+
+1. В программе создать бэкап (Настройки → Бэкапы), скачать и сохранить не на этом ПК.
+2. `git pull --ff-only` (чистый checkout, нужная ветка).
+3. `npm run update:prod` — проверяет `.env.production`, собирает образы под текущий коммит и сохраняет работающие как точку отката, пересоздаёт контейнеры на тех же томах и до ~90 с ждёт `/api/health` (`mongoOk: true`, `buildSha` = текущий коммит) на `127.0.0.1:5000` и `127.0.0.1:5173`. Сам `git pull` не делает и сам не откатывает.
+4. Проверить вход, продажи, склад, финансы.
+5. Если проверка не прошла, команда выводит последние логи backend и завершается с кодом 1; откат — `npm run docker:rollback:prod`.
+
+Если образа для текущего коммита нет, `docker:up:prod` пишет `Image project-goods/<сервис>:<sha> not found. Run npm run docker:build:prod first.`
 
 Порядок репетиции, рабочего окна и отката: [DEPLOYMENT.md](./DOCUMENTATION/DEPLOYMENT.md). Production-изменения Docker и секретов выполняются только после отдельного подтверждения (см. `AGENTS.md`).
 

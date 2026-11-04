@@ -9,6 +9,7 @@ import {
   productionImageRefs,
 } from './production-env.mjs';
 import {
+  assertImagesPresent,
   assertProductionDockerState,
   describeAbsentContainers,
 } from './production-docker-state.mjs';
@@ -79,10 +80,13 @@ const runDocker = (args) => {
 
 if (production) {
   runDocker([...composeArgs, 'config', '-q']);
-  runDocker(['image', 'inspect', 'mongo:7', '--format', '{{.Id}}']);
-  for (const imageRef of productionImageRefs(gitSha)) {
-    runDocker(['image', 'inspect', imageRef, '--format', '{{.Id}}']);
+  try {
+    assertImagesPresent(productionImageRefs(gitSha));
+  } catch (error) {
+    console.error(error.message);
+    process.exit(1);
   }
+  runDocker(['image', 'inspect', 'mongo:7', '--format', '{{.Id}}']);
   runDocker([
     ...composeArgs,
     'run',
