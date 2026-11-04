@@ -4,6 +4,7 @@ import mongoose from 'mongoose';
 import path from 'path';
 import { env } from '../../config/env';
 import { HttpError } from '../../shared/lib/errors';
+import { redactMongoCredentials } from '../../shared/lib/redact-mongo-credentials';
 
 const backupIdPattern = /^project-goods-\d{8}-\d{6}(?:-(?:safety|scheduled))?$/;
 const archiveSuffix = '.archive.gz';
@@ -268,14 +269,14 @@ const readMetadata = async (metadataPath: string) => {
     sizeBytes: Number(parsed.sizeBytes ?? 0),
     author: String(parsed.author ?? ''),
     durationMs: Number(parsed.durationMs ?? 0),
-    error: String(parsed.error ?? ''),
+    error: redactMongoCredentials(String(parsed.error ?? '')),
   } satisfies BackupMetadata;
 };
 
 const writeMetadata = async (backupDir: string, metadata: BackupMetadata) => {
   await fs.writeFile(
     path.join(backupDir, getMetadataFile(metadata.id)),
-    `${JSON.stringify(metadata, null, 2)}\n`,
+    `${JSON.stringify({ ...metadata, error: redactMongoCredentials(metadata.error) }, null, 2)}\n`,
     'utf8',
   );
 };
@@ -406,7 +407,7 @@ const createBackup = async (
         now: resolvedOptions.now,
       });
     } catch (retentionError) {
-      console.error('Backup retention failed after create:', retentionError);
+      console.error('Backup retention failed after create:', redactMongoCredentials(String(retentionError)));
     }
     return metadata;
   } catch (error) {
@@ -416,7 +417,7 @@ const createBackup = async (
       status: 'failed' as const,
       updatedAt: finishedAt.toISOString(),
       durationMs: Math.max(finishedAt.getTime() - startedAt.getTime(), 0),
-      error: error instanceof Error ? error.message : 'Backup failed.',
+      error: redactMongoCredentials(error instanceof Error ? error.message : 'Backup failed.'),
     };
     await writeMetadata(resolvedOptions.backupDir, metadata);
     return metadata;
