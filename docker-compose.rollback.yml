@@ -1,3 +1,8 @@
+# Rollback overlay: swaps backend/frontend to the images saved by docker:build:prod
+# (project-goods/*:rollback) and pins the existing external volumes.
+# npm run docker:rollback:prod layers it on docker-compose.yml + docker-compose.prod.yml,
+# so MongoDB keeps the keyfile and the backend keeps the authenticated MONGO_URI.
+# Only the emergency npm run docker:rollback:noauth uses it without the prod layer.
 services:
   backend:
     image: project-goods/backend:rollback

@@ -14,7 +14,7 @@ Related: [DEVELOPMENT.md](./DEVELOPMENT.md) · [index](./README.md)
 | Backend coverage | `cd backend && npm run test:coverage` | Strict 100% on listed modules only |
 | Lint | `npm run lint` (per package) | |
 | Frontend proxy (node:test) | `npm run test:proxy --prefix frontend` | Also runs at the end of `npm test` in `frontend`. Forwarding headers + static path boundary |
-| Deployment scripts (node:test) | `npm run test:deployment` | Root. `.env.production` parsing, Docker volume/project preflight, clean checkout, ignore rules |
+| Deployment scripts (node:test) | `npm run test:deployment` | Root. `.env.production` parsing, Docker volume/project preflight, clean checkout, ignore rules, prod ops, `update:prod` health gate, rollback keeps MongoDB auth (`docker:rollback:noauth` requires explicit confirmation) |
 
 ## Playwright e2e
 

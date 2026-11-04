@@ -13,7 +13,14 @@ export const productionComposeArgs = [
   '-f',
   'docker-compose.prod.yml',
 ];
-export const rollbackComposeArgs = [
+// docker-compose.rollback.yml only swaps backend/frontend to the saved :rollback
+// images and pins the existing external volumes. Layered on top of the production
+// file it keeps MongoDB auth (keyfile + app-user MONGO_URI from .env.production).
+export const rollbackComposeArgs = [...productionComposeArgs, '-f', 'docker-compose.rollback.yml'];
+
+// Emergency-only: the rollback images on the base (unauthenticated) MongoDB command
+// and URI. Only for reverting the auth migration itself (docker:rollback:noauth).
+export const noAuthRollbackComposeArgs = [
   'compose',
   '--env-file',
   '.env.production',
@@ -21,6 +28,17 @@ export const rollbackComposeArgs = [
   'docker-compose.yml',
   '-f',
   'docker-compose.rollback.yml',
+];
+
+// Read-only check that the MongoDB keyfile volume is prepared (mode and owner).
+export const keyfileCheckArgs = [
+  'run',
+  '--rm',
+  '--no-deps',
+  '-T',
+  'mongo-keyfile-init',
+  '-euc',
+  'test -s /run/mongo-keyfile/keyfile; test "$(stat -c %a:%u:%g /run/mongo-keyfile)" = 700:999:999; test "$(stat -c %a:%u:%g /run/mongo-keyfile/keyfile)" = 400:999:999',
 ];
 
 export const productionImageRefs = (gitSha) => [

@@ -106,7 +106,8 @@ npm run update:prod            # обновление одной командо�
 npm run docker:build:prod      # сохранить rollback-образы и собрать новые, сервисы не перезапускаются
 npm run mongo:keyfile:prepare:prod
 npm run docker:up:prod         # отказывает без .env.production / MONGO_URI
-npm run docker:rollback:prod   # откат на сохранённые образы без авторизации
+npm run docker:rollback:prod   # откат на сохранённые :rollback-образы, MongoDB остаётся с паролем (keyfile + MONGO_URI)
+npm run docker:rollback:noauth -- --confirm-noauth  # ТОЛЬКО для отката самого перехода на авторизацию: MongoDB БЕЗ пароля
 npm run docker:stop:prod       # остановить prod-контейнеры (stop, не down: тома и данные сохраняются)
 npm run docker:logs:prod       # логи prod (-f, последние 200 строк); сервис: npm run docker:logs:prod -- backend
                                # без слежения: npm run docker:logs:prod -- backend --no-follow
@@ -118,7 +119,7 @@ npm run docker:logs:prod       # логи prod (-f, последние 200 ст�
 2. `git pull --ff-only` (чистый checkout, нужная ветка).
 3. `npm run update:prod` — проверяет `.env.production`, собирает образы под текущий коммит и сохраняет работающие как точку отката, пересоздаёт контейнеры на тех же томах и до ~90 с ждёт `/api/health` (`mongoOk: true`, `buildSha` = текущий коммит) на `127.0.0.1:5000` и `127.0.0.1:5173`. Сам `git pull` не делает и сам не откатывает.
 4. Проверить вход, продажи, склад, финансы.
-5. Если проверка не прошла, команда выводит последние логи backend и завершается с кодом 1; откат — `npm run docker:rollback:prod`.
+5. Если проверка не прошла, команда выводит последние логи backend и завершается с кодом 1; откат — `npm run docker:rollback:prod`: поднимает образы, сохранённые на шаге 3, на тех же томах; авторизация MongoDB (keyfile и пользователь `project_goods_app` из `.env.production`) остаётся включённой, а `/api/health` показывает `buildSha` версии отката. Возврат на новую версию — снова `npm run update:prod`.
 
 Если образа для текущего коммита нет, `docker:up:prod` пишет `Image project-goods/<сервис>:<sha> not found. Run npm run docker:build:prod first.`
 

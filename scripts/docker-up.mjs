@@ -7,6 +7,7 @@ import {
   productionChildEnvironment,
   productionComposeArgs,
   productionImageRefs,
+  keyfileCheckArgs,
 } from './production-env.mjs';
 import {
   assertImagesPresent,
@@ -87,16 +88,7 @@ if (production) {
     process.exit(1);
   }
   runDocker(['image', 'inspect', 'mongo:7', '--format', '{{.Id}}']);
-  runDocker([
-    ...composeArgs,
-    'run',
-    '--rm',
-    '--no-deps',
-    '-T',
-    'mongo-keyfile-init',
-    '-euc',
-    'test -s /run/mongo-keyfile/keyfile; test "$(stat -c %a:%u:%g /run/mongo-keyfile)" = 700:999:999; test "$(stat -c %a:%u:%g /run/mongo-keyfile/keyfile)" = 400:999:999',
-  ]);
+  runDocker([...composeArgs, ...keyfileCheckArgs]);
 }
 
 runDocker([
