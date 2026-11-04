@@ -143,6 +143,18 @@ frontend/
 - разрастания page-компонентов из-за прямого встраивания всей логики в JSX
 - дублирования HTTP-логики по нескольким frontend-модулям
 
+## Structure Update: Release 1 hardening (2026-11-04)
+
+- `docker-compose.yml` — local stack; MongoDB `27017` and backend `5000` bound to `127.0.0.1`, frontend `5173` on LAN
+- `docker-compose.prod.yml` — production layer: Mongo keyfile auth, external existing volumes, `MONGO_URI` from `.env.production`, `TRUST_PROXY_HOPS=1`
+- `docker-compose.rollback.yml` — rollback layer: saved `:rollback` images on the same external volumes, no auth
+- `.env.production.example` — template for the private, uncommitted `.env.production`
+- `scripts/docker-up.mjs` (`docker:up`, `docker:up:prod`), `scripts/docker-local.mjs` (`db:up`, `db:down`, `docker:down`), `scripts/docker-build-prod.mjs`, `scripts/docker-rollback-prod.mjs`, `scripts/prepare-mongo-keyfile.mjs`
+- `scripts/production-env.mjs`, `scripts/production-docker-state.mjs`, `scripts/production-git-state.mjs` — preflight checks; tests via `npm run test:deployment`
+- `frontend/scripts/proxy-security.mjs` — proxy forwarding headers and static directory boundary; tests via `npm run test:proxy --prefix frontend`
+- `backend/src/shared/lib/redact-mongo-credentials.ts` — masks Mongo URI credentials in logs, backup metadata, and API errors
+- `backend/src/scripts/admin-password.ts` — admin scripts require `PROJECT_GOODS_ADMIN_PASSWORD`
+
 ## Structure Update: Build Version Label (2026-07-06)
 
 - `frontend/src/shared/lib/buildInfo.ts` — SHA + build time helpers

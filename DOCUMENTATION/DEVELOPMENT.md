@@ -111,6 +111,8 @@ npm run start --prefix backend
 npm run typecheck --prefix backend
 ```
 
+Административные скрипты `backend/src/scripts/create-temp-admin.ts` и `update-admin-password.ts` больше не содержат встроенного пароля. Они требуют переменную `PROJECT_GOODS_ADMIN_PASSWORD` (минимум 8 символов), не печатают пароль и его хэш, а ошибки подключения выводят без учётных данных Mongo. Задавайте переменную только на время запуска, например в PowerShell: `$env:PROJECT_GOODS_ADMIN_PASSWORD = Read-Host -MaskInput` (PowerShell 7+), затем удалите её (`Remove-Item Env:PROJECT_GOODS_ADMIN_PASSWORD`). Сброс пароля — разрушительная операция и требует подтверждения (см. `AGENTS.md`).
+
 ### Frontend
 
 ```bash

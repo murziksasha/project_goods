@@ -4,6 +4,7 @@ import { employeePermissions } from '../domain/employee/constants';
 import { Employee } from '../domain/employee/model';
 import { hashPassword } from '../shared/lib/auth';
 import { requireAdminPassword } from './admin-password';
+import { describeErrorSafely } from '../shared/lib/redact-mongo-credentials';
 
 const run = async () => {
   const password = requireAdminPassword(process.env.PROJECT_GOODS_ADMIN_PASSWORD);
@@ -40,7 +41,7 @@ const run = async () => {
 
 void run()
   .catch((error) => {
-    console.error(error);
+    console.error(describeErrorSafely(error));
     process.exitCode = 1;
   })
   .finally(async () => {

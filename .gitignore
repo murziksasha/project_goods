@@ -27,3 +27,4 @@ frontend/frontend-dev.log
 .env.*
 !.env.example
 !.env.production.example
+**/.eslintcache

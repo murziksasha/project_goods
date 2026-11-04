@@ -13,6 +13,8 @@ Related: [DEVELOPMENT.md](./DEVELOPMENT.md) · [index](./README.md)
 | Backend unit + integration | `cd backend && npm test` | Vitest, no live MongoDB required |
 | Backend coverage | `cd backend && npm run test:coverage` | Strict 100% on listed modules only |
 | Lint | `npm run lint` (per package) | |
+| Frontend proxy (node:test) | `npm run test:proxy --prefix frontend` | Also runs at the end of `npm test` in `frontend`. Forwarding headers + static path boundary |
+| Deployment scripts (node:test) | `npm run test:deployment` | Root. `.env.production` parsing, Docker volume/project preflight, clean checkout, ignore rules |
 
 ## Playwright e2e
 
@@ -69,6 +71,13 @@ Specs:
   - smoke reads: products, clients, sales, settings
   - demo endpoints blocked when `NODE_ENV=production`
 - Auth middleware unit: `backend/src/shared/middleware/auth.test.ts`.
+- Release 1 hardening regressions:
+  - `shared/lib/redact-mongo-credentials.test.ts` — URI credentials masked (incl. unencoded `@`), stack traces kept.
+  - `domain/backup/service.test.ts`, `domain/backup/scheduler.test.ts`, `domain/archive/yearly-dump.test.ts` — failed backup/dump metadata, API errors, and logs never contain the Mongo password.
+  - `shared/middleware/login-rate-limit.test.ts` — spoofed `X-Forwarded-For` does not change the limiter key; `config/env.test.ts` — `TRUST_PROXY_HOPS` capped at 1.
+  - `domain/supplier/excel.test.ts` — supplier names are matched literally (escaped regex).
+  - `shared/lib/mongo-session.test.ts` — transaction support detected via `hello` (works for the inventory-scoped user).
+  - `scripts/admin-password.test.ts` — admin scripts refuse a missing/short `PROJECT_GOODS_ADMIN_PASSWORD`.
 - HTTP helpers: `backend/src/shared/lib/http.test.ts` — `asyncHandler` + `requirePermission` uses `req.employee` (no second token lookup).
 - Supplier-order update + favorite: `domain/supplier-order/service.update.test.ts`
 - Catalog-product list/delete usage: `domain/catalog-product/service.test.ts`
