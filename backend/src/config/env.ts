@@ -3,16 +3,19 @@ import dotenv from 'dotenv';
 dotenv.config({ quiet: true });
 
 const defaultPort = 5000;
-const defaultMongoUri = 'mongodb://127.0.0.1:27017/inventory?replicaSet=rs0';
+const defaultMongoUri = 'mongodb://127.0.0.1:27017/inventory?replicaSet=rs0&directConnection=true';
 
 export type BackendEnv = {
   port: number;
   host: string;
   mongoUri: string;
   clientOrigin?: string;
+  trustProxyHops: number;
   requireMongoTransactions: boolean;
   /** 0 = disabled. Idle session expiry in hours. */
   authSessionIdleHours: number;
+  /** Failed logins allowed per client IP per 15 minutes (default 100). */
+  loginMaxFailedPerIp: number;
   openWeatherApiKey?: string;
   backupDir: string;
   backupCreateCommand?: string;
@@ -63,9 +66,11 @@ export const parseEnv = (
       | 'HOST'
       | 'MONGO_URI'
       | 'CLIENT_ORIGIN'
+      | 'TRUST_PROXY_HOPS'
       | 'NODE_ENV'
       | 'MONGO_REQUIRE_TRANSACTIONS'
       | 'AUTH_SESSION_IDLE_HOURS'
+      | 'LOGIN_MAX_FAILED_PER_IP'
       | 'OPENWEATHER_API_KEY'
       | 'BACKUP_DIR'
       | 'BACKUP_CREATE_COMMAND'
@@ -99,8 +104,11 @@ export const parseEnv = (
     host: rawEnv.HOST?.trim() || '0.0.0.0',
     mongoUri: rawEnv.MONGO_URI ?? defaultMongoUri,
     clientOrigin: rawEnv.CLIENT_ORIGIN,
+    trustProxyHops: Math.min(parseNonNegativeInt(rawEnv.TRUST_PROXY_HOPS, 0), 1),
     requireMongoTransactions,
     authSessionIdleHours,
+    loginMaxFailedPerIp:
+      parseNonNegativeInt(rawEnv.LOGIN_MAX_FAILED_PER_IP, 100) || 100,
     openWeatherApiKey: rawEnv.OPENWEATHER_API_KEY?.trim() || undefined,
     backupDir: rawEnv.BACKUP_DIR ?? './backups',
     backupCreateCommand: rawEnv.BACKUP_CREATE_COMMAND,

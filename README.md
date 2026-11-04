@@ -71,8 +71,10 @@ npm run dev
 ### 5. Открыть приложение
 - Frontend локально: `http://localhost:5173`
 - Frontend в локальной сети: `http://192.168.10.55:5173`
-- Backend API: `http://localhost:5000/api`
+- Backend API: `http://localhost:5000/api` (в Docker порт `5000` доступен только с этого ПК)
 - Health check: `http://localhost:5000/api/health`
+
+MongoDB в Docker слушает только `127.0.0.1:27017`; для подключения с хоста используйте `MONGO_URI` из `backend/.env.example` (`replicaSet=rs0&directConnection=true`). Сотрудники в сети работают только через frontend на `5173`.
 
 ## Браузерный режим
 
@@ -92,7 +94,22 @@ npm run db:down
 npm run docker:up
 npm run docker:down
 npm run install:all
+npm run test:deployment
 ```
 
 Docker-запуск всего стека (MongoDB + backend + frontend) и передача `GIT_SHA` в сборку frontend: см. [BUILD_VERSION_SPEC.md](./DOCUMENTATION/BUILD_VERSION_SPEC.md).
+
+Рабочий сервер запускается отдельными командами с авторизацией MongoDB и приватным незакоммиченным `.env.production` (шаблон `.env.production.example`):
+
+```bash
+npm run docker:build:prod      # сохранить rollback-образы и собрать новые, сервисы не перезапускаются
+npm run mongo:keyfile:prepare:prod
+npm run docker:up:prod         # отказывает без .env.production / MONGO_URI
+npm run docker:rollback:prod   # откат на сохранённые образы без авторизации
+npm run docker:stop:prod       # остановить prod-контейнеры (stop, не down: тома и данные сохраняются)
+npm run docker:logs:prod       # логи prod (-f, последние 200 строк); сервис: npm run docker:logs:prod -- backend
+                               # без слежения: npm run docker:logs:prod -- backend --no-follow
+```
+
+Порядок репетиции, рабочего окна и отката: [DEPLOYMENT.md](./DOCUMENTATION/DEPLOYMENT.md). Production-изменения Docker и секретов выполняются только после отдельного подтверждения (см. `AGENTS.md`).
 

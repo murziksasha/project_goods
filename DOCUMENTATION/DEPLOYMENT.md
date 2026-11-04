@@ -2,7 +2,7 @@
 
 Related: [DEVELOPMENT.md](./DEVELOPMENT.md) · [BUILD_VERSION_SPEC.md](./BUILD_VERSION_SPEC.md) · [SECURITY.md](./SECURITY.md) · [index](./README.md)
 
-## Docker Compose (local / LAN)
+## Docker Compose: local development
 
 ```bash
 npm run docker:up
@@ -10,13 +10,50 @@ npm run docker:up
 
 Services:
 
-| Service | Port | Image |
-|---------|------|-------|
-| MongoDB | 27017 | `mongo:7` with replica set `rs0` |
-| Backend | 5000 | `backend/Dockerfile`, healthcheck on `/api/health` |
-| Frontend | 5173 | `frontend/Dockerfile`, starts after backend is healthy |
+| Service | Host binding | Image |
+|---------|--------------|-------|
+| MongoDB | `127.0.0.1:27017` | `mongo:7` with replica set `rs0` |
+| Backend | `127.0.0.1:5000` | `backend/Dockerfile`, healthcheck requires `mongoOk: true` |
+| Frontend | `0.0.0.0:5173` | `frontend/Dockerfile`, starts after backend is healthy |
 
 Mongo **must** run as replica set (`?replicaSet=rs0` in `MONGO_URI`) for transactions used by sales/finance flows.
+The host-side development URI also uses `directConnection=true` because the Docker replica-set member advertises `mongo:27017`, which the Windows host cannot resolve. The backend container keeps the internal `mongo:27017` URI.
+
+## Authenticated production stack on an existing volume
+
+Production adds `docker-compose.prod.yml` to the base Compose file. It keeps the frontend URL on port `5173`, restricts direct MongoDB and backend access to the server itself, and requires `.env.production`. Copy `.env.production.example` to `.env.production` **on the production host**. Before filling it, inspect the running MongoDB and backend containers to record their Compose project label and the exact named volumes mounted at `/data/db` and `/app/backups`. Enter those existing names as `COMPOSE_PROJECT_NAME`, `MONGO_DATA_VOLUME`, and `BACKUP_DATA_VOLUME`. Replace the URI placeholder with a unique URL-safe application password. The launcher checks the project label, both existing volumes and mounts, and an authenticated URI to `mongo:27017/inventory` with `authSource=inventory&replicaSet=rs0`. It does not print the URI. Store the separate administrator password in a password manager.
+
+Both production and rollback Compose layers mark `mongo-data` and `backup-data` as **external** volumes with the recorded names. A changed checkout path or project name therefore cannot silently create an empty replacement database. `.env.production` is excluded from Git and the Docker build context; private values are not copied into images. On a host with this file, the local `db:up`, `db:down`, `docker:up`, and `docker:down` commands refuse to run. Production build and cutover also require a clean Git checkout so the image tag identifies exactly the source that was built.
+
+The first production switch uses the existing `mongo-data` volume. `MONGO_INITDB_ROOT_USERNAME` and `MONGO_INITDB_ROOT_PASSWORD` initialize only a new empty volume; they do not add users to a populated database. Do not use `docker compose down -v`, remove `mongo-data`, or recreate the database to enable authentication.
+
+The MongoDB keyfile lives in a Docker-managed Linux volume, not in a Windows bind mount. On the production host, after creating `.env.production`, run:
+
+```bash
+npm run mongo:keyfile:prepare:prod
+```
+
+The helper verifies the existing project and volumes first, generates a random keyfile through standard input, never prints it, and verifies directory mode `0700`, file mode `0400`, and owner `mongodb` (UID/GID `999:999`). It leaves an existing valid keyfile intact. `npm run docker:up:prod` checks the file again before changing running services and refuses to start when it is missing or invalid. Keep the keyfile volume when updating containers.
+
+### Rehearsal and preflight
+
+Use a **separate staging Docker host**. The base Compose file has fixed container names and host ports, so a parallel project on the production host is unsafe. First start an isolated unauthenticated staging MongoDB replica set and restore a recently downloaded full `inventory` archive offline with `mongorestore`; a fresh staging database has no employee account for Settings → Backups. After the restore, sign in as a restored owner, compare per-collection counts with the production Settings → Database view, and exercise manual backup creation, download, upload, and restore through the UI. Repeat those UI checks after authentication. Also execute one safe test sale with a payment and stock movement, plus a finance write, under the authenticated application user to exercise the real transaction path. Never test restore or create test business records against the working database.
+
+Record the current Git SHA, running image IDs, Compose project labels, exact `/data/db` and `/app/backups` volume names, replica-set status, free disk space, and backup size on production. Populate `.env.production` with those existing project/volume names. Commit the release and confirm a clean worktree. Before the maintenance window, run `npm run docker:build:prod`: it checks the running mounts, tags the current backend/frontend images as `project-goods/backend:rollback` and `project-goods/frontend:rollback`, and builds new images tagged with the current Git SHA. Containers continue running the old images. Verify that these rollback tags, the new commit tags, and local `mongo:7` image exist. The cutover uses `--no-build --pull never`. If the `project_goods_*` containers were removed but both declared volumes still exist, `docker:build:prod`, `docker:up:prod`, and `docker:rollback:prod` recreate the containers on those volumes; `docker:build:prod` then leaves the existing rollback tags unchanged for absent containers. A missing volume, a container from another Compose project, or a container mounting a different volume still stops the command. Docker errors are printed as reported by Docker.
+
+On staging, prepare the keyfile and stop frontend/backend so that no writes occur. While MongoDB still runs without access control, create two users in `mongosh` inside the Mongo container using `passwordPrompt()`: `project_goods_admin` with `userAdminAnyDatabase` on `admin`, and `project_goods_app` with `readWrite` plus `dbAdmin` on `inventory`. Confirm their names and roles without displaying passwords. If users already exist, stop and inspect the deployment before changing them. Enter the app password in the private `.env.production` URI. Prebuild the production images, then run `npm run docker:up:prod` and repeat the application and backup checks with authentication active. If backup restore fails under these roles, stop the rollout and redesign credential separation; do not grant the backend the administrator account.
+
+The new Mongo healthcheck checks that the existing member is writable primary; it does not call `rs.initiate`. The backend healthcheck checks the `mongoOk` JSON field instead of accepting its HTTP 200 response alone.
+
+### Production maintenance window (up to 60 minutes)
+
+1. Confirm that `npm run docker:build:prod` completed **before** the window and both rollback image tags exist. Stop new shop operations. Create and download one fresh manual backup through Settings → Backups, retain it on a separate PC, and record its SHA-256 hash. Compare the collection counts with the rehearsal baseline.
+2. Stop frontend and backend. Create the two MongoDB users on the existing unauthenticated replica set as rehearsed. Prepare the keyfile volume if it was not prepared earlier. Do not change or delete `mongo-data`.
+3. Run `npm run docker:up:prod` from the clean repository checkout. It validates the private env file, existing project/volume identity, image tags, keyfile, and Compose configuration, then starts the authenticated stack with `--no-build --pull never`.
+4. Confirm MongoDB primary and backend `mongoOk: true`; sign in with two roles; open warehouse, sales, and finance lists; create and download a manual backup. From two LAN devices, confirm login and that their rate-limit IP keys are distinct. If both devices appear as one proxy peer, adjust the per-IP limit before rollout while keeping the per-username limit. Direct connections to `27017` and `5000` from other LAN devices must fail while the frontend remains reachable on `5173`.
+5. If a check fails within the window, run `npm run docker:rollback:prod`. This uses the exact saved rollback image tags and the base unauthenticated MongoDB command/URI, while the rollback Compose layer pins the **same existing external data and backup volumes**. It uses `--no-build --pull never`; both direct ports remain loopback-only. Preserve `mongo-data` and the keyfile volume. Restore a database archive only if data damage is confirmed. Rehearse this rollback on staging before the production window.
+
+Production Docker changes and edits to real `.env` secrets require explicit confirmation under `AGENTS.md` before execution.
 
 ## Production backend image
 
@@ -81,3 +118,9 @@ npm run db:stats --prefix backend
 # or authenticated:
 # GET /api/system/db-stats  (system.backups.manage)
 ```
+
+## Day-to-day production operations
+
+- `npm run docker:stop:prod` runs `docker compose --env-file .env.production -f docker-compose.yml -f docker-compose.prod.yml stop`. It only stops containers; volumes, the keyfile, and data are preserved. Restart with `npm run docker:up:prod`. Never use `down -v` on production.
+- `npm run docker:logs:prod` runs the same Compose command with `logs -f --tail=200`. Pass service names after `--`, e.g. `npm run docker:logs:prod -- backend`; add `--no-follow` to print and exit.
+- Both commands refuse to run when `.env.production` is missing or invalid.

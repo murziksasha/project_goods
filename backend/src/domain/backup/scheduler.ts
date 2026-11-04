@@ -4,6 +4,10 @@ import {
   createScheduledBackup,
   enforceBackupRetention,
 } from './service';
+import {
+  describeErrorSafely,
+  redactMongoCredentials,
+} from '../../shared/lib/redact-mongo-credentials';
 
 export const scheduledBackupHourUtc = 15;
 export const scheduledBackupMinuteUtc = 0;
@@ -16,21 +20,21 @@ export const runDataRetentionMaintenance = async () => {
     const seal = await ensureFinancePeriodSealed('System');
     console.log('Finance seal maintenance:', seal);
   } catch (error) {
-    console.error('Finance seal maintenance failed:', error);
+    console.error('Finance seal maintenance failed:', describeErrorSafely(error));
   }
 
   try {
     const purge = await autoPurgeSealedFinanceTransactions();
     console.log('Finance purge maintenance:', purge);
   } catch (error) {
-    console.error('Finance purge maintenance failed:', error);
+    console.error('Finance purge maintenance failed:', describeErrorSafely(error));
   }
 
   try {
     const archives = await runScheduledYearlyArchives('System');
     console.log('Yearly archive maintenance:', archives);
   } catch (error) {
-    console.error('Yearly archive maintenance failed:', error);
+    console.error('Yearly archive maintenance failed:', describeErrorSafely(error));
   }
 };
 
@@ -67,11 +71,11 @@ export const runDailyBackupCycle = async () => {
     }
 
     console.error(
-      `Scheduled backup failed: ${backup.id}. ${backup.error || 'Unknown error.'}`,
+      `Scheduled backup failed: ${backup.id}. ${redactMongoCredentials(backup.error || 'Unknown error.')}`,
     );
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    console.error(`Scheduled backup skipped: ${message}`);
+    console.error(`Scheduled backup skipped: ${redactMongoCredentials(message)}`);
   } finally {
     await runScheduledBackupRetention();
     await runDataRetentionMaintenance();

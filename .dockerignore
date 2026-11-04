@@ -11,3 +11,10 @@ backend/coverage
 frontend/coverage
 npm-debug.log
 **/.DS_Store
+.env
+.env.*
+**/.env
+**/.env.*
+.grill
+.agents
+.codex

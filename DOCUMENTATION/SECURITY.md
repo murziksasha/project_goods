@@ -49,7 +49,7 @@ Full permission matrix: [Permission_Flow.md](./Permission_Flow.md).
 - CORS — restricted by `CLIENT_ORIGIN` env var (comma-separated origins). In **production**, missing `CLIENT_ORIGIN` blocks browser cross-origin requests (dev still allow-all when unset).
 - Listen host — `HOST` (default `0.0.0.0`) for LAN binding
 - Weather — OpenWeather API key via `OPENWEATHER_API_KEY` only (not query params, not Mongo settings)
-- Login rate limit — soft in-memory throttle on `POST /api/auth/login` only (~40/15m per IP, ~15/15m per username) → `429`
+- Login rate limit — soft in-memory throttle on `POST /api/auth/login` only (per IP: only **failed** logins count, default 100/15m via `LOGIN_MAX_FAILED_PER_IP`; per username: every attempt counts, 15/15m) → `429`
 - Print HTML — frontend sanitizes print templates with DOMPurify before `dangerouslySetInnerHTML` / print window
 
 ## Transactions
@@ -60,6 +60,8 @@ Full permission matrix: [Permission_Flow.md](./Permission_Flow.md).
 
 ## LAN Assumptions
 
+- The default local Compose file publishes MongoDB and backend only on `127.0.0.1`; employees connect through frontend port `5173`. Production adds MongoDB keyfile authentication and an inventory-scoped application user through the separate Compose layer in [DEPLOYMENT.md](./DEPLOYMENT.md).
+- Only the production frontend proxy is a trusted forwarding hop (`TRUST_PROXY_HOPS=1`) for backend IP attribution. The proxy replaces client-supplied forwarding headers with the actual socket address; direct backend port `5000` is loopback-only. On Windows Docker Desktop all LAN clients reach the backend from one gateway address (observed `172.18.0.1`), so the per-IP bucket is effectively shop-wide. That is why it counts only failed logins: normal successful sign-ins never consume it, and the per-username limiter (15/15m) still stops guessing against one account.
 - Soft login rate limit only (see above); no global API rate limit.
 - Session tokens: client holds raw bearer; DB stores `h1:` + SHA-256 only. **Plaintext legacy sessions are rejected** (re-login required).
 - Settings API never returns or persists `openWeatherApiKey`; response includes `dashboardPreferences.hasOpenWeatherApiKey` when server env is set.
