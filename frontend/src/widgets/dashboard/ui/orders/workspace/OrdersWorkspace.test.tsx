@@ -1571,6 +1571,8 @@ describe('OrdersWorkspace', () => {
     expect(
       screen.getByRole('link', { name: /r000001/i }),
     ).toBeInTheDocument();
+    expect(screen.getByTitle('+380671112233')).toBeInTheDocument();
+    expect(screen.getByTitle('+380952898207')).toBeInTheDocument();
     expect(
       screen.queryByText('Orders not found.'),
     ).not.toBeInTheDocument();
@@ -1591,7 +1593,7 @@ describe('OrdersWorkspace', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /Filter/i }));
     fireEvent.change(
-      screen.getByPlaceholderText('Client name or phone'),
+      screen.getByPlaceholderText(/client name or phone/i),
       {
         target: { value: '095 289 82 07' },
       },

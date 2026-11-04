@@ -19,15 +19,11 @@ import {
   getSaleListItemSerialNumbers,
   getSaleListLineItems,
   getSaleListPrimaryItem,
-  getSaleListSearchValues,
 } from '../../../../../entities/sale';
 import { formatCurrency } from '../../../../../shared/lib/format';
 import { scrollDashboardMainToTop } from '../../../../../shared/lib/scrollDashboardMain';
 import { parseMoney } from '../../../../../shared/lib/decimal';
-import {
-  getSaleClientPhones,
-  saleMatchesPhoneQuery,
-} from '../../../../../entities/client';
+import { getSaleClientPhones } from '../../../../../entities/client';
 import type { ClientStatus } from '../../../../../entities/client';
 import {
   getClientStatusClass,
@@ -35,7 +31,7 @@ import {
   getClientStatusLabelKey,
   getEffectiveClientStatusLogic,
 } from '../../../../../entities/client';
-import { normalizePhone } from '../../../../../shared/lib/phoneFormatter';
+import { findFirstMatchedAdditionalPhone } from '../../../../../shared/lib/phone-search';
 import { getCashboxes } from '../../../../../entities/finance';
 import {
   acceptSalePayment as acceptSalePaymentRequest,
@@ -71,6 +67,10 @@ import { TruncatedTextTooltip } from '../../../../../shared/ui/TruncatedTextTool
 import { useSaleDetail } from '../../../../../entities/sale';
 import { useSalesPageQuery } from '../../../../../entities/sale';
 import { useStoredPageSize } from '../../../../../shared/lib/page-size-preference';
+import {
+  saleMatchesClientFilter,
+  saleMatchesListQuery,
+} from './orders-list-search';
 import { buildOrdersSalesListParams } from './orders-sales-query';
 
 import { OrderDetailCard } from '../order-detail/OrderDetailCard';
@@ -90,7 +90,6 @@ import { createRuntimeId } from '../../../../../shared/lib/runtime-id';
 import { getClientStatsMap } from '../../../model/clients-workspace';
 import {
   getSaleClientDisplayName,
-  getSaleClientSearchValues,
   isRapidSaleClientLinkDisabled,
 } from '../../../model/sale-client-display';
 import {
@@ -173,7 +172,7 @@ import {
 } from './orders-workspace-shared';
 
 import { CopyableValue } from '../../../../../shared/ui/CopyableValue';
-import { PhoneNumber } from '../../shared/PhoneNumber';
+import { ListedPhones } from '../../shared/ListedPhones';
 
 const isSaleResponse = (value: unknown): value is Sale => {
   if (typeof value !== 'object' || value === null) return false;
@@ -553,8 +552,7 @@ export const OrdersWorkspace: React.FC<OrdersWorkspaceProps> = ({
   }, [activeTab, appliedFilters]);
 
   const filteredOrders = useMemo(() => {
-    const query = searchValue.trim().toLowerCase();
-    const queryPhone = normalizePhone(searchValue);
+    const query = searchValue.trim();
     const listFilters =
       activeTab === 'kanban'
         ? toKanbanFilters(appliedFilters)
@@ -571,8 +569,7 @@ export const OrdersWorkspace: React.FC<OrdersWorkspaceProps> = ({
     const orderNumberValue = listFilters.orderNumber
       .trim()
       .toLowerCase();
-    const clientValue = listFilters.client.trim().toLowerCase();
-    const clientPhoneValue = normalizePhone(listFilters.client);
+    const clientValue = listFilters.client.trim();
     const productValue = listFilters.product.trim().toLowerCase();
     const serviceValue = listFilters.service.trim().toLowerCase();
 
@@ -590,49 +587,11 @@ export const OrdersWorkspace: React.FC<OrdersWorkspaceProps> = ({
       const hasWarrantyService = lineItems.some(
         (item) => item.kind === 'service' && item.warrantyPeriod > 0,
       );
-      const salePhones = getSaleClientPhones(sale);
-      const clientSearchValues = getSaleClientSearchValues(sale, t);
-      const searchValues = isRepairOrdersTab(activeTab)
-        ? [
-            getPrimaryDeviceName(sale),
-            ...clientSearchValues,
-            ...salePhones,
-          ]
-        : [
-            ...getSaleListSearchValues(sale),
-            ...clientSearchValues,
-            ...salePhones,
-            sale.manager?.name ?? '',
-            sale.issuedBy?.name ?? '',
-          ];
-      const matchesPhoneQuery =
-        Boolean(queryPhone) &&
-        salePhones.some((phone) =>
-          normalizePhone(phone).includes(queryPhone),
-        );
-      const matchesClientPhoneFilter =
-        Boolean(clientPhoneValue) &&
-        salePhones.some((phone) =>
-          normalizePhone(phone).includes(clientPhoneValue),
-        );
-      const matchesClientTextFilter = saleMatchesPhoneQuery(
-        sale,
-        listFilters.client,
-      );
 
       if (listFilters.favoritesOnly && sale.isFavorite !== true) {
         return false;
       }
-      if (
-        query &&
-        !(
-          String(orderNumber).includes(query) ||
-          matchesPhoneQuery ||
-          searchValues.some((value) =>
-            value.toLowerCase().includes(query),
-          )
-        )
-      ) {
+      if (!saleMatchesListQuery(sale, query, activeTab, t)) {
         return false;
       }
       if (
@@ -643,16 +602,7 @@ export const OrdersWorkspace: React.FC<OrdersWorkspaceProps> = ({
       }
       if (
         clientValue &&
-        !(
-          [
-            ...getSaleClientSearchValues(sale, t),
-            String(orderNumber),
-          ].some((value) =>
-            value.toLowerCase().includes(clientValue),
-          ) ||
-          matchesClientPhoneFilter ||
-          matchesClientTextFilter
-        )
+        !saleMatchesClientFilter(sale, clientValue, t)
       ) {
         return false;
       }
@@ -2133,11 +2083,19 @@ export const OrdersWorkspace: React.FC<OrdersWorkspaceProps> = ({
             )}
             <small>
               {!isRapidSale ? (
-                <CopyableValue value={sale.client.phone}>
-                  <span title={sale.client.phone}>
-                    <PhoneNumber value={sale.client.phone} />
-                  </span>
-                </CopyableValue>
+                <ListedPhones
+                  primary={sale.client.phone}
+                  matchedAdditional={
+                    findFirstMatchedAdditionalPhone(
+                      getSaleClientPhones(sale),
+                      searchValue,
+                    ) ||
+                    findFirstMatchedAdditionalPhone(
+                      getSaleClientPhones(sale),
+                      appliedFilters.client,
+                    )
+                  }
+                />
               ) : null}
               {!isRapidSale && effectiveStatus ? (
                 <span

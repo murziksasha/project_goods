@@ -71,5 +71,12 @@ describe('client phone match helpers', () => {
     expect(saleMatchesPhoneQuery({ client: saleWithPhones }, '0502223344')).toBe(true);
     expect(saleMatchesPhoneQuery({ client: legacySale }, '0502223344')).toBe(false);
     expect(saleMatchesPhoneQuery({ client: legacySale }, '671112233')).toBe(true);
+    expect(saleMatchesPhoneQuery({ client: legacySale }, '+38063')).toBe(false);
+    expect(saleMatchesPhoneQuery({ client: saleWithPhones }, '+38063')).toBe(false);
+    expect(saleMatchesPhoneQuery({ client: saleWithPhones }, '+380')).toBe(false);
+    expect(saleMatchesPhoneQuery({ client: saleWithPhones }, 'S000123')).toBe(false);
+    expect(saleMatchesPhoneQuery({ client: saleWithPhones }, '(050) 222-33-44')).toBe(
+      true,
+    );
   });
 });

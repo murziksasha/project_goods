@@ -118,11 +118,16 @@ Permission: `system.backups.manage` (except finance snapshot read).
 
 ## Clients
 
-- `GET /clients` - список клиентов, поддерживает `query` и `status`
+- `GET /clients` - список клиентов, поддерживает `query` и `status`. Text queries match `searchText`. Phone-like queries match name, email, address, registration ID, IBAN, and note as text, plus `phone`, `phones`, and `phoneIdentities` by the [shared contact phone search rule](./CLIENTS_RULES.md#search-rule). Other resources that use `getSearchQuery` retain their existing search behavior.
 - `POST /clients` - создать клиента
 - `PUT /clients/:clientId` - обновить клиента
 - `DELETE /clients/:clientId` - удалить клиента (blocked if live sales exist **or** any cold sales year was purged)
 - `GET /clients/:clientId/history` - live sales only; additive flags `liveHistoryOnly`, `coldSalesPurgedExist`, `historyMayBeIncomplete`
+
+## Suppliers
+
+- `GET /suppliers` — list. Optional `query`. With a non-empty `query`, only active suppliers (`isActive != false`) are returned. Without `query`, inactive suppliers stay in the list.
+- Text queries match `searchText` (name, phones, note, supplier order). Phone-like queries match name, note, and supplier order as text, plus `phone`, `phones`, and `phoneIdentities` by the [shared contact phone search rule](./CLIENTS_RULES.md#search-rule). The supplier-order Choose picker filters its loaded list separately.
 
 ## Sales
 
@@ -138,8 +143,9 @@ Permission: `system.backups.manage` (except finance snapshot read).
   - `dateFrom` / `dateTo` — `YYYY-MM-DD` (UTC day bounds по `saleDate`)
   - `isFavorite` / `isRapidSale` — boolean (`true`/`false`/`1`/`0`)
   - `clientId` — ObjectId клиента
-  - `q` (или `query`) — поиск по номеру, клиенту, товару, заметкам
-  - With `kind=sale`, item matching for `q` uses current `lineItems.name` and `lineItems.serialNumbers`, never the original snapshot name or serial. Snapshot article matching requires a current product line with `productId` equal to the sale's stored `product` reference. Product and Service filters match current line names of their respective kind. Empty/missing line items do not restore snapshot items. Rows and pagination `total` use the same filter. Other query fields and repair/unscoped searches retain their existing behavior. UI rules: [SALE_FLOW.md → Sales List Columns](./SALE_FLOW.md#sales-list-columns-orders---sales).
+  - `q` (или `query`) — order number, client name, `note`, `userNote`, and snapshot phones (`clientSnapshot.phone`, `clientSnapshot.phones`). With `kind=sale`, it also matches current line names and serials, the linked snapshot article, manager and issued-by names, and the localized Rapid sale alias. Repair searches also match snapshot device name, serial, and article and current line names and serials; they do not match manager names. Phone matching follows the [shared contact phone search rule](./CLIENTS_RULES.md#search-rule).
+  - `client` — client snapshot name, record number, snapshot phones, and the Rapid sale alias for `kind=sale`. Phone matching follows the same rule.
+  - With `kind=sale`, item matching for `q` uses current `lineItems.name` and `lineItems.serialNumbers`, never the original snapshot name or serial. Snapshot article matching requires a current product line with `productId` equal to the sale's stored `product` reference. Product and Service filters match current line names of their respective kind. Empty/missing line items do not restore snapshot items. Rows and pagination `total` use the same filter. UI rules: [SALE_FLOW.md → Sales List Columns](./SALE_FLOW.md#sales-list-columns-orders---sales). Orders list: [ORDER_FLOW.md → Orders List Columns](./ORDER_FLOW.md#orders-list-columns-orders-tab).
   - `limit` — максимум записей (cap 5000); без `limit` и без `page` — полный список
   - `page` / `pageSize` — если `page` задан, ответ `{ items, total, page, pageSize }` (default pageSize 30, cap 500). Таблица Orders/Sales использует этот режим.
   - `statuses` — CSV/`$in`; `excludeStatuses` — `$nin`

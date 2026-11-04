@@ -2,6 +2,7 @@ import type React from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Client } from '../../../../entities/client';
 import {
+  getClientPhones,
   getClientStatusLabelKey,
   getEffectiveClientStatusLogic,
 } from '../../../../entities/client';
@@ -9,8 +10,9 @@ import { formatDateTime } from '../../../../shared/lib/format';
 import { Button } from '../../../../shared/ui/Button';
 import { StatusBadge } from '../../../../shared/ui/StatusBadge';
 import { TableSkeleton } from '../../../../shared/ui/TableSkeleton';
+import { findFirstMatchedAdditionalPhone } from '../../../../shared/lib/phone-search';
 import { CopyableValue } from '../../../../shared/ui/CopyableValue';
-import { PhoneNumber } from '../shared/PhoneNumber';
+import { ListedPhones } from '../shared/ListedPhones';
 import {
   defaultClientStats,
   formatClientIncome,
@@ -24,6 +26,7 @@ export interface ClientsTableProps {
   clients: Client[];
   selectedClientId: string | null;
   statsByClient: Map<string, ClientStats>;
+  searchQuery?: string;
   onDeleteClient: (client: Client) => Promise<void>;
   onOpenClientCard: (clientId: string) => void;
 };
@@ -34,6 +37,7 @@ export const ClientsTable: React.FC<ClientsTableProps> = ({
   clients,
   selectedClientId,
   statsByClient,
+  searchQuery = '',
   onDeleteClient,
   onOpenClientCard,
 }) => {
@@ -123,14 +127,14 @@ export const ClientsTable: React.FC<ClientsTableProps> = ({
                     />
                   </td>
                   <td data-label={t('clients.table.columns.phone')}>
-                    <CopyableValue value={client.phone}>
-                      <a
-                        href={`tel:${client.phone}`}
-                        onClick={(event) => event.stopPropagation()}
-                      >
-                        <PhoneNumber value={client.phone} />
-                      </a>
-                    </CopyableValue>
+                    <ListedPhones
+                      link
+                      primary={client.phone}
+                      matchedAdditional={findFirstMatchedAdditionalPhone(
+                        getClientPhones(client),
+                        searchQuery,
+                      )}
+                    />
                   </td>
                   <td data-label={t('clients.table.columns.registrationDate')}>
                     {formatDateTime(client.createdAt)}

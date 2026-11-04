@@ -128,6 +128,26 @@ describe('listSales', () => {
     expect(count).toHaveBeenCalledWith(filter);
   });
 
+  it('uses rapid-sale alias matching for both paged rows and total', async () => {
+    const lean = vi.fn().mockResolvedValue([]);
+    const limit = vi.fn().mockReturnValue({ lean });
+    const skip = vi.fn().mockReturnValue({ limit });
+    const sort = vi.fn().mockReturnValue({ skip });
+    const find = vi.spyOn(Sale, 'find').mockReturnValue({ sort } as never);
+    const count = vi.spyOn(Sale, 'countDocuments').mockResolvedValue(0);
+
+    await listSales({ kind: 'sale', q: 'швид', page: '1', pageSize: '20' });
+
+    const filter = find.mock.calls[0]?.[0];
+    expect(filter).toEqual(
+      expect.objectContaining({
+        kind: 'sale',
+        $or: expect.arrayContaining([{ isRapidSale: true }]),
+      }),
+    );
+    expect(count).toHaveBeenCalledWith(filter);
+  });
+
   it('loads a full sale by id', async () => {
     const lean = vi.fn().mockResolvedValue({
       _id: { toString: () => 'sale-1' },

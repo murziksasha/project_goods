@@ -55,7 +55,7 @@ describe('OrdersWorkspaceListHeader', () => {
     );
 
     fireEvent.change(
-      screen.getByPlaceholderText(/order, client, phone or device/i),
+      screen.getByPlaceholderText(/order, client, phone, note or device/i),
       {
         target: { value: 'iphone' },
       },
@@ -170,7 +170,7 @@ describe('OrdersWorkspaceListHeader', () => {
 
     expect(
       screen.getByPlaceholderText(
-        /order, client, phone, product or manager/i,
+        /order, client, phone, product, note or manager/i,
       ),
     ).toBeInTheDocument();
   });

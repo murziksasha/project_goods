@@ -716,8 +716,8 @@
       "starOrder": "Додати зірку {{orderNumber}}",
       "unstarOrder": "Прибрати зірку з {{orderNumber}}",
       "searchPlaceholder": {
-        "orders": "Замовлення, клієнт, телефон або пристрій",
-        "sales": "Замовлення, клієнт, телефон, товар або менеджер"
+        "orders": "Замовлення, клієнт, телефон, нотатка або пристрій",
+        "sales": "Замовлення, клієнт, телефон, товар, нотатка або менеджер"
       },
       "loading": "Завантаження замовлень...",
       "empty": {
@@ -752,7 +752,7 @@
       "orderNumber": "Номер замовлення",
       "orderNumberPlaceholder": "Замовлення №",
       "client": "Клієнт",
-      "clientPlaceholder": "Імʼя або телефон клієнта",
+      "clientPlaceholder": "Імʼя або телефон клієнта (+38063, 063)",
       "assignee": "Майстер / менеджер",
       "master": "Майстер",
       "withoutMaster": "Без майстра",
@@ -1501,7 +1501,7 @@
     },
     "toolbar": {
       "filter": "Фільтр",
-      "searchPlaceholder": "Пошук за імʼям або телефоном",
+      "searchPlaceholder": "Пошук за імʼям, телефоном або нотаткою",
       "searchAriaLabel": "Пошук клієнта",
       "clearSearchAriaLabel": "Очистити пошук",
       "importXls": "Імпорт XLS",
@@ -1553,8 +1553,8 @@
       "clear": "Очистити фільтр",
       "saveFilter": "Зберегти фільтр",
       "saveFilterRequiresEmployee": "Для збереження фільтрів потрібен профіль співробітника.",
-      "searchLabel": "Пошук за імʼям або телефоном",
-      "searchPlaceholder": "Іван, +38067...",
+      "searchLabel": "Пошук за імʼям, телефоном або нотаткою",
+      "searchPlaceholder": "Іван, +38063 або 063",
       "filterByStatus": "Фільтр за статусом"
     },
     "card": {
@@ -1683,7 +1683,7 @@
     "suppliers": {
       "toolbar": {
         "filter": "Фільтр",
-        "searchPlaceholder": "Пошук за імʼям, телефоном або замовленням постачальника",
+        "searchPlaceholder": "Пошук за імʼям, телефоном, нотаткою або замовленням постачальника",
         "searchAriaLabel": "Пошук постачальника",
         "clearSearchAriaLabel": "Очистити пошук",
         "importXls": "Імпорт XLS",
@@ -1695,7 +1695,7 @@
       },
       "filters": {
         "namePhoneOrOrder": "Імʼя / телефон / замовлення",
-        "namePhoneOrOrderPlaceholder": "Імʼя або телефон постачальника",
+        "namePhoneOrOrderPlaceholder": "Імʼя або телефон постачальника (+38063, 063)",
         "supplierId": "ID постачальника",
         "supplierIdPlaceholder": "ID",
         "status": "Статус",

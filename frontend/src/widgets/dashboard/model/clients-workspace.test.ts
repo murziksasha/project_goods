@@ -10,6 +10,7 @@ import {
   emptyFilters,
   formatItemList,
   getClientStatsMap,
+  getFilteredClients,
   getStoredClientCardTab,
   relaxStoredClientFiltersForClient,
   type ClientFilters,
@@ -320,5 +321,72 @@ describe('relaxStoredClientFiltersForClient', () => {
     expect(
       window.localStorage.getItem(clientsSuppliersSavedFiltersStorageKey),
     ).toBe('{"kept":true}');
+  });
+});
+
+describe('getFilteredClients', () => {
+  const ivan = revealClient({
+    id: 'client-ivan',
+    name: 'Ivan',
+    phone: '+380671112233',
+    phones: ['+380671112233', '+380 (63) 111-22-33'],
+    email: 'ivan@example.com',
+    address: '42 Riverside Road',
+    registrationId: '12345678',
+    iban: 'UA77889900',
+    note: 'prefers morning',
+    status: 'new',
+  });
+  const anna = revealClient({
+    id: 'client-anna',
+    name: 'Anna',
+    phone: '+380501111111',
+    phones: [],
+    note: '',
+    status: 'blacklist',
+  });
+  const stats = new Map([
+    ['client-ivan', defaultClientStats],
+    ['client-anna', defaultClientStats],
+  ]);
+  const filters = (
+    query: string,
+    patch: Partial<ClientFilters> = {},
+  ): ClientFilters => ({
+    ...emptyFilters,
+    query,
+    ...patch,
+  });
+  const ids = (query: string, patch: Partial<ClientFilters> = {}) =>
+    getFilteredClients([ivan, anna], filters(query, patch), stats).map(
+      (client) => client.id,
+    );
+
+  it('matches additional and legacy phones without a bare country code', () => {
+    expect(ids('+38063')).toEqual(['client-ivan']);
+    expect(ids('(063) 111-22-33')).toEqual(['client-ivan']);
+    expect(ids('1112233')).toEqual(['client-ivan']);
+    expect(ids('+380')).toEqual([]);
+    expect(ids('0501111111')).toEqual(['client-anna']);
+  });
+
+  it('keeps name and note search, and does not phone-match serial text', () => {
+    expect(ids('ivan')).toEqual(['client-ivan']);
+    expect(ids('morning')).toEqual(['client-ivan']);
+    expect(ids('S000123')).toEqual([]);
+    expect(ids('ART-1')).toEqual([]);
+  });
+
+  it('matches API text fields, including numeric registration and address values', () => {
+    expect(ids('12345678')).toEqual(['client-ivan']);
+    expect(ids('42')).toEqual(['client-ivan']);
+    expect(ids('EXAMPLE.COM')).toEqual(['client-ivan']);
+    expect(ids('778899')).toEqual(['client-ivan']);
+  });
+
+  it('keeps status as its own filter when the phone query matches', () => {
+    expect(ids('+38063', { status: 'new' })).toEqual(['client-ivan']);
+    expect(ids('+38063', { status: 'blacklist' })).toEqual([]);
+    expect(ids('', { status: 'blacklist' })).toEqual(['client-anna']);
   });
 });
