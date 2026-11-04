@@ -6,10 +6,16 @@ import {
   productionComposeArgs,
   projectRoot,
 } from './production-env.mjs';
-import { assertProductionDockerState } from './production-docker-state.mjs';
+import {
+  assertProductionDockerState,
+  describeAbsentContainers,
+} from './production-docker-state.mjs';
 
 try {
-  assertProductionDockerState(assertProductionEnvironment());
+  const absent = describeAbsentContainers(assertProductionDockerState(assertProductionEnvironment()));
+  if (absent.length > 0) {
+    console.log(`Containers not found (will be created on the existing volumes): ${absent.join(', ')}.`);
+  }
 } catch (error) {
   console.error(error.message);
   process.exit(1);

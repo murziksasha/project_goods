@@ -7,11 +7,18 @@ import {
   projectRoot,
   rollbackImageRefs,
 } from './production-env.mjs';
-import { assertProductionDockerState } from './production-docker-state.mjs';
+import {
+  assertProductionDockerState,
+  collectRollbackImages,
+  describeAbsentContainers,
+} from './production-docker-state.mjs';
 import { assertCleanReleaseCheckout } from './production-git-state.mjs';
 
 try {
-  assertProductionDockerState(assertProductionEnvironment());
+  const absent = describeAbsentContainers(assertProductionDockerState(assertProductionEnvironment()));
+  if (absent.length > 0) {
+    console.log(`Containers not found (will be created on the existing volumes): ${absent.join(', ')}.`);
+  }
 } catch (error) {
   console.error(error.message);
   process.exit(1);
@@ -39,19 +46,28 @@ const runDocker = (args, capture = false) => {
 };
 
 runDocker([...productionComposeArgs, 'config', '-q']);
-for (const [container, rollbackImage] of [
-  ['project_goods_backend', rollbackImageRefs[0]],
-  ['project_goods_frontend', rollbackImageRefs[1]],
-]) {
-  const imageId = runDocker(['inspect', '--format', '{{.Image}}', container], true);
-  if (!/^sha256:[a-f0-9]{64}$/.test(imageId)) {
-    console.error(`Cannot identify the running ${container} image for rollback.`);
-    process.exit(1);
-  }
+let rollback;
+try {
+  rollback = collectRollbackImages([
+    ['project_goods_backend', rollbackImageRefs[0]],
+    ['project_goods_frontend', rollbackImageRefs[1]],
+  ]);
+} catch (error) {
+  console.error(error.message);
+  process.exit(1);
+}
+for (const { imageId, rollbackImage } of rollback.tag) {
   runDocker(['image', 'tag', imageId, rollbackImage]);
 }
+if (rollback.skipped.length > 0) {
+  console.log(
+    `No existing container for ${rollback.skipped.join(', ')}; rollback tags for them were left unchanged.`,
+  );
+}
 
-console.log(`Saved running images for rollback; building production images for ${gitSha}.`);
+console.log(
+  `${rollback.tag.length > 0 ? 'Saved running images for rollback; b' : 'B'}uilding production images for ${gitSha}.`,
+);
 runDocker([...productionComposeArgs, 'build', 'backend', 'frontend']);
 for (const imageRef of productionImageRefs(gitSha)) {
   runDocker(['image', 'inspect', imageRef, '--format', '{{.Id}}']);

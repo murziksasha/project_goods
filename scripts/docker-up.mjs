@@ -8,7 +8,10 @@ import {
   productionComposeArgs,
   productionImageRefs,
 } from './production-env.mjs';
-import { assertProductionDockerState } from './production-docker-state.mjs';
+import {
+  assertProductionDockerState,
+  describeAbsentContainers,
+} from './production-docker-state.mjs';
 import { assertCleanReleaseCheckout } from './production-git-state.mjs';
 
 const rootDir = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -22,7 +25,10 @@ if (process.argv.slice(2).some((arg) => arg !== '--prod')) {
 if (production) {
   try {
     productionConfig = assertProductionEnvironment();
-    assertProductionDockerState(productionConfig);
+    const absent = describeAbsentContainers(assertProductionDockerState(productionConfig));
+    if (absent.length > 0) {
+      console.log(`Containers not found (will be created on the existing volumes): ${absent.join(', ')}.`);
+    }
   } catch (error) {
     console.error(error.message);
     process.exit(1);
