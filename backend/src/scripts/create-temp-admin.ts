@@ -3,11 +3,14 @@ import { connectDatabase } from '../config/database';
 import { employeePermissions } from '../domain/employee/constants';
 import { Employee } from '../domain/employee/model';
 import { hashPassword } from '../shared/lib/auth';
+import { requireAdminPassword } from './admin-password';
+import { describeErrorSafely } from '../shared/lib/redact-mongo-credentials';
 
 const run = async () => {
+  const password = requireAdminPassword(process.env.PROJECT_GOODS_ADMIN_PASSWORD);
   await connectDatabase();
 
-  const passwordHash = hashPassword('admin');
+  const passwordHash = hashPassword(password);
 
   await Employee.findOneAndUpdate(
     { username: 'admin' },
@@ -33,12 +36,12 @@ const run = async () => {
     },
   );
 
-  console.log('Temporary admin user is ready. Login: admin / Password: admin');
+  console.log('Temporary admin user is ready. Username: admin');
 };
 
 void run()
   .catch((error) => {
-    console.error(error);
+    console.error(describeErrorSafely(error));
     process.exitCode = 1;
   })
   .finally(async () => {

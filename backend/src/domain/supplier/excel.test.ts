@@ -245,5 +245,47 @@ describe('supplier Excel import workbook', () => {
     expect(report.suppliers).toHaveLength(1);
     expect(report.suppliers[0].name).toBe('New Supplier');
   });
+
+  it('uses literal supplier names when querying imported duplicates', async () => {
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(
+      workbook,
+      XLSX.utils.json_to_sheet([{ Name: 'A.*', Phone: '380509998877' }]),
+      'Suppliers',
+    );
+    const buffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xls' });
+
+    let namePattern: RegExp | undefined;
+    vi.spyOn(Supplier, 'find').mockImplementation((query: unknown) => {
+      const filter = query as { $or?: unknown; name?: { $in: RegExp[] } };
+      if (filter.name) namePattern = filter.name.$in[0];
+      return {
+        select: () => ({ lean: async () => [] }),
+      } as unknown as ReturnType<typeof Supplier.find>;
+    });
+    vi.spyOn(Supplier.prototype, 'validate').mockResolvedValue(undefined as never);
+    vi.spyOn(Supplier, 'insertMany').mockResolvedValue([
+      {
+        toObject: () => ({
+          _id: { toString: () => 'created-id' },
+          name: 'A.*',
+          phone: '+380509998877',
+          phones: ['+380509998877'],
+          note: '',
+          supplierOrder: '',
+          isActive: true,
+          createdAt: new Date('2026-06-08T07:00:00.000Z'),
+          updatedAt: new Date('2026-06-08T07:00:00.000Z'),
+        }),
+      },
+    ] as never);
+
+    const { importSuppliersWorkbook } = await import('./excel');
+    const report = await importSuppliersWorkbook(buffer);
+
+    expect(report.created).toBe(1);
+    expect(namePattern?.test('a.*')).toBe(true);
+    expect(namePattern?.test('acme')).toBe(false);
+  });
 });
 });

@@ -12,17 +12,17 @@ const canUseMongoTransactions = async () => {
   }
 
   const admin = mongoose.connection.db?.admin();
-  if (!admin) {
-    replicaSetSupported = false;
-    return false;
-  }
+  if (!admin) return false;
 
   try {
-    await admin.command({ replSetGetStatus: 1 });
-    replicaSetSupported = true;
-    return true;
+    // `replSetGetStatus` requires cluster privileges that the inventory user does
+    // not have. `hello` reports the replica-set name without those privileges.
+    const hello = await admin.command({ hello: 1 });
+    const supported = typeof hello.setName === 'string' && hello.setName.length > 0;
+    if (supported) replicaSetSupported = true;
+    return supported;
   } catch {
-    replicaSetSupported = false;
+    // Do not cache a transient failure as a permanent lack of transactions.
     return false;
   }
 };
