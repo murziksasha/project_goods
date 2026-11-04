@@ -7,8 +7,11 @@ import {
   productionChildEnvironment,
   productionComposeArgs,
   productionImageRefs,
+  keyfileCheckArgs,
+  dockerStepFailureMessage,
 } from './production-env.mjs';
 import {
+  assertImagesPresent,
   assertProductionDockerState,
   describeAbsentContainers,
 } from './production-docker-state.mjs';
@@ -64,38 +67,32 @@ environment.DOCKER_BUILDKIT = '1';
 environment.COMPOSE_DOCKER_CLI_BUILD = '1';
 
 const composeArgs = production ? productionComposeArgs : ['compose'];
-const runDocker = (args) => {
+const runDocker = (step, args) => {
   const result = spawnSync('docker', args, {
     cwd: rootDir,
     stdio: 'inherit',
     env: environment,
   });
-  if (result.error) {
-    console.error(`Docker could not start: ${result.error.message}`);
-    process.exit(1);
+  const message = dockerStepFailureMessage(step, args, result, productionConfig?.projectName);
+  if (message) {
+    console.error(message);
+    process.exit(result.error ? 1 : result.status || 1);
   }
-  if (result.status !== 0) process.exit(result.status ?? 1);
 };
 
 if (production) {
-  runDocker([...composeArgs, 'config', '-q']);
-  runDocker(['image', 'inspect', 'mongo:7', '--format', '{{.Id}}']);
-  for (const imageRef of productionImageRefs(gitSha)) {
-    runDocker(['image', 'inspect', imageRef, '--format', '{{.Id}}']);
+  runDocker('validate Compose configuration', [...composeArgs, 'config', '-q']);
+  try {
+    assertImagesPresent(productionImageRefs(gitSha));
+  } catch (error) {
+    console.error(error.message);
+    process.exit(1);
   }
-  runDocker([
-    ...composeArgs,
-    'run',
-    '--rm',
-    '--no-deps',
-    '-T',
-    'mongo-keyfile-init',
-    '-euc',
-    'test -s /run/mongo-keyfile/keyfile; test "$(stat -c %a:%u:%g /run/mongo-keyfile)" = 700:999:999; test "$(stat -c %a:%u:%g /run/mongo-keyfile/keyfile)" = 400:999:999',
-  ]);
+  runDocker('check mongo:7 image is present', ['image', 'inspect', 'mongo:7', '--format', '{{.Id}}']);
+  runDocker('check MongoDB keyfile volume', [...composeArgs, ...keyfileCheckArgs]);
 }
 
-runDocker([
+runDocker(production ? 'start production containers' : 'build and start containers', [
   ...composeArgs,
   'up',
   '-d',

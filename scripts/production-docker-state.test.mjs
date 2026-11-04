@@ -1,10 +1,12 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
+  assertImagesPresent,
   assertProductionDockerState,
   collectRollbackImages,
   describeAbsentContainers,
   inspectDockerObject,
+  missingImageMessage,
 } from './production-docker-state.mjs';
 
 const config = {
@@ -193,4 +195,39 @@ test('rollback image collection skips absent containers', () => {
     () => collectRollbackImages([['project_goods_backend', 'r']], { inspectDocker: () => 'garbage' }),
     /Cannot identify the running project_goods_backend image for rollback/,
   );
+});
+
+test('missing commit image gives a clear docker:build:prod hint', () => {
+  assert.equal(
+    missingImageMessage('project-goods/backend:6564f56'),
+    'Image project-goods/backend:6564f56 not found. Run npm run docker:build:prod first.',
+  );
+  const seen = [];
+  const inspect = (args) => {
+    seen.push(args);
+    return args[2] === 'project-goods/frontend:6564f56' ? null : 'sha256:x';
+  };
+  assert.throws(
+    () => assertImagesPresent(['project-goods/backend:6564f56', 'project-goods/frontend:6564f56'], { inspectDocker: inspect }),
+    { message: 'Image project-goods/frontend:6564f56 not found. Run npm run docker:build:prod first.' },
+  );
+  assert.deepEqual(seen[0], ['image', 'inspect', 'project-goods/backend:6564f56', '--format', '{{.Id}}']);
+});
+
+test('present images pass and real Docker errors are not hidden', () => {
+  assert.doesNotThrow(() => assertImagesPresent(['a:1', 'b:1'], { inspectDocker: () => 'sha256:x' }));
+  const run = () => ({ status: 1, stdout: '', stderr: 'Error: No such image: project-goods/backend:abc' });
+  assert.equal(inspectDockerObject(['image', 'inspect', 'project-goods/backend:abc'], { run }), null);
+  assert.throws(
+    () => assertImagesPresent(['a:1'], { inspectDocker: () => { throw new Error('Docker inspection failed: daemon down'); } }),
+    /daemon down/,
+  );
+});
+
+test('docker:up:prod pre-checks images before compose up', async () => {
+  const { readFileSync } = await import('node:fs');
+  const source = readFileSync(new URL('./docker-up.mjs', import.meta.url), 'utf8');
+  const check = source.indexOf('assertImagesPresent(productionImageRefs(gitSha))');
+  assert.ok(check > 0);
+  assert.ok(check < source.indexOf("'up',"));
 });

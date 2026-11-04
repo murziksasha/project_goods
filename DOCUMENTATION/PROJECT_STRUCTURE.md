@@ -147,9 +147,9 @@ frontend/
 
 - `docker-compose.yml` — local stack; MongoDB `27017` and backend `5000` bound to `127.0.0.1`, frontend `5173` on LAN
 - `docker-compose.prod.yml` — production layer: Mongo keyfile auth, external existing volumes, `MONGO_URI` from `.env.production`, `TRUST_PROXY_HOPS=1`
-- `docker-compose.rollback.yml` — rollback layer: saved `:rollback` images on the same external volumes, no auth
+- `docker-compose.rollback.yml` — rollback overlay: saved `:rollback` images on the same external volumes; `docker:rollback:prod` layers it over `docker-compose.prod.yml` (MongoDB auth kept), only the emergency `docker:rollback:noauth` uses it without auth
 - `.env.production.example` — template for the private, uncommitted `.env.production`
-- `scripts/docker-up.mjs` (`docker:up`, `docker:up:prod`), `scripts/docker-local.mjs` (`db:up`, `db:down`, `docker:down`), `scripts/docker-build-prod.mjs`, `scripts/docker-rollback-prod.mjs`, `scripts/prepare-mongo-keyfile.mjs`
+- `scripts/docker-up.mjs` (`docker:up`, `docker:up:prod`), `scripts/docker-local.mjs` (`db:up`, `db:down`, `docker:down`), `scripts/docker-build-prod.mjs`, `scripts/docker-rollback-prod.mjs` (`docker:rollback:prod` with auth, emergency `docker:rollback:noauth`), `scripts/prepare-mongo-keyfile.mjs`
 - `scripts/production-env.mjs`, `scripts/production-docker-state.mjs`, `scripts/production-git-state.mjs` — preflight checks; tests via `npm run test:deployment`
 - `frontend/scripts/proxy-security.mjs` — proxy forwarding headers and static directory boundary; tests via `npm run test:proxy --prefix frontend`
 - `backend/src/shared/lib/redact-mongo-credentials.ts` — masks Mongo URI credentials in logs, backup metadata, and API errors
