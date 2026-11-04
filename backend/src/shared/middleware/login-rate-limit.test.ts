@@ -3,12 +3,12 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { HttpError } from '../lib/errors';
 import { loginRateLimit, resetLoginRateLimitState } from './login-rate-limit';
 
-const run = (body: { username?: string } = {}, ip = '10.0.0.1') =>
+const run = (body: { username?: string } = {}, ip = '10.0.0.1', forwarded = '') =>
   new Promise<unknown>((resolve) => {
     const req = {
       body,
       ip,
-      headers: {},
+      headers: forwarded ? { 'x-forwarded-for': forwarded } : {},
       socket: { remoteAddress: ip },
     } as unknown as Request;
     const res = {} as Response;
@@ -49,6 +49,16 @@ describe('loginRateLimit', () => {
       await expect(run({ username: 'Admin' })).resolves.toBeUndefined();
     }
     const error = await run({ username: 'ADMIN' });
+    expect(error).toBeInstanceOf(HttpError);
+    expect((error as HttpError).statusCode).toBe(429);
+  });
+
+  it('ignores a spoofed forwarding header when Express resolves the client IP', async () => {
+    for (let i = 0; i < 40; i += 1) {
+      await expect(run({ username: `user-${i}` }, '10.0.0.9', `203.0.113.${i + 1}`)).resolves.toBeUndefined();
+    }
+
+    const error = await run({ username: 'another' }, '10.0.0.9', '203.0.113.250');
     expect(error).toBeInstanceOf(HttpError);
     expect((error as HttpError).statusCode).toBe(429);
   });

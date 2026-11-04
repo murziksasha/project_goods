@@ -27,13 +27,7 @@ const touch = (map: Map<string, Bucket>, key: string, max: number, now: number) 
 const isOverLimit = (bucket: Bucket, max: number, now: number) =>
   bucket.resetAt > now && bucket.count > max;
 
-const clientIp = (req: Request) => {
-  const forwarded = req.headers['x-forwarded-for'];
-  if (typeof forwarded === 'string' && forwarded.trim()) {
-    return forwarded.split(',')[0]?.trim() || req.ip || 'unknown';
-  }
-  return req.ip || req.socket.remoteAddress || 'unknown';
-};
+const clientIp = (req: Request) => req.ip || req.socket.remoteAddress || 'unknown';
 
 /** Soft login throttle for LAN: limits brute-force without affecting other API routes. */
 export const loginRateLimit: RequestHandler = (

@@ -2,8 +2,9 @@ import { createReadStream, statSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { createServer, request as httpRequest } from 'node:http';
 import { request as httpsRequest } from 'node:https';
-import { extname, join, normalize, resolve } from 'node:path';
+import { extname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { getProxyHeaders, getStaticPath } from './proxy-security.mjs';
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
 const rootDir = resolve(__dirname, '..');
@@ -41,10 +42,7 @@ const proxyApiRequest = (clientRequest, clientResponse) => {
     {
       method: clientRequest.method,
       timeout: isEventStream ? 0 : undefined,
-      headers: {
-        ...clientRequest.headers,
-        host: apiTarget.host,
-      },
+      headers: getProxyHeaders(clientRequest, apiTarget),
     },
     (proxyResponse) => {
       clientResponse.writeHead(proxyResponse.statusCode ?? 502, proxyResponse.headers);
@@ -69,33 +67,13 @@ const proxyApiRequest = (clientRequest, clientResponse) => {
   clientRequest.pipe(proxyRequest);
 };
 
-const getStaticPath = (requestUrl) => {
-  const url = new URL(requestUrl ?? '/', 'http://localhost');
-  const pathname = decodeURIComponent(url.pathname);
-  const normalizedPath = normalize(pathname).replace(/^([/\\])+/, '');
-  const candidatePath = resolve(distDir, normalizedPath);
-
-  if (!candidatePath.startsWith(distDir)) {
-    return join(distDir, 'index.html');
-  }
-
-  try {
-    const stats = statSync(candidatePath);
-    if (stats.isFile()) return candidatePath;
-  } catch {
-    // Fall through to SPA fallback.
-  }
-
-  return join(distDir, 'index.html');
-};
-
 const server = createServer(async (request, response) => {
   if ((request.url ?? '').startsWith('/api')) {
     proxyApiRequest(request, response);
     return;
   }
 
-  const filePath = getStaticPath(request.url);
+  const filePath = getStaticPath(request.url, distDir);
 
   const cacheControl =
     filePath === join(distDir, 'index.html')

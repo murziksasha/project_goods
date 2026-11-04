@@ -42,6 +42,7 @@ import {
 
 export const app = express();
 
+app.set('trust proxy', env.trustProxyHops);
 app.use(helmet());
 
 const resolvedCorsOrigin = env.clientOrigin
