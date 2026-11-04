@@ -14,6 +14,8 @@ export type BackendEnv = {
   requireMongoTransactions: boolean;
   /** 0 = disabled. Idle session expiry in hours. */
   authSessionIdleHours: number;
+  /** Failed logins allowed per client IP per 15 minutes (default 100). */
+  loginMaxFailedPerIp: number;
   openWeatherApiKey?: string;
   backupDir: string;
   backupCreateCommand?: string;
@@ -68,6 +70,7 @@ export const parseEnv = (
       | 'NODE_ENV'
       | 'MONGO_REQUIRE_TRANSACTIONS'
       | 'AUTH_SESSION_IDLE_HOURS'
+      | 'LOGIN_MAX_FAILED_PER_IP'
       | 'OPENWEATHER_API_KEY'
       | 'BACKUP_DIR'
       | 'BACKUP_CREATE_COMMAND'
@@ -104,6 +107,8 @@ export const parseEnv = (
     trustProxyHops: Math.min(parseNonNegativeInt(rawEnv.TRUST_PROXY_HOPS, 0), 1),
     requireMongoTransactions,
     authSessionIdleHours,
+    loginMaxFailedPerIp:
+      parseNonNegativeInt(rawEnv.LOGIN_MAX_FAILED_PER_IP, 100) || 100,
     openWeatherApiKey: rawEnv.OPENWEATHER_API_KEY?.trim() || undefined,
     backupDir: rawEnv.BACKUP_DIR ?? './backups',
     backupCreateCommand: rawEnv.BACKUP_CREATE_COMMAND,
