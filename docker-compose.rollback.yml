@@ -1,0 +1,16 @@
+services:
+  backend:
+    image: project-goods/backend:rollback
+    pull_policy: never
+
+  frontend:
+    image: project-goods/frontend:rollback
+    pull_policy: never
+
+volumes:
+  mongo-data:
+    external: true
+    name: ${MONGO_DATA_VOLUME:?Set the existing mongo-data volume name in .env.production}
+  backup-data:
+    external: true
+    name: ${BACKUP_DATA_VOLUME:?Set the existing backup-data volume name in .env.production}

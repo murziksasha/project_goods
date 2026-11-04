@@ -1,0 +1,48 @@
+services:
+  mongo:
+    command:
+      - mongod
+      - --replSet
+      - rs0
+      - --bind_ip_all
+      - --keyFile
+      - /run/mongo-keyfile/keyfile
+    volumes:
+      - mongo-keyfile:/run/mongo-keyfile:ro
+    healthcheck:
+      # The existing production volume already has rs0 initialized. The local
+      # Compose healthcheck is responsible for initialization on fresh dev DBs.
+      test:
+        - CMD-SHELL
+        - mongosh --quiet --eval 'if (db.hello().isWritablePrimary !== true) quit(1)'
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    image: project-goods/backend:${GIT_SHA:-dev}
+    pull_policy: never
+    environment:
+      MONGO_URI: ${MONGO_URI:?Set MONGO_URI in .env.production}
+      TRUST_PROXY_HOPS: 1
+
+  frontend:
+    image: project-goods/frontend:${GIT_SHA:-dev}
+    pull_policy: never
+
+  mongo-keyfile-init:
+    profiles: [setup]
+    image: mongo:7
+    user: "0:0"
+    entrypoint: ["sh"]
+    volumes:
+      - mongo-keyfile:/run/mongo-keyfile
+
+volumes:
+  mongo-data:
+    external: true
+    name: ${MONGO_DATA_VOLUME:?Set the existing mongo-data volume name in .env.production}
+  backup-data:
+    external: true
+    name: ${BACKUP_DATA_VOLUME:?Set the existing backup-data volume name in .env.production}
+  mongo-keyfile:
