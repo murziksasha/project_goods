@@ -106,6 +106,9 @@ npm run docker:build:prod      # сохранить rollback-образы и с�
 npm run mongo:keyfile:prepare:prod
 npm run docker:up:prod         # отказывает без .env.production / MONGO_URI
 npm run docker:rollback:prod   # откат на сохранённые образы без авторизации
+npm run docker:stop:prod       # остановить prod-контейнеры (stop, не down: тома и данные сохраняются)
+npm run docker:logs:prod       # логи prod (-f, последние 200 строк); сервис: npm run docker:logs:prod -- backend
+                               # без слежения: npm run docker:logs:prod -- backend --no-follow
 ```
 
 Порядок репетиции, рабочего окна и отката: [DEPLOYMENT.md](./DOCUMENTATION/DEPLOYMENT.md). Production-изменения Docker и секретов выполняются только после отдельного подтверждения (см. `AGENTS.md`).

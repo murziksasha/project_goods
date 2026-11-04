@@ -118,3 +118,9 @@ npm run db:stats --prefix backend
 # or authenticated:
 # GET /api/system/db-stats  (system.backups.manage)
 ```
+
+## Day-to-day production operations
+
+- `npm run docker:stop:prod` runs `docker compose --env-file .env.production -f docker-compose.yml -f docker-compose.prod.yml stop`. It only stops containers; volumes, the keyfile, and data are preserved. Restart with `npm run docker:up:prod`. Never use `down -v` on production.
+- `npm run docker:logs:prod` runs the same Compose command with `logs -f --tail=200`. Pass service names after `--`, e.g. `npm run docker:logs:prod -- backend`; add `--no-follow` to print and exit.
+- Both commands refuse to run when `.env.production` is missing or invalid.
