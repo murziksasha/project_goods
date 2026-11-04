@@ -161,6 +161,24 @@ describe('backup service', () => {
     ]);
   });
 
+  it('redacts Mongo credentials from failed backup metadata on disk and in API results', async () => {
+    const backupDir = await makeTempDir();
+    const mongoUri = 'mongodb://backup-user:sample-secret@mongo:27017/inventory';
+    const result = await createManualBackup('Owner', {
+      backupDir,
+      mongoUri,
+      runCommand: async () => {
+        throw new Error(`mongodump failed for ${mongoUri}`);
+      },
+    });
+
+    expect(result.error).toContain('mongodb://[REDACTED]@mongo:27017/inventory');
+    expect(result.error).not.toContain('sample-secret');
+    const metadata = await fs.readFile(path.join(backupDir, `${result.id}.json`), 'utf8');
+    expect(metadata).not.toContain('sample-secret');
+    expect((await listBackups({ backupDir }))[0]?.error).not.toContain('sample-secret');
+  });
+
   it('blocks a second job while one is running', async () => {
     const backupDir = await makeTempDir();
     let releaseCommand: (() => void) | undefined;

@@ -60,6 +60,8 @@ Full permission matrix: [Permission_Flow.md](./Permission_Flow.md).
 
 ## LAN Assumptions
 
+- The default local Compose file publishes MongoDB and backend only on `127.0.0.1`; employees connect through frontend port `5173`. Production adds MongoDB keyfile authentication and an inventory-scoped application user through the separate Compose layer in [DEPLOYMENT.md](./DEPLOYMENT.md).
+- Only the production frontend proxy is a trusted forwarding hop (`TRUST_PROXY_HOPS=1`) for backend IP attribution. The proxy replaces client-supplied forwarding headers with the actual socket address; direct backend port `5000` is loopback-only. Confirm from two LAN devices that they receive separate IP limiter buckets before rollout; some Windows Docker Desktop network modes may present one shared gateway address. The per-username limiter remains active.
 - Soft login rate limit only (see above); no global API rate limit.
 - Session tokens: client holds raw bearer; DB stores `h1:` + SHA-256 only. **Plaintext legacy sessions are rejected** (re-login required).
 - Settings API never returns or persists `openWeatherApiKey`; response includes `dashboardPreferences.hasOpenWeatherApiKey` when server env is set.

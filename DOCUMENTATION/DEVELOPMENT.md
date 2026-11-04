@@ -22,7 +22,7 @@ Related: [DEPLOYMENT.md](./DEPLOYMENT.md) · [TESTING.md](./TESTING.md) · [inde
 
 ```env
 PORT=5000
-MONGO_URI=mongodb://127.0.0.1:27017/inventory
+MONGO_URI=mongodb://127.0.0.1:27017/inventory?replicaSet=rs0&directConnection=true
 CLIENT_ORIGIN=http://localhost:5173
 ```
 
@@ -88,7 +88,7 @@ npm run db:down
 npm run docker:up
 ```
 
-Команда собирает и поднимает MongoDB, backend и frontend. Скрипт `scripts/docker-up.mjs` передаёт текущий `git rev-parse --short HEAD` в Docker как `GIT_SHA` для метки сборки в UI и для `buildSha` в `GET /api/health`.
+Команда собирает и поднимает локальные MongoDB, backend и frontend без настройки паролей. MongoDB и backend доступны напрямую только с этого ПК (`127.0.0.1:27017` и `127.0.0.1:5000`); frontend остаётся на `5173`. Скрипт `scripts/docker-up.mjs` передаёт текущий `git rev-parse --short HEAD` в Docker как `GIT_SHA` для метки сборки в UI и для `buildSha` в `GET /api/health`.
 
 Остановка:
 
@@ -98,7 +98,7 @@ npm run docker:down
 
 Подробности метки версии (сайдбар, формат, проверка после деплоя): [BUILD_VERSION_SPEC.md](./BUILD_VERSION_SPEC.md).
 
-Prod-деплой и env vars: [DEPLOYMENT.md](./DEPLOYMENT.md). Тесты: [TESTING.md](./TESTING.md).
+Рабочий сервер использует отдельные команды `npm run docker:build:prod` и `npm run docker:up:prod` с авторизацией MongoDB. Если в корне присутствует `.env.production`, локальные команды `db:up`, `db:down`, `docker:up` и `docker:down` отказываются работать, чтобы случайно не переключить рабочий сервер на локальную конфигурацию. Порядок подготовки и отката находится в [DEPLOYMENT.md](./DEPLOYMENT.md). Тесты: [TESTING.md](./TESTING.md).
 
 ## Команды по пакетам
 
@@ -153,8 +153,8 @@ npm run test:e2e:install --prefix frontend
 Порты по умолчанию:
 
 - `5173` для frontend
-- `5000` для backend
-- `27017` для MongoDB
+- `5000` для backend (только `127.0.0.1` в Docker)
+- `27017` для MongoDB (только `127.0.0.1` в Docker)
 
 Если порты меняются, нужно синхронно обновить `.env` значения для frontend и backend.
 

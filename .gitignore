@@ -23,3 +23,7 @@ backend/backups/
 backend/backend-dev.log
 frontend/frontend-dev.log
 .grill/
+.env
+.env.*
+!.env.example
+!.env.production.example
