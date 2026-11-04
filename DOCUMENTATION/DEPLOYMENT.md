@@ -35,6 +35,25 @@ npm run mongo:keyfile:prepare:prod
 
 The helper verifies the existing project and volumes first, generates a random keyfile through standard input, never prints it, and verifies directory mode `0700`, file mode `0400`, and owner `mongodb` (UID/GID `999:999`). It leaves an existing valid keyfile intact. `npm run docker:up:prod` checks the file again before changing running services and refuses to start when it is missing or invalid. Keep the keyfile volume when updating containers.
 
+### First-time auth on a server with existing data (`npm run mongo:users:init:prod`)
+
+Use this on a server whose `mongo-data` volume has never run with authentication (no `project_goods_admin` / `project_goods_app` users yet). Typical symptom: after `npm run mongo:keyfile:prepare:prod`, `docker:up:prod` shows MongoDB `Healthy` but `project_goods_backend` `unhealthy`, and the backend log reports `Authentication failed`.
+
+1. **Backup.** If the app still works, create and download a backup (Settings → Backups) and keep it off the host. If it does not start with auth, temporarily rename `.env.production`, start the old stack with `npm run docker:up`, take the backup, run `npm run docker:down`, and rename the file back.
+2. **`.env.production`.** Fill it for this server (see above) with a unique app password in `MONGO_URI`. Optionally add `MONGO_ADMIN_PASSWORD=<at least 12 chars>` for `project_goods_admin`; if you do, move it to a password manager and remove the line afterwards.
+3. **Clean checkout** on the release commit (`git status` empty).
+4. **Run** `npm run mongo:users:init:prod`. It:
+   - validates `.env.production`, the clean checkout, both existing volumes and the container/volume identity; builds the commit images with `docker:build:prod` if they are missing (before anything is stopped);
+   - stops the production stack with `compose stop` (never `down`, never `-v`) and checks that `project_goods_mongo` is no longer running;
+   - starts a temporary `mongo:7` container (`project_goods_mongo_users_init_<random>`) **without keyfile/auth** on the existing data volume, with `--network none` and no published ports, hostname `mongo` → `127.0.0.1` so the stored `rs0` member finds itself; waits until it is writable PRIMARY;
+   - creates or updates the users idempotently: `project_goods_admin` with `userAdminAnyDatabase` on `admin`, `project_goods_app` with `readWrite` + `dbAdmin` on `inventory`. Existing users get their password set (app: from `MONGO_URI`; admin: only when a password is available) and the required roles granted additively; no roles or users are removed. Passwords are passed to `mongosh` through the container environment, never as command-line arguments, and are never printed;
+   - admin password source: `MONGO_ADMIN_PASSWORD` in `.env.production`, else `~/project_goods_secrets/mongo-admin-password.txt` from an earlier run, else an existing admin keeps its password; if the admin is missing and no password is available, a random one is generated and saved to that file (mode 600, not printed) — move it to a password manager and delete the file;
+   - stops and removes the temporary container in a `finally` step (the data volume is kept);
+   - runs `mongo:keyfile:prepare:prod` if the keyfile is missing or invalid, then `docker:up:prod`, and waits up to 90 s (`UPDATE_PROD_HEALTH_TIMEOUT_MS`) for `/api/health` with `mongoOk: true` and the current `buildSha`.
+5. **Verify.** Sign in, open sales, stock and finance; create and download a backup. An unauthenticated `mongosh` on the host must be refused for data access.
+
+Exit codes: `1` invalid configuration (nothing changed), `2` a Docker step failed (the failing step is named; if the stack was already stopped, start it with `npm run docker:up:prod`), `3` users are ready but the health check did not pass (check `npm run docker:logs:prod -- backend --no-follow`). Running it again on a server that already has the users is safe: it only resets the app password to the one in `.env.production` and re-grants the roles.
+
 ### Rehearsal and preflight
 
 Use a **separate staging Docker host**. The base Compose file has fixed container names and host ports, so a parallel project on the production host is unsafe. First start an isolated unauthenticated staging MongoDB replica set and restore a recently downloaded full `inventory` archive offline with `mongorestore`; a fresh staging database has no employee account for Settings → Backups. After the restore, sign in as a restored owner, compare per-collection counts with the production Settings → Database view, and exercise manual backup creation, download, upload, and restore through the UI. Repeat those UI checks after authentication. Also execute one safe test sale with a payment and stock movement, plus a finance write, under the authenticated application user to exercise the real transaction path. Never test restore or create test business records against the working database.
@@ -155,6 +174,7 @@ If the commit-tagged images are missing (for example, after deleting images in D
 
 ## Troubleshooting production start
 
-- **`MongoDB keyfile not found (missing or empty) in volume <project>_mongo-keyfile`** — the keyfile volume is new or empty (typical on a server that never ran the authenticated stack). Run `npm run mongo:keyfile:prepare:prod`. If this server has never had auth enabled, first create the `project_goods_admin` and `project_goods_app` users in its database while MongoDB still runs without auth (see "Authenticated production stack on an existing volume" above), using the passwords from this server's `.env.production`.
+- **`MongoDB keyfile not found (missing or empty) in volume <project>_mongo-keyfile`** — the keyfile volume is new or empty (typical on a server that never ran the authenticated stack). Run `npm run mongo:keyfile:prepare:prod`. If this server has never had auth enabled, run `npm run mongo:users:init:prod` instead: it creates the `project_goods_admin` and `project_goods_app` users, prepares the keyfile, and starts the stack (see "First-time auth on a server with existing data" above).
 - **`MongoDB keyfile has wrong permissions or owner`** — the keyfile must be mode 400 and its directory 700, both owned by uid/gid 999. Re-run `npm run mongo:keyfile:prepare:prod`.
+- **MongoDB `Healthy` but `project_goods_backend` `unhealthy`, backend log `Authentication failed`** — the database has no `project_goods_app` user with the password from `.env.production` (server never had auth, or `.env.production` was copied from another machine). Run `npm run mongo:users:init:prod`.
 - **`Step failed: <step> (docker exited with status N)`** — `docker:up:prod`, `update:prod` and `docker:rollback:prod` name the failing Docker step; Docker's own error is printed above that line.
