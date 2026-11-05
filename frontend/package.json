@@ -11,7 +11,7 @@
     "preview": "vite preview",
     "test": "vitest run && npm run test:proxy",
     "tests": "vitest run && npm run test:proxy",
-    "test:proxy": "node --test scripts/proxy-security.test.mjs",
+    "test:proxy": "node --test scripts/proxy-security.test.mjs scripts/security-headers.test.mjs",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test",
