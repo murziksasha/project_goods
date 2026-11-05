@@ -133,3 +133,4 @@ npm run docker:logs:prod       # логи prod (-f, последние 200 ст�
 
 Порядок репетиции, рабочего окна и отката: [DEPLOYMENT.md](./DOCUMENTATION/DEPLOYMENT.md). Production-изменения Docker и секретов выполняются только после отдельного подтверждения (см. `AGENTS.md`).
 
+Планируется (container hardening): контейнеры от `node` (UID 1000), автоматическая смена владельца тома бэкапов внутри `docker:up:prod` / `update:prod`, CSP и защита от встраивания для страниц frontend, лимиты памяти и процессов. Пока не реализовано, см. [CONTAINER_HARDENING_PLAN.md](./DOCUMENTATION/CONTAINER_HARDENING_PLAN.md).

@@ -172,6 +172,39 @@ Before changing containers it validates `.env.production` (including the authent
 
 If the commit-tagged images are missing (for example, after deleting images in Docker Desktop), `npm run docker:up:prod` stops before changing containers with `Image project-goods/<service>:<sha> not found. Run npm run docker:build:prod first.` `npm run update:prod` builds them automatically.
 
+## Планируется (container hardening)
+
+> **Ещё не реализовано.** Здесь описано будущее поведение по плану [CONTAINER_HARDENING_PLAN.md](./CONTAINER_HARDENING_PLAN.md). Пока реализация не влита, действует описание выше. Переключение production выполняется только после отдельного подтверждения (`AGENTS.md`).
+
+**Образы и пользователь**
+- `backend/Dockerfile` и `frontend/Dockerfile` станут многоэтапными. В runtime backend останутся `dist`, production-зависимости, `mongodump`/`mongorestore` из `mongo:7`, `libgssapi-krb5-2`, `curl` и `ca-certificates`. В runtime frontend останутся `dist`, скрипты прокси и Helmet. Зависимость `project_goods: file:..` удаляется.
+- Оба контейнера работают от `node` (UID/GID `1000:1000`). Порты `5000` и `5173` больше 1024, поэтому открываются без capabilities.
+- Backend-скрипты через `ts-node` (`npm run db:stats --prefix backend`, `import:clients`, `backfill:*`) внутри prod-контейнера работать не будут, их нужно запускать с хоста.
+
+**Автоматическая миграция тома бэкапов**
+- `npm run docker:up:prod` (и, значит, `npm run update:prod` и `npm run mongo:users:init:prod`) после проверки keyfile запускает одноразовый сервис `backup-volume-init`. Параметры: образ `mongo:7`, `--network none`, без портов, только capabilities `CHOWN`/`DAC_OVERRIDE`/`FOWNER`, том из `BACKUP_DATA_VOLUME`.
+- Сервис проверяет всё дерево тома, включая `yearly/` и `.restore-*`. Если всё уже принадлежит `1000:1000`, ничего не меняется. Иначе: `stop backend`, `chown -R 1000:1000`, повторная проверка, затем обычный `up`. Повторный запуск безопасен. Ноутбук и `HPproliant` проходят один и тот же путь.
+- Том с чужой меткой `com.docker.compose.project` команда отклоняет, ничего не меняя.
+
+**Ограничения в `docker-compose.prod.yml`**
+- backend: `mem_limit: 6g`, `pids_limit: 200`, `cap_drop: [ALL]`, `no-new-privileges`;
+- frontend: `mem_limit: 128m`, `pids_limit: 200`, `cap_drop: [ALL]`, `no-new-privileges`, `read_only: true`, `tmpfs: /tmp`;
+- MongoDB: `mem_limit: 2g` и `--wiredTigerCacheSizeGB 1`, без изменения пользователя и capabilities. `mongo-keyfile-init` не меняется.
+- Перед переключением на каждом хосте нужно снять замеры: `docker stats --no-stream` в работе и во время бэкапа, `docker info --format "{{.MemTotal}}"` (память Docker VM) и физическую RAM хоста. Сумма лимитов должна помещаться в память Docker VM.
+- Загрузка архива для восстановления (`POST /api/backups/restore-file`) сейчас целиком читается в память (`express.raw` → `Buffer`). После перехода на потоковую запись лимит backend планируется снизить по замерам.
+
+**Заголовки**
+- Helmet с общей конфигурацией применяется в API и в прокси frontend: HTML, `/assets/*`, SPA fallback, ошибки 500/502.
+- HSTS и `upgrade-insecure-requests` выключены. Остаются `script-src 'self'`, `frame-ancestors 'self'`, `X-Frame-Options: SAMEORIGIN`, `style-src 'self' 'unsafe-inline'` и `img-src 'self' data:`.
+- Скрипт темы переносится в `frontend/public/theme-init.js`. `immutable`-кеш остаётся только у `/assets/*`, остальные файлы отдаются с `no-cache`.
+- CSP включается в два этапа: сначала `Content-Security-Policy-Report-Only` (нарушения видны в консоли браузера), затем блокирующий режим отдельным релизом.
+
+**Обновление и откат**
+- Порядок обновления не меняется: бэкап вне хоста, `git pull --ff-only`, `npm run update:prod`, проверка. После обновления дополнительно проверить, что новый бэкап создаётся, скачивается и его файлы принадлежат `1000`.
+- После первого такого обновления `:rollback` указывает на старые образы, которые работают от root. Rollback-слой `docker-compose.rollback.yml` наследует `cap_drop: [ALL]` из prod-слоя, а root без `DAC_OVERRIDE` не может писать в каталоги `1000`. Поэтому rollback-слой задаёт `user: "1000:1000"` для backend и frontend. Цикл «обновление → откат → обновление» с созданием бэкапа на каждом шаге проверяется на репетиции.
+- Том бэкапов при откате назад на root не переводится.
+- `docker:rollback:noauth` prod-слой не накладывает, `cap_drop` там нет.
+
 ## Troubleshooting production start
 
 - **`MongoDB keyfile not found (missing or empty) in volume <project>_mongo-keyfile`** — the keyfile volume is new or empty (typical on a server that never ran the authenticated stack). Run `npm run mongo:keyfile:prepare:prod`. If this server has never had auth enabled, run `npm run mongo:users:init:prod` instead: it creates the `project_goods_admin` and `project_goods_app` users, prepares the keyfile, and starts the stack (see "First-time auth on a server with existing data" above).
