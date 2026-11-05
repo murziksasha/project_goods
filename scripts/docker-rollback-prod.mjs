@@ -16,6 +16,7 @@ import {
   describeAbsentContainers,
   inspectDockerObject,
 } from './production-docker-state.mjs';
+import { migrateBackupVolumeOwner } from './backup-volume-owner.mjs';
 
 // npm run docker:rollback:prod
 //   Starts the saved project-goods/{backend,frontend}:rollback images on the existing
@@ -87,6 +88,7 @@ export const rollbackStepName = (args) => {
   if (args.includes('mongo-keyfile-init')) return 'check MongoDB keyfile volume';
   if (args.includes('config')) return 'validate Compose configuration';
   if (args.includes('up')) return 'start rollback containers';
+  if (args.includes('stop')) return 'stop backend before backup volume migration';
   return 'docker command';
 };
 
@@ -155,7 +157,22 @@ const main = () => {
     `Rolling back to ${rollbackImageRefs.join(', ')}${rollbackSha ? ` (build ${rollbackSha})` : ''} ` +
       `${mode.auth ? 'with MongoDB auth (keyfile + .env.production MONGO_URI)' : 'WITHOUT MongoDB auth'}.`,
   );
-  buildRollbackPlan(mode).steps.forEach((step, index) => runDocker(step, index));
+  const plan = buildRollbackPlan(mode);
+  const upStep = plan.steps.at(-1);
+  plan.steps.slice(0, -1).forEach((step, index) => runDocker(step, index));
+  // docker-compose.rollback.yml runs backend/frontend as 1000:1000 (also older root
+  // images), so the backup volume must be owned by 1000:1000 before start.
+  try {
+    migrateBackupVolumeOwner({
+      volumeName: config.backupDataVolume,
+      projectName: config.projectName,
+      stopBackend: () => runDocker([...plan.composeArgs, 'stop', 'backend'], plan.steps.length - 1),
+    });
+  } catch (error) {
+    console.error(error.message);
+    process.exit(1);
+  }
+  runDocker(upStep, plan.steps.length - 1);
 
   console.log(
     mode.auth
