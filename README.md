@@ -133,3 +133,4 @@ npm run docker:logs:prod       # логи prod (-f, последние 200 ст�
 
 Порядок репетиции, рабочего окна и отката: [DEPLOYMENT.md](./DOCUMENTATION/DEPLOYMENT.md). Production-изменения Docker и секретов выполняются только после отдельного подтверждения (см. `AGENTS.md`).
 
+Container hardening: контейнеры backend/frontend работают от `node` (UID 1000), `docker:up:prod` / `update:prod` / откат автоматически переводят том бэкапов на `1000:1000`, frontend отдаёт CSP (сначала Report-Only, `CSP_REPORT_ONLY`) и защиту от встраивания, в prod заданы лимиты памяти и процессов. См. [DEPLOYMENT.md](./DOCUMENTATION/DEPLOYMENT.md#container-hardening-реализовано) и [CONTAINER_HARDENING_PLAN.md](./DOCUMENTATION/CONTAINER_HARDENING_PLAN.md).

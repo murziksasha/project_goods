@@ -16,6 +16,7 @@ import {
   describeAbsentContainers,
 } from './production-docker-state.mjs';
 import { assertCleanReleaseCheckout } from './production-git-state.mjs';
+import { migrateBackupVolumeOwner, resolveComposeBackupVolume } from './backup-volume-owner.mjs';
 
 const rootDir = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const production = process.argv.includes('--prod');
@@ -92,9 +93,60 @@ if (production) {
   runDocker('check MongoDB keyfile volume', [...composeArgs, ...keyfileCheckArgs]);
 }
 
+// Backend runs as node (UID 1000): migrate the backup volume owner before start.
+// Idempotent; stops only the backend and only when a migration is needed.
+const migrateBackupVolume = () => {
+  let target;
+  if (production) {
+    target = {
+      volumeName: productionConfig.backupDataVolume,
+      projectName: productionConfig.projectName,
+      allowMissing: false,
+    };
+  } else {
+    const config = spawnSync('docker', [...composeArgs, 'config', '--format', 'json'], {
+      cwd: rootDir,
+      env: environment,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'inherit'],
+    });
+    if (config.error || config.status !== 0) {
+      console.error('Step failed: read Compose configuration for the backup volume.');
+      process.exit(1);
+    }
+    try {
+      target = { ...resolveComposeBackupVolume(config.stdout), allowMissing: true };
+    } catch (error) {
+      console.error(error.message);
+      process.exit(1);
+    }
+  }
+  try {
+    return migrateBackupVolumeOwner({
+      ...target,
+      stopBackend: () => runDocker('stop backend before backup volume migration', [...composeArgs, 'stop', 'backend']),
+    });
+  } catch (error) {
+    console.error(error.message);
+    process.exit(1);
+  }
+};
+
+if (production) {
+  migrateBackupVolume();
+}
+
 runDocker(production ? 'start production containers' : 'build and start containers', [
   ...composeArgs,
   'up',
   '-d',
   ...(production ? ['--no-build', '--pull', 'never'] : ['--build']),
 ]);
+
+if (!production) {
+  // Local stack: images (and mongo:7) exist only after `up --build`; migrate an
+  // older root-owned local backup volume afterwards and restart the backend.
+  if (migrateBackupVolume() === 'migrated') {
+    runDocker('restart backend after backup volume migration', [...composeArgs, 'up', '-d', 'backend']);
+  }
+}

@@ -76,12 +76,14 @@ Production Docker changes and edits to real `.env` secrets require explicit conf
 
 ## Production backend image
 
-`backend/Dockerfile`:
+`backend/Dockerfile` (multi-stage, build context = repository root):
 
-1. Copies `mongodump` / `mongorestore` from the `mongo:7` image (same tag as the Compose `mongo` service). Do **not** download tools from `fastdl.mongodb.org` during image build — that CDN often times out or resets the stream. Runtime Kerberos libs come from Debian (`libgssapi-krb5-2`).
-2. Installs **backend** npm deps only (`npm install --prefix backend`, not root `concurrently`) with registry retries, longer fetch timeouts, and a BuildKit npm cache. `registry.npmjs.org` ETIMEDOUT during `docker:up` is retried up to 5 times. Frontend image uses the same pattern for `frontend/`.
-3. Runs `npm run build` (TypeScript → `dist/`).
-4. Starts with `node dist/server.js` (`NODE_ENV=production` in Compose).
+1. `mongo-tools` stage: `mongodump` / `mongorestore` are copied from `mongo:7` (same tag as the Compose `mongo` service). Do **not** download tools from `fastdl.mongodb.org` during image build — that CDN often times out or resets the stream. Runtime Kerberos libs come from Debian (`libgssapi-krb5-2`).
+2. `build` stage: `npm ci` for `backend/` only (registry retries, longer fetch timeouts, BuildKit npm cache), `npm run build` (TypeScript → `dist/`).
+3. `prod-deps` stage: `npm ci --omit=dev`.
+4. `runtime` stage: `node:20-bookworm-slim` + `ca-certificates curl libgssapi-krb5-2`, the Mongo tools, production `node_modules`, `dist/`, `/app/backups` owned by `node`; `USER node`; `node dist/server.js` (`NODE_ENV=production`).
+
+`frontend/Dockerfile` uses the same pattern: build with all dependencies, runtime with `dist/`, the proxy scripts and `helmet` only, `USER node`. See "Container hardening" below.
 
 Pass build metadata:
 
@@ -103,6 +105,7 @@ Health check response includes `version` and `buildSha` (see [BUILD_VERSION_SPEC
 | `BACKUP_DIR` | no | Default `./backups` |
 | `BUILD_SHA` / `GIT_SHA` | no | Exposed in `/api/health` |
 | `NODE_ENV` | prod | `production` disables `/api/demo/*` |
+| `CSP_REPORT_ONLY` | no | Default `true`: CSP is sent as `Content-Security-Policy-Report-Only`; `false` enforces it (API and frontend proxy; set in `.env.production`) |
 
 ### Frontend
 
@@ -153,7 +156,7 @@ Use this for every routine release after the authenticated stack is in place.
 3. **Update.** `npm run update:prod`. It:
    - validates `.env.production` and requires a clean Git checkout;
    - runs the same steps as `npm run docker:build:prod` (tags the running backend/frontend images as `:rollback`, builds images for the current short `GIT_SHA`; running containers keep serving);
-   - runs the same steps as `npm run docker:up:prod` (volume/project checks, image and keyfile checks, `up -d --no-build --pull never` on the existing volumes);
+   - runs the same steps as `npm run docker:up:prod` (volume/project checks, image and keyfile checks, idempotent backup volume owner migration to `1000:1000`, `up -d --no-build --pull never` on the existing volumes);
    - polls `http://127.0.0.1:5000/api/health` and `http://127.0.0.1:5173/api/health` for up to 90 seconds (override with `UPDATE_PROD_HEALTH_TIMEOUT_MS`) and requires `mongoOk: true` and `buildSha` equal to the current commit on both;
    - on success prints `docker compose ps` and a summary; on failure prints the last 80 backend log lines, the hint `npm run docker:rollback:prod`, and exits with code 1. It never rolls back, runs `down`, or removes volumes automatically.
 4. **Verify.** Sign in, open sales, stock, and finance lists; check `/api/health` shows the new `buildSha`.
@@ -165,12 +168,53 @@ Use this for every routine release after the authenticated stack is in place.
 
 - the production layer keeps the MongoDB keyfile (`--keyFile`), the writable-primary healthcheck, and the authenticated `project_goods_app` `MONGO_URI` from `.env.production`;
 - the rollback layer only swaps backend/frontend to `project-goods/backend:rollback` and `project-goods/frontend:rollback` and pins the existing external volumes.
+- the rollback layer also runs backend/frontend as `user: "1000:1000"` (older rollback images ran as root, and root without capabilities cannot write the backup volume owned by `1000:1000`); before `up` the rollback runs the same idempotent backup volume owner check/migration as `docker:up:prod`.
 
 Before changing containers it validates `.env.production` (including the authenticated `MONGO_URI`), the existing project/volume identity, that both `:rollback` images and `mongo:7` exist locally, the Compose configuration, and the keyfile volume. It then runs `up -d --no-build --pull never --force-recreate mongo backend frontend`. It never runs `down` or removes volumes. `BUILD_SHA` is read from the rollback backend image, so `/api/health` reports the rolled-back version. After the rollback, confirm `mongoOk: true` and that an unauthenticated MongoDB connection is refused. To return to the current release, run `npm run update:prod` again; note that its build step re-tags the images that are running at that moment (the rollback images) as `:rollback`.
 
 `npm run docker:rollback:noauth -- --confirm-noauth` is an **emergency-only** command for reverting the auth migration itself on a host where the users or keyfile do not work yet. It starts the same rollback images on the base MongoDB command/URI **without access control**: anyone who can reach `127.0.0.1:27017` on the host can read or delete all data. Without `--confirm-noauth` it only prints the warning and exits. Do not use it for routine release rollbacks.
 
 If the commit-tagged images are missing (for example, after deleting images in Docker Desktop), `npm run docker:up:prod` stops before changing containers with `Image project-goods/<service>:<sha> not found. Run npm run docker:build:prod first.` `npm run update:prod` builds them automatically.
+
+## Container hardening (реализовано)
+
+План и обоснование: [CONTAINER_HARDENING_PLAN.md](./CONTAINER_HARDENING_PLAN.md). Первое переключение рабочего сервера на эти образы выполняется только после отдельного подтверждения (`AGENTS.md`), порядок — в конце раздела.
+
+**Образы и пользователь**
+- `backend/Dockerfile` и `frontend/Dockerfile` многоэтапные. Runtime backend: `dist`, production-зависимости (`npm ci --omit=dev`), `mongodump`/`mongorestore` из `mongo:7`, `libgssapi-krb5-2`, `curl`, `ca-certificates`, `/bin/sh`. Runtime frontend: `dist`, `scripts/serve-with-api-proxy.mjs`, `proxy-security.mjs`, `security-headers.mjs` и `node_modules/helmet` (без зависимостей). Исходники, `DOCUMENTATION`, `AGENTS.md`, `.github`, `mcps`, dev-зависимости в образы не попадают. Зависимость `project_goods: file:..` удалена.
+- Оба контейнера работают от `node` (UID/GID `1000:1000`). Порты `5000` и `5173` больше 1024 и открываются без capabilities.
+- Backend-скрипты через `ts-node` (`npm run db:stats --prefix backend`, `import:clients`, `backfill:*`) внутри prod-контейнера не работают — запускать с хоста.
+
+**Автоматическая миграция владельца тома бэкапов** (`scripts/backup-volume-owner.mjs`)
+- `npm run docker:up:prod` (а значит, `npm run update:prod` и `npm run mongo:users:init:prod`) после проверки keyfile и до `up` проверяет том `BACKUP_DATA_VOLUME`. `npm run docker:rollback:prod` и `docker:rollback:noauth` делают то же перед запуском контейнеров отката. Локальный `npm run docker:up` делает это после `up --build` для тома `<project>_backup-data`, если он уже существует.
+- Одноразовый контейнер `docker run --rm` на образе `mongo:7`: `--pull never`, `--network none`, без портов, `--cap-drop ALL` (+ только `DAC_READ_SEARCH` для проверки или `CHOWN`/`DAC_OVERRIDE`/`FOWNER` для миграции), `no-new-privileges`, смонтирован только этот том в `/backups`.
+- Проверяется всё дерево (`find -xdev`), включая `yearly/`, `.restore-*` и закрытые каталоги. Если всё уже `1000:1000` — ничего не меняется (`already owned by 1000:1000`). Иначе: `compose stop backend`, `chown -R 1000:1000` + `chmod -R u+rwX`, повторная проверка, затем обычный `up`. Данные не перемещаются и не удаляются. Повторный запуск безопасен.
+- Отказ без изменений: тома нет (`was not found`; том не создаётся) или у тома метка `com.docker.compose.project` другого проекта (`belongs to Compose project …`).
+
+**Ограничения в `docker-compose.prod.yml`**
+- backend: `mem_limit: 6g`, `pids_limit: 200`, `cap_drop: [ALL]`, `no-new-privileges`;
+- frontend: `mem_limit: 128m`, `pids_limit: 200`, `cap_drop: [ALL]`, `no-new-privileges`, `read_only: true`, `tmpfs: /tmp`;
+- MongoDB: `mem_limit: 2g` и `--wiredTigerCacheSizeGB 1`; пользователь и capabilities не менялись, `mongo-keyfile-init` не менялся. Изменение команды пересоздаёт контейнер Mongo при первом обновлении (несколько секунд).
+- `6g` у backend нужен, пока `POST /api/backups/restore-file` читает архив до 2 ГБ целиком в память (`express.raw` → `Buffer`). После перехода на потоковую запись лимит снижается по замерам `docker stats`.
+- Лимиты считаются от памяти Docker VM: `docker info --format "{{.MemTotal}}"` (на ноутбуке 14.57 GiB). На каждом хосте сумма лимитов (≈8.1 GiB) должна помещаться с запасом.
+
+**Заголовки и CSP**
+- Одна конфигурация Helmet в API (`backend/src/config/security-headers.ts`) и в прокси frontend (`frontend/scripts/security-headers.mjs`, тест сверяет директивы): HTML, файлы `public/`, `/assets/*`, SPA fallback, ошибки 500/502. HSTS и `upgrade-insecure-requests` выключены.
+- CSP: `default-src 'self'; script-src 'self'; script-src-attr 'none'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'`, плюс `X-Frame-Options: SAMEORIGIN`.
+- `CSP_REPORT_ONLY` (по умолчанию `true`): заголовок `Content-Security-Policy-Report-Only`, нарушения видны только в консоли браузера. После проверки в браузере добавить `CSP_REPORT_ONLY=false` в `.env.production` и выполнить `npm run update:prod` — заголовок станет блокирующим `Content-Security-Policy` в API и frontend.
+- Скрипт темы вынесен в `frontend/public/theme-init.js` (блокирующий `<script src>` в `<head>`). `immutable`-кеш только у `/assets/*`; `index.html`, `theme-init.js`, `favicon.ico` и прочие файлы — `no-cache`.
+
+**Откат**
+- После первого обновления `:rollback` указывает на старые образы, работающие от root. Rollback-слой наследует `cap_drop: [ALL]` из prod-слоя, а root без `DAC_OVERRIDE` получает `EACCES` на томе `1000` (проверено). Поэтому `docker-compose.rollback.yml` запускает backend и frontend как `user: "1000:1000"`; старые образы так работают (проверено: бэкап и восстановление старым backend, старый frontend на `read_only`).
+- Том бэкапов на root обратно не переводится.
+
+**Первое переключение рабочего хоста (после подтверждения)**
+1. Бэкап в программе, скачать и сохранить вне хоста.
+2. `docker stats --no-stream`, `docker info --format "{{.MemTotal}}"`, RAM хоста — сверить с лимитами.
+3. `git pull --ff-only` на нужном коммите, `npm run update:prod` (сохранит `:rollback`, соберёт образы, мигрирует том, запустит стек, проверит `/api/health`).
+4. Проверить: вход двумя ролями, продажи, склад, финансы, печать (А4, этикетка, пакет этикеток, предпросмотр), создание и скачивание бэкапа, `curl -I http://localhost:5173/`, консоль браузера без `Content Security Policy`, `docker stats`.
+5. При ключевом сбое — `npm run docker:rollback:prod`, затем `git checkout <прежний коммит>`.
+6. Через несколько дней без нарушений в консоли — `CSP_REPORT_ONLY=false` и `npm run update:prod`.
 
 ## Troubleshooting production start
 

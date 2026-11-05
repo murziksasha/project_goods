@@ -26,6 +26,7 @@ One topic → one source of truth. Other files **link**, they do not copy the ru
 
 - [DEVELOPMENT.md](./DEVELOPMENT.md) — local run, env, commands
 - [DEPLOYMENT.md](./DEPLOYMENT.md) — Docker prod, env, Mongo replica set
+- [CONTAINER_HARDENING_PLAN.md](./CONTAINER_HARDENING_PLAN.md) — контейнеры без root, заголовки, лимиты: план, решения, проверка
 - [TESTING.md](./TESTING.md) — tests, CI
 - [DEMO_DATA.md](./DEMO_DATA.md) — seed data
 - [../AGENTS.md](../AGENTS.md) — AI agent rules
