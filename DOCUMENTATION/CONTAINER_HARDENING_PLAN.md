@@ -1,6 +1,6 @@
 # План: усиление production-контейнеров и HTTP-заголовков
 
-Статус: **план, не реализован.** Код, Dockerfile, Compose и скрипты пока не менялись. Связанные документы: [DEPLOYMENT.md](./DEPLOYMENT.md) (раздел «Планируется (container hardening)»), [SECURITY.md](./SECURITY.md), [AGENTS.md](../AGENTS.md).
+Статус: **реализовано в коде** (ветка `fixOrderSaleFeat`), production ещё не переключён. Отличия от исходного плана и результаты проверки — в разделе «Реализация» в конце. Связанные документы: [DEPLOYMENT.md](./DEPLOYMENT.md) (раздел «Container hardening»), [SECURITY.md](./SECURITY.md), [AGENTS.md](../AGENTS.md).
 
 Доступ остаётся по HTTP внутри изолированной LAN магазина. HTTPS в этот план не входит и не рекомендуется: так решили для LAN-only установки.
 
@@ -297,3 +297,34 @@ services:
 - Backend сохраняет право записи в том бэкапов. `USER node` не защищает бэкапы, если код выполнится внутри backend, но ограничивает права в остальной системе контейнера.
 - Предел загрузки архива остаётся 2 ГБ. Лимит `6g` в первой волне выбран по расчёту и по замерам `docker stats`, без тяжёлого теста около 2 ГБ на рабочем хосте.
 - Решения интервью хранятся в `.grill/container-hardening.md`, вне Git.
+
+## Реализация
+
+Отличия от плана выше:
+
+- Миграция тома сделана не сервисом Compose `backup-volume-init`, а прямым `docker run --rm` на `mongo:7` из `scripts/backup-volume-owner.mjs` (`--pull never`, `--network none`, `--cap-drop ALL`, для проверки только `DAC_READ_SEARCH`, для миграции `CHOWN`/`DAC_OVERRIDE`/`FOWNER`, `--mount` только тома `BACKUP_DATA_VOLUME`). Так её может вызвать и `docker:rollback:noauth`, у которого нет prod-слоя.
+- Миграция вызывается в `docker-up.mjs --prod` (до `up`), в `docker-rollback-prod.mjs` (оба режима, до `up`) и в локальном `docker-up.mjs` (после `up --build`, если том уже есть, затем перезапуск backend).
+- Режим CSP переключается переменной `CSP_REPORT_ONLY` (по умолчанию `true`) в backend и frontend; в `docker-compose.prod.yml` она берётся из `.env.production`.
+- Runtime frontend копирует из сборки только `node_modules/helmet` (у него нет зависимостей), без `npm ci --omit=dev`, которое притащило бы React и xlsx.
+- `serve-with-api-proxy.mjs` экспортирует `createFrontendServer()` для тестов заголовков; запуск через `node scripts/serve-with-api-proxy.mjs` не изменился.
+
+Проверено:
+
+- Бокс: `npm run lint` (0 ошибок, 2 старых предупреждения в `ClientCardOverlay.tsx`), `npm run typecheck`, backend vitest 550/550, frontend vitest 1346/1346 + `test:proxy` 10/10, `npm run build`, `npm run test:deployment` 76/76.
+- Ноутбук, только одноразовые объекты с префиксом `pg_hardening_test` / `pg-hardening-test` (удалены после проверки; рабочие контейнеры, тома и другие проекты не трогались):
+  - образы собраны (`backend` 416 MB против 552 MB, `frontend` 197 MB против 526 MB у `0f3bff8`); оба `uid=1000(node)`; в backend есть `mongodump`/`mongorestore` 100.20.0, `curl`, `sh`, `grep`; нет `AGENTS.md`, `DOCUMENTATION`, `.github`, `mcps`, `.vscode`, `frontend`, `src`, `typescript`, `vitest`, `ts-node`, `project_goods`;
+  - миграция на томе с файлами root (включая `yearly/`, `.restore-*`, каталог `700`): 9 записей → `1000:1000`, `stopBackend` вызван один раз; повторный запуск — `unchanged`; том чужого проекта и отсутствующий том отклонены без изменений (том не создан);
+  - бэкап и восстановление через настоящий `backup/service` нового образа от `node` с `cap_drop ALL`, `no-new-privileges`, `pids_limit 200`, `--memory 6g` на одноразовой MongoDB: `BACKUP_RESTORE_OK`, все файлы `1000:1000`;
+  - старый образ `project-goods/backend:0f3bff8` от root с `cap_drop ALL` на мигрированном томе: `EACCES`; тот же образ с `--user 1000:1000`: `BACKUP_RESTORE_OK`; старый frontend с `--user 1000:1000 --read-only`: HTTP 200;
+  - заголовки через прокси: `/`, `/theme-init.js`, `/assets/index-*.js`, `/orders/123`, `/api/health` и 502 при остановленном backend — `Content-Security-Policy-Report-Only`, `X-Frame-Options: SAMEORIGIN`, без HSTS; `immutable` только у `/assets/*`;
+  - healthcheck `curl … | grep mongoOk:true` внутри нового backend работает; frontend на `read_only` не пишет в `/app`, `/tmp` доступен;
+  - `docker compose config` с prod- и rollback-слоями (фиктивный env-файл) показывает ожидаемые `mem_limit`, `pids_limit`, `cap_drop`, `security_opt`, `read_only`, `tmpfs`, `--wiredTigerCacheSizeGB 1` и `user: 1000:1000` в откате;
+  - замеры: Docker VM 14.57 GiB; рабочий стек сейчас backend ≈95 MiB/11 PIDs, frontend ≈15 MiB/11 PIDs, mongo ≈217 MiB.
+
+Осталось:
+
+- Проверка в браузере на собранном стеке: тема до отрисовки, основные экраны, все виды печати, консоль без нарушений CSP (Report-Only).
+- Проверить сохранённые шаблоны печати на внешние `<img src="https://…">`.
+- Переключение ноутбука и затем `HPproliant` по разделу «Переключение production» — после отдельного подтверждения; на `HPproliant` снять `docker info --format "{{.MemTotal}}"` и RAM.
+- Отдельной задачей: потоковая загрузка архива и снижение `mem_limit` backend.
+

@@ -44,7 +44,7 @@ Full permission matrix: [Permission_Flow.md](./Permission_Flow.md).
 
 ## HTTP Hardening
 
-- `helmet()` — security headers
+- Helmet — shared config for API and frontend proxy (see «Container hardening» below)
 - `express.json({ limit: '1mb' })` — default body size limit
 - CORS — restricted by `CLIENT_ORIGIN` env var (comma-separated origins). In **production**, missing `CLIENT_ORIGIN` blocks browser cross-origin requests (dev still allow-all when unset).
 - Listen host — `HOST` (default `0.0.0.0`) for LAN binding
@@ -52,23 +52,16 @@ Full permission matrix: [Permission_Flow.md](./Permission_Flow.md).
 - Login rate limit — soft in-memory throttle on `POST /api/auth/login` only (per IP: only **failed** logins count, default 100/15m via `LOGIN_MAX_FAILED_PER_IP`; per username: every attempt counts, 15/15m) → `429`
 - Print HTML — frontend sanitizes print templates with DOMPurify before `dangerouslySetInnerHTML` / print window
 
-### Планируется (container hardening)
+### Container hardening (реализовано)
 
-> **Ещё не реализовано.** Подробности: [CONTAINER_HARDENING_PLAN.md](./CONTAINER_HARDENING_PLAN.md), порядок развёртывания: [DEPLOYMENT.md](./DEPLOYMENT.md#планируется-container-hardening).
+Подробности: [CONTAINER_HARDENING_PLAN.md](./CONTAINER_HARDENING_PLAN.md), развёртывание: [DEPLOYMENT.md](./DEPLOYMENT.md#container-hardening-реализовано).
 
-- Сейчас `helmet()` со значениями по умолчанию стоит только в API. `index.html`, `/assets` и ошибки прокси `frontend/scripts/serve-with-api-proxy.mjs` отдаются без CSP и без `X-Frame-Options`. Оба контейнера работают от root.
-- План: общая конфигурация Helmet для API и прокси frontend:
-  - `script-src 'self'`, `script-src-attr 'none'`, `style-src 'self' 'unsafe-inline'` (React `style={…}` и `<style>` окна печати);
-  - `img-src 'self' data:`, `connect-src 'self'`, `object-src 'none'`, `frame-ancestors 'self'`;
-  - `X-Frame-Options: SAMEORIGIN`;
-  - без HSTS и без `upgrade-insecure-requests`: доступ только по HTTP в LAN, HTTPS не планируется.
-- Встроенный скрипт темы из `frontend/index.html` выносится в `/theme-init.js` с `no-cache`.
-- CSP сначала работает в режиме `Content-Security-Policy-Report-Only`, после проверки на ноутбуке включается блокирующий режим.
-- Окно печати (`window.open('')` + `document.write`) наследует CSP страницы. Шаблоны проходят DOMPurify, поэтому скриптов в окне печати нет. Внешние `<img src="https://…">` в пользовательских шаблонах CSP заблокирует, их нужно проверить до блокирующего режима.
-- Контейнеры:
-  - backend и frontend работают от `node` (UID 1000) с `cap_drop: [ALL]`, `no-new-privileges`, `pids_limit: 200` и `mem_limit`;
-  - frontend дополнительно `read_only` с `tmpfs: /tmp`;
-  - MongoDB: только `mem_limit: 2g` и `--wiredTigerCacheSizeGB 1`.
+- Общая конфигурация Helmet для API (`backend/src/config/security-headers.ts`) и прокси frontend (`frontend/scripts/security-headers.mjs`): HTML, `/assets/*`, файлы `public/`, SPA fallback и ошибки 500/502 получают CSP, `X-Frame-Options: SAMEORIGIN`, `nosniff`, `Referrer-Policy: no-referrer` и остальные заголовки Helmet. Для `/api` через прокси приоритет у заголовков backend.
+- CSP: `script-src 'self'`, `script-src-attr 'none'`, `style-src 'self' 'unsafe-inline'` (React `style={…}` и `<style>` окна печати), `img-src 'self' data:`, `connect-src 'self'`, `object-src 'none'`, `frame-ancestors 'self'`. HSTS и `upgrade-insecure-requests` выключены: доступ только по HTTP в LAN, HTTPS не планируется.
+- `CSP_REPORT_ONLY` (по умолчанию `true`) отправляет `Content-Security-Policy-Report-Only`; `false` включает блокирующий режим. `frame-ancestors` в Report-Only браузер игнорирует, встраивание всё равно запрещает `X-Frame-Options`.
+- Встроенных скриптов в `index.html` нет: тема ставится из `/theme-init.js` (`no-cache`).
+- Окно печати (`window.open('')` + `document.write`) наследует CSP страницы. Шаблоны проходят DOMPurify, скриптов в окне печати нет. Внешние `<img src="https://…">` в пользовательских шаблонах CSP заблокирует — проверить шаблоны до блокирующего режима.
+- Контейнеры backend и frontend работают от `node` (UID 1000) с `cap_drop: [ALL]`, `no-new-privileges`, `pids_limit: 200`, `mem_limit`; frontend `read_only` с `tmpfs: /tmp`. MongoDB: `mem_limit: 2g` и `--wiredTigerCacheSizeGB 1`.
 - Принятое ограничение: backend по-прежнему может писать в том бэкапов. `USER node` не защищает бэкапы от кода, выполненного внутри backend, но лишает его root-прав в контейнере.
 - Известная особенность: `POST /api/backups/restore-file` читает архив до 2 ГБ целиком в память. Планируется потоковая запись во временный файл.
 
