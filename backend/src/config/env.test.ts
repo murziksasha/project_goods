@@ -27,6 +27,7 @@ describe('parseEnv', () => {
       archiveAutoPurgeSales: false,
       archivePurgeRequireSafetyBackup: true,
       financePurgeRequireSafetyBackup: true,
+      cspReportOnly: true,
     });
   });
 
@@ -56,6 +57,7 @@ describe('parseEnv', () => {
         ARCHIVE_AUTO_PURGE_SALES: 'true',
         ARCHIVE_PURGE_REQUIRE_SAFETY_BACKUP: 'false',
         FINANCE_PURGE_REQUIRE_SAFETY_BACKUP: 'false',
+        CSP_REPORT_ONLY: 'off',
       }),
     ).toEqual({
       port: 7000,
@@ -81,6 +83,7 @@ describe('parseEnv', () => {
       archiveAutoPurgeSales: true,
       archivePurgeRequireSafetyBackup: false,
       financePurgeRequireSafetyBackup: false,
+      cspReportOnly: false,
     });
   });
 

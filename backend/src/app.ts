@@ -8,6 +8,7 @@ import express, {
 import helmet from 'helmet';
 import mongoose from 'mongoose';
 import { env } from './config/env';
+import { buildHelmetOptions } from './config/security-headers';
 import { redactMongoCredentials } from './shared/lib/redact-mongo-credentials';
 import { requireAuthUnlessPublic } from './shared/middleware/auth';
 import { clientRouter } from './domain/client/routes';
@@ -43,7 +44,7 @@ import {
 export const app = express();
 
 app.set('trust proxy', env.trustProxyHops);
-app.use(helmet());
+app.use(helmet(buildHelmetOptions(env.cspReportOnly)));
 
 const resolvedCorsOrigin = env.clientOrigin
   ? env.clientOrigin

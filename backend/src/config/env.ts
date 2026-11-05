@@ -41,6 +41,8 @@ export type BackendEnv = {
   archivePurgeRequireSafetyBackup: boolean;
   /** Require safety mongodump before PURGE_FINANCE (default true). */
   financePurgeRequireSafetyBackup: boolean;
+  /** CSP as Content-Security-Policy-Report-Only (stage 1, default true). */
+  cspReportOnly: boolean;
 };
 
 const parseBoolean = (value: string | undefined, fallback: boolean) => {
@@ -86,6 +88,7 @@ export const parseEnv = (
       | 'ARCHIVE_AUTO_PURGE_SALES'
       | 'ARCHIVE_PURGE_REQUIRE_SAFETY_BACKUP'
       | 'FINANCE_PURGE_REQUIRE_SAFETY_BACKUP'
+      | 'CSP_REPORT_ONLY'
     >
   >,
 ): BackendEnv => {
@@ -133,6 +136,7 @@ export const parseEnv = (
       rawEnv.FINANCE_PURGE_REQUIRE_SAFETY_BACKUP,
       true,
     ),
+    cspReportOnly: parseBoolean(rawEnv.CSP_REPORT_ONLY, true),
   };
 };
 
