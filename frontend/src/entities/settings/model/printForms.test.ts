@@ -32,6 +32,45 @@ const templateData = {
 };
 
 describe('renderPrintTemplate', () => {
+  it.each(['products', 'services'] as const)('hides only the empty %s builder section, including its custom heading', (emptyKind) => {
+    const blocks: PrintLayoutBlock[] = [
+      { id: 'services', type: 'lineItemsTable', kind: 'services', title: 'Work performed' },
+      { id: 'products', type: 'lineItemsTable', kind: 'products', title: 'Supplied items' },
+    ];
+    const values = {
+      services_table: emptyKind === 'services' ? '' : '<table><tbody><tr><td>Diagnostics</td></tr></tbody></table>',
+      products_table: emptyKind === 'products' ? '' : '<table><tbody><tr><td>Adapter</td></tr></tbody></table>',
+    };
+    const rendered = renderPrintTemplate(renderPrintLayout(blocks), values, 'html');
+    expect(rendered).not.toContain(emptyKind === 'services' ? 'Work performed' : 'Supplied items');
+    expect(rendered).toContain(emptyKind === 'services' ? 'Supplied items' : 'Work performed');
+    expect(new DOMParser().parseFromString(rendered, 'text/html').querySelectorAll('table')).toHaveLength(1);
+  });
+
+  it('hides legacy headings for empty tables and preserves surrounding content', () => {
+    const rendered = renderPrintTemplate('<div><h1>Receipt</h1><h3>Custom services</h3>{{services_table}}<h3>Custom products</h3><p>{{products_table}}</p><p>Total: {{total}}</p></div>', { total: '0 UAH' }, 'html');
+    expect(rendered).toContain('Receipt');
+    expect(rendered).toContain('Total: 0 UAH');
+    expect(rendered).not.toContain('Custom services');
+    expect(rendered).not.toContain('Custom products');
+  });
+
+  it('adds an editable invoice without VAT without overwriting saved forms', () => {
+    const saved = { ...defaultPrintForms.find((form) => form.id === 'invoice')!, title: 'My invoice', content: '<p>My saved invoice</p>' };
+    const forms = normalizePrintFormsForView([saved]);
+    expect(forms.find((form) => form.id === 'invoice')?.content).toBe(saved.content);
+    const invoice = forms.find((form) => form.id === 'invoice-no-vat')!;
+    expect(invoice.layoutVersion).toBe(1);
+    expect(invoice.content).toContain('{{service_center_phone}}');
+    expect(invoice.content).toContain('{{repair_order_reference}}');
+    const rendered = renderPrintTemplate(invoice.content, { ...templateData, total_amount: '100 UAH', total_written: 'one hundred hryvnias', products_table: '<table><tbody><tr><td>Adapter</td></tr></tbody></table>' }, 'html');
+    expect(rendered).toContain('Invoice #r000124');
+    expect(rendered).toContain('Without VAT');
+    expect(rendered).not.toContain('Services');
+    expect(rendered).not.toContain('Repair order');
+    expect(rendered).not.toContain('{{');
+  });
+
   it('renders supported print variables', () => {
     expect(
       renderPrintTemplate(
@@ -45,15 +84,14 @@ describe('renderPrintTemplate', () => {
     ).toContain('r000124 Ivan iPhone 100 UAH Master Kyiv, Main street 1 UA123456789123456789123456789');
   });
 
-  it('renders English empty table fallbacks', () => {
+  it('hides empty tables without placeholder messages', () => {
     const rendered = renderPrintTemplate(
       '{{products_table}} {{services_table}}',
       templateData,
       'html',
     );
 
-    expect(rendered).toContain('No products');
-    expect(rendered).toContain('No services');
+    expect(rendered.trim()).toBe('');
     expect(rendered).not.toContain('Р');
   });
 
@@ -611,6 +649,7 @@ describe('normalizePrintFormsForView', () => {
       'Warranty card',
       'Completion act',
       'Invoice',
+      'Invoice without VAT',
       'Barcode',
       'Product barcode',
     ]);

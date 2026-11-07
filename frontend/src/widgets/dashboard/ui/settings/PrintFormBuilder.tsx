@@ -178,7 +178,7 @@ const VariablePicker = ({ onInsert }: { onInsert: (variable: string) => void }) 
                   onClick={() => onInsert(`{{${variable.key}}}`)}
                 >
                   <code>{`{{${variable.key}}}`}</code>
-                  <span>{t(`settings.printBuilder.variables.${variable.key}`)}</span>
+                  <span>{t(`settings.printBuilder.variables.${variable.key}`, { defaultValue: variable.label })}</span>
                 </button>
               ))}
             </div>

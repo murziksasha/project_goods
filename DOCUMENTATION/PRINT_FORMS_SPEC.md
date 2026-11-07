@@ -373,6 +373,40 @@ Applies to order/sale print tokens `{{products_table}}` and `{{invoice_items_tab
 
 ## Future Template Requirements
 
+## Invoice Without VAT And Empty Sections (2026-11-07)
+
+- New built-in form: **Invoice without VAT** (`invoice-no-vat`, type `invoice`),
+  A4 portrait, editable with the existing block builder in Settings → Print forms.
+  Missing defaults are added by frontend normalization; existing Invoice and custom
+  layouts are preserved. Saving settings persists the added form with the other forms.
+- Layout follows the supplied invoice example: supplier, recipient, payer and due
+  date, centered invoice number/date, separate services and products tables, one
+  amount payable and total in words. It states **Without VAT**; no VAT is added.
+- Number, customer, date, current line items and totals come from the selected sale
+  or repair. These are separate record kinds; there is no independent invoice counter.
+- `{{repair_order_reference}}` prints `Repair order #<record number>` for repairs
+  only. Its standalone paragraph is removed for sales.
+- `{{service_center_phone}}` resolves stock products by product ID or bound serial,
+  then their warehouses and service centers. One unambiguous center supplies its
+  phone. With no stock association, a single configured service center is used.
+  Multiple matching centers, or multiple configured centers without an association,
+  leave the phone empty. Orders currently have no persisted warehouse field.
+- All existing forms, including custom and legacy HTML forms, hide an empty
+  products/services table and its heading. No “No products” / “No services” message
+  is printed. When both kinds have rows, both sections remain; when both are empty,
+  both sections disappear. Combined invoice tables also disappear when empty.
+- Builder table blocks wrap the title and token in `data-print-items` sections.
+  Legacy HTML supports a heading immediately preceding the table token, optionally
+  with the token in its own paragraph/container. Other text and totals are preserved;
+  arbitrary detached explanatory headings cannot be inferred as table headings.
+- Shared template rendering applies the rule equally to preview and print. Visibility
+  is resolved before inserting escaped record values. Product grouping stays as above;
+  services remain separate and no business records or stock quantities are changed.
+
+Validation: `printForms.test.ts` covers builder/legacy visibility and saved-template
+preservation; `orders-workspace-shared.test.tsx` covers record kinds, phone resolution
+and empty current compositions. Browser coverage: `e2e/invoice-print.spec.ts`.
+
 Add sections here when updating other built-in templates.
 
 ### Receipt

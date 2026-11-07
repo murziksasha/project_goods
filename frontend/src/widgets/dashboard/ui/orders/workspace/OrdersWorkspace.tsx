@@ -3527,7 +3527,7 @@ export const OrdersWorkspace: React.FC<OrdersWorkspaceProps> = ({
 
       <OrdersWorkspaceModals
         printForms={printForms}
-        printCompanySettings={printCompanySettings}
+        printCompanySettings={{ ...printCompanySettings, warehouseSettings: warehouseSettingsQuery.data, products }}
         paymentSale={paymentSale}
         paymentTargetStatus={paymentTargetStatus}
         paymentCashboxes={paymentModalCashboxes}

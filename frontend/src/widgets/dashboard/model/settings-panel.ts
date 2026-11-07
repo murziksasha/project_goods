@@ -39,6 +39,8 @@ export const demoPrintValues: Record<string, string> = {
   id: 'demo-sale-id',
   orderNumber: 'r000124',
   labelCode: 'r000124',
+  repair_order_reference: 'Repair order #r000124',
+  service_center_phone: '+38 067 000 00 00',
   labelTitle: 'iPhone 13 Pro',
   labelContact: '+38 067 111 22 33',
   date: '29.05.2026',

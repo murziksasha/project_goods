@@ -35,6 +35,10 @@ cd frontend && npm run test:e2e:ui           # Playwright UI mode
 
 Specs:
 
+- `e2e/invoice-print.spec.ts` — Invoice without VAT for sale/repair records,
+  service-center phone, products-only/services-only/both/empty visibility in modal
+  and standalone preview, shared Completion act behavior, and block-builder editing.
+
 - `e2e/login-page.spec.ts` — logged-out Login / Sign in.
 - `e2e/orders-hover-copy.spec.ts` — Orders/Kanban copy controls, Sales current product/service name plus each S/N, and opened repair/sale card fields: independent hover targets, clipboard payloads, navigation, keyboard phone copy and `tel:` links, long-name containment, narrow viewport, and touch visibility.
 - `e2e/sales-current-items.spec.ts` — Regular/Rapid sale card edits update the Sales Product label, serial, raw-row count and menu without a page reload; empty sales remain clickable and removed snapshot items do not match item search.

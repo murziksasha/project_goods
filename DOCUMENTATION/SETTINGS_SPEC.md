@@ -4,6 +4,10 @@ Related: [Permission_Flow.md](./Permission_Flow.md) · [PRINT_FORMS_SPEC.md](./P
 
 Admin page `page=settings`. Sidebar **Settings**. Host: `SettingsPanel`.
 
+Print forms include **Invoice without VAT**, editable in the block builder.
+Invoice data sources and shared empty-table visibility rules are specified in
+[PRINT_FORMS_SPEC.md](./PRINT_FORMS_SPEC.md#invoice-without-vat-and-empty-sections-2026-11-07).
+
 ## UI entry points
 
 | Piece        | File                                                                           |

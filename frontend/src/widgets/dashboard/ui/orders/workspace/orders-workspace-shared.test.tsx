@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Sale } from '../../../../../entities/sale';
 import type { SupplierOrder } from '../../../../../entities/supplier-order';
+import type { WarehouseSettings } from '../../../../../entities/warehouse-settings';
+import type { Product } from '../../../../../entities/product';
 import { defaultPrintForms } from '../../../../../entities/settings';
 import i18n from '../../../../../shared/i18n/config';
 import {
@@ -27,6 +29,7 @@ import {
   getOrdersColumnClassName,
   getOrdersTableMinWidth,
   getPrintTemplateData,
+  resolvePrintServiceCenter,
   getReopenedSaleStatusForLineItems,
   getProductLinesMissingWarehouseSerials,
   isIssueWithoutPaymentBlockedForSale,
@@ -120,6 +123,50 @@ const printCompanySettings = {
   companyEmail: '',
   companySite: '',
 };
+
+describe('invoice source record and service center', () => {
+  const settings: WarehouseSettings = {
+    id: 'settings', createdAt: '', updatedAt: '', administrators: [],
+    serviceCenters: [
+      { id: 'center-a', name: 'Center A', address: '', color: '', phone: '+380501111111' },
+      { id: 'center-b', name: 'Center B', address: '', color: '', phone: '+380502222222' },
+    ],
+    warehouses: [
+      { id: 'warehouse-a', name: 'A', isActive: true, serviceCenterId: 'center-a', receiptAddress: '', receiptPhone: '', locations: [] },
+      { id: 'warehouse-b', name: 'B', isActive: true, serviceCenterId: 'center-b', receiptAddress: '', receiptPhone: '', locations: [] },
+    ],
+  };
+  const products = [
+    { id: 'product-1', warehouseId: 'warehouse-b', serialNumber: 'S000003' },
+    { id: 'product-2', warehouseId: 'warehouse-b', serialNumber: 'S000004' },
+  ] as Product[];
+
+  it.each(['repair', 'sale'] as const)('uses the current %s number, client, items and matching phone', (kind) => {
+    const record = repairSale({ kind, recordNumber: kind === 'repair' ? 'r000003' : 's000021' });
+    const data = getPrintTemplateData(record, repairProductLineItems, 0, record.recordNumber!, { ...printCompanySettings, warehouseSettings: settings, products });
+    expect(data.orderNumber).toBe(record.recordNumber);
+    expect(data.clientName).toBe('Client');
+    expect(data.service_center_phone).toBe('+380502222222');
+    expect(data.repair_order_reference).toBe(kind === 'repair' ? 'Repair order #r000003' : '');
+    expect(data.products_table).toContain('Wireless mouse M22');
+    expect(data.services_table).toBe('');
+  });
+
+  it('resolves serial-only bindings and leaves ambiguous centers empty', () => {
+    expect(resolvePrintServiceCenter([{ ...repairProductLineItems[0], productId: undefined }], settings, products)?.id).toBe('center-b');
+    expect(resolvePrintServiceCenter([], settings, products)).toBeUndefined();
+    expect(resolvePrintServiceCenter(repairProductLineItems, settings, [products[0], { ...products[1], warehouseId: 'warehouse-a' }])).toBeUndefined();
+    expect(resolvePrintServiceCenter([], { ...settings, serviceCenters: [settings.serviceCenters[0]] })?.id).toBe('center-a');
+  });
+
+  it('does not print snapshot rows when both current tables are empty', () => {
+    const record = repairSale({ lineItems: [] });
+    const data = getPrintTemplateData(record, [], 0, 'r000003', printCompanySettings);
+    expect(data.products_table).toBe('');
+    expect(data.services_table).toBe('');
+    expect(data.invoice_items_table).toBe('');
+  });
+});
 
 describe('repair stock status guards', () => {
   it('does not block issuing a repair order with bound stock serials', () => {

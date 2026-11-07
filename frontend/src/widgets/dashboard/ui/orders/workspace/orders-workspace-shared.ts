@@ -21,6 +21,7 @@ import i18n from '../../../../../shared/i18n/config';
 import { getSaleClientDisplayName } from '../../../model/sale-client-display';
 import { groupPrintProductLineItems } from '../../../model/order-line-item-groups';
 import type { SupplierOrder } from '../../../../../entities/supplier-order';
+import type { WarehouseSettings } from '../../../../../entities/warehouse-settings';
 import type {
   Product,
   ProductModelUpdatePayload,
@@ -88,6 +89,8 @@ export type OrdersWorkspaceProps = {
 };
 
 export type PrintCompanySettings = {
+  warehouseSettings?: WarehouseSettings;
+  products?: Product[];
   serviceName: string;
   company: string;
   companyAddress: string;
@@ -1317,10 +1320,9 @@ export const escapeHtml = (value: string) =>
 
 export const renderLineItemsTable = (
   items: OrderLineItem[],
-  emptyLabel: string,
 ) => {
   if (items.length === 0) {
-    return `<p class="print-muted">${emptyLabel}</p>`;
+    return '';
   }
 
   const rows = groupPrintProductLineItems(items)
@@ -1476,11 +1478,8 @@ export const formatAmountInWords = (value: number) => {
 };
 
 export const renderInvoiceItemsTable = (sale: Sale) => {
-  const sourceItems = (
-    sale.lineItems?.length
-      ? sale.lineItems
-      : getDefaultLineItems(sale)
-  ).filter((item) => item.quantity > 0);
+  const sourceItems = (sale.lineItems ?? []).filter((item) => item.quantity > 0);
+  if (sourceItems.length === 0) return '';
   const items = groupPrintProductLineItems(sourceItems).map(
     (group, index) => {
       const amount = group.price * group.totalQuantity;
@@ -1564,6 +1563,25 @@ const getLabelProductData = (
   };
 };
 
+export const resolvePrintServiceCenter = (
+  lineItems: OrderLineItem[],
+  settings?: WarehouseSettings,
+  products: Product[] = [],
+) => {
+  if (!settings) return undefined;
+  const productItems = lineItems.filter((item) => item.kind === 'product');
+  const relatedProducts = products.filter((product) => productItems.some((item) =>
+    item.productId === product.id || (product.serialNumber && item.serialNumbers?.includes(product.serialNumber)),
+  ));
+  const warehouseIds = new Set(relatedProducts.map((product) => product.warehouseId).filter(Boolean));
+  const centerIds = new Set(settings.warehouses
+    .filter((warehouse) => warehouseIds.has(warehouse.id))
+    .map((warehouse) => warehouse.serviceCenterId).filter(Boolean));
+  if (centerIds.size === 1) return settings.serviceCenters.find((center) => centerIds.has(center.id));
+  if (centerIds.size === 0 && settings.serviceCenters.length === 1) return settings.serviceCenters[0];
+  return undefined;
+};
+
 export const getPrintTemplateData = (
   sale: Sale,
   lineItems: OrderLineItem[],
@@ -1590,9 +1608,12 @@ export const getPrintTemplateData = (
   };
   const saleLabelData = getLabelProductData(lineItems, orderNumber);
   const labelData = isRepairLabel ? repairLabelData : saleLabelData;
+  const serviceCenter = resolvePrintServiceCenter(lineItems, companySettings.warehouseSettings, companySettings.products);
   return {
     id: sale.id,
     orderNumber,
+    repair_order_reference: isRepair ? `Repair order #${orderNumber}` : '',
+    service_center_phone: serviceCenter?.phone ?? '',
     date: createdAt.split(',')[0] ?? createdAt,
     status: getStatusLabel(sale, normalizeOrderStatus(sale.status)),
     clientName: getSaleClientDisplayName(sale, i18n.t.bind(i18n)),
@@ -1636,14 +1657,8 @@ export const getPrintTemplateData = (
     seller_occupation: i18n.t('orders.print.invoice.director'),
     seller_name: sale.manager?.name ?? '-',
     note_label: i18n.t('orders.print.invoice.noteLabel'),
-    products_table: renderLineItemsTable(
-      productItems,
-      i18n.t('orders.print.invoice.noProducts'),
-    ),
-    services_table: renderLineItemsTable(
-      serviceItems,
-      i18n.t('orders.print.invoice.noServices'),
-    ),
+    products_table: renderLineItemsTable(productItems),
+    services_table: renderLineItemsTable(serviceItems),
     invoice_items_table: renderInvoiceItemsTable({
       ...sale,
       lineItems,

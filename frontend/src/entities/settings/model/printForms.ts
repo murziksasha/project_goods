@@ -134,6 +134,8 @@ export const getPrintContentMarginVars = (margins: PrintContentMargins) =>
 export type PrintFormVariable =
   | 'id'
   | 'orderNumber'
+  | 'repair_order_reference'
+  | 'service_center_phone'
   | 'labelCode'
   | 'labelTitle'
   | 'labelContact'
@@ -192,6 +194,7 @@ export const printFormVariableGroups: Array<{
     variables: [
       { key: 'id', label: 'Order ID' },
       { key: 'orderNumber', label: 'Order number' },
+      { key: 'repair_order_reference', label: 'Repair order reference (repairs only)' },
       { key: 'labelCode', label: 'Label code' },
       { key: 'labelTitle', label: 'Label title' },
       { key: 'labelContact', label: 'Label contact' },
@@ -247,6 +250,7 @@ export const printFormVariableGroups: Array<{
     title: 'Company and warehouse',
     variables: [
       { key: 'company', label: 'Company name' },
+      { key: 'service_center_phone', label: 'Service center phone' },
       { key: 'company_address', label: 'Company address' },
       { key: 'company_id', label: 'Company registration ID' },
       { key: 'company_iban', label: 'Company IBAN' },
@@ -434,9 +438,9 @@ export const renderPrintLayoutBlocks = (blocks: PrintLayoutBlock[]): string =>
         case 'customTable':
           return renderCustomTable(block.columns, block.rows);
         case 'lineItemsTable':
-          return `${block.title ? `<h3>${renderInlineTemplate(block.title)}</h3>` : ''}${block.kind === 'services' ? '{{services_table}}' : '{{products_table}}'}`;
+          return `<section data-print-items="${block.kind}">${block.title ? `<h3>${renderInlineTemplate(block.title)}</h3>` : ''}${block.kind === 'services' ? '{{services_table}}' : '{{products_table}}'}</section>`;
         case 'invoiceItemsTable':
-          return `${block.title ? `<h3>${renderInlineTemplate(block.title)}</h3>` : ''}{{invoice_items_table}}`;
+          return `<section data-print-items="invoice">${block.title ? `<h3>${renderInlineTemplate(block.title)}</h3>` : ''}{{invoice_items_table}}</section>`;
         case 'barcode':
           return renderBarcodeBlock(block);
         case 'signatures':
@@ -640,6 +644,17 @@ export const defaultPrintForms: PrintForm[] = [
     orientation: 'portrait',
     isActive: true,
     sortOrder: 50,
+  },
+  {
+    id: 'invoice-no-vat',
+    title: 'Invoice without VAT',
+    type: 'invoice',
+    content: '',
+    contentFormat: 'html',
+    pageSize: 'A4',
+    orientation: 'portrait',
+    isActive: true,
+    sortOrder: 55,
   },
   {
     id: 'barcode',
@@ -914,6 +929,27 @@ const invoiceLayoutBlocks: PrintLayoutBlock[] = [
   { id: 'invoice-note', type: 'paragraph', level: 3, text: '{{note_label}}: {{note}}' },
 ];
 
+const invoiceWithoutVatLayoutBlocks: PrintLayoutBlock[] = [
+  {
+    id: 'invoice-no-vat-supplier', type: 'paragraph', level: 3,
+    text: 'Supplier\n{{company}}\nAddress: {{company_address}}\nRegistration ID: {{company_id}}\nIBAN: {{company_iban}}\nPhone: {{service_center_phone}}',
+  },
+  { id: 'invoice-no-vat-supplier-gap', type: 'spacer', size: 'small' },
+  {
+    id: 'invoice-no-vat-recipient', type: 'paragraph', level: 3,
+    text: 'Recipient\n{{clientName}}\nAddress: {{customer_address}}\nRegistration ID: {{customer_reg_id}}\nPhone: {{clientPhone}}\nIBAN: {{customer_iban}}',
+  },
+  { id: 'invoice-no-vat-recipient-gap', type: 'spacer', size: 'small' },
+  { id: 'invoice-no-vat-payer', type: 'fieldRow', fields: [{ label: 'Payer', value: '{{clientName}}' }, { label: 'Pay by', value: '{{due_date}}' }] },
+  { id: 'invoice-no-vat-title', type: 'heading', level: 1, weight: 'bold', text: 'Invoice #{{orderNumber}}', align: 'center' },
+  { id: 'invoice-no-vat-date', type: 'paragraph', level: 3, weight: 'bold', text: 'from {{date}}', align: 'center' },
+  { id: 'invoice-no-vat-repair', type: 'paragraph', level: 3, text: '{{repair_order_reference}}' },
+  { id: 'invoice-no-vat-services', type: 'lineItemsTable', kind: 'services', title: 'Services' },
+  { id: 'invoice-no-vat-products', type: 'lineItemsTable', kind: 'products', title: 'Products' },
+  { id: 'invoice-no-vat-total', type: 'paragraph', level: 3, weight: 'bold', align: 'right', text: 'Amount payable: {{total_amount}}\nWithout VAT' },
+  { id: 'invoice-no-vat-words', type: 'paragraph', level: 3, text: 'Total in words: {{total_written}}' },
+];
+
 const barcodeLayoutBlocks: PrintLayoutBlock[] = [
   { id: 'barcode-code', type: 'barcode', value: '{{barcode}}', showValue: false, size: 'large' },
   { id: 'barcode-number', type: 'heading', level: 3, text: '{{labelCode}}', align: 'center' },
@@ -932,6 +968,7 @@ export const defaultPrintLayouts: Record<string, PrintLayoutBlock[]> = {
   warranty: warrantyLayoutBlocks,
   'completion-act': completionActLayoutBlocks,
   invoice: invoiceLayoutBlocks,
+  'invoice-no-vat': invoiceWithoutVatLayoutBlocks,
   barcode: barcodeLayoutBlocks,
   'warehouse-barcode': warehouseBarcodeLayoutBlocks,
 };
@@ -1188,11 +1225,39 @@ export const escapeHtml = (value: string) =>
 const textToHtml = (value: string) =>
   `<div class="print-document">${escapeHtml(value).replace(/\r?\n/g, '<br />')}</div>`;
 
-const renderProductsTable = (html: string) =>
-  html || '<p class="print-muted">No products</p>';
+// Resolve visibility before interpolation, so user data is never treated as markup.
+const hideEmptyPrintSections = (source: string, values: PrintTemplateData) => {
+  const emptyTokens = ['products_table', 'services_table', 'invoice_items_table', 'repair_order_reference']
+    .filter((key) => !values[key]?.trim());
+  if (!emptyTokens.some((key) => source.includes(`{{${key}}}`))) return source;
 
-const renderServicesTable = (html: string) =>
-  html || '<p class="print-muted">No services</p>';
+  const document = new DOMParser().parseFromString(source, 'text/html');
+  for (const key of emptyTokens) {
+    const token = `{{${key}}}`;
+    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+    const nodes: Text[] = [];
+    while (walker.nextNode()) {
+      if (walker.currentNode.textContent?.includes(token)) nodes.push(walker.currentNode as Text);
+    }
+    for (const node of nodes) {
+      const parent = node.parentElement;
+      if (!parent) continue;
+      const section = parent.closest('[data-print-items]');
+      if (section) {
+        section.remove();
+        continue;
+      }
+      // Legacy HTML templates place a heading immediately before the table token.
+      let previous = node.previousSibling;
+      while (previous?.nodeType === Node.TEXT_NODE && !previous.textContent?.trim()) previous = previous.previousSibling;
+      if (!previous && parent.textContent?.trim() === token) previous = parent.previousElementSibling;
+      if (key !== 'repair_order_reference' && previous instanceof Element && /^H[1-6]$/.test(previous.tagName)) previous.remove();
+      node.textContent = node.textContent?.replaceAll(token, '') ?? '';
+      if (parent !== document.body && !parent.textContent?.trim() && !parent.querySelector('img,svg,table')) parent.remove();
+    }
+  }
+  return document.body.innerHTML;
+};
 
 const unwrapEditorTokens = (html: string) =>
   html.replace(
@@ -1205,8 +1270,10 @@ export const renderPrintTemplate = (
   values: PrintTemplateData,
   contentFormat: PrintForm['contentFormat'] = 'text',
 ) => {
-  const source =
-    contentFormat === 'html' ? unwrapEditorTokens(template) : textToHtml(template);
+  const source = hideEmptyPrintSections(
+    contentFormat === 'html' ? unwrapEditorTokens(template) : textToHtml(template),
+    values,
+  );
   const isLabelTemplate = source.includes('print-label');
 
   const rendered = printFormVariables.reduce((result, key) => {
@@ -1217,15 +1284,15 @@ export const renderPrintTemplate = (
       );
     }
     if (key === 'products_table') {
-      return result.replaceAll('{{products_table}}', renderProductsTable(values.products_table ?? ''));
+      return result.replaceAll('{{products_table}}', values.products_table ?? '');
     }
     if (key === 'services_table') {
-      return result.replaceAll('{{services_table}}', renderServicesTable(values.services_table ?? ''));
+      return result.replaceAll('{{services_table}}', values.services_table ?? '');
     }
     if (key === 'invoice_items_table') {
       return result.replaceAll(
         '{{invoice_items_table}}',
-        renderProductsTable(values.invoice_items_table ?? ''),
+        values.invoice_items_table ?? '',
       );
     }
     if (key === 'orderNumber') {
