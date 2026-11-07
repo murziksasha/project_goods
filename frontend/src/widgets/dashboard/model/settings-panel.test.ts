@@ -62,7 +62,7 @@ describe('settings panel model', () => {
       company_site: 'https://example.com',
       orderNumber: demoPrintValues.orderNumber,
     });
-    expect(Object.values(getSettingsPreviewValues(form)).join(' ')).not.toContain('Р');
+    expect(getSettingsPreviewValues(form).repair_order_reference).toBe('Ремонтне замовлення №r000124');
   });
 
   it('exposes company, print form, dashboard, backup and database tabs', () => {

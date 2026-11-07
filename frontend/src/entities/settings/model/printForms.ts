@@ -185,6 +185,23 @@ export type PrintFormVariable =
 export type PrintTemplateData = Partial<Record<PrintFormVariable, string>> &
   Record<string, string | undefined>;
 
+export const getIncludedVatAmounts = (total: number) => {
+  const totalCents = Math.round(total * 100);
+  const vatCents = Math.round(totalCents / 6);
+  return { net: (totalCents - vatCents) / 100, vat: vatCents / 100 };
+};
+
+export const getPrintFormTemplateData = (
+  form: Pick<PrintForm, 'id'>,
+  values: PrintTemplateData,
+): PrintTemplateData => form.id === 'invoice'
+  ? {
+      ...values,
+      net_amount: values.vat_included_net_amount ?? values.net_amount,
+      vat_amount: values.vat_included_vat_amount ?? values.vat_amount,
+    }
+  : values;
+
 export const printFormVariableGroups: Array<{
   title: string;
   variables: Array<{ key: PrintFormVariable; label: string }>;
@@ -589,7 +606,7 @@ export const defaultPrintForms: PrintForm[] = [
   },
   {
     id: 'invoice',
-    title: 'Invoice',
+    title: 'Invoice with VAT',
     type: 'invoice',
     content: documentShell(`
       <div class="invoice-party">
@@ -713,7 +730,7 @@ const legacyDefaultPrintFormTitles: Record<string, string[]> = {
   check: ['Чек', 'Р§РµРє'],
   warranty: ['Гарантійний талон', 'Р“Р°СЂР°РЅС‚С–Р№РЅРёР№ С‚Р°Р»РѕРЅ'],
   'completion-act': ['Акт виконаних робіт', 'РђРєС‚ РІРёРєРѕРЅР°РЅРёС… СЂРѕР±С–С‚'],
-  invoice: ['Рахунок', 'Р Р°С…СѓРЅРѕРє'],
+  invoice: ['Invoice', 'Рахунок', 'Р Р°С…СѓРЅРѕРє'],
   barcode: ['Штрих-код', 'РЁС‚СЂРёС…-РєРѕРґ'],
   'warehouse-barcode': [
     'Штрих-код товару',
@@ -892,63 +909,66 @@ const completionActLayoutBlocks: PrintLayoutBlock[] = [
   { id: 'act-signatures', type: 'signatures', left: 'Executor: {{masterName}}', right: 'Customer: __________________' },
 ];
 
-const invoiceLayoutBlocks: PrintLayoutBlock[] = [
-  {
-    id: 'invoice-parties',
-    type: 'columns',
-    columns: [
-      {
-        id: 'invoice-seller',
-        blocks: [
-          { id: 'invoice-seller-text', type: 'paragraph', level: 3, text: 'Supplier\n{{company}}\nAddress: {{company_address}}\nID: {{company_id}}\nIBAN: {{company_iban}}' },
-        ],
-      },
-      {
-        id: 'invoice-customer',
-        blocks: [
-          { id: 'invoice-customer-text', type: 'paragraph', level: 3, text: 'Customer\n{{clientName}}\nAddress: {{customer_address}}\nID: {{customer_reg_id}}\n{{clientPhone}}\nIBAN: {{customer_iban}}' },
-        ],
-      },
-    ],
-  },
-  { id: 'invoice-title', type: 'heading', level: 1, text: 'Invoice #{{orderNumber}}', align: 'center' },
-  { id: 'invoice-date', type: 'paragraph', level: 3, text: 'from {{date}}', align: 'center' },
-  { id: 'invoice-items', type: 'invoiceItemsTable' },
-  {
-    id: 'invoice-totals',
-    type: 'fieldRow',
-    fields: [
-      { label: 'Total without VAT', value: '{{net_amount}}' },
-      { label: 'VAT', value: '{{vat_amount}}' },
-      { label: 'Total with VAT', value: '{{total_amount}}' },
-    ],
-  },
-  { id: 'invoice-written', type: 'paragraph', level: 3, text: 'Total in words: {{total_written}}\nVAT: {{vat_amount}}' },
-  { id: 'invoice-payable', type: 'paragraph', level: 3, text: 'Amount payable: {{total_amount}}', align: 'right' },
-  { id: 'invoice-signature', type: 'signatures', left: '{{seller_occupation}}', right: '{{seller_name}}' },
-  { id: 'invoice-note', type: 'paragraph', level: 3, text: '{{note_label}}: {{note}}' },
-];
-
 const invoiceWithoutVatLayoutBlocks: PrintLayoutBlock[] = [
   {
     id: 'invoice-no-vat-supplier', type: 'paragraph', level: 3,
-    text: 'Supplier\n{{company}}\nAddress: {{company_address}}\nRegistration ID: {{company_id}}\nIBAN: {{company_iban}}\nPhone: {{service_center_phone}}',
+    text: 'Постачальник\n{{company}}\nАдреса: {{company_address}}\nЄДРПОУ або ІПН: {{company_id}}\nIBAN: {{company_iban}}\nТелефон: {{service_center_phone}}',
   },
   { id: 'invoice-no-vat-supplier-gap', type: 'spacer', size: 'small' },
   {
     id: 'invoice-no-vat-recipient', type: 'paragraph', level: 3,
-    text: 'Recipient\n{{clientName}}\nAddress: {{customer_address}}\nRegistration ID: {{customer_reg_id}}\nPhone: {{clientPhone}}\nIBAN: {{customer_iban}}',
+    text: 'Одержувач\n{{clientName}}\nАдреса: {{customer_address}}\nЄДРПОУ або ІПН: {{customer_reg_id}}\nТелефон: {{clientPhone}}\nIBAN: {{customer_iban}}',
   },
   { id: 'invoice-no-vat-recipient-gap', type: 'spacer', size: 'small' },
-  { id: 'invoice-no-vat-payer', type: 'fieldRow', fields: [{ label: 'Payer', value: '{{clientName}}' }, { label: 'Pay by', value: '{{due_date}}' }] },
-  { id: 'invoice-no-vat-title', type: 'heading', level: 1, weight: 'bold', text: 'Invoice #{{orderNumber}}', align: 'center' },
-  { id: 'invoice-no-vat-date', type: 'paragraph', level: 3, weight: 'bold', text: 'from {{date}}', align: 'center' },
+  { id: 'invoice-no-vat-payer', type: 'fieldRow', fields: [{ label: 'Платник', value: '{{clientName}}' }, { label: 'Сплатити до', value: '{{due_date}}' }] },
+  { id: 'invoice-no-vat-title', type: 'heading', level: 1, weight: 'bold', text: 'Рахунок-фактура №{{orderNumber}}', align: 'center' },
+  { id: 'invoice-no-vat-date', type: 'paragraph', level: 3, weight: 'bold', text: 'від {{date}}', align: 'center' },
   { id: 'invoice-no-vat-repair', type: 'paragraph', level: 3, text: '{{repair_order_reference}}' },
-  { id: 'invoice-no-vat-services', type: 'lineItemsTable', kind: 'services', title: 'Services' },
-  { id: 'invoice-no-vat-products', type: 'lineItemsTable', kind: 'products', title: 'Products' },
-  { id: 'invoice-no-vat-total', type: 'paragraph', level: 3, weight: 'bold', align: 'right', text: 'Amount payable: {{total_amount}}\nWithout VAT' },
-  { id: 'invoice-no-vat-words', type: 'paragraph', level: 3, text: 'Total in words: {{total_written}}' },
+  { id: 'invoice-no-vat-services', type: 'lineItemsTable', kind: 'services', title: 'Послуги' },
+  { id: 'invoice-no-vat-products', type: 'lineItemsTable', kind: 'products', title: 'Товари' },
+  { id: 'invoice-no-vat-total', type: 'paragraph', level: 3, weight: 'bold', align: 'right', text: 'Загальна сума до сплати: {{total_amount}}\nБез ПДВ' },
+  { id: 'invoice-no-vat-words', type: 'paragraph', level: 3, text: 'Усього на суму: {{total_written}}' },
 ];
+
+const invoiceLayoutBlocks: PrintLayoutBlock[] = invoiceWithoutVatLayoutBlocks.map((block) => {
+  const copied = { ...block, id: block.id.replace('invoice-no-vat-', 'invoice-') };
+  return copied.type === 'paragraph' && copied.id === 'invoice-total'
+    ? { ...copied, text: 'Разом без ПДВ: {{net_amount}}\nПДВ (20%): {{vat_amount}}\nЗагальна сума до сплати з ПДВ: {{total_amount}}' }
+    : copied;
+});
+
+const invoiceTextTranslations: Record<string, string> = {
+  Supplier: 'Постачальник', Recipient: 'Одержувач', Payer: 'Платник',
+  'Pay by': 'Сплатити до', Services: 'Послуги', Products: 'Товари',
+  'Address: {{company_address}}': 'Адреса: {{company_address}}',
+  'Address: {{customer_address}}': 'Адреса: {{customer_address}}',
+  'Registration ID: {{company_id}}': 'ЄДРПОУ або ІПН: {{company_id}}',
+  'Registration ID: {{customer_reg_id}}': 'ЄДРПОУ або ІПН: {{customer_reg_id}}',
+  'Phone: {{service_center_phone}}': 'Телефон: {{service_center_phone}}',
+  'Phone: {{clientPhone}}': 'Телефон: {{clientPhone}}',
+  'Invoice #{{orderNumber}}': 'Рахунок-фактура №{{orderNumber}}',
+  'from {{date}}': 'від {{date}}',
+  'Amount payable: {{total_amount}}': 'Загальна сума до сплати: {{total_amount}}',
+  'Without VAT': 'Без ПДВ',
+  'Total in words: {{total_written}}': 'Усього на суму: {{total_written}}',
+  'ПДВ: {{vat_amount}}': 'ПДВ (20%): {{vat_amount}}',
+};
+
+const translateInvoiceText = (text: string) => text.split('\n')
+  .map((line) => invoiceTextTranslations[line] ?? line).join('\n');
+
+const translateInvoiceBlock = (block: PrintLayoutBlock): PrintLayoutBlock => {
+  switch (block.type) {
+    case 'heading':
+    case 'paragraph': return { ...block, text: translateInvoiceText(block.text) };
+    case 'fieldRow':
+    case 'fieldGrid': return { ...block, fields: block.fields.map((field) => ({ ...field, label: translateInvoiceText(field.label), value: translateInvoiceText(field.value) })) };
+    case 'lineItemsTable':
+    case 'invoiceItemsTable': return { ...block, title: block.title ? translateInvoiceText(block.title) : block.title };
+    case 'columns': return { ...block, columns: block.columns.map((column) => ({ ...column, blocks: column.blocks.map(translateInvoiceBlock) })) };
+    default: return block;
+  }
+};
 
 const barcodeLayoutBlocks: PrintLayoutBlock[] = [
   { id: 'barcode-code', type: 'barcode', value: '{{barcode}}', showValue: false, size: 'large' },
@@ -1156,7 +1176,12 @@ export const normalizePrintFormsForView = (forms: PrintForm[]) => {
   const sourceForms = forms.length > 0 ? forms : defaultPrintForms;
   const sourceBarcodeForm = sourceForms.find((form) => form.id === 'barcode');
   const normalized = sourceForms.map(
-    (form, index) => {
+    (sourceForm, index) => {
+      const form = sourceForm.id === 'invoice' && legacyDefaultPrintFormTitles.invoice.includes(sourceForm.title)
+        ? createLayoutPrintForm({ ...sourceForm, title: 'Invoice with VAT', layoutBlocks: invoiceLayoutBlocks })
+        : (sourceForm.id === 'invoice-no-vat' || sourceForm.id === 'invoice') && sourceForm.layoutBlocks?.length
+          ? { ...sourceForm, layoutBlocks: sourceForm.layoutBlocks.map(translateInvoiceBlock) }
+          : sourceForm;
       const shouldUseDefaultLayout =
         isPreviousDefaultBarcode(form) ||
         (!hasLayoutBlocks(form) &&
@@ -1269,7 +1294,21 @@ export const renderPrintTemplate = (
   template: string,
   values: PrintTemplateData,
   contentFormat: PrintForm['contentFormat'] = 'text',
+  language?: 'uk',
 ) => {
+  const tableHeaders: Record<string, string> = {
+    Name: 'Найменування', Qty: 'К-сть', Price: 'Ціна', Sum: 'Сума',
+    Product: 'Товар', Service: 'Послуга', Amount: 'Сума', Quantity: 'Кількість',
+  };
+  const renderTable = (html: string) => {
+    if (language !== 'uk' || !html) return html;
+    const document = new DOMParser().parseFromString(html, 'text/html');
+    document.querySelectorAll('th').forEach((heading) => {
+      const label = heading.textContent?.trim() ?? '';
+      if (tableHeaders[label]) heading.textContent = tableHeaders[label];
+    });
+    return document.body.innerHTML;
+  };
   const source = hideEmptyPrintSections(
     contentFormat === 'html' ? unwrapEditorTokens(template) : textToHtml(template),
     values,
@@ -1284,10 +1323,10 @@ export const renderPrintTemplate = (
       );
     }
     if (key === 'products_table') {
-      return result.replaceAll('{{products_table}}', values.products_table ?? '');
+      return result.replaceAll('{{products_table}}', renderTable(values.products_table ?? ''));
     }
     if (key === 'services_table') {
-      return result.replaceAll('{{services_table}}', values.services_table ?? '');
+      return result.replaceAll('{{services_table}}', renderTable(values.services_table ?? ''));
     }
     if (key === 'invoice_items_table') {
       return result.replaceAll(

@@ -35,9 +35,11 @@ cd frontend && npm run test:e2e:ui           # Playwright UI mode
 
 Specs:
 
-- `e2e/invoice-print.spec.ts` — Invoice without VAT for sale/repair records,
+- `e2e/invoice-print.spec.ts` — Invoice without VAT / Invoice with VAT for sale/repair records,
   service-center phone, products-only/services-only/both/empty visibility in modal
-  and standalone preview, shared Completion act behavior, and block-builder editing.
+  and standalone preview, Ukrainian invoice captions, shared Completion act behavior,
+  block-builder editing, and included 20% VAT in the modal, standalone preview
+  and builder (gross amount stays unchanged).
 
 - `e2e/login-page.spec.ts` — logged-out Login / Sign in.
 - `e2e/orders-hover-copy.spec.ts` — Orders/Kanban copy controls, Sales current product/service name plus each S/N, and opened repair/sale card fields: independent hover targets, clipboard payloads, navigation, keyboard phone copy and `tel:` links, long-name containment, narrow viewport, and touch visibility.

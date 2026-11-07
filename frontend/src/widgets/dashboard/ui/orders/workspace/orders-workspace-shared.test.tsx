@@ -125,6 +125,22 @@ const printCompanySettings = {
 };
 
 describe('invoice source record and service center', () => {
+  it('renders VAT from the discounted order total without changing the no-VAT form or amount payable', () => {
+    const lineItems = [{ ...repairProductLineItems[0], price: 1300 }];
+    const sale = repairSale({ lineItems, discount: { mode: 'amount', value: 100 } });
+    const data = getPrintTemplateData(sale, lineItems, 0, 'r000003', printCompanySettings);
+    const forms = defaultPrintForms.filter((form) => form.id === 'invoice' || form.id === 'invoice-no-vat')
+      .map((form) => ({ ...form, content: '<p>{{net_amount}}|{{vat_amount}}|{{total_amount}}|{{total_written}}</p>', contentFormat: 'html' as const }));
+    const body = new DOMParser().parseFromString(buildOrderPrintBody(forms, data, 1, 'A4', { presetId: '40x25', widthMm: 40, heightMm: 25 }, 'portrait'), 'text/html');
+    const sections = body.querySelectorAll('.print-form');
+    expect(sections[0].textContent).toContain('1,000.00 UAH|200.00 UAH|1,200.00 UAH');
+    expect(sections[1].textContent).toContain('1,200.00 UAH|0.00 UAH|1,200.00 UAH');
+    expect(sections[0].textContent).toContain(data.total_written);
+    expect(sections[1].textContent).toContain(data.total_written);
+    expect(data.vat_amount).toBe('0.00 UAH');
+    expect(sale.discount?.value).toBe(100);
+  });
+
   const settings: WarehouseSettings = {
     id: 'settings', createdAt: '', updatedAt: '', administrators: [],
     serviceCenters: [
@@ -147,7 +163,7 @@ describe('invoice source record and service center', () => {
     expect(data.orderNumber).toBe(record.recordNumber);
     expect(data.clientName).toBe('Client');
     expect(data.service_center_phone).toBe('+380502222222');
-    expect(data.repair_order_reference).toBe(kind === 'repair' ? 'Repair order #r000003' : '');
+    expect(data.repair_order_reference).toBe(kind === 'repair' ? 'Ремонтне замовлення №r000003' : '');
     expect(data.products_table).toContain('Wireless mouse M22');
     expect(data.services_table).toBe('');
   });

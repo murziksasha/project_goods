@@ -34,6 +34,8 @@ import type {
 import type { PrintForm } from '../../../../../entities/settings';
 import {
   getOrientedLabelSize,
+  getIncludedVatAmounts,
+  getPrintFormTemplateData,
   getPrintContentMarginVars,
   getWarehouseBarcodePrintForm,
   getWarehouseLabelTemplateData,
@@ -1591,6 +1593,7 @@ export const getPrintTemplateData = (
 ): PrintTemplateData => {
   const total = getOrderTotal(sale, lineItems);
   const totalAmount = Math.round(total * 100) / 100;
+  const includedVat = getIncludedVatAmounts(totalAmount);
   const productItems = lineItems.filter(
     (item) => item.kind === 'product',
   );
@@ -1612,7 +1615,7 @@ export const getPrintTemplateData = (
   return {
     id: sale.id,
     orderNumber,
-    repair_order_reference: isRepair ? `Repair order #${orderNumber}` : '',
+    repair_order_reference: isRepair ? `Ремонтне замовлення №${orderNumber}` : '',
     service_center_phone: serviceCenter?.phone ?? '',
     date: createdAt.split(',')[0] ?? createdAt,
     status: getStatusLabel(sale, normalizeOrderStatus(sale.status)),
@@ -1652,6 +1655,8 @@ export const getPrintTemplateData = (
     warehouse_phone: '-',
     net_amount: `${formatInvoiceAmount(totalAmount)} ${i18n.t('orders.print.currency.short')}`,
     vat_amount: i18n.t('orders.print.currency.zeroVat'),
+    vat_included_net_amount: `${formatInvoiceAmount(includedVat.net)} ${i18n.t('orders.print.currency.short')}`,
+    vat_included_vat_amount: `${formatInvoiceAmount(includedVat.vat)} ${i18n.t('orders.print.currency.short')}`,
     total_amount: `${formatInvoiceAmount(totalAmount)} ${i18n.t('orders.print.currency.short')}`,
     total_written: formatAmountInWords(totalAmount),
     seller_occupation: i18n.t('orders.print.invoice.director'),
@@ -1813,7 +1818,7 @@ export const buildOrderPrintBody = (
 
       return `
         <section class="print-form ${isLabel ? 'print-form-label' : ''}"${labelStyle}>
-          ${renderSettingsPrintTemplate(form.content, templateData, form.contentFormat)}
+          ${renderSettingsPrintTemplate(form.content, getPrintFormTemplateData(form, templateData), form.contentFormat, form.type === 'invoice' ? 'uk' : undefined)}
         </section>
       `;
     })

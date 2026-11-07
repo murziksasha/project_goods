@@ -40,24 +40,49 @@ for (const composition of ['products', 'services', 'both', 'empty'] as const) {
     const dialog = page.locator('.order-print-dialog');
     await dialog.getByRole('checkbox', { name: 'Invoice without VAT', exact: true }).check();
     const preview = dialog.locator('.order-print-preview-page');
-    await expect(preview).toContainText(`Invoice #${sale.recordNumber}`);
+    await expect(preview).toContainText(`Рахунок-фактура №${sale.recordNumber}`);
     await expect(preview).toContainText('+380501234567');
     await expect(preview).toContainText('Invoice customer');
-    await expect(preview).toContainText('Without VAT');
-    await expect(preview.getByRole('heading', { name: 'Products', exact: true })).toHaveCount(composition === 'products' || composition === 'both' ? 1 : 0);
-    await expect(preview.getByRole('heading', { name: 'Services', exact: true })).toHaveCount(composition === 'services' || composition === 'both' ? 1 : 0);
+    await expect(preview).toContainText('Без ПДВ');
+    await expect(preview.getByRole('heading', { name: 'Товари', exact: true })).toHaveCount(composition === 'products' || composition === 'both' ? 1 : 0);
+    await expect(preview.getByRole('heading', { name: 'Послуги', exact: true })).toHaveCount(composition === 'services' || composition === 'both' ? 1 : 0);
     await expect(preview.locator('.print-line-table')).toHaveCount(lines.length);
-    if (kind === 'repair') await expect(preview).toContainText(`Repair order #${sale.recordNumber}`);
-    else await expect(preview).not.toContainText('Repair order #');
+    if (kind === 'repair') await expect(preview).toContainText(`Ремонтне замовлення №${sale.recordNumber}`);
+    else await expect(preview).not.toContainText('Ремонтне замовлення №');
 
     const popupPromise = page.waitForEvent('popup');
     await dialog.getByRole('button', { name: 'Preview', exact: true }).click();
     const popup = await popupPromise;
-    await expect(popup.locator('body')).toContainText(`Invoice #${sale.recordNumber}`);
+    await expect(popup.locator('body')).toContainText(`Рахунок-фактура №${sale.recordNumber}`);
     await expect(popup.locator('.print-line-table')).toHaveCount(lines.length);
     await expect(popup.locator('body')).not.toContainText(/No products|No services/);
     if (composition === 'both') await popup.screenshot({ path: testInfo.outputPath('invoice-with-products-and-services.png'), fullPage: true });
     await popup.close();
+
+    await dialog.getByRole('checkbox', { name: 'Invoice with VAT', exact: true }).check();
+    await expect(preview).toContainText(`Рахунок-фактура №${sale.recordNumber}`);
+    await expect(preview).toContainText('Разом без ПДВ:');
+    await expect(preview).toContainText('ПДВ (20%):');
+    await expect(preview).toContainText('Загальна сума до сплати з ПДВ:');
+    await expect(preview).toContainText('+380501234567');
+    await expect(preview.locator('.print-line-table')).toHaveCount(lines.length);
+    await expect(preview.getByRole('heading', { name: 'Товари', exact: true })).toHaveCount(composition === 'products' || composition === 'both' ? 1 : 0);
+    await expect(preview.getByRole('heading', { name: 'Послуги', exact: true })).toHaveCount(composition === 'services' || composition === 'both' ? 1 : 0);
+    if (lines.length) await expect(preview.locator('th').first()).toHaveText('Найменування');
+    const gross = sale.salePrice;
+    const amounts = composition === 'products' ? ['166.67', '33.33']
+      : composition === 'services' ? ['83.33', '16.67']
+        : composition === 'both' ? ['250.00', '50.00'] : ['0.00', '0.00'];
+    const totals = preview.locator('.print-block-paragraph').filter({ hasText: 'Разом без ПДВ:' });
+    await expect(totals).toContainText(`Разом без ПДВ: ${amounts[0]} UAH`);
+    await expect(totals).toContainText(`ПДВ (20%): ${amounts[1]} UAH`);
+    await expect(totals).toContainText(`Загальна сума до сплати з ПДВ: ${gross.toFixed(2)} UAH`);
+    const vatPopupPromise = page.waitForEvent('popup');
+    await dialog.getByRole('button', { name: 'Preview', exact: true }).click();
+    const vatPopup = await vatPopupPromise;
+    await expect(vatPopup.locator('body')).toContainText(`ПДВ (20%): ${amounts[1]} UAH`);
+    if (composition === 'both') await vatPopup.screenshot({ path: testInfo.outputPath('invoice-with-vat.png'), fullPage: true });
+    await vatPopup.close();
 
     // Built-in forms share the same visibility rule.
     await dialog.getByRole('checkbox', { name: 'Completion act', exact: true }).check();
@@ -70,11 +95,15 @@ for (const composition of ['products', 'services', 'both', 'empty'] as const) {
       await page.locator('#settings-tab-print').click();
       await page.locator('.settings-print-document-select select').selectOption('invoice-no-vat');
       const builderPreview = page.locator('.settings-print-preview-page');
-      await expect(builderPreview).toContainText('Without VAT');
+      await expect(builderPreview).toContainText('Без ПДВ');
       await page.getByRole('button', { name: /invoice-no-vat-title/ }).click();
       await page.locator('.print-builder-block-editor input').fill('Payment invoice #{{orderNumber}}');
       await expect(builderPreview).toContainText('Payment invoice #r000124');
       await expect(builderPreview).toContainText('+38 067 000 00 00');
+      await page.locator('.settings-print-document-select select').selectOption('invoice');
+      await expect(builderPreview).toContainText('ПДВ (20%): 800.00 UAH');
+      await expect(builderPreview).toContainText('Разом без ПДВ: 4 000.00 UAH');
+      await expect(builderPreview).toContainText('Загальна сума до сплати з ПДВ: 4 800.00 UAH');
     }
   });
 }
