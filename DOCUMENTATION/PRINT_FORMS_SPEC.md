@@ -6,6 +6,39 @@ This document is the living specification for built-in and corrected print templ
 When a print template is changed, add the intended behavior here before or together
 with implementation updates.
 
+## Print Language (2026-11-07)
+
+- **All printed documents use Ukrainian independently of the website language.**
+  This applies to Receipt, Check, Warranty card, Completion act, both invoices,
+  order/warehouse labels, their previews and the builder's sample preview.
+- Generated values use the fixed Ukrainian translation function and `uk-UA`
+  formatting from `shared/lib/printFormatting.ts`. This includes amounts in words,
+  currency (`грн`, comma decimal separator), dates, status names, rapid-sale client
+  labels, serial descriptions, signer position, notes and table headers.
+- `{{total_written}}` always spells the gross amount in Ukrainian. For example,
+  950.00 prints `дев'ятсот п'ятдесят гривень 00 копійок`. Hryvnia/thousand gender,
+  plural forms and rounded kopecks are handled consistently in runtime and demo data.
+- Printing never calls `changeLanguage` or changes the employee's stored website
+  language. Document HTML declares `lang="uk"`; preview/print window titles also
+  use Ukrainian. Builder controls and template-list names still follow their UI
+  rules, including the English names **Invoice with VAT** / **Invoice without VAT**.
+- Known legacy English system captions are translated before record data is
+  inserted. Block normalization covers nested columns, fields, signatures and
+  custom tables without changing block IDs, layout, typography or variable names.
+  Legacy HTML captions and supplied table headers use the same language policy.
+- Customer/company names, product/service names, serials, addresses, notes and
+  other record data retain their original spelling. Arbitrary custom template
+  prose remains author-controlled and should be written in Ukrainian in the builder;
+  the migration only translates recognized system captions.
+- Implementation: `entities/settings/model/print-language.ts` handles static
+  captions; shared print formatting handles generated values. Sample print values
+  use Ukrainian as well. Existing empty-section/grouping/VAT rules remain in force.
+
+Validation: `printFormatting.test.ts` verifies English/Ukrainian UI independence,
+gender/plurals and rounding; shared order-print tests compare the full generated
+data across both site languages. `e2e/invoice-print.spec.ts` checks both invoices,
+Receipt/Check/Warranty/Completion act, popup and builder preview in both languages.
+
 ## Layout Builder (Block-Based Templates)
 
 Templates with `layoutVersion: 1` are edited in **Settings → Print forms** via the
@@ -349,8 +382,8 @@ Applies to order/sale print tokens `{{products_table}}` and `{{invoice_items_tab
 ### Invoice extras
 
 - Grouped invoice product rows join unique serials in the description:
-  `Serial No.: A, B, C`.
-- Service rows keep `Service`; product rows without serials keep `Product`.
+  `Серійний №: A, B, C`.
+- Service rows keep `Послуга`; product rows without serials keep `Товар`.
 
 ### Out of scope
 
@@ -414,8 +447,8 @@ and empty current compositions. Browser coverage: `e2e/invoice-print.spec.ts`.
   on **Invoice without VAT**, with the same supplier contact, recipient, payer,
   date, repair reference and separate services/products sections. Its total block
   shows `{{net_amount}}`, `{{vat_amount}}` and `{{total_amount}}` (VAT 20%).
-- Both form names stay in English in the template list. Static document captions
-  and line-table headings are Ukrainian regardless of the application language.
+- Both form names stay in English in the template list. Static and generated
+  document text follow the global [Print Language](#print-language-2026-11-07) rule.
   Variable names, item/customer data and the no-VAT block structure are unchanged.
 - Saved no-VAT blocks translate recognized default English captions without
   changing IDs, block order, typography, alignment, custom wording or page setup.

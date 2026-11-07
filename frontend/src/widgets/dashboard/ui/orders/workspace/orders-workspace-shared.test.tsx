@@ -125,6 +125,23 @@ const printCompanySettings = {
 };
 
 describe('invoice source record and service center', () => {
+  it('uses identical Ukrainian print data in English and Ukrainian interfaces', async () => {
+    const lineItems = [{ ...repairProductLineItems[0], name: 'Products', price: 950 }];
+    const sale = repairSale({ lineItems, isRapidSale: true });
+    await i18n.changeLanguage('en');
+    const englishSiteData = getPrintTemplateData(sale, lineItems, 0, 'r000003', printCompanySettings);
+    expect(i18n.language).toBe('en');
+    await i18n.changeLanguage('uk');
+    const ukrainianSiteData = getPrintTemplateData(sale, lineItems, 0, 'r000003', printCompanySettings);
+    expect(englishSiteData).toEqual(ukrainianSiteData);
+    expect(englishSiteData.total_written).toBe("дев'ятсот п'ятдесят гривень 00 копійок");
+    expect(englishSiteData.total_amount).toBe('950,00 грн');
+    expect(englishSiteData.products_table).toContain('Products');
+    expect(englishSiteData.invoice_items_table).toContain('Серійний №:');
+    expect(englishSiteData.seller_occupation).toBe('Директор');
+    expect(englishSiteData.note_label).toBe('Примітка');
+  });
+
   it('renders VAT from the discounted order total without changing the no-VAT form or amount payable', () => {
     const lineItems = [{ ...repairProductLineItems[0], price: 1300 }];
     const sale = repairSale({ lineItems, discount: { mode: 'amount', value: 100 } });
@@ -133,11 +150,11 @@ describe('invoice source record and service center', () => {
       .map((form) => ({ ...form, content: '<p>{{net_amount}}|{{vat_amount}}|{{total_amount}}|{{total_written}}</p>', contentFormat: 'html' as const }));
     const body = new DOMParser().parseFromString(buildOrderPrintBody(forms, data, 1, 'A4', { presetId: '40x25', widthMm: 40, heightMm: 25 }, 'portrait'), 'text/html');
     const sections = body.querySelectorAll('.print-form');
-    expect(sections[0].textContent).toContain('1,000.00 UAH|200.00 UAH|1,200.00 UAH');
-    expect(sections[1].textContent).toContain('1,200.00 UAH|0.00 UAH|1,200.00 UAH');
+    expect(sections[0].textContent?.replaceAll('\u00a0', ' ')).toContain('1 000,00 грн|200,00 грн|1 200,00 грн');
+    expect(sections[1].textContent?.replaceAll('\u00a0', ' ')).toContain('1 200,00 грн|0,00 грн|1 200,00 грн');
     expect(sections[0].textContent).toContain(data.total_written);
     expect(sections[1].textContent).toContain(data.total_written);
-    expect(data.vat_amount).toBe('0.00 UAH');
+    expect(data.vat_amount).toBe('0,00 грн');
     expect(sale.discount?.value).toBe(100);
   });
 
@@ -541,7 +558,7 @@ describe('order print labels', () => {
         ?.match(/<tr>/g),
     ).toHaveLength(1);
     expect(data.invoice_items_table).toContain(
-      'Serial No.: S000001, S000002, S000003',
+      'Серійний №: S000001, S000002, S000003',
     );
   });
 
@@ -580,10 +597,10 @@ describe('order print labels', () => {
       'TerraE 30E INR18650 3000mAh',
       'TerraE 30E INR18650 3000mAh',
     ]);
-    expect(data.invoice_items_table).toContain('Serial No.: S000001');
-    expect(data.invoice_items_table).toContain('Serial No.: S000002');
+    expect(data.invoice_items_table).toContain('Серійний №: S000001');
+    expect(data.invoice_items_table).toContain('Серійний №: S000002');
     expect(data.invoice_items_table).not.toContain(
-      'Serial No.: S000001, S000002',
+      'Серійний №: S000001, S000002',
     );
   });
 

@@ -8,6 +8,7 @@ import type {
   PrintLayoutTableColumn,
   PrintLayoutTableRow,
 } from './types';
+import { translatePrintBlock, translatePrintSource, translatePrintText } from './print-language';
 
 export type LabelSizePreset = {
   id: string;
@@ -358,13 +359,13 @@ export const normalizePrintLayoutBlock = (block: PrintLayoutBlock): PrintLayoutB
 };
 
 export const normalizePrintLayoutBlocks = (blocks: PrintLayoutBlock[]) =>
-  blocks.map(normalizePrintLayoutBlock);
+  blocks.map(normalizePrintLayoutBlock).map(translatePrintBlock);
 
 const codeSizeClass = (
   size: 'compact' | 'standard' | 'large' | undefined,
 ) => (size && size !== 'standard' ? ` print-code-row-${size}` : '');
 
-const renderInlineTemplate = (value: string) => escapeHtml(value).replace(
+const renderInlineTemplate = (value: string) => escapeHtml(translatePrintText(value)).replace(
   /\{\{([a-zA-Z0-9_]+)\}\}/g,
   '{{$1}}',
 ).replace(/\r?\n/g, '<br>');
@@ -937,39 +938,6 @@ const invoiceLayoutBlocks: PrintLayoutBlock[] = invoiceWithoutVatLayoutBlocks.ma
     : copied;
 });
 
-const invoiceTextTranslations: Record<string, string> = {
-  Supplier: 'Постачальник', Recipient: 'Одержувач', Payer: 'Платник',
-  'Pay by': 'Сплатити до', Services: 'Послуги', Products: 'Товари',
-  'Address: {{company_address}}': 'Адреса: {{company_address}}',
-  'Address: {{customer_address}}': 'Адреса: {{customer_address}}',
-  'Registration ID: {{company_id}}': 'ЄДРПОУ або ІПН: {{company_id}}',
-  'Registration ID: {{customer_reg_id}}': 'ЄДРПОУ або ІПН: {{customer_reg_id}}',
-  'Phone: {{service_center_phone}}': 'Телефон: {{service_center_phone}}',
-  'Phone: {{clientPhone}}': 'Телефон: {{clientPhone}}',
-  'Invoice #{{orderNumber}}': 'Рахунок-фактура №{{orderNumber}}',
-  'from {{date}}': 'від {{date}}',
-  'Amount payable: {{total_amount}}': 'Загальна сума до сплати: {{total_amount}}',
-  'Without VAT': 'Без ПДВ',
-  'Total in words: {{total_written}}': 'Усього на суму: {{total_written}}',
-  'ПДВ: {{vat_amount}}': 'ПДВ (20%): {{vat_amount}}',
-};
-
-const translateInvoiceText = (text: string) => text.split('\n')
-  .map((line) => invoiceTextTranslations[line] ?? line).join('\n');
-
-const translateInvoiceBlock = (block: PrintLayoutBlock): PrintLayoutBlock => {
-  switch (block.type) {
-    case 'heading':
-    case 'paragraph': return { ...block, text: translateInvoiceText(block.text) };
-    case 'fieldRow':
-    case 'fieldGrid': return { ...block, fields: block.fields.map((field) => ({ ...field, label: translateInvoiceText(field.label), value: translateInvoiceText(field.value) })) };
-    case 'lineItemsTable':
-    case 'invoiceItemsTable': return { ...block, title: block.title ? translateInvoiceText(block.title) : block.title };
-    case 'columns': return { ...block, columns: block.columns.map((column) => ({ ...column, blocks: column.blocks.map(translateInvoiceBlock) })) };
-    default: return block;
-  }
-};
-
 const barcodeLayoutBlocks: PrintLayoutBlock[] = [
   { id: 'barcode-code', type: 'barcode', value: '{{barcode}}', showValue: false, size: 'large' },
   { id: 'barcode-number', type: 'heading', level: 3, text: '{{labelCode}}', align: 'center' },
@@ -1180,7 +1148,7 @@ export const normalizePrintFormsForView = (forms: PrintForm[]) => {
       const form = sourceForm.id === 'invoice' && legacyDefaultPrintFormTitles.invoice.includes(sourceForm.title)
         ? createLayoutPrintForm({ ...sourceForm, title: 'Invoice with VAT', layoutBlocks: invoiceLayoutBlocks })
         : (sourceForm.id === 'invoice-no-vat' || sourceForm.id === 'invoice') && sourceForm.layoutBlocks?.length
-          ? { ...sourceForm, layoutBlocks: sourceForm.layoutBlocks.map(translateInvoiceBlock) }
+          ? { ...sourceForm, layoutBlocks: sourceForm.layoutBlocks.map(translatePrintBlock) }
           : sourceForm;
       const shouldUseDefaultLayout =
         isPreviousDefaultBarcode(form) ||
@@ -1294,23 +1262,18 @@ export const renderPrintTemplate = (
   template: string,
   values: PrintTemplateData,
   contentFormat: PrintForm['contentFormat'] = 'text',
-  language?: 'uk',
 ) => {
-  const tableHeaders: Record<string, string> = {
-    Name: 'Найменування', Qty: 'К-сть', Price: 'Ціна', Sum: 'Сума',
-    Product: 'Товар', Service: 'Послуга', Amount: 'Сума', Quantity: 'Кількість',
-  };
   const renderTable = (html: string) => {
-    if (language !== 'uk' || !html) return html;
+    if (!html) return html;
     const document = new DOMParser().parseFromString(html, 'text/html');
     document.querySelectorAll('th').forEach((heading) => {
       const label = heading.textContent?.trim() ?? '';
-      if (tableHeaders[label]) heading.textContent = tableHeaders[label];
+      heading.textContent = translatePrintText(label);
     });
     return document.body.innerHTML;
   };
   const source = hideEmptyPrintSections(
-    contentFormat === 'html' ? unwrapEditorTokens(template) : textToHtml(template),
+    translatePrintSource(contentFormat === 'html' ? unwrapEditorTokens(template) : textToHtml(template)),
     values,
   );
   const isLabelTemplate = source.includes('print-label');
@@ -1331,7 +1294,7 @@ export const renderPrintTemplate = (
     if (key === 'invoice_items_table') {
       return result.replaceAll(
         '{{invoice_items_table}}',
-        values.invoice_items_table ?? '',
+        renderTable(values.invoice_items_table ?? ''),
       );
     }
     if (key === 'orderNumber') {

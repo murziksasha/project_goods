@@ -726,7 +726,7 @@ export const PrintFormBuilder: React.FC<PrintFormBuilderProps> = ({
   const firstBlockId = selectedForm.layoutBlocks?.[0]?.id ?? '';
   const selectedBlock = blocks.find((block) => block.id === activeBlockId) ?? blocks[0];
   const previewHtml = useMemo(
-    () => renderPrintTemplate(selectedForm.content, getPrintFormTemplateData(selectedForm, previewValues), selectedForm.contentFormat, selectedForm.type === 'invoice' ? 'uk' : undefined),
+    () => renderPrintTemplate(selectedForm.content, getPrintFormTemplateData(selectedForm, previewValues), selectedForm.contentFormat),
     [previewValues, selectedForm],
   );
 

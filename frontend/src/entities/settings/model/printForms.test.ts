@@ -34,6 +34,20 @@ const templateData = {
 };
 
 describe('renderPrintTemplate', () => {
+  it('prints Ukrainian captions in every built-in document while retaining template-list names', () => {
+    const forms = normalizePrintFormsForView(defaultPrintForms);
+    expect(forms.find((form) => form.id === 'receipt')?.content).toContain('Квитанція');
+    expect(forms.find((form) => form.id === 'check')?.content).toContain('Товарний чек');
+    expect(forms.find((form) => form.id === 'warranty')?.content).toContain('Гарантійний талон');
+    expect(forms.find((form) => form.id === 'completion-act')?.content).toContain('Акт виконаних робіт');
+    expect(forms.find((form) => form.id === 'invoice')?.title).toBe('Invoice with VAT');
+    const html = renderPrintTemplate('<h3>Services</h3>{{services_table}}<p>{{clientName}}</p>', { services_table: '<table><thead><tr><th>Name</th></tr></thead><tbody><tr><td>Services</td></tr></tbody></table>', clientName: 'Client' }, 'html');
+    expect(html).toContain('<h3>Послуги</h3>');
+    expect(html).toContain('<th>Найменування</th>');
+    expect(html).toContain('<td>Services</td>');
+    expect(html).toContain('<p>Client</p>');
+  });
+
   it.each([
     [1200, 1000, 200], [100, 83.33, 16.67], [0, 0, 0],
     [0.01, 0.01, 0], [0.03, 0.02, 0.01], [100.01, 83.34, 16.67],
@@ -73,7 +87,7 @@ describe('renderPrintTemplate', () => {
   });
 
   it('translates invoice column titles without translating item names or placeholders', () => {
-    const html = renderPrintTemplate('{{products_table}}', { products_table: '<table><thead><tr><th>Name</th><th>Qty</th><th>Price</th><th>Sum</th></tr></thead><tbody><tr><td>Products</td></tr></tbody></table>' }, 'html', 'uk');
+    const html = renderPrintTemplate('{{products_table}}', { products_table: '<table><thead><tr><th>Name</th><th>Qty</th><th>Price</th><th>Sum</th></tr></thead><tbody><tr><td>Products</td></tr></tbody></table>' }, 'html');
     expect(html).toContain('<th>Найменування</th>');
     expect(html).toContain('<th>К-сть</th>');
     expect(html).toContain('<th>Ціна</th>');
@@ -98,8 +112,8 @@ describe('renderPrintTemplate', () => {
 
   it('hides legacy headings for empty tables and preserves surrounding content', () => {
     const rendered = renderPrintTemplate('<div><h1>Receipt</h1><h3>Custom services</h3>{{services_table}}<h3>Custom products</h3><p>{{products_table}}</p><p>Total: {{total}}</p></div>', { total: '0 UAH' }, 'html');
-    expect(rendered).toContain('Receipt');
-    expect(rendered).toContain('Total: 0 UAH');
+    expect(rendered).toContain('Квитанція');
+    expect(rendered).toContain('Разом: 0 UAH');
     expect(rendered).not.toContain('Custom services');
     expect(rendered).not.toContain('Custom products');
   });
@@ -240,8 +254,8 @@ describe('renderPrintLayout', () => {
     ]);
 
     expect(rendered).toContain('<div class="print-document">');
-    expect(rendered).toContain('<h1 class="print-block-heading">Order {{orderNumber}}</h1>');
-    expect(rendered).toContain('<p class="print-block-paragraph print-block-paragraph-level-3">Client {{clientName}}</p>');
+    expect(rendered).toContain('<h1 class="print-block-heading">Замовлення {{orderNumber}}</h1>');
+    expect(rendered).toContain('<p class="print-block-paragraph print-block-paragraph-level-3">Клієнт {{clientName}}</p>');
     expect(rendered).toContain('{{products_table}}');
     expect(rendered).toContain('{{services_table}}');
     expect(rendered).toContain('{{invoice_items_table}}');
@@ -425,7 +439,7 @@ describe('normalizePrintFormsForView', () => {
     });
     const normalized = normalizePrintFormsForView([form]);
 
-    expect(normalized.find((item) => item.id === 'custom-layout')?.content).toContain('New heading');
+    expect(normalized.find((item) => item.id === 'custom-layout')?.content).toContain('Новий заголовок');
     expect(normalized.find((item) => item.id === 'custom-layout')?.content).not.toBe('old html');
   });
 
