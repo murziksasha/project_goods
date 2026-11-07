@@ -14,6 +14,7 @@ import {
   createPrintLayoutBlock,
   customLabelSizePresetId,
   getOrientedLabelSize,
+  getPrintFormTemplateData,
   getPrintContentMarginVars,
   labelSizePresets,
   normalizeContentMargins,
@@ -178,7 +179,7 @@ const VariablePicker = ({ onInsert }: { onInsert: (variable: string) => void }) 
                   onClick={() => onInsert(`{{${variable.key}}}`)}
                 >
                   <code>{`{{${variable.key}}}`}</code>
-                  <span>{t(`settings.printBuilder.variables.${variable.key}`)}</span>
+                  <span>{t(`settings.printBuilder.variables.${variable.key}`, { defaultValue: variable.label })}</span>
                 </button>
               ))}
             </div>
@@ -725,8 +726,8 @@ export const PrintFormBuilder: React.FC<PrintFormBuilderProps> = ({
   const firstBlockId = selectedForm.layoutBlocks?.[0]?.id ?? '';
   const selectedBlock = blocks.find((block) => block.id === activeBlockId) ?? blocks[0];
   const previewHtml = useMemo(
-    () => renderPrintTemplate(selectedForm.content, previewValues, selectedForm.contentFormat),
-    [previewValues, selectedForm.content, selectedForm.contentFormat],
+    () => renderPrintTemplate(selectedForm.content, getPrintFormTemplateData(selectedForm, previewValues), selectedForm.contentFormat),
+    [previewValues, selectedForm],
   );
 
   useEffect(() => {

@@ -35,6 +35,14 @@ cd frontend && npm run test:e2e:ui           # Playwright UI mode
 
 Specs:
 
+- `e2e/invoice-print.spec.ts` — Invoice without VAT / Invoice with VAT for sale/repair records,
+  service-center phone, products-only/services-only/both/empty visibility in modal
+  and standalone preview, Ukrainian invoice captions, shared Completion act behavior,
+  block-builder editing, and included 20% VAT in the modal, standalone preview
+  and builder (gross amount stays unchanged). Runs with both English and Ukrainian
+  interfaces; checks Ukrainian captions, amounts in words (including 950 грн),
+  currency and the preserved website language across all built-in documents.
+
 - `e2e/login-page.spec.ts` — logged-out Login / Sign in.
 - `e2e/orders-hover-copy.spec.ts` — Orders/Kanban copy controls, Sales current product/service name plus each S/N, and opened repair/sale card fields: independent hover targets, clipboard payloads, navigation, keyboard phone copy and `tel:` links, long-name containment, narrow viewport, and touch visibility.
 - `e2e/sales-current-items.spec.ts` — Regular/Rapid sale card edits update the Sales Product label, serial, raw-row count and menu without a page reload; empty sales remain clickable and removed snapshot items do not match item search.
@@ -44,6 +52,11 @@ Specs:
 - `e2e/repair-kanban-master-filter.spec.ts` — Kanban master menu: several coworkers plus Without master, chips, Clear back to All, saved filter, and Orders/Sales still a single assignee. Spec: [REPAIR_KANBAN_SPEC.md](./REPAIR_KANBAN_SPEC.md#master-filter-kanban-toolbar-only).
 
 ## Frontend structure
+
+- Print language: `shared/lib/printFormatting.test.ts` checks fixed Ukrainian
+  output across site languages, hryvnia/thousand gender, plurals and rounded kopecks.
+  `printForms.test.ts` checks legacy/builder caption translation and preserves
+  customer/item text; shared order-print tests compare full print data in both UI languages.
 
 - Co-located `*.test.tsx` / `*.test.ts` next to components and hooks.
 - High-value suites: `OrdersWorkspace`, `OrderDetailCard`, `CreateOrderCard`, `AccountingPanel`, `DashboardPage`.

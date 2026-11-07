@@ -19,6 +19,7 @@ import { Modal } from '../../../../../shared/ui/Modal';
 import { Button } from '../../../../../shared/ui/Button';
 import { PrinterIcon } from './PrinterIcon';
 import { sanitizePrintHtml } from '../../../../../shared/lib/sanitizeHtml';
+import { printT } from '../../../../../shared/lib/printFormatting';
 import {
   buildOrderPrintBody,
   getPrintTemplateData,
@@ -192,7 +193,7 @@ export const OrderPrintDialog: React.FC<OrderPrintDialogProps> = ({
 
   const openPreviewWindow = () =>
     openOrderPrintWindow({
-      title: t('orders.print.previewTitle', {
+      title: printT('orders.print.previewTitle', {
         orderNumber: request.orderNumber,
       }),
       body: previewBody,
@@ -206,7 +207,7 @@ export const OrderPrintDialog: React.FC<OrderPrintDialogProps> = ({
 
   const printSelectedForms = () =>
     openOrderPrintWindow({
-      title: t('orders.print.printFormsTitle', {
+      title: printT('orders.print.printFormsTitle', {
         orderNumber: request.orderNumber,
       }),
       body: previewBody,
