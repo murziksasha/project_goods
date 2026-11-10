@@ -226,6 +226,13 @@
       "newTemplate": "Новий шаблон"
     },
     "printBuilder": {
+      "formatToolbar": "Форматування тексту",
+      "formatBold": "Жирний",
+      "formatBoldShort": "Ж",
+      "formatItalic": "Курсив",
+      "formatItalicShort": "К",
+      "formatUnderline": "Підкреслений",
+      "formatUnderlineShort": "П",
       "templateName": "Назва шаблону",
       "documentType": "Тип документа",
       "pageSize": "Розмір сторінки",
