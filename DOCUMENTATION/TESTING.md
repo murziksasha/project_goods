@@ -57,6 +57,13 @@ Specs:
   output across site languages, hryvnia/thousand gender, plurals and rounded kopecks.
   `printForms.test.ts` checks legacy/builder caption translation and preserves
   customer/item text; shared order-print tests compare full print data in both UI languages.
+- Print inline formatting: `entities/settings/model/printInlineMarkup.test.ts` (bold/italic/underline,
+  nesting, unclosed markers, line scope, `\*` / `\_` escapes, signature underscores, variables never
+  interpreted, XSS escaping, DOMPurify keeps tags, barcode value not formatted);
+  `shared/lib/inlineTextFormat.test.ts` (wrap / toggle / multi-line / HTML tags / shortcuts on any layout);
+  `widgets/dashboard/ui/settings/PrintTextFormatting.test.tsx` (buttons, Ctrl+B/I/U, shared block
+  toolbar targets last focused field, builder preview). Spec:
+  [PRINT_FORMS_SPEC.md](./PRINT_FORMS_SPEC.md#inline-text-formatting-2026-11-10).
 
 - Co-located `*.test.tsx` / `*.test.ts` next to components and hooks.
 - High-value suites: `OrdersWorkspace`, `OrderDetailCard`, `CreateOrderCard`, `AccountingPanel`, `DashboardPage`.

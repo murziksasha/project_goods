@@ -104,13 +104,33 @@ lightweight markup. Templates stay plain strings; no migration is needed.
 | `*text*` | `<em class="print-inline-format">` | К / I | Ctrl+I |
 | `__text__` | `<u class="print-inline-format">` | П / U | Ctrl+U |
 
-**Where:** every manually written text field of the block builder: Heading,
-Text (`paragraph`), Columns text, Field row / Field grid labels and values,
-Custom table column labels and cells, Line items / Invoice items titles,
-Barcode caption (`label`) and Signatures. Field rows and custom tables share one
-toolbar per block that applies to the last focused input. The barcode **value**
-is machine data and is never formatted. The legacy HTML editor gets the same
-toolbar, but it inserts `<strong>`, `<em>`, `<u>` tags directly.
+**Where:** every manually written text field of the block builder.
+
+| Block | Formattable fields | Toolbar |
+|---|---|---|
+| Heading | Text | own toolbar above the field |
+| Text (`paragraph`) | Text | own toolbar above the field |
+| Columns | each column text | own toolbar above each column field |
+| Field row / Field grid | labels and values | one toolbar per block, applies to the last focused input (first input if none was focused) |
+| Custom table | column labels and cells | one toolbar per block, last focused input |
+| Line items / Invoice items | Title | own toolbar |
+| Barcode | Caption (`label`) only | own toolbar |
+| Signatures | Left and Right | own toolbar per field |
+| Legacy HTML editor | whole HTML source | own toolbar; inserts `<strong>`, `<em>`, `<u>` tags instead of markup |
+
+- The barcode **value** is machine data (it is encoded into the barcode and shown
+  under it) and is never formatted: `A**1**` stays `A**1**`.
+- Ctrl+B / Ctrl+I / Ctrl+U (Cmd on macOS) work in every formattable field,
+  including inputs that share a block toolbar.
+- Toolbar buttons keep focus in the field (`mousedown` is prevented), so the
+  selection survives the click. Button tooltips show the shortcut.
+- Legacy HTML editor toggle: a selection that is exactly `<strong>…</strong>`
+  (or sits directly between those tags) is unwrapped; otherwise it is wrapped.
+  Multi-line HTML selections are wrapped as one element.
+- **Backward compatibility:** existing templates are plain text, no migration.
+  Templates that already contain literal `**x**`, `*x*` or `__x__` now render them
+  formatted; write `\*` / `\_` to keep them literal. Signature lines are safe
+  (see the underscore rule below).
 
 **Rendering rules** (`printInlineMarkup.ts`, used by `renderPrintLayoutBlocks`):
 
@@ -144,20 +164,61 @@ toolbar, but it inserts `<strong>`, `<em>`, `<u>` tags directly.
 - Shortcuts use `KeyboardEvent.code`, so they work on the Ukrainian layout too.
 
 **Editor layout:** in Heading and Text blocks the text field takes the full panel
-width and Level / Weight / Align wrap below it. The Text and Columns textareas
-can be resized down and right (`resize: both`), capped at the panel width. The
-field size is editor-only and is never saved into the template.
+width (`.print-formatted-field { flex: 1 0 100% }`) and Level / Weight / Align
+wrap below it. The Text and Columns textareas can be resized down and right
+(`resize: both`), capped at the panel width (`max-width: 100%`); after narrowing
+the field it can be dragged right again up to the panel edge. The field size is
+editor-only: it is not saved into the template, the server or `localStorage`,
+and resets when another block is opened.
+
+**Implementation:**
+
+| Concern | File |
+|---|---|
+| Parser / HTML output | `frontend/src/entities/settings/model/printInlineMarkup.ts` (`renderPrintInlineMarkup`) |
+| Block rendering | `printForms.ts`: `renderInlineTemplate` (formatted) and `renderPlainInlineTemplate` (barcode value / data attribute) |
+| Wrap / toggle / shortcuts | `frontend/src/shared/lib/inlineTextFormat.ts` (`toggleInlineTextFormat`, `getInlineTextFormatShortcut`) |
+| Toolbar and fields | `frontend/src/widgets/dashboard/ui/settings/PrintTextFormatting.tsx` (`PrintTextFormatScope`, `FormattableInput`, `FormattableTextArea`) |
+| Builder wiring | `PrintFormBuilder.tsx` (`FormattedTextInput`, `FormattedTextAreaInput`) |
+| Labels (i18n) | `settings.printBuilder.format*` in `en.json` (B / I / U) and `uk.json` (Ж / К / П) |
+| Styles | `settings.css` (toolbar, field layout, preview), `printDocumentStyles` / `printLabelDocumentStyles` |
 
 **Tests:** `printInlineMarkup.test.ts` (parser, escaping, variables, XSS,
 nesting, escapes, line scope, DOMPurify), `inlineTextFormat.test.ts` (wrap /
 toggle / multi-line / shortcuts), `PrintTextFormatting.test.tsx` (buttons,
 shortcuts, shared toolbar, builder preview).
 
+#### Інструкція для користувача (UA) / Инструкция для пользователя (RU)
+
+- Над полями ручного тексту (Текст, Заголовок, Колонки, підписи й значення
+  Field grid / Field row, таблиці, заголовки таблиць товарів і послуг, підпис
+  штрих-коду, Підписи) є кнопки **Ж**, *К*, П. В английском интерфейсе — B, I, U.
+- Выдели слово и нажми кнопку или Ctrl+B / Ctrl+I / Ctrl+U. Повторное нажатие
+  снимает форматирование. Работает и на украинской раскладке.
+- В поле это видно как `**жирный**`, `*курсив*`, `__подчёркнутый__`; в превью и
+  печати — уже отформатировано. Можно сочетать: `***жирный курсив***`.
+- В Field grid / Field row и пользовательской таблице одна панель на блок: она
+  применяется к полю, в котором ты последний раз стоял курсором.
+- Несколько выделенных строк оформляются каждая отдельно; форматирование не
+  переходит на следующую строку. Незакрытые `**` печатаются как есть.
+- Буквальная звёздочка или подчёркивание: `\*`, `\_`. Линии подписи
+  `__________` не превращаются в подчёркивание.
+- Значения переменных `{{...}}` вставляются как есть (звёздочки в IBAN или
+  комментарии клиента не станут жирным). Оформить можно переменную целиком:
+  `**{{clientName}}**`.
+- Значение штрих-кода не форматируется — только его подпись.
+- В старом HTML-редакторе кнопки вставляют теги `<strong>`, `<em>`, `<u>`.
+- Поле «Текст» на всю ширину, Level / Weight / Align — под ним. Поле тянется за
+  правый нижний уголок вниз и вправо до края панели; размер в шаблон не
+  сохраняется. Weight по-прежнему задаёт начертание всего блока.
+
 ### Other Block Types
 
-Non-text blocks (field grid, tables, barcode, signatures, divider, spacer,
-columns, etc.) are unchanged. Nested paragraphs inside **Columns** preserve
-`level`, `align`, and `weight` when column text is edited.
+Non-text blocks (divider, spacer, line-item tables) keep their previous
+behaviour. Text inside field grids, custom tables, signatures, table titles and
+the barcode caption supports inline formatting (see above). Nested paragraphs
+inside **Columns** preserve `level`, `align`, and `weight` when column text is
+edited.
 
 ## Product Barcode (Warehouse Stock Label)
 
