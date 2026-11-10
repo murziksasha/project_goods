@@ -93,6 +93,66 @@ Editable fields for both types:
 - `printForms.test.ts`: renders weight classes; legacy blocks without `weight`
   omit them; normalization keeps valid weights and drops invalid values.
 
+### Inline Text Formatting (2026-11-10)
+
+Authors can format individual words inside manually written print text with a
+lightweight markup. Templates stay plain strings; no migration is needed.
+
+| Markup | Output | Toolbar (uk / en) | Shortcut |
+|---|---|---|---|
+| `**text**` | `<strong class="print-inline-format">` | Ж / B | Ctrl+B |
+| `*text*` | `<em class="print-inline-format">` | К / I | Ctrl+I |
+| `__text__` | `<u class="print-inline-format">` | П / U | Ctrl+U |
+
+**Where:** every manually written text field of the block builder: Heading,
+Text (`paragraph`), Columns text, Field row / Field grid labels and values,
+Custom table column labels and cells, Line items / Invoice items titles,
+Barcode caption (`label`) and Signatures. Field rows and custom tables share one
+toolbar per block that applies to the last focused input. The barcode **value**
+is machine data and is never formatted. The legacy HTML editor gets the same
+toolbar, but it inserts `<strong>`, `<em>`, `<u>` tags directly.
+
+**Rendering rules** (`printInlineMarkup.ts`, used by `renderPrintLayoutBlocks`):
+
+- Only template-authored text is parsed. `{{variable}}` tokens stay verbatim and
+  are substituted later by `renderPrintTemplate` with HTML-escaped values, so
+  data such as IBANs, articles or comments containing `*` or `__` is never
+  interpreted as formatting.
+- Formatting is line-scoped; markers never pair across a line break.
+- An opening marker must be followed by non-whitespace, a closing marker must be
+  preceded by non-whitespace (`2 * 3 * 4` stays literal). Unclosed or unmatched
+  markers print literally.
+- `_` forms underline only as an exact `__` run; longer runs such as signature
+  lines `__________` stay literal. `*` runs longer than three stay literal.
+- `\*` and `\_` produce literal `*` and `_`.
+- Nesting works: `***x***` (bold + italic), `**__x__**`, `**a *b* c**`.
+- All authored text is HTML-escaped first; only the three inline tags are emitted,
+  and DOMPurify (`sanitizePrintHtml`) keeps them with their class.
+- Block-level **Weight** still applies to the whole block; inline bold inside a
+  bold block stays bold (no "un-bold"). Inline `<strong>` uses `font-weight: bolder`.
+- Labels style bare `<strong>` as a full line; `.print-label strong.print-inline-format`
+  keeps inline bold inline (print styles and builder preview).
+
+**Toolbar behaviour** (`shared/lib/inlineTextFormat.ts`):
+
+- Wraps the selection (surrounding whitespace stays outside the markers) and keeps
+  the word selected. Applying the same format again removes it (toggle), whether
+  the selection includes the markers or only the text between them.
+- Multi-line selection wraps each non-empty line separately; it toggles off only
+  when every selected line already has the format.
+- Empty selection inserts an empty pair and puts the caret inside.
+- Shortcuts use `KeyboardEvent.code`, so they work on the Ukrainian layout too.
+
+**Editor layout:** in Heading and Text blocks the text field takes the full panel
+width and Level / Weight / Align wrap below it. The Text and Columns textareas
+can be resized down and right (`resize: both`), capped at the panel width. The
+field size is editor-only and is never saved into the template.
+
+**Tests:** `printInlineMarkup.test.ts` (parser, escaping, variables, XSS,
+nesting, escapes, line scope, DOMPurify), `inlineTextFormat.test.ts` (wrap /
+toggle / multi-line / shortcuts), `PrintTextFormatting.test.tsx` (buttons,
+shortcuts, shared toolbar, builder preview).
+
 ### Other Block Types
 
 Non-text blocks (field grid, tables, barcode, signatures, divider, spacer,
