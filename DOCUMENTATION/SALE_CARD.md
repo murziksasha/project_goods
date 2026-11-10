@@ -4,6 +4,7 @@ Related: [SALE_FLOW.md](./SALE_FLOW.md) · [ORDER_CARD.md](./ORDER_CARD.md) · [
 
 ## Main Information Hover Copy
 
+- Phone dial-target formatting is defined in [UI_DESIGN_SYSTEM.md — Dial links in opened repair and sale cards](./UI_DESIGN_SYSTEM.md#dial-links-in-opened-repair-and-sale-cards).
 - Hover copy is available on the header sale number and Client, Phone, Created order, and Issued order values. Phone text is a native `tel:` link. A click on the client name opens the client card over this sale. The page stays `orders`, `saleId` stays, and `clientCard` is added. The copy icon still only copies. Shared interaction, clipboard payloads, read-only behavior, and placeholders: [UI_DESIGN_SYSTEM.md — Hover copy icon](./UI_DESIGN_SYSTEM.md#hover-copy-icon). Overlay rules: [CLIENTS_RULES.md](./CLIENTS_RULES.md#client-card-tabs).
 
 ## Rapid Sale Display

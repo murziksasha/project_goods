@@ -696,10 +696,30 @@ describe('OrderDetailCard hover copy', () => {
       expect(screen.queryByRole('dialog')).toBeNull();
 
       const phone = within(field('Phone')).getByRole('link', { name: '099 111 22 33' });
-      expect(phone).toHaveAttribute('href', 'tel:+380991112233');
+      expect(phone).toHaveAttribute('href', 'tel:0991112233');
       fireEvent.click(screen.getByRole('button', { name: 'Ada Client' }));
       expect(onOpenClientCard).toHaveBeenCalledTimes(1);
       expect(copySpy).toHaveBeenCalledTimes(targets.length);
+    });
+
+    it.each([
+      ['+38 (063) 556-70-90', 'tel:0635567090'],
+      ['380635567090', 'tel:0635567090'],
+      ['063 556 70 90', 'tel:0635567090'],
+      ['+48 (123) 456-789', 'tel:+48123456789'],
+    ])('dials %j without changing its clipboard value', async (phone, href) => {
+      const copySpy = vi.spyOn(clipboard, 'copyTextToClipboard').mockResolvedValue(true);
+      renderCard({
+        saleOverride: {
+          ...copyFixture,
+          kind,
+          client: { id: 'client-1', name: 'Ada Client', phone, status: 'ok' },
+        },
+      });
+      const phoneField = field('Phone');
+      expect(within(phoneField).getByRole('link')).toHaveAttribute('href', href);
+      fireEvent.click(within(phoneField).getByRole('button', { name: 'Copy' }));
+      await waitFor(() => expect(copySpy).toHaveBeenCalledWith(phone));
     });
 
     it.each(['', '   ', '-', '—', 'r------'])('omits copy controls and phone links for placeholder %j', (empty) => {

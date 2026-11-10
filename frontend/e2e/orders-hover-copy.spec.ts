@@ -463,7 +463,7 @@ for (const kind of ['repair', 'sale'] as const) {
     await expect(phoneIcon).toHaveCSS('opacity', '0');
 
     const phoneLink = phone.getByRole('link');
-    await expect(phoneLink).toHaveAttribute('href', `tel:${fixture.client.phone}`);
+    await expect(phoneLink).toHaveAttribute('href', kind === 'repair' ? 'tel:0991112233' : 'tel:0501112233');
     await expect(phoneLink).toHaveText(kind === 'repair' ? '099 111 22 33' : '050 111 22 33');
     await phoneLink.hover();
     await expect(phoneIcon).toHaveCSS('opacity', '1');

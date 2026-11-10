@@ -165,7 +165,16 @@ Shared control: [`frontend/src/shared/ui/CopyableValue.tsx`](../frontend/src/sha
 | Products & Services → Client devices / Products / Services | Name | `CatalogCopyableName` in `ProductCatalogTables.tsx` |
 | Products & Services → **Suppliers** | Name **and** phone (`tel:` stays on the number; icon copies; row click still opens the supplier) | `ProductCatalogTables.tsx` `SuppliersTable` |
 
-Opened-card copy controls and `tel:` links remain available in read-only mode. Client text still opens the client card. Device name and the separate Change action open the existing device editor when editing is allowed; the copy icon is outside those disabled controls. Phones retain their formatted display and use the stored canonical value for both the `tel:` link and clipboard. Missing values and placeholders (`-`, `—`, `r------`) have no copy icon or phone link. Copying never saves card drafts.
+Opened-card copy controls and `tel:` links remain available in read-only mode. Client text still opens the client card. Device name and the separate Change action open the existing device editor when editing is allowed; the copy icon is outside those disabled controls. Phones retain their formatted display and use the stored canonical value for the clipboard. Missing values and placeholders (`-`, `—`, `r------`) have no copy icon or phone link. Copying never saves card drafts.
+
+### Dial links in opened repair and sale cards
+
+- Only the phone `tel:` target in `OrderDetailCard` is formatted for dialing via `shared/lib/phoneFormatter.ts` (`formatPhoneForDial`).
+- Remove spaces, parentheses, hyphens, and other formatting separators from the dial target.
+- A complete Ukrainian number (`+380` or `380` followed by nine digits) becomes the local ten-digit number: `+38 (063) 556-70-90` → `tel:0635567090`. A local number such as `063 556 70 90` also becomes `tel:0635567090`.
+- Foreign numbers retain their country code and leading `+` when present: `+48 (123) 456-789` → `tel:+48123456789`. Incomplete Ukrainian prefixes are not shortened.
+- Display, clipboard payload, stored client/snapshot values, and native browser/OS handling of the link stay unchanged. The rule also applies in read-only cards.
+- Client-card, list, and supplier phone links keep their existing behavior.
 
 ### Out of scope
 

@@ -60,3 +60,11 @@ export const isValidUkrainianPhone = (phone: string): boolean => {
 export const normalizePhone = (phone: string): string => {
   return phone.replace(/\D/g, '');
 };
+
+/** Dial Ukrainian numbers locally; preserve international prefixes elsewhere. */
+export const formatPhoneForDial = (phone: string): string => {
+  const digits = normalizePhone(phone);
+  if (/^380\d{9}$/.test(digits)) return digits.slice(2);
+  if (!digits) return '';
+  return phone.trim().startsWith('+') ? `+${digits}` : digits;
+};
