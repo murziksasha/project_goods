@@ -7,6 +7,7 @@ import {
   useState,
 } from 'react';
 import { useTranslation } from 'react-i18next';
+import { formatPhoneForDial } from '../../../../../shared/lib/phoneFormatter';
 import { hasEmployeePermission } from '../../../../../entities/employee';
 import { isRepairOrder } from '../../../../../entities/sale';
 import { getSaleProductName } from '../../../../../entities/sale';
@@ -1327,7 +1328,7 @@ export const OrderDetailCard: React.FC<OrderDetailCardProps> = ({
                 <dd>
                   <CopyableValue value={clientPhone} className='order-detail-copy-value'>
                     {clientPhone ? (
-                      <a className='order-detail-phone-link' href={`tel:${clientPhone}`}>
+                      <a className='order-detail-phone-link' href={`tel:${formatPhoneForDial(clientPhone)}`}>
                         {formatPhoneNumber(clientPhone)}
                       </a>
                     ) : '-'}

@@ -1,5 +1,5 @@
 import type React from 'react';
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { useEffect, useId, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { useTranslation } from 'react-i18next';
 import JsBarcode from 'jsbarcode';
 import type {
@@ -25,6 +25,11 @@ import {
 } from '../../../../entities/settings';
 import type { PrintContentMargins } from '../../../../entities/settings';
 import { sanitizePrintHtml } from '../../../../shared/lib/sanitizeHtml';
+import {
+  FormattableInput,
+  FormattableTextArea,
+  PrintTextFormatScope,
+} from './PrintTextFormatting';
 
 export interface PrintFormBuilderProps {
   forms: PrintForm[];
@@ -205,7 +210,8 @@ const TextInput = ({
   </label>
 );
 
-const TextAreaInput = ({
+// Authored print text with the B / I / U toolbar (`**bold**`, `*italic*`, `__underline__`).
+const FormattedTextInput = ({
   label,
   value,
   onChange,
@@ -213,12 +219,49 @@ const TextAreaInput = ({
   label: string;
   value: string;
   onChange: (value: string) => void;
-}) => (
-  <label className="field field-wide">
-    <span>{label}</span>
-    <textarea rows={3} value={value} onChange={(event) => onChange(event.target.value)} />
-  </label>
-);
+}) => {
+  const id = useId();
+
+  return (
+    <div className="field print-formatted-field">
+      <label htmlFor={id}>
+        <span>{label}</span>
+      </label>
+      <PrintTextFormatScope>
+        <FormattableInput id={id} value={value} onChange={onChange} />
+      </PrintTextFormatScope>
+    </div>
+  );
+};
+
+const FormattedTextAreaInput = ({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+}) => {
+  const id = useId();
+
+  return (
+    <div className="field field-wide print-formatted-field">
+      <label htmlFor={id}>
+        <span>{label}</span>
+      </label>
+      <PrintTextFormatScope>
+        <FormattableTextArea
+          id={id}
+          className="print-formatted-textarea"
+          rows={3}
+          value={value}
+          onChange={onChange}
+        />
+      </PrintTextFormatScope>
+    </div>
+  );
+};
 
 const AlignInput = ({
   value,
@@ -354,7 +397,7 @@ const BlockEditor = ({
     case 'heading':
       return (
         <div className="print-block-editor-fields">
-          <TextInput
+          <FormattedTextInput
             label={t('settings.printBuilder.text')}
             value={block.text}
             onChange={(text) => onChange({ ...block, text })}
@@ -371,7 +414,7 @@ const BlockEditor = ({
     case 'paragraph':
       return (
         <div className="print-block-editor-fields">
-          <TextAreaInput
+          <FormattedTextAreaInput
             label={t('settings.printBuilder.text')}
             value={block.text}
             onChange={(text) => onChange({ ...block, text })}
@@ -404,33 +447,35 @@ const BlockEditor = ({
               </select>
             </label>
           ) : null}
-          <div className="print-builder-table-editor">
-            {block.fields.map((field, index) => (
-              <div key={`${block.id}-field-${index}`} className="print-builder-field-row">
-                <input
-                  aria-label={t('settings.printBuilder.fieldLabel', { index: index + 1 })}
-                  value={field.label}
-                  onChange={(event) =>
-                    onChange({ ...block, fields: updateField(block.fields, index, { label: event.target.value }) })
-                  }
-                />
-                <input
-                  aria-label={t('settings.printBuilder.fieldValue', { index: index + 1 })}
-                  value={field.value}
-                  onChange={(event) =>
-                    onChange({ ...block, fields: updateField(block.fields, index, { value: event.target.value }) })
-                  }
-                />
-                <button
-                  type="button"
-                  className="secondary-button"
-                  onClick={() => onChange({ ...block, fields: block.fields.filter((_, fieldIndex) => fieldIndex !== index) })}
-                >
-                  {t('common.delete')}
-                </button>
-              </div>
-            ))}
-          </div>
+          <PrintTextFormatScope className="print-builder-table-editor-scope">
+            <div className="print-builder-table-editor">
+              {block.fields.map((field, index) => (
+                <div key={`${block.id}-field-${index}`} className="print-builder-field-row">
+                  <FormattableInput
+                    aria-label={t('settings.printBuilder.fieldLabel', { index: index + 1 })}
+                    value={field.label}
+                    onChange={(label) =>
+                      onChange({ ...block, fields: updateField(block.fields, index, { label }) })
+                    }
+                  />
+                  <FormattableInput
+                    aria-label={t('settings.printBuilder.fieldValue', { index: index + 1 })}
+                    value={field.value}
+                    onChange={(value) =>
+                      onChange({ ...block, fields: updateField(block.fields, index, { value }) })
+                    }
+                  />
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    onClick={() => onChange({ ...block, fields: block.fields.filter((_, fieldIndex) => fieldIndex !== index) })}
+                  >
+                    {t('common.delete')}
+                  </button>
+                </div>
+              ))}
+            </div>
+          </PrintTextFormatScope>
           <button
             type="button"
             className="secondary-button"
@@ -451,79 +496,81 @@ const BlockEditor = ({
     case 'customTable':
       return (
         <div className="print-block-editor-fields">
-          <div className="print-builder-table-editor">
-            <strong>{t('settings.printBuilder.columns')}</strong>
-            {block.columns.map((column, index) => (
-              <div key={column.id} className="print-builder-field-row">
-                <input
-                  aria-label={t('settings.printBuilder.columnLabel', { index: index + 1 })}
-                  value={column.label}
-                  onChange={(event) =>
-                    onChange({ ...block, columns: updateTableColumn(block.columns, index, { label: event.target.value }) })
-                  }
-                />
-                <button
-                  type="button"
-                  className="secondary-button"
-                  onClick={() =>
-                    onChange({
-                      ...block,
-                      columns: block.columns.filter((_, columnIndex) => columnIndex !== index),
-                      rows: block.rows.map((row) => {
-                        const cells = { ...row.cells };
-                        delete cells[column.id];
-                        return { ...row, cells };
-                      }),
-                    })
-                  }
-                >
-                  {t('common.delete')}
-                </button>
-              </div>
-            ))}
-            <button
-              type="button"
-              className="secondary-button"
-              onClick={() => {
-                const column = {
-                  id: `col-${Date.now()}`,
-                  label: t('settings.printBuilder.defaultColumnLabel'),
-                };
-                onChange({
-                  ...block,
-                  columns: [...block.columns, column],
-                  rows: block.rows.map((row) => ({ ...row, cells: { ...row.cells, [column.id]: '' } })),
-                });
-              }}
-            >
-              {t('settings.printBuilder.addColumn')}
-            </button>
-            <strong>{t('settings.printBuilder.rows')}</strong>
-            {block.rows.map((row, rowIndex) => (
-              <div key={row.id} className="print-builder-custom-row">
-                {block.columns.map((column) => (
-                  <input
-                    key={`${row.id}-${column.id}`}
-                    aria-label={t('settings.printBuilder.columnRow', {
-                      label: column.label,
-                      index: rowIndex + 1,
-                    })}
-                    value={row.cells[column.id] ?? ''}
-                    onChange={(event) =>
-                      onChange({ ...block, rows: updateTableRow(block.rows, rowIndex, column.id, event.target.value) })
+          <PrintTextFormatScope className="print-builder-table-editor-scope">
+            <div className="print-builder-table-editor">
+              <strong>{t('settings.printBuilder.columns')}</strong>
+              {block.columns.map((column, index) => (
+                <div key={column.id} className="print-builder-field-row">
+                  <FormattableInput
+                    aria-label={t('settings.printBuilder.columnLabel', { index: index + 1 })}
+                    value={column.label}
+                    onChange={(label) =>
+                      onChange({ ...block, columns: updateTableColumn(block.columns, index, { label }) })
                     }
                   />
-                ))}
-                <button
-                  type="button"
-                  className="secondary-button"
-                  onClick={() => onChange({ ...block, rows: block.rows.filter((_, index) => index !== rowIndex) })}
-                >
-                  {t('common.delete')}
-                </button>
-              </div>
-            ))}
-          </div>
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    onClick={() =>
+                      onChange({
+                        ...block,
+                        columns: block.columns.filter((_, columnIndex) => columnIndex !== index),
+                        rows: block.rows.map((row) => {
+                          const cells = { ...row.cells };
+                          delete cells[column.id];
+                          return { ...row, cells };
+                        }),
+                      })
+                    }
+                  >
+                    {t('common.delete')}
+                  </button>
+                </div>
+              ))}
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={() => {
+                  const column = {
+                    id: `col-${Date.now()}`,
+                    label: t('settings.printBuilder.defaultColumnLabel'),
+                  };
+                  onChange({
+                    ...block,
+                    columns: [...block.columns, column],
+                    rows: block.rows.map((row) => ({ ...row, cells: { ...row.cells, [column.id]: '' } })),
+                  });
+                }}
+              >
+                {t('settings.printBuilder.addColumn')}
+              </button>
+              <strong>{t('settings.printBuilder.rows')}</strong>
+              {block.rows.map((row, rowIndex) => (
+                <div key={row.id} className="print-builder-custom-row">
+                  {block.columns.map((column) => (
+                    <FormattableInput
+                      key={`${row.id}-${column.id}`}
+                      aria-label={t('settings.printBuilder.columnRow', {
+                        label: column.label,
+                        index: rowIndex + 1,
+                      })}
+                      value={row.cells[column.id] ?? ''}
+                      onChange={(cell) =>
+                        onChange({ ...block, rows: updateTableRow(block.rows, rowIndex, column.id, cell) })
+                      }
+                    />
+                  ))}
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    onClick={() => onChange({ ...block, rows: block.rows.filter((_, index) => index !== rowIndex) })}
+                  >
+                    {t('common.delete')}
+                  </button>
+                </div>
+              ))}
+            </div>
+          </PrintTextFormatScope>
           <button
             type="button"
             className="secondary-button"
@@ -547,7 +594,7 @@ const BlockEditor = ({
     case 'lineItemsTable':
       return (
         <div className="print-block-editor-fields">
-          <TextInput
+          <FormattedTextInput
             label={t('settings.printBuilder.title')}
             value={block.title ?? ''}
             onChange={(title) => onChange({ ...block, title })}
@@ -568,7 +615,7 @@ const BlockEditor = ({
       );
     case 'invoiceItemsTable':
       return (
-        <TextInput
+        <FormattedTextInput
           label={t('settings.printBuilder.title')}
           value={block.title ?? ''}
           onChange={(title) => onChange({ ...block, title })}
@@ -588,7 +635,7 @@ const BlockEditor = ({
 
         return (
           <div className="print-block-editor-fields">
-            <TextInput
+            <FormattedTextInput
               label={t('settings.printBuilder.label')}
               value={block.label ?? ''}
               onChange={(label) => onChange({ ...block, label })}
@@ -635,12 +682,12 @@ const BlockEditor = ({
     case 'signatures':
       return (
         <div className="print-block-editor-fields">
-          <TextInput
+          <FormattedTextInput
             label={t('settings.printBuilder.left')}
             value={block.left}
             onChange={(left) => onChange({ ...block, left })}
           />
-          <TextInput
+          <FormattedTextInput
             label={t('settings.printBuilder.right')}
             value={block.right}
             onChange={(right) => onChange({ ...block, right })}
@@ -667,7 +714,7 @@ const BlockEditor = ({
       return (
         <div className="print-block-editor-fields">
           {block.columns.map((column, index) => (
-            <TextAreaInput
+            <FormattedTextAreaInput
               key={column.id}
               label={t('settings.printBuilder.columnText', { index: index + 1 })}
               value={column.blocks.map((item) => (item.type === 'paragraph' ? item.text : '')).join('\n')}
@@ -946,14 +993,18 @@ export const PrintFormBuilder: React.FC<PrintFormBuilderProps> = ({
         {isLegacy ? (
           <div className="settings-legacy-editor">
             <p className="section-label">{t('settings.printBuilder.legacyHtmlForm')}</p>
-            <textarea
-              className="settings-html-source"
-              rows={14}
-              value={selectedForm.content}
-              onChange={(event) =>
-                onUpdateForm(selectedForm.id, { content: event.target.value, contentFormat: 'html' })
-              }
-            />
+            <PrintTextFormatScope>
+              <FormattableTextArea
+                className="settings-html-source"
+                aria-label={t('settings.printBuilder.legacyHtmlForm')}
+                rows={14}
+                syntax="html"
+                value={selectedForm.content}
+                onChange={(content) =>
+                  onUpdateForm(selectedForm.id, { content, contentFormat: 'html' })
+                }
+              />
+            </PrintTextFormatScope>
             <button type="button" className="secondary-button" onClick={convertLegacyToLayout}>
               {t('settings.printBuilder.duplicateAsBlockLayout')}
             </button>

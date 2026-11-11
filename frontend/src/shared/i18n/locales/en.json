@@ -226,6 +226,13 @@
       "newTemplate": "New template"
     },
     "printBuilder": {
+      "formatToolbar": "Text formatting",
+      "formatBold": "Bold",
+      "formatBoldShort": "B",
+      "formatItalic": "Italic",
+      "formatItalicShort": "I",
+      "formatUnderline": "Underline",
+      "formatUnderlineShort": "U",
       "templateName": "Template name",
       "documentType": "Document type",
       "pageSize": "Page size",

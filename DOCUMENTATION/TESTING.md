@@ -57,9 +57,17 @@ Specs:
   output across site languages, hryvnia/thousand gender, plurals and rounded kopecks.
   `printForms.test.ts` checks legacy/builder caption translation and preserves
   customer/item text; shared order-print tests compare full print data in both UI languages.
+- Print inline formatting: `entities/settings/model/printInlineMarkup.test.ts` (bold/italic/underline,
+  nesting, unclosed markers, line scope, `\*` / `\_` escapes, signature underscores, variables never
+  interpreted, XSS escaping, DOMPurify keeps tags, barcode value not formatted);
+  `shared/lib/inlineTextFormat.test.ts` (wrap / toggle / multi-line / HTML tags / shortcuts on any layout);
+  `widgets/dashboard/ui/settings/PrintTextFormatting.test.tsx` (buttons, Ctrl+B/I/U, shared block
+  toolbar targets last focused field, builder preview). Spec:
+  [PRINT_FORMS_SPEC.md](./PRINT_FORMS_SPEC.md#inline-text-formatting-2026-11-10).
 
 - Co-located `*.test.tsx` / `*.test.ts` next to components and hooks.
 - High-value suites: `OrdersWorkspace`, `OrderDetailCard`, `CreateOrderCard`, `AccountingPanel`, `DashboardPage`.
+- Opened-card phone dialing: `phoneFormatter.test.ts` covers local Ukrainian dial targets, separator removal, foreign country-code preservation, and incomplete prefixes. `OrderDetailCard.test.tsx` checks repair/sale links, canonical clipboard values, unchanged display, read-only cards, and missing-phone placeholders. `e2e/orders-hover-copy.spec.ts` checks the native `tel:` target alongside display and keyboard clipboard behavior in both card types. Dial-target rules: [UI_DESIGN_SYSTEM.md](./UI_DESIGN_SYSTEM.md#dial-links-in-opened-repair-and-sale-cards).
 - Sales list current items: `sale-product.test.ts` (current primary row, individual/combined serials, empty/missing composition, removed snapshot search, article stock-ID guard); `OrdersWorkspace.test.tsx` (Regular/Rapid labels, independent product/service-name and serial copy, text opens the sale, empty-card link without copy, current-item search and filters, `+N` toggle/contents without opening the card); `orders-workspace-shared.test.tsx` (no snapshot serial fallback, raw-row count, qty price, above-placement pins to the trigger). Spec: [SALE_FLOW.md → Sales List Columns](./SALE_FLOW.md#sales-list-columns-orders---sales).
 - Kanban master filter: `repair-kanban.test.ts` (All, one master, Without master, union, manager-created order with no master, assigned order excluded); `orders-workspace-shared.test.tsx` (`toKanbanFilters` migrates legacy `assigneeId` and clears it); `orders-sales-query.test.ts` (Kanban sends `masterIds` / `includeUnassignedMaster` and not `masterId`; Orders still sends `assigneeId`); `OrdersActiveFilterChips.test.tsx` (one chip per row, × removes one row, last × is All); `OrdersWorkspaceFilterPanel.test.tsx` (closed-field text and checkbox draft). Spec: [REPAIR_KANBAN_SPEC.md](./REPAIR_KANBAN_SPEC.md#master-filter-kanban-toolbar-only).
 - Product grouping: `order-line-item-groups.test.ts` (card key + print key with price); `OrderDetailCard.test.tsx` (collapsed `×N` groups); `orders-workspace-shared.test.tsx` (print `products_table` / invoice merge-vs-split).

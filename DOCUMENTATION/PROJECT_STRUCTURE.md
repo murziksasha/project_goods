@@ -111,6 +111,7 @@ frontend/
 - `src/entities/` - доменные сущности, API-модули, типы и UI-компоненты
 - `src/shared/` - переиспользуемая инфраструктура: стили, утилиты, HTTP-слой
 - `src/shared/lib/buildInfo.ts` - метка версии frontend-сборки (`getBuildSha`, `getBuildLabel`); см. [BUILD_VERSION_SPEC.md](./BUILD_VERSION_SPEC.md)
+- `src/entities/settings/model/printInlineMarkup.ts` - разметка `**жирный**` / `*курсив*` / `__подчёркнутый__` в печатных формах; `src/shared/lib/inlineTextFormat.ts` - логика кнопок Ж / К / П и Ctrl+B / I / U; `src/widgets/dashboard/ui/settings/PrintTextFormatting.tsx` - панель и поля конструктора. Spec: [PRINT_FORMS_SPEC.md](./PRINT_FORMS_SPEC.md#inline-text-formatting-2026-11-10)
 - `src/shared/ui/CopyableValue.tsx` — hover copy icon for table values; `src/shared/lib/clipboard.ts` — clipboard helper. Spec: [UI_DESIGN_SYSTEM.md — Hover copy icon](./UI_DESIGN_SYSTEM.md#hover-copy-icon)
 
 ## Структурные соглашения
