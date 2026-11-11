@@ -244,6 +244,10 @@ From [`responsive.css`](../frontend/src/shared/styles/responsive.css):
 | `html[data-ui-density=compact]` | Compact table/toolbar density (Settings → Company → Appearance) |
 | `.settings-group` | Card group on Settings tabs (appearance / identity / widget blocks) |
 | `.settings-token` | Print-form placeholder chip (`{{company}}`) next to Company fields |
+| `.print-text-format-toolbar` / `PrintTextFormatScope` | Print builder B / I / U (Ж / К / П) toolbar above authored text fields |
+| `.print-formatted-field` | Full-width print builder text field; Level / Weight / Align wrap below |
+| `.print-formatted-textarea` | Builder textarea resizable down and right (`resize: both`), capped at panel width |
+| `.print-inline-format` | Class on inline `<strong>` / `<em>` / `<u>` in print HTML (keeps label bold inline) |
 | `html[data-theme=light\|dark]` | Color theme (`project-goods.ui-theme` in localStorage; topbar ThemeSwitcher) |
 
 ## CSS file map

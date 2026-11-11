@@ -51,6 +51,7 @@ Full permission matrix: [Permission_Flow.md](./Permission_Flow.md).
 - Weather — OpenWeather API key via `OPENWEATHER_API_KEY` only (not query params, not Mongo settings)
 - Login rate limit — soft in-memory throttle on `POST /api/auth/login` only (per IP: only **failed** logins count, default 100/15m via `LOGIN_MAX_FAILED_PER_IP`; per username: every attempt counts, 15/15m) → `429`
 - Print HTML — frontend sanitizes print templates with DOMPurify before `dangerouslySetInnerHTML` / print window
+- Print inline markup (`**`, `*`, `__`) — authored text is HTML-escaped before markup is applied; only `<strong>`, `<em>`, `<u>` are emitted. `{{variable}}` values are substituted afterwards, escaped, and never parsed as markup. See [PRINT_FORMS_SPEC.md](./PRINT_FORMS_SPEC.md#inline-text-formatting-2026-11-10)
 
 ### Container hardening (реализовано)
 

@@ -9,6 +9,7 @@ import type {
   PrintLayoutTableRow,
 } from './types';
 import { translatePrintBlock, translatePrintSource, translatePrintText } from './print-language';
+import { renderPrintInlineMarkup } from './printInlineMarkup';
 
 export type LabelSizePreset = {
   id: string;
@@ -365,10 +366,14 @@ const codeSizeClass = (
   size: 'compact' | 'standard' | 'large' | undefined,
 ) => (size && size !== 'standard' ? ` print-code-row-${size}` : '');
 
-const renderInlineTemplate = (value: string) => escapeHtml(translatePrintText(value)).replace(
-  /\{\{([a-zA-Z0-9_]+)\}\}/g,
-  '{{$1}}',
-).replace(/\r?\n/g, '<br>');
+// Authored text: `**bold**`, `*italic*`, `__underline__` become inline tags;
+// `{{variable}}` tokens stay verbatim and are substituted (escaped) later.
+const renderInlineTemplate = (value: string) =>
+  renderPrintInlineMarkup(translatePrintText(value));
+
+// Plain authored text for attributes and machine-readable values (no markup).
+const renderPlainInlineTemplate = (value: string) =>
+  escapeHtml(translatePrintText(value)).replace(/\r?\n/g, '<br>');
 
 const renderFieldLabel = (label: string) =>
   label.trim() ? `<td>${renderInlineTemplate(label)}</td>` : '<td></td>';
@@ -425,9 +430,9 @@ const renderBarcodeBlock = (
   const barcode =
     value === '{{barcode}}'
       ? '{{barcode}}'
-      : `<svg class="print-barcode" data-barcode-value="${renderInlineTemplate(value)}"></svg>`;
+      : `<svg class="print-barcode" data-barcode-value="${renderPlainInlineTemplate(value)}"></svg>`;
   const visibleValue = block.showValue
-    ? `<strong class="print-code-value">${renderInlineTemplate(value)}</strong>`
+    ? `<strong class="print-code-value">${renderPlainInlineTemplate(value)}</strong>`
     : '';
 
   return `<div class="print-code-row${codeSizeClass(block.size)}">${block.label ? `<span>${renderInlineTemplate(block.label)}</span>` : ''}${barcode}${visibleValue}</div>`;
@@ -1342,6 +1347,7 @@ export const printDocumentStyles = `
   .print-block-weight-light { font-weight: 300; }
   .print-block-weight-normal { font-weight: 400; }
   .print-block-weight-bold { font-weight: 700; }
+  strong.print-inline-format { font-weight: bolder; }
   .print-document .print-block-paragraph-level-1 { font-size: 22px; }
   .print-document .print-block-paragraph-level-2 { font-size: 18px; }
   .print-document .print-block-paragraph-level-3 { font-size: 13px; }
@@ -1409,6 +1415,7 @@ export const printLabelDocumentStyles = `
   .print-label .print-block-paragraph-level-2 { font-size: 10px; }
   .print-label .print-block-paragraph-level-3 { font-size: 8.2px; }
   .print-label strong { display: block; width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; line-height: 1; }
+  .print-label strong.print-inline-format { display: inline; width: auto; overflow: visible; text-overflow: clip; white-space: inherit; font-size: inherit; line-height: inherit; font-weight: bolder; }
   .print-label .print-label-serial,
   .print-label .print-block-heading.print-label-serial { white-space: normal; overflow: visible; overflow-wrap: anywhere; word-break: break-word; text-overflow: clip; line-height: 1.15; }
   .print-label span { display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
