@@ -212,6 +212,28 @@ shortcuts, shared toolbar, builder preview).
   правый нижний уголок вниз и вправо до края панели; размер в шаблон не
   сохраняется. Weight по-прежнему задаёт начертание всего блока.
 
+### Collapsible Template Variables (2026-11-11)
+
+The **Template variables** picker (`VariablePicker` in `PrintFormBuilder.tsx`,
+shared by **Heading**, **Text**, and **Barcode** block editors) can be
+collapsed and expanded in the editor without affecting saved templates or API
+payloads.
+
+- **Control:** `<h3>` renders a keyboard-accessible `<button type="button">`
+  labeled `Template variables` (`settings.printBuilder.templateVariables`) with
+  `aria-expanded`, `aria-controls` when expanded, and an `aria-hidden`
+  expand/collapse indicator (`⌃` / `⌄`).
+- **Behavior:** defaults to expanded (`true`). Clicking the heading button or
+  activating it from the keyboard (`Enter` / `Space`) hides all variable groups
+  and entries together while keeping the heading visible; activating it again
+  restores them. Variable insertion (`{{variable}}`) works the same as before.
+- **Persistence:** local UI state only (`useState(true)` in `VariablePicker`) —
+  not saved to `PrintForm`, `localStorage`, or MongoDB. Reopening the print form
+  editor resets it to expanded.
+- **Styles & tests:** `.settings-variable-catalog-toggle` and
+  `.settings-variable-catalog-toggle-icon` in `settings.css`; covered by
+  `PrintFormBuilder.test.tsx` and `e2e/print-builder-variables.spec.ts`.
+
 ### Other Block Types
 
 Non-text blocks (divider, spacer, line-item tables) keep their previous

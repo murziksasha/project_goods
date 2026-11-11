@@ -50,6 +50,7 @@ Specs:
   - This spec mocks `/api/sales`; backend phone regex and server pagination behavior are verified by backend unit tests.
 - `e2e/accounting-operation-modal.spec.ts` — **Confirm** (outline, stay open) and **Confirm and close** (filled); no large-amount warning.
 - `e2e/repair-kanban-master-filter.spec.ts` — Kanban master menu: several coworkers plus Without master, chips, Clear back to All, saved filter, and Orders/Sales still a single assignee. Spec: [REPAIR_KANBAN_SPEC.md](./REPAIR_KANBAN_SPEC.md#master-filter-kanban-toolbar-only).
+- `e2e/print-builder-variables.spec.ts` — Print form builder `Template variables` collapse/expand via mouse and keyboard across Heading, Text, and Barcode editors, hiding all groups together, variable insertion after expanding, and reset on reopen. Spec: [PRINT_FORMS_SPEC.md](./PRINT_FORMS_SPEC.md#collapsible-template-variables-2026-11-11).
 
 ## Frontend structure
 
