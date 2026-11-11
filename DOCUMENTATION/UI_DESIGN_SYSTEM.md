@@ -248,6 +248,7 @@ From [`responsive.css`](../frontend/src/shared/styles/responsive.css):
 | `.print-formatted-field` | Full-width print builder text field; Level / Weight / Align wrap below |
 | `.print-formatted-textarea` | Builder textarea resizable down and right (`resize: both`), capped at panel width |
 | `.print-inline-format` | Class on inline `<strong>` / `<em>` / `<u>` in print HTML (keeps label bold inline) |
+| `.settings-variable-catalog` / `.settings-variable-catalog-toggle` | Full-width collapsible **Template variables** section in Heading / Text / Barcode print block editors (`aria-expanded`, `⌃` / `⌄` indicator) |
 | `html[data-theme=light\|dark]` | Color theme (`project-goods.ui-theme` in localStorage; topbar ThemeSwitcher) |
 
 ## CSS file map

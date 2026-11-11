@@ -65,6 +65,11 @@ Specs:
   `widgets/dashboard/ui/settings/PrintTextFormatting.test.tsx` (buttons, Ctrl+B/I/U, shared block
   toolbar targets last focused field, builder preview). Spec:
   [PRINT_FORMS_SPEC.md](./PRINT_FORMS_SPEC.md#inline-text-formatting-2026-11-10).
+- Print builder variables: `widgets/dashboard/ui/settings/PrintFormBuilder.test.tsx`
+  (collapse/expand across Heading, Text, and Barcode editors, hiding all variable groups
+  together, variable insertion after expanding, and reset to expanded on reopen; browser
+  mouse and keyboard checks in `e2e/print-builder-variables.spec.ts`). Spec:
+  [PRINT_FORMS_SPEC.md](./PRINT_FORMS_SPEC.md#collapsible-template-variables-2026-11-11).
 
 - Co-located `*.test.tsx` / `*.test.ts` next to components and hooks.
 - High-value suites: `OrdersWorkspace`, `OrderDetailCard`, `CreateOrderCard`, `AccountingPanel`, `DashboardPage`.

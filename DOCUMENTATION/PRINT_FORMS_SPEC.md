@@ -394,6 +394,10 @@ Default label content margins when no override exists: `0.45 / 1.25 / 0.45 /
 - Text blocks (`heading`, `paragraph`) should support Level (size), Weight
   (`light` / `normal` / `bold`, default `normal`), and Align (`left` / `center` /
   `right`).
+- The **Template variables** catalog shared by `heading`, `paragraph`, and `barcode`
+  editors defaults to expanded and collapses/expands via its accessible heading
+  button in local UI state only; see
+  [Collapsible Template Variables](#collapsible-template-variables-2026-11-11).
 - Switching built-in templates in the print form builder must refresh the
   builder state and preview to the selected template.
 - Existing custom print forms must not be overwritten by built-in migrations.
