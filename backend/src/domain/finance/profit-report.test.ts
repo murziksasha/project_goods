@@ -8,6 +8,7 @@ import {
   buildProfitCashSummary,
   buildProfitMarginRows,
   getFinanceProfitReport,
+  getFinanceProfitReportDetails,
   isStockCommittedSale,
   resolveProfitReportBounds,
   resolveReportedFinanceCategory,
@@ -75,8 +76,8 @@ describe('profit report helpers', () => {
     ).toEqual([180, 90]);
   });
 
-  it('builds margin rows by SKU with service cost 0 and unknown product cost flagged', () => {
-    const { rows, unknownCostCount } = buildProfitMarginRows(
+  it('builds margin rows by SKU honoring explicit zero cost snapshots and flagging unrecorded legacy costs as unknown', () => {
+    const { rows, unknownCostCount, knownCostRevenue } = buildProfitMarginRows(
       [
         {
           kind: 'sale',
@@ -96,6 +97,20 @@ describe('profit report helpers', () => {
               price: 200,
               quantity: 1,
               serviceId: 's1',
+              costSnapshot: {
+                status: 'known',
+                unitCost: 0,
+                totalCost: 0,
+                method: 'zero',
+                capturedAt: new Date('2026-09-10T10:00:00.000Z'),
+              },
+            },
+            {
+              kind: 'service',
+              name: 'Legacy uncosted service',
+              price: 150,
+              quantity: 1,
+              serviceId: 's2',
             },
           ],
         },
@@ -117,7 +132,8 @@ describe('profit report helpers', () => {
       'all',
     );
 
-    expect(unknownCostCount).toBe(1);
+    expect(unknownCostCount).toBe(2);
+    expect(knownCostRevenue).toBe(700);
     expect(rows.find((row) => row.name === 'Screen')).toMatchObject({
       type: 'product',
       cost: 300,
@@ -136,6 +152,10 @@ describe('profit report helpers', () => {
       costKnown: true,
       catalogProductId: null,
       serviceId: 's1',
+    });
+    expect(rows.find((row) => row.name === 'Legacy uncosted service')).toMatchObject({
+      costKnown: false,
+      revenue: 150,
     });
     expect(rows.find((row) => row.name === 'Missing part')).toMatchObject({
       costKnown: false,
@@ -463,5 +483,114 @@ describe('getFinanceProfitReport', () => {
     expect(result.rows[0]?.name).toBe('Battery');
     expect(result.dataScope).toBe('live_sales_only');
     expect(result.coldSalesPurgedExist).toBe(false);
+    expect(result.margin.isIncomplete).toBe(false);
+    expect(result.margin.costCoveragePct).toBe(100);
+    expect(result.previousComparison).not.toBeNull();
+  });
+
+  it('marks overall profit incomplete on partial cost coverage while reporting known-cost subtotals and full-dataset details', async () => {
+    vi.setSystemTime(new Date('2026-09-15T12:00:00.000Z'));
+
+    const salesRows = [
+      {
+        _id: { toString: () => 's-known' },
+        recordNumber: 'S000001',
+        saleDate: new Date('2026-09-15T10:00:00.000Z'),
+        kind: 'sale',
+        status: 'paid',
+        salePrice: 400,
+        quantity: 1,
+        discount: { mode: 'percent', value: 0 },
+        clientSnapshot: { name: 'Client A' },
+        lineItems: [
+          {
+            id: 'li-1',
+            kind: 'product',
+            name: 'SSD',
+            price: 400,
+            quantity: 1,
+            productId: 'p1',
+            costSnapshot: { status: 'known', unitCost: 250, totalCost: 250, method: 'stock', capturedAt: new Date() },
+          },
+        ],
+      },
+      {
+        _id: { toString: () => 's-missing' },
+        recordNumber: 'R000002',
+        saleDate: new Date('2026-09-15T11:00:00.000Z'),
+        kind: 'repair',
+        status: 'issued',
+        salePrice: 300,
+        quantity: 1,
+        discount: { mode: 'percent', value: 0 },
+        clientSnapshot: { name: 'Client B' },
+        lineItems: [
+          {
+            id: 'li-2',
+            kind: 'service',
+            name: 'Legacy work',
+            price: 300,
+            quantity: 1,
+          },
+        ],
+      },
+      {
+        _id: { toString: () => 's-loss' },
+        recordNumber: 'S000003',
+        saleDate: new Date('2026-09-15T11:30:00.000Z'),
+        kind: 'sale',
+        status: 'issued',
+        salePrice: 100,
+        quantity: 1,
+        discount: { mode: 'percent', value: 0 },
+        clientSnapshot: { name: 'Client C' },
+        lineItems: [
+          {
+            id: 'li-3',
+            kind: 'service',
+            name: 'Discounted fix',
+            price: 100,
+            quantity: 1,
+            costSnapshot: { status: 'known', unitCost: 160, totalCost: 160, method: 'fixed', capturedAt: new Date() },
+          },
+        ],
+      },
+    ];
+    vi.spyOn(Sale, 'find').mockReturnValue({
+      select: vi.fn().mockReturnValue({ lean: vi.fn().mockResolvedValue(salesRows) }),
+    } as never);
+    vi.spyOn(FinanceTransaction, 'find').mockReturnValue({
+      select: vi.fn().mockReturnValue({ lean: vi.fn().mockResolvedValue([]) }),
+    } as never);
+    vi.spyOn(FinanceCategory, 'find').mockReturnValue({
+      select: vi.fn().mockReturnValue({ lean: vi.fn().mockResolvedValue([]) }),
+    } as never);
+    vi.spyOn(Product, 'find').mockReturnValue({
+      select: vi.fn().mockReturnValue({ lean: vi.fn().mockResolvedValue([{ _id: { toString: () => 'p1' }, price: 250 }]) }),
+    } as never);
+
+    const whole = await getFinanceProfitReport({ period: 'whole' });
+    expect(whole.previousComparison).toBeNull();
+    expect(whole.margin.revenue).toBe(800);
+    expect(whole.margin.cogs).toBe(410);
+    expect(whole.margin.isIncomplete).toBe(true);
+    expect(whole.margin.grossProfit).toBeNull();
+    expect(whole.margin.grossMarginPct).toBeNull();
+    expect(whole.margin.knownCostRevenue).toBe(500);
+    expect(whole.margin.knownCostGrossProfit).toBe(90);
+    expect(whole.margin.costCoveragePct).toBe(62.5);
+
+    const detailsAll = await getFinanceProfitReportDetails({ period: 'whole', page: 1, pageSize: 1 });
+    expect(detailsAll.items).toHaveLength(1);
+    expect(detailsAll.total).toBe(3);
+    expect(detailsAll.totals.revenue).toBe(800);
+    expect(detailsAll.totals.lossRecordsCount).toBe(1);
+    expect(detailsAll.totals.missingCostRecordsCount).toBe(1);
+
+    const lossOnly = await getFinanceProfitReportDetails({ period: 'whole', lossOnly: true });
+    expect(lossOnly.items.map((r) => r.recordNumber)).toEqual(['S000003']);
+
+    const missingOnly = await getFinanceProfitReportDetails({ period: 'whole', missingCostOnly: true });
+    expect(missingOnly.items.map((r) => r.recordNumber)).toEqual(['R000002']);
   });
 });

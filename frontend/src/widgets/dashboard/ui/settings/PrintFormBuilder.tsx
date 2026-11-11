@@ -164,33 +164,57 @@ const regenerateLayoutContent = (form: PrintForm, blocks: PrintLayoutBlock[]) =>
   contentFormat: 'html' as const,
 });
 
-const VariablePicker = ({ onInsert }: { onInsert: (variable: string) => void }) => {
+const COLLAPSE_ICON_EXPANDED = '\u2303';
+const COLLAPSE_ICON_COLLAPSED = '\u2304';
+
+interface VariablePickerProps {
+  onInsert: (variable: string) => void;
+}
+
+const VariablePicker: React.FC<VariablePickerProps> = ({ onInsert }) => {
   const { t } = useTranslation();
+  const [isExpanded, setIsExpanded] = useState(true);
+  const gridId = useId();
 
   return (
     <div className="settings-variable-catalog">
-      <h3>{t('settings.printBuilder.templateVariables')}</h3>
-      <div className="settings-variable-grid">
-        {printFormVariableGroups.map((group) => {
-          const groupKey = printFormVariableGroupKeys[group.title] ?? group.title;
-          return (
-            <div key={group.title} className="settings-variable-group">
-              <strong>{t(`settings.printBuilder.variableGroups.${groupKey}`)}</strong>
-              {group.variables.map((variable) => (
-                <button
-                  key={variable.key}
-                  type="button"
-                  className="settings-variable-row"
-                  onClick={() => onInsert(`{{${variable.key}}}`)}
-                >
-                  <code>{`{{${variable.key}}}`}</code>
-                  <span>{t(`settings.printBuilder.variables.${variable.key}`, { defaultValue: variable.label })}</span>
-                </button>
-              ))}
-            </div>
-          );
-        })}
-      </div>
+      <h3>
+        <button
+          type="button"
+          className="settings-variable-catalog-toggle"
+          aria-expanded={isExpanded}
+          aria-controls={isExpanded ? gridId : undefined}
+          onClick={() => setIsExpanded((current) => !current)}
+        >
+          <span>{t('settings.printBuilder.templateVariables')}</span>
+          <span className="settings-variable-catalog-toggle-icon" aria-hidden="true">
+            {isExpanded ? COLLAPSE_ICON_EXPANDED : COLLAPSE_ICON_COLLAPSED}
+          </span>
+        </button>
+      </h3>
+      {isExpanded ? (
+        <div id={gridId} className="settings-variable-grid">
+          {printFormVariableGroups.map((group) => {
+            const groupKey = printFormVariableGroupKeys[group.title] ?? group.title;
+            return (
+              <div key={group.title} className="settings-variable-group">
+                <strong>{t(`settings.printBuilder.variableGroups.${groupKey}`)}</strong>
+                {group.variables.map((variable) => (
+                  <button
+                    key={variable.key}
+                    type="button"
+                    className="settings-variable-row"
+                    onClick={() => onInsert(`{{${variable.key}}}`)}
+                  >
+                    <code>{`{{${variable.key}}}`}</code>
+                    <span>{t(`settings.printBuilder.variables.${variable.key}`, { defaultValue: variable.label })}</span>
+                  </button>
+                ))}
+              </div>
+            );
+          })}
+        </div>
+      ) : null}
     </div>
   );
 };

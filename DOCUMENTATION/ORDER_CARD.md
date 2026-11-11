@@ -209,3 +209,9 @@ Related: [ORDER_FLOW.md](./ORDER_FLOW.md) · [SALE_CARD.md](./SALE_CARD.md) · [
 - Collapse section buttons: `aria-expanded`; icon marked `aria-hidden`.
 - Tier toggle (`ProductSalePriceTierToggle`): `aria-pressed`; Arrow Left/Right switches R/W inside the group.
 - Design tokens and component catalog: [`UI_DESIGN_SYSTEM.md`](./UI_DESIGN_SYSTEM.md).
+
+### Line-item costing & audited completion (2026-11-11)
+
+- Service items with `costMethod = time_rate` expose an inline `Minutes` (`recordedMinutes`) input inside the line item name cell (operational input allowed without `finance.view`, locked after cost snapshot commit unless authorized).
+- Financial cost summaries, missing-cost non-blocking banners (`costWarnings`), and post-closure audited cost editing (`OrderCostAuditModal` via `PATCH /api/sales/:saleId/costs`) are shown only when the employee has BOTH the management permission (`orders.manage` for repairs, `sales.manage` for sales) AND `finance.view`.
+- Catalog service costing defaults (`costMethod`, `fixedCost`, `hourlyCost`, `defaultDurationMinutes`) are configurable in `ServiceCatalogForm`, `CatalogServiceModal`, and `OrderDetailCatalogServiceEditorModal`.

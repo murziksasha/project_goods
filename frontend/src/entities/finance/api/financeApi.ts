@@ -12,9 +12,13 @@ import {
   type CreateFinanceTransactionPayload,
   type FinanceCategory,
   type FinanceCurrencyConfig,
+  type CashboxesReportDetailsResponse,
+  type CashboxesReportParams,
+  type CashboxesReportResponse,
   type FinanceProfitReport,
   type FinanceReport,
   type FinanceTransaction,
+  type ProfitReportDetailsResponse,
   type ProfitReportParams,
   type FinanceTransactionsListParams,
   type FinanceTransactionsPage,
@@ -33,6 +37,8 @@ const invalidateFinanceQueries = () => {
     queryClient.invalidateQueries({ queryKey: queryKeys.financeTransactions }),
     queryClient.invalidateQueries({ queryKey: queryKeys.financeReport }),
     queryClient.invalidateQueries({ queryKey: ['financeProfitReport'] }),
+    queryClient.invalidateQueries({ queryKey: queryKeys.cashboxesReportRoot }),
+    queryClient.invalidateQueries({ queryKey: queryKeys.ordersProcurementReportRoot }),
     queryClient.invalidateQueries({
       queryKey: queryKeys.financeSupplierOrdersQueue,
     }),
@@ -276,6 +282,52 @@ export const getFinanceProfitReport = async (params: ProfitReportParams = {}) =>
   }
 };
 
+export const getFinanceProfitReportDetails = async (
+  params: ProfitReportParams = {},
+) => {
+  try {
+    const response = await apiClient.get<ProfitReportDetailsResponse>(
+      '/finance/profit-report/details',
+      { params },
+    );
+    return response.data;
+  } catch (error) {
+    throw new Error(getApiErrorMessage(error));
+  }
+};
+
+export const getCashboxesReport = async (params: CashboxesReportParams = {}) => {
+  try {
+    const queryParams = {
+      ...params,
+      plannedEvents: params.plannedEvents
+        ? JSON.stringify(params.plannedEvents)
+        : undefined,
+    };
+    const response = await apiClient.get<CashboxesReportResponse>(
+      '/finance/cashboxes-report',
+      { params: queryParams },
+    );
+    return response.data;
+  } catch (error) {
+    throw new Error(getApiErrorMessage(error));
+  }
+};
+
+export const getCashboxesReportDetails = async (
+  params: CashboxesReportParams = {},
+) => {
+  try {
+    const response = await apiClient.get<CashboxesReportDetailsResponse>(
+      '/finance/cashboxes-report/details',
+      { params },
+    );
+    return response.data;
+  } catch (error) {
+    throw new Error(getApiErrorMessage(error));
+  }
+};
+
 export const getSupplierOrdersForPayment = async () => {
   try {
     const response = await apiClient.get<SupplierOrderPaymentQueueItem[]>('/finance/supplier-orders');
@@ -377,6 +429,77 @@ export const useFinanceProfitReportQuery = (
       dateFrom: params.dateFrom ?? '',
       dateTo: params.dateTo ?? '',
       source: params.source ?? 'all',
+      lossOnly: Boolean(params.lossOnly),
+      missingCostOnly: Boolean(params.missingCostOnly),
+      q: params.q ?? '',
+    }),
+  });
+
+export const useFinanceProfitReportDetailsQuery = (
+  params: ProfitReportParams = {},
+  options: { enabled?: boolean } = {},
+) =>
+  useQuery({
+    enabled: options.enabled,
+    queryFn: () => getFinanceProfitReportDetails(params),
+    queryKey: queryKeys.financeProfitReportDetails({
+      period: params.period ?? 'whole',
+      dateFrom: params.dateFrom ?? '',
+      dateTo: params.dateTo ?? '',
+      source: params.source ?? 'all',
+      lossOnly: Boolean(params.lossOnly),
+      missingCostOnly: Boolean(params.missingCostOnly),
+      q: params.q ?? '',
+      page: params.page ?? 1,
+      pageSize: params.pageSize ?? 25,
+      sortBy: params.sortBy ?? 'saleDate',
+      sortDir: params.sortDir ?? 'desc',
+    }),
+  });
+
+export const useCashboxesReportQuery = (
+  params: CashboxesReportParams = {},
+  options: { enabled?: boolean } = {},
+) =>
+  useQuery({
+    enabled: options.enabled,
+    queryFn: () => getCashboxesReport(params),
+    queryKey: queryKeys.cashboxesReport({
+      period: params.period ?? 'last30',
+      dateFrom: params.dateFrom ?? '',
+      dateTo: params.dateTo ?? '',
+      cashboxId: params.cashboxId ?? '',
+      currency: params.currency ?? '',
+      horizonDays: params.horizonDays ?? 30,
+      demandMultiplier: params.demandMultiplier ?? 1,
+      inflowMultiplier: params.inflowMultiplier ?? 1,
+      outflowMultiplier: params.outflowMultiplier ?? 1,
+      inflowTimingShiftDays: params.inflowTimingShiftDays ?? 0,
+      outflowTimingShiftDays: params.outflowTimingShiftDays ?? 0,
+      plannedEvents: params.plannedEvents ?? [],
+    }),
+  });
+
+export const useCashboxesReportDetailsQuery = (
+  params: CashboxesReportParams = {},
+  options: { enabled?: boolean } = {},
+) =>
+  useQuery({
+    enabled: options.enabled,
+    queryFn: () => getCashboxesReportDetails(params),
+    queryKey: queryKeys.cashboxesReportDetails({
+      period: params.period ?? 'last30',
+      dateFrom: params.dateFrom ?? '',
+      dateTo: params.dateTo ?? '',
+      cashboxId: params.cashboxId ?? '',
+      currency: params.currency ?? '',
+      type: params.type ?? 'all',
+      category: params.category ?? '',
+      q: params.q ?? '',
+      page: params.page ?? 1,
+      pageSize: params.pageSize ?? 25,
+      sortBy: params.sortBy ?? 'transactionDate',
+      sortDir: params.sortDir ?? 'desc',
     }),
   });
 

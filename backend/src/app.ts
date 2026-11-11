@@ -32,6 +32,7 @@ import { weatherRouter } from './domain/weather/routes';
 import { analyticsRouter } from './domain/analytics/routes';
 import { archiveRouter } from './domain/archive/routes';
 import { savedFilterRouter } from './domain/saved-filter/routes';
+import { scenarioRouter } from './domain/scenario/routes';
 import { eventsRouter } from './domain/events/routes';
 import { publishDomainEvent } from './shared/lib/domain-events';
 import {
@@ -117,6 +118,7 @@ app.use('/api', weatherRouter);
 app.use('/api', analyticsRouter);
 app.use('/api', archiveRouter);
 app.use('/api', savedFilterRouter);
+app.use('/api', scenarioRouter);
 app.use('/api', eventsRouter);
 
 app.use((_req, res) => {

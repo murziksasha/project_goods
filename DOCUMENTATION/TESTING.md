@@ -50,6 +50,7 @@ Specs:
   - This spec mocks `/api/sales`; backend phone regex and server pagination behavior are verified by backend unit tests.
 - `e2e/accounting-operation-modal.spec.ts` — **Confirm** (outline, stay open) and **Confirm and close** (filled); no large-amount warning.
 - `e2e/repair-kanban-master-filter.spec.ts` — Kanban master menu: several coworkers plus Without master, chips, Clear back to All, saved filter, and Orders/Sales still a single assignee. Spec: [REPAIR_KANBAN_SPEC.md](./REPAIR_KANBAN_SPEC.md#master-filter-kanban-toolbar-only).
+- `e2e/print-builder-variables.spec.ts` — Print form builder `Template variables` collapse/expand via mouse and keyboard across Heading, Text, and Barcode editors, hiding all groups together, variable insertion after expanding, and reset on reopen. Spec: [PRINT_FORMS_SPEC.md](./PRINT_FORMS_SPEC.md#collapsible-template-variables-2026-11-11).
 
 ## Frontend structure
 
@@ -64,6 +65,11 @@ Specs:
   `widgets/dashboard/ui/settings/PrintTextFormatting.test.tsx` (buttons, Ctrl+B/I/U, shared block
   toolbar targets last focused field, builder preview). Spec:
   [PRINT_FORMS_SPEC.md](./PRINT_FORMS_SPEC.md#inline-text-formatting-2026-11-10).
+- Print builder variables: `widgets/dashboard/ui/settings/PrintFormBuilder.test.tsx`
+  (collapse/expand across Heading, Text, and Barcode editors, hiding all variable groups
+  together, variable insertion after expanding, and reset to expanded on reopen; browser
+  mouse and keyboard checks in `e2e/print-builder-variables.spec.ts`). Spec:
+  [PRINT_FORMS_SPEC.md](./PRINT_FORMS_SPEC.md#collapsible-template-variables-2026-11-11).
 
 - Co-located `*.test.tsx` / `*.test.ts` next to components and hooks.
 - High-value suites: `OrdersWorkspace`, `OrderDetailCard`, `CreateOrderCard`, `AccountingPanel`, `DashboardPage`.
@@ -138,3 +144,4 @@ npm run test:frontend
 3. `npm run build` passes in both packages before release.
 4. Integration tests must not require Docker MongoDB (mongoose models mocked in API suite).
 5. New protected routes need entries in `api.integration.test.ts` or dedicated `*.routes.test.ts`.
+6. Reporting, historical costing, scenarios, and access-boundary integration coverage lives in `backend/src/test/reports.integration.test.ts` (and domain unit suites `warehouse-report.test.ts`, `orders-report.test.ts`, `cashboxes-report.test.ts`, `profit-report.test.ts`, `sale/costing.test.ts`, `scenario/service.test.ts`); frontend coverage includes `AccountingProfitCharts.test.tsx`, `AccountingProfitReportsView.test.tsx`, `AccountingReportsView.test.tsx`, `WarehouseInformationPanel.test.tsx`, `OrdersInformationWorkspace.test.tsx`, `OrderCostAuditModal.test.tsx`, and E2E suite `frontend/e2e/reports-upgrade.spec.ts`.

@@ -758,13 +758,41 @@
   grid-area: waterfall;
 }
 
+.finance-profit-mix-panel .analytics-panel-header,
 .finance-profit-leaders-panel .analytics-panel-header {
   align-items: center;
   gap: 10px;
+  flex-wrap: wrap;
 }
 
+.finance-profit-mix-panel .period-toggle,
 .finance-profit-leaders-panel .period-toggle {
   flex-shrink: 0;
+}
+
+.analytics-mix-legend {
+  display: grid;
+  gap: 8px;
+}
+
+.analytics-mix-legend-item p {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.finance-mix-uncosted-note {
+  display: block;
+  margin-top: 2px;
+  padding-left: 16px;
+  font-size: 0.78rem;
+}
+
+.finance-mix-empty-state {
+  display: grid;
+  gap: 10px;
+  justify-items: start;
 }
 
 .finance-profit-chart-row,

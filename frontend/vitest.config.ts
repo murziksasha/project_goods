@@ -23,7 +23,6 @@ export default defineConfig({
     dedupe: ['react', 'react-dom', 'react-i18next', 'i18next'],
   },
   test: {
-    pool: 'vmForks',
     pool: 'forks',
     fileParallelism: false,
     maxWorkers: 1,

@@ -1,7 +1,12 @@
 import type { MouseEvent as ReactMouseEvent } from 'react';
 import JsBarcode from 'jsbarcode';
 import type { Employee } from '../../../../../entities/employee';
-import type { Sale } from '../../../../../entities/sale';
+import type {
+  Sale,
+  SaleCostAuditEntry,
+  SaleCostSnapshot,
+  ServiceCostMethod,
+} from '../../../../../entities/sale';
 import { isRepairOrder } from '../../../../../entities/sale';
 import {
   getSaleListItemSerial,
@@ -204,6 +209,16 @@ export type OrderLineItem = {
   quantity: number;
   warrantyPeriod: number;
   serialNumbers?: string[];
+  costMethod?: ServiceCostMethod | null;
+  recordedMinutes?: number | null;
+  fixedCost?: number | null;
+  hourlyCost?: number | null;
+  directExpenses?: number | null;
+  unitCostOverride?: number | null;
+  isCostOverridden?: boolean | null;
+  costSnapshot?: SaleCostSnapshot | null;
+  auditedCost?: SaleCostSnapshot | null;
+  costAuditLog?: SaleCostAuditEntry[];
 };
 export type RepairTypeFilter = 'all' | 'paid' | 'warranty';
 export type SaleTypeFilter = 'all' | 'rapid' | 'regular';

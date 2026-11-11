@@ -12,7 +12,8 @@ import {
   resolveComposeBackupVolume,
 } from './backup-volume-owner.mjs';
 
-const read = (path) => readFileSync(new URL(path, import.meta.url), 'utf8');
+// Source assertions must work in both LF and Windows CRLF checkouts.
+const read = (path) => readFileSync(new URL(path, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 const silent = () => {};
 
 const fakeDocker = (statuses) => {

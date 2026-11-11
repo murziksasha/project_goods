@@ -2,6 +2,7 @@ import * as XLSX from 'xlsx';
 import type {
   FinanceProfitReport,
   ProfitMarginRow,
+  ProfitReportDetailItem,
   ProfitReportPeriod,
   ProfitReportSource,
 } from '../../../entities/finance';
@@ -15,6 +16,7 @@ export const profitReportPeriodOptions: Array<{
   value: ProfitReportPeriod;
   labelKey: string;
 }> = [
+  { value: 'last30', labelKey: 'accounting.profit.periods.last30' },
   { value: 'whole', labelKey: 'accounting.profit.periods.whole' },
   { value: 'day', labelKey: 'accounting.profit.periods.day' },
   { value: 'week', labelKey: 'accounting.profit.periods.week' },
@@ -42,6 +44,7 @@ export type StoredProfitReportFilters = {
 };
 
 const isPeriod = (value: unknown): value is ProfitReportPeriod =>
+  value === 'last30' ||
   value === 'whole' ||
   value === 'day' ||
   value === 'week' ||
@@ -53,7 +56,7 @@ const isSource = (value: unknown): value is ProfitReportSource =>
 
 export const defaultProfitReportFilters =
   (): StoredProfitReportFilters => ({
-    period: 'whole',
+    period: 'last30',
     source: 'all',
     dateFrom: '',
     dateTo: '',
@@ -169,6 +172,12 @@ export type ProfitMixShare = {
   service: number;
   productPct: number;
   servicePct: number;
+};
+
+export type ProfitMixUncostedSummary = {
+  product: number;
+  service: number;
+  total: number;
 };
 
 export type ProfitReportCatalogTarget =
@@ -527,6 +536,26 @@ export const buildProfitMixShare = (
   };
 };
 
+/** Sums billed revenue whose cost is still unknown, split by product vs service. */
+export const summarizeProfitMixUncostedRevenue = (
+  rows: ProfitMarginRow[],
+): ProfitMixUncostedSummary => {
+  let product = 0;
+  let service = 0;
+  rows.forEach((row) => {
+    const knownRev = row.knownCostRevenue ?? (row.costKnown ? row.revenue : 0);
+    const uncosted = Math.max(roundMoney(row.revenue - knownRev), 0);
+    if (uncosted <= 0) return;
+    if (row.type === 'service') service += uncosted;
+    else product += uncosted;
+  });
+  return {
+    product: roundMoney(product),
+    service: roundMoney(service),
+    total: roundMoney(product + service),
+  };
+};
+
 const exactNameMatches = <T extends { name: string }>(
   items: T[],
   name: string,
@@ -603,9 +632,13 @@ export const exportProfitReportWorkbook = ({
   report,
   filename,
   labels,
+  detailRows = [],
+  extraFilters = '',
 }: {
   report: FinanceProfitReport;
   filename: string;
+  detailRows?: ProfitReportDetailItem[];
+  extraFilters?: string;
   labels: {
     title: string;
     generated: string;
@@ -651,12 +684,31 @@ export const exportProfitReportWorkbook = ({
     [labels.generated, generatedAt],
     [labels.source, report.source],
     [labels.period, periodLabel],
-    [labels.filters, `${report.source}; ${periodLabel}`],
+    [labels.filters, `${report.source}; ${periodLabel}${extraFilters ? `; ${extraFilters}` : ''}`],
     [],
     [labels.revenue, report.margin.revenue],
     [labels.cogs, report.margin.cogs],
-    [labels.grossProfit, report.margin.grossProfit],
-    [labels.grossMargin, report.margin.grossMarginPct ?? ''],
+    [
+      labels.grossProfit,
+      report.margin.isIncomplete
+        ? 'Incomplete'
+        : (report.margin.grossProfit ?? 0),
+    ],
+    [labels.grossMargin, report.margin.grossMarginPct ?? 'Incomplete'],
+    [
+      'Known-cost revenue subtotal',
+      report.margin.knownCostRevenue ?? report.margin.revenue,
+    ],
+    [
+      'Known-cost gross profit',
+      report.margin.knownCostGrossProfit ?? report.margin.grossProfit ?? 0,
+    ],
+    [
+      'Cost coverage %',
+      report.margin.costCoveragePct !== undefined
+        ? `${report.margin.costCoveragePct}%`
+        : '100%',
+    ],
     [labels.collected, report.cash.collected],
     [labels.purchases, report.cash.inventoryPurchases],
     [labels.opex, report.cash.opex],
@@ -690,7 +742,9 @@ export const exportProfitReportWorkbook = ({
       report.rows.reduce((sum, row) => sum + row.quantity, 0),
       report.margin.cogs,
       report.margin.revenue,
-      report.margin.grossProfit,
+      report.margin.isIncomplete
+        ? 'Incomplete'
+        : (report.margin.grossProfit ?? 0),
       report.margin.grossMarginPct ?? '',
     ],
   ];
@@ -734,6 +788,68 @@ export const exportProfitReportWorkbook = ({
     workbook,
     XLSX.utils.aoa_to_sheet(cashRows),
     toExcelSheetName(labels.cashSheet),
+  );
+  if (detailRows.length > 0) {
+    XLSX.utils.book_append_sheet(
+      workbook,
+      XLSX.utils.json_to_sheet(
+        detailRows.map((d) => ({
+          Record: d.recordNumber || d.id,
+          Kind: d.kind,
+          Status: d.status,
+          Date: d.saleDate.slice(0, 10),
+          Client: d.clientName,
+          Revenue: d.revenue,
+          KnownCostRevenue: d.knownCostRevenue,
+          KnownCost: d.knownCost,
+          KnownProfit: d.knownProfit,
+          Profit: d.isIncomplete ? 'Incomplete' : (d.profit ?? 0),
+          MissingCostLines: d.missingCostCount,
+          IsLoss: d.isLoss ? 'Yes' : 'No',
+        })),
+      ),
+      'Source Records',
+    );
+  }
+  const metaRows: Array<Record<string, string>> = [
+    { Section: 'Report', Key: 'Title', Value: labels.title },
+    { Section: 'Report', Key: 'Generated At', Value: generatedAt },
+    { Section: 'Report', Key: 'Business Time Zone', Value: report.period.timeZone || 'Europe/Kiev' },
+    { Section: 'Active Filter', Key: 'Source', Value: report.source },
+    { Section: 'Active Filter', Key: 'Period', Value: periodLabel },
+    ...(extraFilters ? [{ Section: 'Active Filter', Key: 'Flags', Value: extraFilters }] : []),
+    {
+      Section: 'Metric Definition',
+      Key: 'Gross Profitability vs Cash Flow',
+      Value:
+        'Gross profitability measures committed sales/repairs revenue minus product & service cost snapshots/audits. Labor costing affects gross profit; cash salary withdrawals stay in cash-flow OPEX and are not double-deducted.',
+    },
+    {
+      Section: 'Metric Definition',
+      Key: 'Incomplete Costs',
+      Value:
+        'Orders with unknown costs are included in revenue; overall profit shows as Incomplete alongside a known-cost subtotal and coverage percentage.',
+    },
+    ...(report.coverage?.warnings.length
+      ? report.coverage.warnings.map((w, idx) => ({
+          Section: 'Coverage Warning',
+          Key: `Warning ${idx + 1}`,
+          Value: w,
+        }))
+      : [
+          {
+            Section: 'Coverage Warning',
+            Key: 'Status',
+            Value: report.coldSalesPurgedExist
+              ? 'Cold yearly archive purges exist; profitability covers live persisted records only.'
+              : 'No coverage warnings for selection.',
+          },
+        ]),
+  ];
+  XLSX.utils.book_append_sheet(
+    workbook,
+    XLSX.utils.json_to_sheet(metaRows),
+    'Metadata & Definitions',
   );
   downloadWorkbook(workbook, filename);
 };

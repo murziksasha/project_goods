@@ -153,6 +153,11 @@ const SupplierOrdersWorkspace = lazy(() =>
     (module) => ({ default: module.SupplierOrdersWorkspace }),
   ),
 );
+const OrdersInformationWorkspace = lazy(() =>
+  import('../../../widgets/dashboard/ui/orders/OrdersInformationWorkspace').then(
+    (module) => ({ default: module.OrdersInformationWorkspace }),
+  ),
+);
 
 const pageKeys: PageKey[] = [
   'home',
@@ -1662,8 +1667,32 @@ export const DashboardPage: React.FC = () => {
                   onOpenClientCard={openClientCardFromOrders}
                 />
               ) : activePage === 'orders' &&
-                (effectiveOrdersTab === 'supplierOrders' ||
-                  effectiveOrdersTab === 'supplierInformation') ? (
+                effectiveOrdersTab === 'supplierInformation' ? (
+                <OrdersInformationWorkspace
+                  activeTab={effectiveOrdersTab}
+                  visibleTabs={displayedOrdersTabs}
+                  permittedTabs={availableOrdersTabs}
+                  onActiveTabChange={changeOrdersTab}
+                  onToggleTabVisibility={toggleOrdersTabVisibility}
+                  employees={state.allEmployees}
+                  canViewRepairs={hasAnyEmployeePermission(currentEmployee, [
+                    'orders.view',
+                    'orders.manage',
+                    'repairs.execute',
+                    'kanban.use',
+                  ])}
+                  canViewSales={hasAnyEmployeePermission(currentEmployee, [
+                    'orders.view',
+                    'sales.manage',
+                  ])}
+                  canViewProcurement={canViewSupplierOrders}
+                  onOpenSaleCard={openSaleFromClientCard}
+                  onOpenSupplierOrderTab={() =>
+                    changeOrdersTab('supplierOrders')
+                  }
+                />
+              ) : activePage === 'orders' &&
+                effectiveOrdersTab === 'supplierOrders' ? (
                 <SupplierOrdersWorkspace
                   activeTab={effectiveOrdersTab}
                   onActiveTabChange={changeOrdersTab}

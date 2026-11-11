@@ -2555,6 +2555,7 @@
         "sales": "Sales"
       },
       "periods": {
+        "last30": "Last 30 days",
         "whole": "All time",
         "day": "Day",
         "week": "Week",
@@ -2591,6 +2592,10 @@
       "charts": {
         "mixSection": "Mix",
         "mixTitle": "Products and services",
+        "mixMetricAria": "Mix chart metric",
+        "mixMissingCostLine": "Missing cost revenue: {{amount}} (not in known profit)",
+        "mixEmptyKnownProfit": "No known-cost profit to display ({{amount}} in revenue has missing cost). Switch to Revenue or audit item costs.",
+        "switchToRevenue": "Switch to Revenue",
         "topSection": "Leaders",
         "topTitle": "Top items",
         "comparisonTitle": "Top three",

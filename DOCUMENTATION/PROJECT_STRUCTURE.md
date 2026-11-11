@@ -358,3 +358,25 @@ Spec: [SALE_FLOW.md](./SALE_FLOW.md#rapid-sale-2026-06-24).
 
 - `backend/src/domain/sale/service.ts` - syncs names into `catalog-products`.
 - `frontend/src/widgets/dashboard/ui/product-catalog/ProductCatalogPanel.tsx` - adds `Products` tab.
+
+## Structure Update: Upgraded Information Tabs, Costing & Forecasting (2026-11-11)
+
+### Backend
+
+- `backend/src/domain/sale/costing.ts` (+ `costing.test.ts`) — service costing (`fixed` vs `time_rate`), immutable first-commit `costSnapshot`, non-blocking `costWarnings`, `finance.view` redaction/guards, audited post-closure `updateSaleLineCosts`.
+- `backend/src/domain/analytics/period-utils.ts` — DST-safe `Europe/Kiev` calendar bounds & preceding equal-length comparison window helper.
+- `backend/src/domain/analytics/warehouse-report.ts` (+ `warehouse-report.test.ts`) — inventory valuation, reservations, aging, trailing 90d demand, reorder suggestions, and scenarios.
+- `backend/src/domain/analytics/orders-report.ts` (+ `orders-report.test.ts`) — subview-isolated Repairs, Sales, and Procurement reports & paginated drill-downs.
+- `backend/src/domain/finance/cashboxes-report.ts` (+ `cashboxes-report.test.ts`) — currency-separated cashbox reconciliation (`FinancePeriodSnapshot` seal aware), transfer separation, cashflow scenarios, and obligations scheduler.
+- `backend/src/domain/scenario/{model,service,controller,routes,service.test}.ts` — employee-private saved scenarios CRUD (`/api/scenarios`).
+- `backend/src/test/reports.integration.test.ts` — endpoint permission matrix, redaction, ownership, and cost update integration tests.
+
+### Frontend
+
+- `frontend/src/entities/analytics/{api/reportsApi,model/report-types,index}.ts` — typed API clients and TanStack Query hooks for Warehouse and Orders reports/details.
+- `frontend/src/entities/scenario/{api/scenarioApi,model/types,index}.ts` — private scenarios CRUD hooks.
+- `frontend/src/shared/lib/report-excel.ts` (+ `report-excel.test.ts`) — shared `.xlsx` workbook builder appending `Metadata & Definitions` (timestamp, timezone, active filters, definitions, coverage warnings).
+- `frontend/src/widgets/dashboard/ui/common/AnalyticsPrimitives.tsx` — shared KPI cards, delta badges, coverage banners, accessible interactive bar/trend charts, sortable paginated tables, and scenario manager bar.
+- `frontend/src/widgets/dashboard/ui/orders/OrdersInformationWorkspace.tsx` (+ `OrdersInformationWorkspace.test.tsx`) — subview-isolated Repairs / Sales / Procurement analytics workspace under `ordersTab=supplierInformation`.
+- `frontend/src/widgets/dashboard/ui/orders/order-detail/OrderCostAuditModal.tsx` (+ `OrderCostAuditModal.test.tsx`) — audited line-item cost completion & correction dialog.
+- Upgraded `WarehouseInformationPanel.tsx`, `AccountingReportsView.tsx`, `AccountingProfitReportsView.tsx`, and `AccountingProfitCharts.tsx` (+ `AccountingProfitCharts.test.tsx`), plus `frontend/e2e/reports-upgrade.spec.ts`.

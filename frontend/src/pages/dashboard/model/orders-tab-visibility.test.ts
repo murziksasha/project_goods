@@ -48,7 +48,7 @@ describe('resolvePermittedOrdersTabs', () => {
         canViewSupplierOrders: false,
         canViewKanban: true,
       }),
-    ).toEqual(['orders', 'kanban', 'sales']);
+    ).toEqual(['orders', 'kanban', 'sales', 'supplierInformation']);
   });
 
   it('shows only kanban when the employee has kanban.use and no order rights', () => {

@@ -1,14 +1,33 @@
 import type React from 'react';
 import { Fragment, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { hasEmployeePermission } from '../../../../entities/employee';
+import {
+  hasAnyEmployeePermission,
+  hasEmployeePermission,
+} from '../../../../entities/employee';
 import type { Employee } from '../../../../entities/employee';
-import { useFinanceProfitReportQuery } from '../../../../entities/finance';
+import {
+  getFinanceProfitReportDetails,
+  useFinanceProfitReportDetailsQuery,
+  useFinanceProfitReportQuery,
+} from '../../../../entities/finance';
 import type {
   ProfitMarginRow,
+  ProfitReportDetailItem,
   ProfitReportPeriod,
   ProfitReportSource,
 } from '../../../../entities/finance';
+import { formatDate } from '../../../../shared/lib/format';
+import {
+  AnalyticsComparisonBadge,
+  AnalyticsCoverageBanner,
+  AnalyticsKpiCard,
+  AnalyticsSectionCard,
+  AnalyticsSortableTable,
+  AnalyticsTrendChart,
+  type SortableColumn,
+} from '../common/AnalyticsPrimitives';
+import { OrderCostAuditModal } from '../orders/order-detail/OrderCostAuditModal';
 import type { Sale } from '../../../../entities/sale';
 import { useServicesQuery } from '../../../../entities/service-catalog';
 import type { SupplierOrder } from '../../../../entities/supplier-order';
@@ -100,14 +119,32 @@ export const AccountingProfitReportsView: React.FC<AccountingProfitReportsViewPr
   const [catalogRow, setCatalogRow] = useState<ProfitMarginRow | null>(null);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useStoredPageSize('accountingReports');
+  const [lossOnly, setLossOnly] = useState(false);
+  const [missingCostOnly, setMissingCostOnly] = useState(false);
+  const [detailSearch, setDetailSearch] = useState('');
+  const [detailsPage, setDetailsPage] = useState(1);
+  const [detailsSortBy, setDetailsSortBy] = useState('saleDate');
+  const [detailsSortDir, setDetailsSortDir] = useState<'asc' | 'desc'>('desc');
+  const [auditSaleId, setAuditSaleId] = useState<string | null>(null);
 
   const customRange = hasCustomProfitDateRange(appliedRange);
-  const query = useFinanceProfitReportQuery(
+  const reportFilterParams = {
+    source,
+    period: customRange ? undefined : period,
+    dateFrom: customRange ? appliedRange.dateFrom || undefined : undefined,
+    dateTo: customRange ? appliedRange.dateTo || undefined : undefined,
+    lossOnly: lossOnly || undefined,
+    missingCostOnly: missingCostOnly || undefined,
+  };
+  const query = useFinanceProfitReportQuery(reportFilterParams, { enabled: true });
+  const detailsQuery = useFinanceProfitReportDetailsQuery(
     {
-      source,
-      period: customRange ? undefined : period,
-      dateFrom: customRange ? appliedRange.dateFrom || undefined : undefined,
-      dateTo: customRange ? appliedRange.dateTo || undefined : undefined,
+      ...reportFilterParams,
+      q: detailSearch.trim() || undefined,
+      page: detailsPage,
+      pageSize: 25,
+      sortBy: detailsSortBy,
+      sortDir: detailsSortDir,
     },
     { enabled: true },
   );
@@ -118,6 +155,12 @@ export const AccountingProfitReportsView: React.FC<AccountingProfitReportsViewPr
     currentEmployee,
     'inventory.manage',
   );
+  const canAuditCosts =
+    hasEmployeePermission(currentEmployee ?? null, 'finance.view') &&
+    hasAnyEmployeePermission(currentEmployee ?? null, [
+      'orders.manage',
+      'sales.manage',
+    ]);
 
   useEffect(() => {
     storeProfitReportFilters({
@@ -194,45 +237,90 @@ export const AccountingProfitReportsView: React.FC<AccountingProfitReportsViewPr
     (report?.cash.operations.length ?? 0) === 0;
   const hasRowFilters = hasProfitReportRowFilters(rowFilters);
 
+  const buildExportLabels = () => ({
+    title: t('accounting.profit.export.title'),
+    generated: t('accounting.profit.export.generated'),
+    source: t('accounting.profit.export.source'),
+    period: t('accounting.profit.export.period'),
+    filters: t('accounting.profit.export.filters'),
+    summarySheet: t('accounting.profit.export.summarySheet'),
+    marginSheet: t('accounting.profit.export.marginSheet'),
+    cashSheet: t('accounting.profit.export.cashSheet'),
+    revenue: t('accounting.profit.kpis.revenue'),
+    cogs: t('accounting.profit.kpis.cogs'),
+    grossProfit: t('accounting.profit.kpis.grossProfit'),
+    grossMargin: t('accounting.profit.kpis.grossMargin'),
+    collected: t('accounting.profit.kpis.collected'),
+    purchases: t('accounting.profit.kpis.purchases'),
+    opex: t('accounting.profit.kpis.opex'),
+    refunds: t('accounting.profit.kpis.refunds'),
+    netCash: t('accounting.profit.kpis.netCash'),
+    name: t('accounting.profit.table.name'),
+    type: t('accounting.profit.table.type'),
+    quantity: t('accounting.profit.table.quantity'),
+    cost: t('accounting.profit.table.cost'),
+    profit: t('accounting.profit.table.profit'),
+    marginPct: t('accounting.profit.table.marginPct'),
+    category: t('accounting.profit.table.category'),
+    amount: t('accounting.profit.table.amount'),
+    count: t('accounting.profit.table.count'),
+    note: t('accounting.profit.table.note'),
+    date: t('accounting.profit.table.date'),
+    currency: t('accounting.profit.table.currency'),
+    product: t('accounting.profit.types.product'),
+    service: t('accounting.profit.types.service'),
+    unknownCost: t('accounting.profit.kpis.unknownCost'),
+  });
+
   const handleExport = () => {
     if (!report) return;
+    const flagList = [
+      lossOnly ? 'lossOnly=true' : '',
+      missingCostOnly ? 'missingCostOnly=true' : '',
+      detailSearch.trim() ? `q=${detailSearch.trim()}` : '',
+    ]
+      .filter(Boolean)
+      .join(', ');
+    const currentDetails = detailsQuery.data;
+    if (
+      currentDetails &&
+      currentDetails.total > currentDetails.items.length
+    ) {
+      void getFinanceProfitReportDetails({
+        ...reportFilterParams,
+        q: detailSearch.trim() || undefined,
+        page: 1,
+        pageSize: 1000,
+        sortBy: detailsSortBy,
+        sortDir: detailsSortDir,
+      })
+        .then((fullDetails) => {
+          exportProfitReportWorkbook({
+            report,
+            filename: buildProfitReportFilename(report),
+            detailRows: fullDetails.items,
+            extraFilters: flagList,
+            labels: buildExportLabels(),
+          });
+        })
+        .catch(() => {
+          exportProfitReportWorkbook({
+            report,
+            filename: buildProfitReportFilename(report),
+            detailRows: currentDetails.items,
+            extraFilters: flagList,
+            labels: buildExportLabels(),
+          });
+        });
+      return;
+    }
+
     exportProfitReportWorkbook({
       report,
       filename: buildProfitReportFilename(report),
-      labels: {
-        title: t('accounting.profit.export.title'),
-        generated: t('accounting.profit.export.generated'),
-        source: t('accounting.profit.export.source'),
-        period: t('accounting.profit.export.period'),
-        filters: t('accounting.profit.export.filters'),
-        summarySheet: t('accounting.profit.export.summarySheet'),
-        marginSheet: t('accounting.profit.export.marginSheet'),
-        cashSheet: t('accounting.profit.export.cashSheet'),
-        revenue: t('accounting.profit.kpis.revenue'),
-        cogs: t('accounting.profit.kpis.cogs'),
-        grossProfit: t('accounting.profit.kpis.grossProfit'),
-        grossMargin: t('accounting.profit.kpis.grossMargin'),
-        collected: t('accounting.profit.kpis.collected'),
-        purchases: t('accounting.profit.kpis.purchases'),
-        opex: t('accounting.profit.kpis.opex'),
-        refunds: t('accounting.profit.kpis.refunds'),
-        netCash: t('accounting.profit.kpis.netCash'),
-        name: t('accounting.profit.table.name'),
-        type: t('accounting.profit.table.type'),
-        quantity: t('accounting.profit.table.quantity'),
-        cost: t('accounting.profit.table.cost'),
-        profit: t('accounting.profit.table.profit'),
-        marginPct: t('accounting.profit.table.marginPct'),
-        category: t('accounting.profit.table.category'),
-        amount: t('accounting.profit.table.amount'),
-        count: t('accounting.profit.table.count'),
-        note: t('accounting.profit.table.note'),
-        date: t('accounting.profit.table.date'),
-        currency: t('accounting.profit.table.currency'),
-        product: t('accounting.profit.types.product'),
-        service: t('accounting.profit.types.service'),
-        unknownCost: t('accounting.profit.kpis.unknownCost'),
-      },
+      detailRows: currentDetails?.items ?? [],
+      extraFilters: flagList,
+      labels: buildExportLabels(),
     });
   };
 
@@ -597,18 +685,58 @@ export const AccountingProfitReportsView: React.FC<AccountingProfitReportsViewPr
             <article className={kpiClass('revenue')}>
               <span className='metric-label'>{t('accounting.profit.kpis.revenue')}</span>
               <strong>{formatMoney(report?.margin.revenue ?? 0, currency)}</strong>
+              {report?.previousComparison ? (
+                <AnalyticsComparisonBadge
+                  deltaPct={
+                    report.previousComparison.margin.revenue > 0
+                      ? ((report.margin.revenue -
+                          report.previousComparison.margin.revenue) /
+                          report.previousComparison.margin.revenue) *
+                        100
+                      : null
+                  }
+                />
+              ) : null}
             </article>
             <article className={kpiClass('cogs')}>
               <span className='metric-label'>{t('accounting.profit.kpis.cogs')}</span>
               <strong>{formatMoney(report?.margin.cogs ?? 0, currency)}</strong>
+              {report?.margin.costCoveragePct !== undefined ? (
+                <span className='muted-copy'>
+                  Coverage: {report.margin.costCoveragePct}%
+                </span>
+              ) : null}
             </article>
             <article className={kpiClass('profit', report?.margin.grossProfit)}>
               <span className='metric-label'>{t('accounting.profit.kpis.grossProfit')}</span>
-              <strong>{formatMoney(report?.margin.grossProfit ?? 0, currency)}</strong>
+              <strong>
+                {report?.margin.isIncomplete
+                  ? 'Incomplete'
+                  : formatMoney(report?.margin.grossProfit ?? 0, currency)}
+              </strong>
+              {report?.margin.isIncomplete &&
+              report.margin.knownCostGrossProfit !== undefined ? (
+                <span className='muted-copy'>
+                  Known-cost subtotal:{' '}
+                  {formatMoney(report.margin.knownCostGrossProfit, currency)} (on{' '}
+                  {formatMoney(report.margin.knownCostRevenue ?? 0, currency)})
+                </span>
+              ) : null}
             </article>
             <article className={kpiClass('margin', report?.margin.grossMarginPct)}>
               <span className='metric-label'>{t('accounting.profit.kpis.grossMargin')}</span>
-              <strong>{formatProfitMarginPct(report?.margin.grossMarginPct ?? null)}</strong>
+              <strong>
+                {report?.margin.isIncomplete
+                  ? 'Incomplete'
+                  : formatProfitMarginPct(report?.margin.grossMarginPct ?? null)}
+              </strong>
+              {report?.margin.isIncomplete &&
+              report.margin.knownCostGrossMarginPct !== undefined ? (
+                <span className='muted-copy'>
+                  Known-cost margin:{' '}
+                  {formatProfitMarginPct(report.margin.knownCostGrossMarginPct)}
+                </span>
+              ) : null}
             </article>
           </div>
         </section>
@@ -623,6 +751,18 @@ export const AccountingProfitReportsView: React.FC<AccountingProfitReportsViewPr
             <article className={kpiClass('collected')}>
               <span className='metric-label'>{t('accounting.profit.kpis.collected')}</span>
               <strong>{formatMoney(report?.cash.collected ?? 0, currency)}</strong>
+              {report?.previousComparison ? (
+                <AnalyticsComparisonBadge
+                  deltaPct={
+                    report.previousComparison.cash.collected > 0
+                      ? ((report.cash.collected -
+                          report.previousComparison.cash.collected) /
+                          report.previousComparison.cash.collected) *
+                        100
+                      : null
+                  }
+                />
+              ) : null}
             </article>
             <article className={kpiClass('purchases')}>
               <span className='metric-label'>{t('accounting.profit.kpis.purchases')}</span>
@@ -635,23 +775,125 @@ export const AccountingProfitReportsView: React.FC<AccountingProfitReportsViewPr
             <article className={kpiClass('net', report?.cash.net)}>
               <span className='metric-label'>{t('accounting.profit.kpis.netCash')}</span>
               <strong>{formatMoney(report?.cash.net ?? 0, currency)}</strong>
+              {report?.cash.transfersVolume !== undefined &&
+              report.cash.transfersCount ? (
+                <span className='muted-copy'>
+                  Transfers excluded: {formatMoney(report.cash.transfersVolume, currency)} (
+                  {report.cash.transfersCount})
+                </span>
+              ) : null}
             </article>
           </div>
         </section>
       </div>
 
+      {report?.coverage?.warnings?.length ? (
+        <AnalyticsCoverageBanner
+          title='Profitability & Coverage Notes'
+          warnings={report.coverage.warnings}
+        />
+      ) : null}
+
+      {period === 'whole' && !customRange ? (
+        <div className='report-coverage-banner is-info' role='status'>
+          Comparison indicators are disabled for the All-time period. Choose Last 30 days
+          or another bounded window for equal-length prior period comparisons.
+        </div>
+      ) : null}
+
+      <div className='report-filter-toggles' style={{ marginBottom: 12 }}>
+        <button
+          type='button'
+          className={`report-toggle-chip ${lossOnly ? 'is-active' : ''}`}
+          aria-pressed={lossOnly}
+          onClick={() => {
+            setLossOnly((v) => !v);
+            setDetailsPage(1);
+          }}
+        >
+          Loss records only
+        </button>
+        <button
+          type='button'
+          className={`report-toggle-chip ${missingCostOnly ? 'is-active' : ''}`}
+          aria-pressed={missingCostOnly}
+          onClick={() => {
+            setMissingCostOnly((v) => !v);
+            setDetailsPage(1);
+          }}
+        >
+          Missing cost only
+        </button>
+      </div>
+
       {report?.otherCurrencies.length ? (
-        <p className='muted-copy'>
-          {t('accounting.profit.otherCurrencies', {
-            currencies: report.otherCurrencies.join(', '),
-          })}
-        </p>
+        <div style={{ display: 'grid', gap: 6 }}>
+          <p className='muted-copy'>
+            {t('accounting.profit.otherCurrencies', {
+              currencies: report.otherCurrencies.join(', '),
+            })}
+          </p>
+          {report.cash.byCurrency ? (
+            <div className='report-kpi-grid'>
+              {report.otherCurrencies.map((curCode) => {
+                const bucket = report.cash.byCurrency?.[curCode];
+                if (!bucket) return null;
+                return (
+                  <AnalyticsKpiCard
+                    key={curCode}
+                    label={`Cash Flow (${curCode})`}
+                    value={formatMoney(bucket.net, curCode)}
+                    hint={`In: ${formatMoney(bucket.collected, curCode)} · Out/OPEX: ${formatMoney(bucket.opex + bucket.inventoryPurchases + bucket.refunds, curCode)}`}
+                  />
+                );
+              })}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+
+      {report?.trendSeries && report.trendSeries.length > 0 ? (
+        <AnalyticsSectionCard
+          title='Revenue, Known Cost & Known Profit Trend'
+          subtitle='Daily accrual profitability (Europe/Kiev calendar; cash salaries stay in Cash Flow OPEX).'
+        >
+          <AnalyticsTrendChart
+            points={report.trendSeries}
+            formatYValue={(v) => formatMoney(v, currency)}
+            series={[
+              {
+                key: 'revenue',
+                label: 'Revenue',
+                color: 'var(--color-primary)',
+                getValue: (pt) => pt.revenue,
+              },
+              {
+                key: 'knownCost',
+                label: 'Known Cost',
+                color: 'var(--color-warning)',
+                getValue: (pt) => pt.knownCost,
+              },
+              {
+                key: 'knownProfit',
+                label: 'Known Profit',
+                color: 'var(--color-success)',
+                getValue: (pt) => pt.knownProfit,
+              },
+            ]}
+          />
+        </AnalyticsSectionCard>
       ) : null}
 
       {visual.showCharts ? (
         <AccountingProfitCharts
           rows={analysisRows}
           chartMetric={visual.chartMetric}
+          onChartMetricChange={(nextMetric) =>
+            setVisual((current) => ({
+              ...current,
+              chartMetric: nextMetric,
+            }))
+          }
           currency={currency}
           cash={{
             collected: report?.cash.collected ?? 0,
@@ -849,6 +1091,155 @@ export const AccountingProfitReportsView: React.FC<AccountingProfitReportsViewPr
           currency={currency}
         />
       </section>
+
+      <AnalyticsSectionCard
+        title='Source Orders & Repairs Drill-Down'
+        subtitle={
+          detailsQuery.data
+            ? `Matching total across all pages: ${detailsQuery.data.total} record(s) · Revenue ${formatMoney(detailsQuery.data.totals.revenue, currency)} · Known Cost ${formatMoney(detailsQuery.data.totals.knownCost, currency)} · Incomplete Cost Records: ${detailsQuery.data.totals.missingCostRecordsCount}`
+            : 'Inspect underlying closed orders/repairs and complete missing cost records.'
+        }
+        actions={
+          <input
+            type='search'
+            value={detailSearch}
+            placeholder='Search order # or client...'
+            aria-label='Search profit source records'
+            onChange={(e) => {
+              setDetailSearch(e.target.value);
+              setDetailsPage(1);
+            }}
+          />
+        }
+      >
+        <AnalyticsSortableTable<ProfitReportDetailItem>
+          columns={[
+            {
+              key: 'recordNumber',
+              label: 'Order / Kind',
+              render: (d) => (
+                <div>
+                  <strong>{d.recordNumber || d.id.slice(-6)}</strong>
+                  <div className='muted-copy'>{d.kind} · {d.status}</div>
+                </div>
+              ),
+            },
+            {
+              key: 'saleDate',
+              label: 'Date / Client',
+              sortable: true,
+              render: (d) => (
+                <div>
+                  <span>{d.clientName || '-'}</span>
+                  <div className='muted-copy'>{formatDate(d.saleDate)}</div>
+                </div>
+              ),
+            },
+            {
+              key: 'revenue',
+              label: 'Revenue',
+              align: 'right',
+              sortable: true,
+              render: (d) => formatMoney(d.revenue, currency),
+            },
+            {
+              key: 'knownCost',
+              label: 'Known Cost',
+              align: 'right',
+              sortable: true,
+              render: (d) => (
+                <div>
+                  <span>{formatMoney(d.knownCost, currency)}</span>
+                  {d.isIncomplete ? (
+                    <div className='report-badge is-warning'>
+                      {d.missingCostCount} missing
+                    </div>
+                  ) : null}
+                </div>
+              ),
+            },
+            {
+              key: 'profit',
+              label: 'Profit / Margin',
+              align: 'right',
+              sortable: true,
+              render: (d) =>
+                d.isIncomplete ? (
+                  <div>
+                    <span className='report-badge is-warning'>Incomplete</span>
+                    <div className='muted-copy'>
+                      Known: {formatMoney(d.knownProfit, currency)}
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    <span
+                      className={`report-badge ${
+                        d.isLoss ? 'is-danger' : 'is-success'
+                      }`}
+                    >
+                      {formatMoney(d.profit ?? 0, currency)}
+                    </span>
+                    <div className='muted-copy'>
+                      {d.marginPct !== null ? `${d.marginPct}%` : '-'}
+                    </div>
+                  </div>
+                ),
+            },
+            ...(canAuditCosts
+              ? ([
+                  {
+                    key: 'audit',
+                    label: 'Audit',
+                    align: 'right',
+                    render: (d) => (
+                      <button
+                        type='button'
+                        className='secondary-button'
+                        onClick={() => setAuditSaleId(d.id)}
+                      >
+                        Audit Costs
+                      </button>
+                    ),
+                  },
+                ] as SortableColumn<ProfitReportDetailItem>[])
+              : []),
+          ]}
+          rows={detailsQuery.data?.items ?? []}
+          getRowKey={(d) => d.id}
+          sortBy={detailsSortBy}
+          sortDir={detailsSortDir}
+          onSortChange={(k, d) => {
+            setDetailsSortBy(k);
+            setDetailsSortDir(d);
+            setDetailsPage(1);
+          }}
+          loading={detailsQuery.isLoading}
+          error={
+            detailsQuery.isError
+              ? detailsQuery.error instanceof Error
+                ? detailsQuery.error.message
+                : 'Failed to load profit detail records.'
+              : null
+          }
+          page={detailsQuery.data?.page ?? detailsPage}
+          pageSize={detailsQuery.data?.pageSize ?? 25}
+          total={detailsQuery.data?.total ?? 0}
+          onPageChange={setDetailsPage}
+        />
+      </AnalyticsSectionCard>
+
+      <OrderCostAuditModal
+        saleId={auditSaleId}
+        isOpen={Boolean(auditSaleId)}
+        onClose={() => setAuditSaleId(null)}
+        onError={onError}
+        onSuccess={(msg) => {
+          onSuccess?.(msg);
+          void query.refetch();
+          void detailsQuery.refetch();
+        }}
+      />
 
       {catalogRow ? (
         <ProfitReportCatalogModalHost

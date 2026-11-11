@@ -75,6 +75,8 @@ Template picker lives in the section toolbar. Add / Duplicate are header actions
 
 Manually written text in the builder supports inline **bold** / *italic* / underline through a B / I / U toolbar (uk: Ж / К / П) and Ctrl+B / I / U, stored as `**…**`, `*…*`, `__…__` markup in the template. Heading and Text fields are full width with Level / Weight / Align wrapping below; the textarea size is editor-only and not saved. Rules: [PRINT_FORMS_SPEC.md → Inline Text Formatting](./PRINT_FORMS_SPEC.md#inline-text-formatting-2026-11-10).
 
+The shared **Template variables** picker in Heading, Text, and Barcode editors defaults to expanded and can be collapsed/expanded via its heading button (local UI state only; reopening the editor resets it). Rules: [PRINT_FORMS_SPEC.md → Collapsible Template Variables](./PRINT_FORMS_SPEC.md#collapsible-template-variables-2026-11-11).
+
 Save writes template **content** to the API. Per-employee layout (margins, page/label size, orientation) is written to `project-goods.print-form-overrides.{employeeId}` only on **Save settings**.
 
 ## Backups

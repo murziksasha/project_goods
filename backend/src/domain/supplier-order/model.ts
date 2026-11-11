@@ -34,6 +34,16 @@ const supplierOrderItemSchema = new mongoose.Schema(
       enum: receiptStatuses,
       default: 'new',
     },
+    receivedAt: {
+      type: Date,
+      required: false,
+      default: null,
+    },
+    cancelledAt: {
+      type: Date,
+      required: false,
+      default: null,
+    },
   },
   { _id: false },
 );
@@ -119,6 +129,30 @@ export const supplierOrderSchema = new mongoose.Schema(
       default: '',
       index: true,
     },
+    stockedAt: {
+      type: Date,
+      required: false,
+      default: null,
+      index: true,
+    },
+    cancelledAt: {
+      type: Date,
+      required: false,
+      default: null,
+    },
+    statusTransitions: [
+      {
+        _id: false,
+        id: { type: String, required: true },
+        fromStatus: { type: String, required: false, default: null },
+        toStatus: { type: String, required: true },
+        fromReceiptStatus: { type: String, required: false, default: null },
+        toReceiptStatus: { type: String, required: true },
+        changedById: { type: String, required: false, default: null },
+        changedByName: { type: String, required: false, default: null },
+        changedAt: { type: Date, required: true },
+      },
+    ],
   },
   { timestamps: true, versionKey: false },
 );

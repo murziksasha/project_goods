@@ -8,6 +8,7 @@ import {
 import {
   applyResolvedStatusFromItems,
   autoMarkZeroTotalOrdersWithoutPayment,
+  appendSupplierOrderTransition,
   isSupplierOrderReceived,
   withSupplierName,
 } from './internal';
@@ -26,14 +27,26 @@ export const cancelSupplierOrder = async (supplierOrderId: string) => {
     throw new HttpError(400, 'Оприбутковане замовлення не можна скасувати.');
   }
 
+  const now = new Date();
+  const prevStatus = existing.status ?? null;
+  const prevReceiptStatus = existing.receiptStatus ?? null;
+
   for (const item of existing.items ?? []) {
     if (item.receiptStatus !== 'received' && item.receiptStatus !== 'cancelled') {
       item.receiptStatus = 'cancelled';
+      (item as { cancelledAt?: Date | null }).cancelledAt =
+        (item as { cancelledAt?: Date | null }).cancelledAt ?? now;
     }
   }
 
   existing.status = 'cancelled';
   existing.paymentStatus = 'cancelled';
+  appendSupplierOrderTransition(
+    existing as unknown as Parameters<typeof appendSupplierOrderTransition>[0],
+    prevStatus,
+    prevReceiptStatus,
+    now,
+  );
   await existing.validate();
   await existing.save();
   return withSupplierName(existing.toObject<SupplierOrderDocument>());
@@ -64,7 +77,9 @@ export const cancelSupplierOrderItem = async (
     throw new HttpError(409, 'Supplier order item is already cancelled.');
   }
 
+  const now = new Date();
   targetItem.receiptStatus = 'cancelled';
+  (targetItem as { cancelledAt?: Date | null }).cancelledAt = now;
   const reason = toNonEmptyString(payload?.reason);
   if (reason) {
     const marker = `[ITEM_CANCELLED:${itemIndex}] ${reason}`;

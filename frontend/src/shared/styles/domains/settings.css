@@ -327,6 +327,8 @@
 }
 
 .settings-variable-catalog {
+  flex: 1 0 100%;
+  min-width: 0;
   border: 1px solid var(--color-line-panel);
   border-radius: 8px;
   background: var(--bg-surface-subtle);
@@ -334,15 +336,50 @@
 }
 
 .settings-variable-catalog h3 {
-  margin: 0 0 10px;
+  margin: 0;
   color: var(--color-text-body);
   font-size: 1rem;
+}
+
+.settings-variable-catalog-toggle {
+  width: 100%;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0;
+  text-align: left;
+  font: inherit;
+}
+
+.settings-variable-catalog-toggle:hover,
+.settings-variable-catalog-toggle:focus-visible {
+  color: var(--color-primary-strong);
+}
+
+.settings-variable-catalog-toggle-icon {
+  min-width: 18px;
+  text-align: center;
+  color: var(--text-soft);
+  font-size: 0.95rem;
+  line-height: 1;
+}
+
+.settings-variable-catalog-toggle:hover .settings-variable-catalog-toggle-icon,
+.settings-variable-catalog-toggle:focus-visible .settings-variable-catalog-toggle-icon {
+  color: var(--color-primary);
 }
 
 .settings-variable-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
+  margin-top: 10px;
 }
 
 .settings-variable-group {

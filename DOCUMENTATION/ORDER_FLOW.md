@@ -596,18 +596,9 @@ Scope: `Orders -> Supplier Order` table only. Warehouse receipts, Accounting pay
 - The `Data`, `Search`, `Order status`, `Payment status`, and `Order from supplier` controls remain available on `Information`.
 - The table column settings gear is hidden on `Information` because the analytics dashboard has no configurable table columns.
 - The normal supplier-order table and pagination are shown only on `Supplier Order`.
-- `Information` shows procurement analytics for supplier-order goods only:
-  - summary cards: supplier order count, total value, paid amount, outstanding amount, total quantity, average order value, payment coverage, stocked/received rate,
-  - popular goods: top products by quantity, purchase value, and frequency,
-  - price analysis: lowest unit price, highest unit price, and product min/max/average price ranges when the product appears at multiple prices,
-  - supplier analysis: top suppliers by spend, pending amount, paid amount, and order count,
-  - business signals: overdue open orders, late-risk open orders within 3 days, cancelled/unavailable rate, stocked/received rate, and payment coverage.
-- Overdue and late-risk counts exclude final/closed supplier orders:
-  - `stocked`,
-  - `cancelled`,
-  - `unavailable`,
-  - `overdue` (date-based overdueCount must not double-count auto-overdue rows),
-  - `receiptStatus = received`.
-- If filters produce no supplier orders, `Information` shows a compact empty state instead of table rows.
-- Services are not included in this tab in v1 because `SupplierOrder` items currently represent goods/products only.
+- `Orders Information` (`ordersTab=supplierInformation`) provides permission-isolated **Repairs**, **Sales**, and **Procurement** analytics (`GET /reports/orders/{repairs,sales,procurement}` + `/details`), defaulting to trailing `last30` days (`Europe/Kiev`) with immediately preceding equal-length comparison deltas (disabled for `whole` all-time), clickable chart filtering, paginated drill-down to order/PO cards, and `.xlsx` export with a `Metadata & Definitions` sheet.
+- **Repairs** tracks open workload by status and technician, unassigned backlog, open aging (`0-3`, `4-7`, `8-14`, `15-30`, `30+`), structured completion counts & turnaround trends using `completedAt` / `statusTransitions` only (never `updatedAt` or localized text; legacy closures without `completedAt` are explicitly surfaced as untracked).
+- **Sales** tracks gross/net revenue, discounts, units sold, AOV, structured `returnEvents` + returns, product/service mix, payment methods, and daily trends.
+- **Procurement** tracks ordered/received/pending/cancelled units, spend, paid/outstanding, overdue orders, supplier comparison, product price min/max/avg/variation %, and structured receipt performance (`items[].receivedAt` / `stockedAt`).
+- Orders capture immutable `costSnapshot` on first entry into stock-committed status (`repair`: `issued`, `issuedWithoutRepair`; `sale`: `paid`, `issued`). Missing costs raise non-blocking warnings (`costWarnings`) without preventing closure; audited post-closure cost completion and reason-logged corrections happen via `PATCH /sales/:saleId/costs`.
 

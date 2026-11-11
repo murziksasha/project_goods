@@ -194,3 +194,12 @@ For any mutation that can affect shared screens (orders, sales, stock, client de
 - **Active/draft** filter form state (what is currently applied in the panel) may still use `localStorage` per browser; only the **saved presets list** is server-backed.
 - Warehouse workspace layout on this device (not synced): `project-goods.warehouse-filters` (tab, committed toolbar search, current page, `stockView`, `receiptsView`; page size is stored in `project-goods.page-sizes`). Commit timing: [WAREHOUSE_FLOW.md — Toolbar search](./WAREHOUSE_FLOW.md#toolbar-search). Column layout: `project-goods.warehouse-columns` (column visibility), `project-goods.warehouse-stock-name-width` (stock `Name` column width, 180–720px; applied to `<colgroup>` `<col>` track and `--warehouse-name-col-width` CSS variable).
 - One-time client migration: if the server list is empty, legacy `localStorage` presets for that employee are POSTed and the old storage key is cleared.
+
+## Upgraded Report & Scenario Queries (2026-11-11)
+
+- Added dedicated TanStack Query keys and SSE path invalidations in `shared/api/queryClient.ts` & `liveEvents.ts`:
+  - `warehouseReport` / `warehouseReportDetails` (invalidated by `/products`, `/sales`, `/supplier-orders`)
+  - `ordersRepairsReport*`, `ordersSalesReport*`, `ordersProcurementReport*` (invalidated by `/sales`, `/supplier-orders`, `/finance`)
+  - `cashboxesReport*`, `financeProfitReportDetails` (invalidated by `/finance`, `/sales`, `/supplier-orders`)
+  - `scenarios(domain)` (private per-employee scenarios invalidated by `/scenarios` mutations)
+- Default period for upgraded trend views initializes to `last30` while preserving existing stored preferences (`project-goods.accounting-profit-filters`).

@@ -1,11 +1,12 @@
-import { useQuery } from '@tanstack/react-query';
-import { queryKeys } from '../../../shared/api/queryClient';
+import { useMutation, useQuery } from '@tanstack/react-query';
+import { queryClient, queryKeys } from '../../../shared/api/queryClient';
 import { useVisibleRefetchInterval } from '../../../shared/lib/visible-refetch';
 import { ApiRequestError, apiClient, getApiErrorMessage } from '../../../shared/api/http';
 import type { Product } from '../../../shared/types/domain';
 import type {
   Sale,
   SaleFormValues,
+  SaleLineCostsPayload,
   SaleLineItemReturnPayload,
   SaleLineItemSerialReturnPayload,
   SaleLineItemStockReturnPayload,
@@ -387,3 +388,50 @@ export const returnSale = async (
     throw new Error(getApiErrorMessage(error));
   }
 };
+
+export const useSaleByIdQuery = (
+  saleId: string | null | undefined,
+  enabled = true,
+) =>
+  useQuery({
+    queryKey: queryKeys.saleDetail(saleId ?? ''),
+    queryFn: () => getSaleById(saleId!),
+    enabled: Boolean(enabled && saleId),
+  });
+
+export const updateSaleLineCosts = async (
+  saleId: string,
+  payload: SaleLineCostsPayload,
+): Promise<Sale> => {
+  try {
+    const response = await apiClient.patch<Sale>(
+      `/sales/${saleId}/costs`,
+      payload,
+    );
+    return ensureSaleResponse(response.data, 'sale cost update');
+  } catch (error) {
+    throw new Error(getApiErrorMessage(error));
+  }
+};
+
+export const useUpdateSaleLineCostsMutation = () =>
+  useMutation({
+    mutationFn: ({
+      saleId,
+      payload,
+    }: {
+      saleId: string;
+      payload: SaleLineCostsPayload;
+    }) => updateSaleLineCosts(saleId, payload),
+    onSuccess: (updated) => {
+      void Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.sales }),
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.saleDetail(updated.id),
+        }),
+        queryClient.invalidateQueries({ queryKey: ['financeProfitReport'] }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.ordersRepairsReportRoot }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.ordersSalesReportRoot }),
+      ]);
+    },
+  });
