@@ -25,6 +25,16 @@ import {
   assertSerializedLineItemsAreAtomic,
 } from './validators';
 import { attachServiceCatalogIds } from '../service-catalog/service';
+import type { EmployeeDocument } from '../employee/model';
+import { employeeHasPermission } from '../auth/service';
+import {
+  assertNoUnauthorizedFinancialCostOverrides,
+  buildNextStatusTransitions,
+  isRepairCompletedStatus,
+  prepareLineItemsWithCostSnapshots,
+  type CostableSaleLineItem,
+  type StatusTransitionValue,
+} from './costing';
 import {
   applyStockDeltas,
   assertSalePayload,
@@ -42,6 +52,7 @@ import {
 export const updateSale = async (
   saleId: string,
   payloadInput: SalePayload,
+  actor?: Pick<EmployeeDocument, '_id' | 'name' | 'role' | 'permissions'> | null,
 ) => {
   isValidObjectIdOrThrow(saleId, 'saleId');
 
@@ -178,9 +189,46 @@ export const updateSale = async (
     nextLineItems,
     payload.discount,
   );
+  const now = new Date();
+  const existingSaleAny = existingSale as unknown as {
+    firstStockCommittedAt?: Date | null;
+    completedAt?: Date | null;
+    statusTransitions?: StatusTransitionValue[];
+  };
   const lineItemsWithServices = await attachServiceCatalogIds([
     ...nextLineItems,
   ]);
+  assertNoUnauthorizedFinancialCostOverrides({
+    kind: normalizedKind,
+    existingLineItems: currentLineItems as unknown as CostableSaleLineItem[],
+    incomingLineItems: lineItemsWithServices as unknown as Array<
+      Record<string, unknown>
+    >,
+    employee: actor,
+    isCommitted: Boolean(existingSaleAny.firstStockCommittedAt),
+  });
+  const preparedCosts = await prepareLineItemsWithCostSnapshots({
+    kind: normalizedKind,
+    nextStatus,
+    existingLineItems: currentLineItems as unknown as CostableSaleLineItem[],
+    incomingLineItems:
+      lineItemsWithServices as unknown as CostableSaleLineItem[],
+    existingFirstStockCommittedAt: existingSaleAny.firstStockCommittedAt ?? null,
+    employee: actor,
+    now,
+  });
+  const nextStatusTransitions = buildNextStatusTransitions({
+    existingTransitions: existingSaleAny.statusTransitions ?? [],
+    fromStatus: existingSale.status ?? null,
+    toStatus: nextStatus,
+    employee: actor,
+    now,
+  });
+  const nextCompletedAt =
+    existingSaleAny.completedAt ??
+    (normalizedKind === 'repair' && isRepairCompletedStatus(nextStatus)
+      ? now
+      : null);
   const clientVisitCount = await Sale.countDocuments({
     client: client._id,
   });
@@ -211,7 +259,10 @@ export const updateSale = async (
             payload.paymentHistory ??
             existingSale.paymentHistory ??
             [],
-          lineItems: lineItemsWithServices,
+          lineItems: preparedCosts.lineItems,
+          firstStockCommittedAt: preparedCosts.firstStockCommittedAt,
+          completedAt: nextCompletedAt,
+          statusTransitions: nextStatusTransitions,
           discount: normalizeDiscount(payload.discount),
           productSnapshot: {
             article:
@@ -258,7 +309,11 @@ export const updateSale = async (
         : null;
 
       return {
-        sale: formatSale(updatedSale),
+        sale: formatSale(updatedSale, {
+          includeCosts: actor
+            ? employeeHasPermission(actor, 'finance.view')
+            : true,
+        }),
         product: updatedProduct
           ? formatProduct(updatedProduct)
           : null,
@@ -291,6 +346,7 @@ export const updateSale = async (
 export const updateSaleWorkspace = async (
   saleId: string,
   payloadInput: SalePayload,
+  actor?: Pick<EmployeeDocument, '_id' | 'name' | 'role' | 'permissions'> | null,
 ) => {
   isValidObjectIdOrThrow(saleId, 'saleId');
   const payload = normalizeSalePayload(payloadInput);
@@ -404,9 +460,47 @@ export const updateSaleWorkspace = async (
   );
   await assertSerializedLineItemsAreAtomic(normalizedLineItems);
   await assertLineItemCatalogProductIds(normalizedLineItems);
+  const now = new Date();
+  const existingWorkspaceAny = existingSale as unknown as {
+    firstStockCommittedAt?: Date | null;
+    completedAt?: Date | null;
+    statusTransitions?: StatusTransitionValue[];
+  };
   const lineItemsWithServices = await attachServiceCatalogIds([
     ...normalizedLineItems,
   ]);
+  assertNoUnauthorizedFinancialCostOverrides({
+    kind: nextKind,
+    existingLineItems: (existingSale.lineItems ?? []) as unknown as CostableSaleLineItem[],
+    incomingLineItems: lineItemsWithServices as unknown as Array<
+      Record<string, unknown>
+    >,
+    employee: actor,
+    isCommitted: Boolean(existingWorkspaceAny.firstStockCommittedAt),
+  });
+  const preparedCosts = await prepareLineItemsWithCostSnapshots({
+    kind: nextKind,
+    nextStatus,
+    existingLineItems: (existingSale.lineItems ?? []) as unknown as CostableSaleLineItem[],
+    incomingLineItems:
+      lineItemsWithServices as unknown as CostableSaleLineItem[],
+    existingFirstStockCommittedAt:
+      existingWorkspaceAny.firstStockCommittedAt ?? null,
+    employee: actor,
+    now,
+  });
+  const nextStatusTransitions = buildNextStatusTransitions({
+    existingTransitions: existingWorkspaceAny.statusTransitions ?? [],
+    fromStatus: existingSale.status ?? null,
+    toStatus: nextStatus,
+    employee: actor,
+    now,
+  });
+  const nextCompletedAt =
+    existingWorkspaceAny.completedAt ??
+    (nextKind === 'repair' && isRepairCompletedStatus(nextStatus)
+      ? now
+      : null);
 
   const currentStockLines = getStockLines(
     existingSale.kind === 'sale' ? 'sale' : 'repair',
@@ -457,7 +551,10 @@ export const updateSaleWorkspace = async (
             : (existingSale.issuedBy ?? null),
           timeline: nextTimeline,
           paymentHistory: nextPaymentHistory,
-          lineItems: lineItemsWithServices,
+          lineItems: preparedCosts.lineItems,
+          firstStockCommittedAt: preparedCosts.firstStockCommittedAt,
+          completedAt: nextCompletedAt,
+          statusTransitions: nextStatusTransitions,
           discount: nextDiscount,
           userNote: nextUserNote,
           productSnapshot: {
@@ -493,7 +590,11 @@ export const updateSaleWorkspace = async (
       }
 
       return {
-        sale: formatSale(updatedSale),
+        sale: formatSale(updatedSale, {
+          includeCosts: actor
+            ? employeeHasPermission(actor, 'finance.view')
+            : true,
+        }),
         lineItems: updatedSale.lineItems ?? [],
       };
     } catch (error) {

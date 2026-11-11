@@ -453,3 +453,21 @@ Client status localization rule: keep client status values in original English (
 - Legacy compatibility:
   - old products may have only `purchasePlace`
   - consumers must support fallback mapping from `purchasePlace` when IDs are empty
+
+## Upgraded Reporting, Costing & Forecasting Endpoints (2026-11-11)
+
+- **Warehouse Information & Forecasting**:
+  - `GET /api/reports/warehouse` (`inventory.manage`) — totals (on-hand, manual+order reserved, available, purchase/available valuation), aging buckets (`0-30`, `31-60`, `61-90`, `90+`, `unknown`), supplier/location distributions, trailing 90d observed demand & pattern (`steady | sparse | zero`), reorder suggestions (`leadTimeDays` default `14`, `safetyStockDays` default `7`), 30/60/90d horizon forecast, archive coverage warnings.
+  - `GET /api/reports/warehouse/details` (`inventory.manage`) — paginated & sortable stock drill-down records independent of summary KPIs.
+- **Orders Information**:
+  - `GET /api/reports/orders/repairs`, `/details` (`orders.view | orders.manage | repairs.execute | kanban.use`) — open workload by status/technician, unassigned backlog, open aging buckets, structured `completedAt` turnaround stats/trends, equal-length prior comparison (disabled for `whole`).
+  - `GET /api/reports/orders/sales`, `/details` (`orders.view | sales.manage`) — gross/net revenue, discounts, units, AOV, structured `returnEvents`, product/service mix, trends.
+  - `GET /api/reports/orders/procurement`, `/details` (`supplierOrders.view | supplierOrders.manage`) — ordered/received/pending/cancelled units, spend, paid/outstanding, overdue deliveries, supplier comparison, product price min/max/avg/variation %, structured `receivedAt`/`stockedAt` receipt performance.
+- **Cashboxes Information & Cashbox Reports**:
+  - `GET /api/finance/cashboxes-report`, `/details` (`finance.view`) — currency-separated balances, external inflows/outflows vs isolated internal transfers, opening/closing balance reconciliation honoring `FinancePeriodSnapshot` seal/purge coverage warnings, 30/60/90d cashflow forecast, unscheduled obligations scheduler, paginated transaction drill-downs.
+  - `GET /api/finance/profit-report`, `/details` (`finance.view`) — separated gross profitability and multi-currency cash flow, `last30` default period, equal-length prior comparison, incomplete-profitability indicators with known-cost subtotals & coverage %, `lossOnly`/`missingCostOnly` filters, revenue/cost/profit daily trend, paginated source-record drill-downs.
+- **Historical Costing & Audited Completion**:
+  - `ServiceCatalog` costing defaults (`costMethod: 'fixed' | 'time_rate'`, `fixedCost`, `hourlyCost`, `defaultDurationMinutes`) editable via `inventory.manage`, redacted unless `inventory.manage | finance.view`.
+  - `PATCH /api/sales/:saleId/costs` (`(orders.manage | sales.manage) + finance.view`) — post-closure cost completion and reason-logged corrections retaining immutable `costSnapshot`, `auditedCost`, and `costAuditLog`.
+- **Private Scenarios**:
+  - `GET/POST/PUT/DELETE /api/scenarios` — employee-private saved forecasting assumptions & filters (`warehouse` requires `inventory.manage`; `cashflow` requires `finance.view`).

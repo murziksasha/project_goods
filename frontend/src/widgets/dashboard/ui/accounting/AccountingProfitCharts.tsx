@@ -17,10 +17,12 @@ import {
   buildProfitMixShare,
   profitReportCogsColor,
   profitReportChartBarColors,
+  profitReportChartMetricOptions,
   profitReportLeadersLimit,
   profitReportLeadersMetricOptions,
   profitReportProductColor,
   profitReportServiceColor,
+  summarizeProfitMixUncostedRevenue,
   type ProfitReportChartMetric,
   type ProfitReportLeadersMetric,
 } from '../../model/profit-report';
@@ -31,6 +33,7 @@ const mixCirc = 2 * Math.PI * mixRadius;
 export interface AccountingProfitChartsProps {
   rows: ProfitMarginRow[];
   chartMetric: ProfitReportChartMetric;
+  onChartMetricChange?: (metric: ProfitReportChartMetric) => void;
   currency: string;
   cash: {
     collected: number;
@@ -52,11 +55,12 @@ const formatChartValue = (
 
 export const AccountingProfitCharts: React.FC<
   AccountingProfitChartsProps
-> = ({ rows, chartMetric, currency, cash }) => {
+> = ({ rows, chartMetric, onChartMetricChange, currency, cash }) => {
   const { t } = useTranslation();
   const [leadersMetric, setLeadersMetric] =
     useState<ProfitReportLeadersMetric>('profit');
   const mix = buildProfitMixShare(rows, chartMetric);
+  const uncosted = summarizeProfitMixUncostedRevenue(rows);
   const distributionRows = buildProfitChartRows(
     rows,
     leadersMetric,
@@ -92,11 +96,57 @@ export const AccountingProfitCharts: React.FC<
             </p>
             <h3>{t('accounting.profit.charts.mixTitle')}</h3>
           </div>
+          {onChartMetricChange ? (
+            <div
+              className='period-toggle'
+              role='tablist'
+              aria-label={t('accounting.profit.charts.mixMetricAria')}
+            >
+              {profitReportChartMetricOptions.map((option) => (
+                <button
+                  key={option.value}
+                  type='button'
+                  aria-pressed={option.value === chartMetric}
+                  className={
+                    option.value === chartMetric
+                      ? 'period-button period-button-active'
+                      : 'period-button'
+                  }
+                  onClick={() => onChartMetricChange(option.value)}
+                >
+                  {t(option.labelKey)}
+                </button>
+              ))}
+            </div>
+          ) : (
+            <span className='report-badge is-info'>
+              {t(`accounting.profit.visual.metrics.${chartMetric}`)}
+            </span>
+          )}
         </div>
         {mixTotal <= 0 ? (
-          <p className='empty-state'>
-            {t('accounting.profit.charts.empty')}
-          </p>
+          chartMetric === 'profit' && uncosted.total > 0 ? (
+            <div className='finance-mix-empty-state'>
+              <p className='empty-state'>
+                {t('accounting.profit.charts.mixEmptyKnownProfit', {
+                  amount: formatMoney(uncosted.total, currency),
+                })}
+              </p>
+              {onChartMetricChange ? (
+                <button
+                  type='button'
+                  className='secondary-button'
+                  onClick={() => onChartMetricChange('revenue')}
+                >
+                  {t('accounting.profit.charts.switchToRevenue')}
+                </button>
+              ) : null}
+            </div>
+          ) : (
+            <p className='empty-state'>
+              {t('accounting.profit.charts.empty')}
+            </p>
+          )
         ) : (
           <div className='analytics-mix-chart'>
             <svg
@@ -135,19 +185,47 @@ export const AccountingProfitCharts: React.FC<
                 transform='rotate(-90 80 80)'
               />
             </svg>
-            <div>
-              <p>
-                {t('accounting.profit.types.product')}:{' '}
-                {formatPercent(mix.productPct)}
-                {' · '}
-                {formatChartValue(mix.product, chartMetric, currency)}
-              </p>
-              <p>
-                {t('accounting.profit.types.service')}:{' '}
-                {formatPercent(mix.servicePct)}
-                {' · '}
-                {formatChartValue(mix.service, chartMetric, currency)}
-              </p>
+            <div className='analytics-mix-legend'>
+              <div className='analytics-mix-legend-item'>
+                <p>
+                  <span
+                    className='report-trend-dot'
+                    style={{ backgroundColor: profitReportProductColor }}
+                    aria-hidden='true'
+                  />{' '}
+                  {t('accounting.profit.types.product')}:{' '}
+                  {formatPercent(mix.productPct)}
+                  {' · '}
+                  {formatChartValue(mix.product, chartMetric, currency)}
+                </p>
+                {chartMetric === 'profit' && uncosted.product > 0 ? (
+                  <small className='muted-copy finance-mix-uncosted-note'>
+                    {t('accounting.profit.charts.mixMissingCostLine', {
+                      amount: formatMoney(uncosted.product, currency),
+                    })}
+                  </small>
+                ) : null}
+              </div>
+              <div className='analytics-mix-legend-item'>
+                <p>
+                  <span
+                    className='report-trend-dot'
+                    style={{ backgroundColor: profitReportServiceColor }}
+                    aria-hidden='true'
+                  />{' '}
+                  {t('accounting.profit.types.service')}:{' '}
+                  {formatPercent(mix.servicePct)}
+                  {' · '}
+                  {formatChartValue(mix.service, chartMetric, currency)}
+                </p>
+                {chartMetric === 'profit' && uncosted.service > 0 ? (
+                  <small className='muted-copy finance-mix-uncosted-note'>
+                    {t('accounting.profit.charts.mixMissingCostLine', {
+                      amount: formatMoney(uncosted.service, currency),
+                    })}
+                  </small>
+                ) : null}
+              </div>
             </div>
           </div>
         )}

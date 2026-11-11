@@ -2,10 +2,23 @@ import type {
   Client,
   Product,
   Sale,
+  SaleCostAuditEntry,
+  SaleCostSnapshot,
+  SaleLineItem,
   SaleProductSnapshot,
+  ServiceCostMethod,
 } from '../../../shared/types/domain';
 
-export type { Client, Product, Sale, SaleProductSnapshot };
+export type {
+  Client,
+  Product,
+  Sale,
+  SaleCostAuditEntry,
+  SaleCostSnapshot,
+  SaleLineItem,
+  SaleProductSnapshot,
+  ServiceCostMethod,
+};
 
 export type SaleFormValues = {
   saleDate: string;
@@ -92,6 +105,23 @@ export type SaleRefundPaymentPayload = {
   amount: string;
   author: string;
   issuedById?: string;
+};
+
+export type SaleLineCostUpdateItem = {
+  lineItemId: string;
+  status?: 'known' | 'unknown';
+  costMethod?: 'fixed' | 'time_rate';
+  unitCost?: number | null;
+  fixedCost?: number | null;
+  hourlyCost?: number | null;
+  recordedMinutes?: number | null;
+  directExpenses?: number | null;
+  reason?: string;
+};
+
+export type SaleLineCostsPayload = {
+  items: SaleLineCostUpdateItem[];
+  reason?: string;
 };
 
 export type SeedResponse = {

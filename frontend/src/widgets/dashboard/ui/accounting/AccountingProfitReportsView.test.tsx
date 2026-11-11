@@ -3,6 +3,7 @@ import {
   fireEvent,
   render,
   screen,
+  within,
 } from '@testing-library/react';
 import {
   QueryClient,
@@ -165,6 +166,45 @@ vi.mock('../../../../entities/finance', async (importOriginal) => {
     data: report,
     isLoading: false,
     isError: false,
+    refetch: vi.fn(),
+  }),
+  useFinanceProfitReportDetailsQuery: () => ({
+    data: {
+      items: [
+        {
+          id: 'sale-1',
+          recordNumber: 'S000101',
+          kind: 'sale',
+          status: 'paid',
+          saleDate: '2026-09-15T10:00:00.000Z',
+          clientName: 'Alice',
+          revenue: 500,
+          knownCostRevenue: 500,
+          knownCost: 300,
+          knownProfit: 200,
+          profit: 200,
+          marginPct: 40,
+          isIncomplete: false,
+          missingCostCount: 0,
+          knownCostCount: 1,
+          isLoss: false,
+          matchingLineCount: 1,
+        },
+      ],
+      total: 1,
+      page: 1,
+      pageSize: 25,
+      totals: {
+        revenue: 500,
+        knownCost: 300,
+        knownProfit: 200,
+        missingCostRecordsCount: 0,
+        lossRecordsCount: 0,
+      },
+    },
+    isLoading: false,
+    isError: false,
+    refetch: vi.fn(),
   }),
   useFinanceCategoriesQuery: () => ({
     data: [],
@@ -443,5 +483,66 @@ describe('AccountingProfitReportsView', () => {
     expect(screen.getAllByText('250.00 UAH').length).toBeGreaterThan(
       0,
     );
+  });
+
+  it('supports lossOnly / missingCostOnly toggles, comparison notice for all-time, and Audit Costs trigger', () => {
+    renderView(
+      <I18nextProvider i18n={i18n}>
+        <AccountingProfitReportsView
+          currentEmployee={{
+            id: 'emp-1',
+            name: 'Accountant',
+            phone: '',
+            email: '',
+            username: 'acc',
+            role: 'accountant',
+            permissions: ['finance.view', 'sales.manage'],
+            isActive: true,
+            isRegistered: true,
+            note: '',
+            createdAt: '',
+            updatedAt: '',
+          }}
+        />
+      </I18nextProvider>,
+    );
+
+    const lossChip = screen.getByRole('button', { name: 'Loss records only' });
+    const missingChip = screen.getByRole('button', { name: 'Missing cost only' });
+    fireEvent.click(lossChip);
+    fireEvent.click(missingChip);
+    expect(lossChip).toHaveAttribute('aria-pressed', 'true');
+    expect(missingChip).toHaveAttribute('aria-pressed', 'true');
+
+    fireEvent.click(screen.getByRole('button', { name: 'All time' }));
+    expect(
+      screen.getByText(/Comparison indicators are disabled for the All-time period/),
+    ).toBeInTheDocument();
+
+    expect(screen.getByText('Source Orders & Repairs Drill-Down')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Audit Costs' })).toBeInTheDocument();
+  });
+
+  it('switches the Mix chart metric inline and persists it to visual settings', () => {
+    renderView(
+      <I18nextProvider i18n={i18n}>
+        <AccountingProfitReportsView />
+      </I18nextProvider>,
+    );
+
+    const mixMetricGroup = screen.getByRole('tablist', {
+      name: 'Mix chart metric',
+    });
+    const revenueBtn = within(mixMetricGroup).getByRole('button', {
+      name: 'Revenue',
+    });
+    fireEvent.click(revenueBtn);
+    expect(revenueBtn).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByText(/Service: 16% · 200\.00 UAH/)).toBeInTheDocument();
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Report visual settings' }),
+    );
+    expect(screen.getByLabelText('Chart metric')).toHaveValue('revenue');
   });
 });

@@ -20,6 +20,15 @@ import {
   updateFinanceTransactionNote,
 } from './service';
 import {
+  getFinanceProfitReportDetails,
+  type ProfitReportQuery,
+} from './profit-report';
+import {
+  getCashboxesReport,
+  getCashboxesReportDetails,
+  type CashboxesReportQuery,
+} from './cashboxes-report';
+import {
   issueSupplierOrderWithoutPayment as issueSupplierOrderWithoutPaymentService,
   listSupplierOrdersForAccounting,
   paySupplierOrder as paySupplierOrderService,
@@ -138,15 +147,27 @@ export const getReport = async (req: Request, res: Response): Promise<void> => {
   res.json(await getFinanceReport());
 };
 
+export const getCashboxesReportHandler = async (req: Request, res: Response): Promise<void> => {
+  await requirePermission(req, 'finance.view');
+  res.json(await getCashboxesReport(req.query as CashboxesReportQuery));
+};
+
+export const getCashboxesReportDetailsHandler = async (req: Request, res: Response): Promise<void> => {
+  await requirePermission(req, 'finance.view');
+  res.json(await getCashboxesReportDetails(req.query as CashboxesReportQuery));
+};
+
 export const getProfitReport = async (req: Request, res: Response): Promise<void> => {
   await requirePermission(req, 'finance.view');
   res.json(
-    await getFinanceProfitReport(req.query as {
-      period?: string;
-      dateFrom?: string;
-      dateTo?: string;
-      source?: string;
-    }),
+    await getFinanceProfitReport(req.query as ProfitReportQuery),
+  );
+};
+
+export const getProfitReportDetailsHandler = async (req: Request, res: Response): Promise<void> => {
+  await requirePermission(req, 'finance.view');
+  res.json(
+    await getFinanceProfitReportDetails(req.query as ProfitReportQuery),
   );
 };
 

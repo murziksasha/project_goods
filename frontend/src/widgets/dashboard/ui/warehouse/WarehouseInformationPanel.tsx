@@ -1,1469 +1,1063 @@
+import { useMemo, useState } from 'react';
 import type React from 'react';
-import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import * as XLSX from 'xlsx';
 import {
-  formatCurrency,
-  formatDate,
-} from '../../../../shared/lib/format';
-import { PaginationPanel } from '../../../../shared/ui/PaginationPanel';
-import { useStoredPageSize } from '../../../../shared/lib/page-size-preference';
-import { formatPercent } from '../../model/accounting';
-import {
-  buildWarehouseInformationChartRows,
-  buildWarehouseInformationReport,
-  type WarehouseInformationChartSourceRow,
-  type WarehouseInformationFilters,
-  type WarehouseInformationView,
-} from '../../model/warehouse-information';
+  getWarehouseReportDetails,
+  useWarehouseReportDetailsQuery,
+  useWarehouseReportQuery,
+  type WarehouseAgeBucketKey,
+  type WarehouseDetailRow,
+  type WarehouseReportResponse,
+} from '../../../../entities/analytics';
 import type { Product } from '../../../../entities/product';
 import type { Sale } from '../../../../entities/sale';
+import {
+  useCreateScenarioMutation,
+  useDeleteScenarioMutation,
+  useScenariosQuery,
+  useUpdateScenarioMutation,
+  type WarehouseScenarioAssumptions,
+} from '../../../../entities/scenario';
 import type { SupplierOrder } from '../../../../entities/supplier-order';
-import type { WarehouseItem } from '../../model/warehouse-panel';
-
-const defaultFilters: WarehouseInformationFilters = {
-  search: '',
-  warehouseId: '',
-  locationId: '',
-  supplier: '',
-  status: 'all',
-  sort: 'quantity',
-  sortDirection: 'desc',
-  dateFrom: '',
-  dateTo: '',
-};
-
-const formatList = (items: string[]) =>
-  items.length > 0 ? items.join(', ') : '-';
-
-const chipLimit = 3;
-const distributionLimit = 8;
-const topBarLimit = 3;
-const chartColors = ['#2d8ae3', '#f97316', '#14b8a6'] as const;
-
-const viewLabelKeys: Record<WarehouseInformationView, string> = {
-  products: 'warehouse.information.views.products',
-  locations: 'warehouse.information.views.locations',
-  suppliers: 'warehouse.information.views.suppliers',
-};
-
-const toExcelSheetName = (value: string) =>
-  value
-    .replace(/[\\/?*[\]:]/g, ' ')
-    .trim()
-    .slice(0, 31) || 'Report';
-
-const downloadExcelFile = ({
-  activeFilters,
-  filename,
-  headers,
-  rows,
-  title,
-  viewLabel,
-  templateLabels,
-}: {
-  activeFilters: string[];
-  filename: string;
-  headers: string[];
-  rows: Array<Array<string | number>>;
-  title: string;
-  viewLabel: string;
-  templateLabels: {
-    view: string;
-    generated: string;
-    filters: string;
-    noFilters: string;
-    noRowsFound: string;
-  };
-}) => {
-  const generatedAt = new Date().toLocaleString();
-  const filterText =
-    activeFilters.length > 0
-      ? activeFilters.join('; ')
-      : templateLabels.noFilters;
-  const dataRows =
-    rows.length > 0
-      ? rows
-      : [
-          [
-            templateLabels.noRowsFound,
-            ...Array(Math.max(headers.length - 1, 0)).fill(''),
-          ],
-        ];
-  const sheetData: Array<Array<string | number>> = [
-    [title],
-    [templateLabels.view, viewLabel],
-    [templateLabels.generated, generatedAt],
-    [templateLabels.filters, filterText],
-    [],
-    headers,
-    ...dataRows,
-  ];
-  const worksheet = XLSX.utils.aoa_to_sheet(sheetData);
-  const workbook = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(
-    workbook,
-    worksheet,
-    toExcelSheetName(viewLabel),
-  );
-  const buffer = XLSX.write(workbook, {
-    bookType: 'xlsx',
-    type: 'array',
-  });
-  const blob = new Blob([buffer], {
-    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-  });
-  const url = window.URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = filename;
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  window.URL.revokeObjectURL(url);
-};
-
-const paginateRows = <T,>(
-  rows: T[],
-  page: number,
-  pageSize: number,
-) => {
-  const start = (page - 1) * pageSize;
-  return rows.slice(start, start + pageSize);
-};
-
-const isBlankArticle = (article: string) => {
-  const value = article.trim();
-  return !value || value === '-';
-};
+import type { WarehouseItem } from '../../../../entities/warehouse-settings';
+import { formatCurrency, formatDate } from '../../../../shared/lib/format';
+import { exportReportWorkbookToDownload } from '../../../../shared/lib/report-excel';
+import {
+  AnalyticsCoverageBanner,
+  AnalyticsInteractiveBars,
+  AnalyticsKpiCard,
+  AnalyticsSectionCard,
+  AnalyticsSortableTable,
+  ScenarioManagerBar,
+  type SortableColumn,
+} from '../common/AnalyticsPrimitives';
 
 export interface WarehouseInformationPanelProps {
   products: Product[];
   sales: Sale[];
-  supplierOrders: SupplierOrder[];
   warehouses: WarehouseItem[];
+  supplierOrders: SupplierOrder[];
 }
+
+const AGE_BUCKET_LABELS: Record<WarehouseAgeBucketKey, string> = {
+  '0-30': '0–30 days',
+  '31-60': '31–60 days',
+  '61-90': '61–90 days',
+  '90+': '90+ days',
+  unknown: 'Unknown age',
+};
+
+const AGE_BUCKET_TONES: Record<
+  WarehouseAgeBucketKey,
+  'success' | 'cyan' | 'warning' | 'danger' | 'primary'
+> = {
+  '0-30': 'success',
+  '31-60': 'cyan',
+  '61-90': 'warning',
+  '90+': 'danger',
+  unknown: 'primary',
+};
+
+const DEMAND_BADGE_CLASS: Record<'steady' | 'sparse' | 'zero', string> = {
+  steady: 'report-badge is-success',
+  sparse: 'report-badge is-warning',
+  zero: 'report-badge',
+};
 
 export const WarehouseInformationPanel: React.FC<
   WarehouseInformationPanelProps
-> = ({ products, sales, warehouses, supplierOrders }) => {
+> = ({ warehouses }) => {
   const { t } = useTranslation();
-  const [view, setView] =
-    useState<WarehouseInformationView>('products');
-  const [filters, setFilters] =
-    useState<WarehouseInformationFilters>(defaultFilters);
-  const [draftDateFilters, setDraftDateFilters] = useState({
-    dateFrom: defaultFilters.dateFrom,
-    dateTo: defaultFilters.dateTo,
+
+  // Filter controls
+  const [warehouseId, setWarehouseId] = useState('');
+  const [locationId, setLocationId] = useState('');
+  const [supplier, setSupplier] = useState('');
+  const [stockState, setStockState] = useState('all');
+  const [ageBucket, setAgeBucket] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+
+  // Forecast & reorder assumptions (14d lead time, 7d safety stock defaults)
+  const [horizonDays, setHorizonDays] = useState<30 | 60 | 90>(30);
+  const [leadTimeDays, setLeadTimeDays] = useState<number>(14);
+  const [safetyStockDays, setSafetyStockDays] = useState<number>(7);
+  const [demandMultiplier, setDemandMultiplier] = useState<number>(1);
+  const [includePendingSupplierOrders, setIncludePendingSupplierOrders] =
+    useState<boolean>(true);
+
+  // Drill-down pagination & sort
+  const [page, setPage] = useState(1);
+  const pageSize = 25;
+  const [sortBy, setSortBy] = useState('valuation');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
+  const [isExporting, setIsExporting] = useState(false);
+
+  // Saved scenarios state
+  const [selectedScenarioId, setSelectedScenarioId] = useState('');
+  const [scenarioName, setScenarioName] = useState('');
+  const [scenarioMessage, setScenarioMessage] = useState<string | null>(null);
+
+  const reportParams = useMemo(
+    () => ({
+      warehouseId: warehouseId || undefined,
+      locationId: locationId || undefined,
+      supplier: supplier || undefined,
+      stockState: stockState !== 'all' ? stockState : undefined,
+      ageBucket: ageBucket || undefined,
+      q: searchQuery.trim() || undefined,
+      leadTimeDays,
+      safetyStockDays,
+      horizonDays,
+      demandMultiplier,
+      includePendingSupplierOrders,
+    }),
+    [
+      warehouseId,
+      locationId,
+      supplier,
+      stockState,
+      ageBucket,
+      searchQuery,
+      leadTimeDays,
+      safetyStockDays,
+      horizonDays,
+      demandMultiplier,
+      includePendingSupplierOrders,
+    ],
+  );
+
+  const reportQuery = useWarehouseReportQuery(reportParams);
+  const detailsQuery = useWarehouseReportDetailsQuery({
+    ...reportParams,
+    page,
+    pageSize,
+    sortBy,
+    sortDir,
   });
-  const [isDateFilterOpen, setIsDateFilterOpen] = useState(false);
-  const [isSupplierMenuOpen, setIsSupplierMenuOpen] = useState(false);
-  const [pageByView, setPageByView] = useState<
-    Record<WarehouseInformationView, number>
-  >({
-    products: 1,
-    locations: 1,
-    suppliers: 1,
-  });
-  const [productsPageSize, setProductsPageSize] = useStoredPageSize(
-    'warehouseInformationProducts',
-  );
-  const [locationsPageSize, setLocationsPageSize] = useStoredPageSize(
-    'warehouseInformationLocations',
-  );
-  const [suppliersPageSize, setSuppliersPageSize] = useStoredPageSize(
-    'warehouseInformationSuppliers',
-  );
-  const currentPage = pageByView[view];
-  const currentPageSize =
-    view === 'products'
-      ? productsPageSize
-      : view === 'locations'
-        ? locationsPageSize
-        : suppliersPageSize;
-  const resetCurrentViewPage = () => {
-    setPageByView((current) => ({ ...current, [view]: 1 }));
-  };
-  const updateFilters = (
-    updater:
-      | WarehouseInformationFilters
-      | ((
-          current: WarehouseInformationFilters,
-        ) => WarehouseInformationFilters),
-  ) => {
-    setFilters(updater);
-    resetCurrentViewPage();
-  };
-  const warehouseOptions = useMemo(
-    () =>
-      warehouses.map((warehouse) => ({
-        id: warehouse.id,
-        name: warehouse.name,
-        isActive: warehouse.isActive,
-      })),
-    [warehouses],
-  );
-  const locationOptions = useMemo(
-    () =>
-      warehouses
-        .filter(
-          (warehouse) =>
-            !filters.warehouseId ||
-            warehouse.id === filters.warehouseId,
-        )
-        .flatMap((warehouse) =>
-          warehouse.locations.map((location) => ({
-            id: location.id,
-            name: location.name,
-            warehouseName: warehouse.name,
-          })),
-        ),
-    [filters.warehouseId, warehouses],
-  );
-  const supplierOptions = useMemo(
-    () =>
-      Array.from(
-        new Set(
-          supplierOrders
-            .map((order) => order.supplierName.trim())
-            .filter(Boolean),
-        ),
-      ).sort((first, second) => first.localeCompare(second)),
-    [supplierOrders],
-  );
-  const visibleSupplierOptions = useMemo(() => {
-    const supplierSearch = filters.supplier.trim().toLowerCase();
-    if (!supplierSearch) return supplierOptions;
-    return supplierOptions.filter((supplier) =>
-      supplier.toLowerCase().includes(supplierSearch),
-    );
-  }, [filters.supplier, supplierOptions]);
-  const report = useMemo(
-    () =>
-      buildWarehouseInformationReport({
-        products,
-        sales,
-        warehouses,
-        supplierOrders,
-        filters,
-      }),
-    [filters, products, sales, supplierOrders, warehouses],
-  );
-  const rowCount =
-    view === 'products'
-      ? report.products.length
-      : view === 'locations'
-        ? report.locations.length
-        : report.suppliers.length;
-  const paginatedProducts = useMemo(
-    () => paginateRows(report.products, currentPage, currentPageSize),
-    [currentPage, currentPageSize, report.products],
-  );
-  const paginatedLocations = useMemo(
-    () =>
-      paginateRows(report.locations, currentPage, currentPageSize),
-    [currentPage, currentPageSize, report.locations],
-  );
-  const paginatedSuppliers = useMemo(
-    () =>
-      paginateRows(report.suppliers, currentPage, currentPageSize),
-    [currentPage, currentPageSize, report.suppliers],
-  );
-  const chartSourceRows = useMemo<
-    WarehouseInformationChartSourceRow[]
-  >(() => {
-    if (view === 'products') {
-      return report.products.map((row) => ({
-        id: row.id,
-        name: row.name,
-        units: row.units,
-        value: row.value,
-      }));
-    }
-    if (view === 'locations') {
-      return report.locations.map((row) => ({
-        id: row.id,
-        name: `${row.warehouseName} / ${row.locationName}`,
-        units: row.units,
-        value: row.value,
-      }));
-    }
-    return report.suppliers.map((row) => ({
-      id: row.id,
-      name: row.supplierName,
-      units: row.units,
-      value: row.value,
-    }));
-  }, [report.locations, report.products, report.suppliers, view]);
-  const distributionRows = useMemo(
-    () =>
-      buildWarehouseInformationChartRows(
-        chartSourceRows,
-        filters.sort,
-        distributionLimit,
-      ),
-    [chartSourceRows, filters.sort],
-  );
-  const topBarRows = useMemo(
-    () =>
-      buildWarehouseInformationChartRows(
-        chartSourceRows,
-        filters.sort,
-        topBarLimit,
-      ),
-    [chartSourceRows, filters.sort],
-  );
-  const maxBarValue = useMemo(
-    () => Math.max(...topBarRows.map((row) => row.metric), 1),
-    [topBarRows],
-  );
-  const viewTotalValue = useMemo(
-    () => chartSourceRows.reduce((sum, row) => sum + row.value, 0),
-    [chartSourceRows],
-  );
-  const emptyTableLabel =
-    view === 'products'
-      ? t('warehouse.information.productsTable.empty')
-      : view === 'locations'
-        ? t('warehouse.information.locationsTable.empty')
-        : t('warehouse.information.suppliersTable.empty');
-  const formatChartMetric = (value: number) =>
-    filters.sort === 'quantity' ? value : formatCurrency(value);
-  const valueSharePercent = (value: number) =>
-    viewTotalValue > 0 ? (value / viewTotalValue) * 100 : 0;
 
-  useEffect(() => {
-    const pageCount = Math.max(
-      1,
-      Math.ceil(rowCount / currentPageSize),
-    );
-    if (currentPage > pageCount) {
-      setPageByView((current) => ({ ...current, [view]: pageCount }));
-    }
-  }, [currentPage, currentPageSize, rowCount, view]);
+  const scenariosQuery = useScenariosQuery('warehouse');
+  const createScenarioMutation = useCreateScenarioMutation();
+  const updateScenarioMutation = useUpdateScenarioMutation();
+  const deleteScenarioMutation = useDeleteScenarioMutation();
 
-  const exportTemplateLabels = {
-    view: t('warehouse.information.export.viewLabel'),
-    generated: t('warehouse.information.export.generatedLabel'),
-    filters: t('warehouse.information.export.filtersLabel'),
-    noFilters: t('warehouse.information.export.noFilters'),
-    noRowsFound: t('warehouse.information.export.noRowsFound'),
-  };
+  const report = reportQuery.data;
+  const details = detailsQuery.data;
 
-  const getActiveFilterLabels = () => {
-    const labels: string[] = [];
-    const warehouse = warehouseOptions.find(
-      (option) => option.id === filters.warehouseId,
-    );
-    const location = locationOptions.find(
-      (option) => option.id === filters.locationId,
-    );
-    if (filters.search.trim()) {
-      labels.push(
-        t('warehouse.information.filters.searchActive', {
-          value: filters.search.trim(),
-        }),
-      );
-    }
-    if (warehouse) {
-      labels.push(
-        t('warehouse.information.filters.warehouseActive', {
-          name: warehouse.name,
-        }),
-      );
-    }
-    if (location) {
-      labels.push(
-        t('warehouse.information.filters.locationActive', {
-          name: location.name,
-        }),
-      );
-    }
-    if (filters.supplier.trim()) {
-      labels.push(
-        t('warehouse.information.filters.supplierActive', {
-          value: filters.supplier.trim(),
-        }),
-      );
-    }
-    if (filters.status !== 'all') {
-      labels.push(
-        t('warehouse.information.filters.statusActive', {
-          value:
-            filters.status === 'active'
-              ? t('warehouse.information.filters.activeWarehouses')
-              : t('warehouse.information.filters.inactiveWarehouses'),
-        }),
-      );
-    }
-    if (filters.dateFrom) {
-      labels.push(
-        t('warehouse.information.filters.dateFromActive', {
-          value: filters.dateFrom,
-        }),
-      );
-    }
-    if (filters.dateTo) {
-      labels.push(
-        t('warehouse.information.filters.dateToActive', {
-          value: filters.dateTo,
-        }),
-      );
-    }
-    const sortField =
-      filters.sort === 'quantity'
-        ? t('warehouse.information.filters.sortQuantity')
-        : filters.sort === 'value'
-          ? t('warehouse.information.filters.sortValue')
-          : t('warehouse.information.filters.sortLatest');
-    const sortDirection =
-      filters.sortDirection === 'asc'
-        ? t('warehouse.information.filters.ascending')
-        : t('warehouse.information.filters.descending');
-    labels.push(
-      t('warehouse.information.filters.sortActive', {
-        field: sortField,
-        direction: sortDirection,
-      }),
-    );
-    return labels;
-  };
-
-  const exportActiveView = () => {
-    if (view === 'products') {
-      downloadExcelFile({
-        activeFilters: getActiveFilterLabels(),
-        filename: t('warehouse.information.export.productsFilename'),
-        title: t('warehouse.information.export.title'),
-        viewLabel: t(viewLabelKeys[view]),
-        templateLabels: exportTemplateLabels,
-        headers: [
-          t(
-            'warehouse.information.productsTable.exportColumns.product',
-          ),
-          t(
-            'warehouse.information.productsTable.exportColumns.article',
-          ),
-          t(
-            'warehouse.information.productsTable.exportColumns.units',
-          ),
-          t(
-            'warehouse.information.productsTable.exportColumns.purchaseValue',
-          ),
-          t(
-            'warehouse.information.productsTable.exportColumns.warehouses',
-          ),
-          t(
-            'warehouse.information.productsTable.exportColumns.locations',
-          ),
-          t(
-            'warehouse.information.productsTable.exportColumns.suppliers',
-          ),
-          t(
-            'warehouse.information.productsTable.exportColumns.latestPurchase',
-          ),
-        ],
-        rows: report.products.map((row) => [
-          row.name,
-          row.article,
-          row.units,
-          row.value,
-          formatList(row.warehouses),
-          formatList(row.locations),
-          formatList(row.suppliers),
-          formatDate(row.latestPurchaseDate),
-        ]),
-      });
-      return;
-    }
-    if (view === 'locations') {
-      downloadExcelFile({
-        activeFilters: getActiveFilterLabels(),
-        filename: t('warehouse.information.export.locationsFilename'),
-        title: t('warehouse.information.export.title'),
-        viewLabel: t(viewLabelKeys[view]),
-        templateLabels: exportTemplateLabels,
-        headers: [
-          t(
-            'warehouse.information.locationsTable.exportColumns.warehouse',
-          ),
-          t(
-            'warehouse.information.locationsTable.exportColumns.status',
-          ),
-          t(
-            'warehouse.information.locationsTable.exportColumns.location',
-          ),
-          t(
-            'warehouse.information.locationsTable.exportColumns.units',
-          ),
-          t(
-            'warehouse.information.locationsTable.exportColumns.uniqueProducts',
-          ),
-          t(
-            'warehouse.information.locationsTable.exportColumns.purchaseValue',
-          ),
-          t(
-            'warehouse.information.locationsTable.exportColumns.latestPurchase',
-          ),
-        ],
-        rows: report.locations.map((row) => [
-          row.warehouseName,
-          row.isWarehouseActive
-            ? t('warehouse.common.active')
-            : t('warehouse.common.inactive'),
-          row.locationName,
-          row.units,
-          row.uniqueProducts,
-          row.value,
-          formatDate(row.latestPurchaseDate),
-        ]),
-      });
-      return;
-    }
-    downloadExcelFile({
-      activeFilters: getActiveFilterLabels(),
-      filename: t('warehouse.information.export.suppliersFilename'),
-      title: t('warehouse.information.export.title'),
-      viewLabel: t(viewLabelKeys[view]),
-      templateLabels: exportTemplateLabels,
-      headers: [
-        t(
-          'warehouse.information.suppliersTable.exportColumns.supplier',
-        ),
-        t('warehouse.information.suppliersTable.exportColumns.units'),
-        t(
-          'warehouse.information.suppliersTable.exportColumns.purchaseValue',
-        ),
-        t(
-          'warehouse.information.suppliersTable.exportColumns.products',
-        ),
-        t(
-          'warehouse.information.suppliersTable.exportColumns.warehouses',
-        ),
-        t(
-          'warehouse.information.suppliersTable.exportColumns.latestPurchase',
-        ),
-      ],
-      rows: report.suppliers.map((row) => [
-        row.supplierName,
-        row.units,
-        row.value,
-        formatList(row.products),
-        formatList(row.warehouses),
-        formatDate(row.latestPurchaseDate),
-      ]),
-    });
-  };
-
-  const renderChipList = (items: string[]) => {
-    const values = items.map((item) => item.trim()).filter(Boolean);
-    if (values.length === 0) {
-      return <span className='warehouse-info-empty'>—</span>;
-    }
-    const visible = values.slice(0, chipLimit);
-    const extra = values.length - visible.length;
-    return (
-      <div className='warehouse-info-chips'>
-        {visible.map((item) => (
-          <span
-            key={item}
-            className='warehouse-info-chip'
-            title={item}
-          >
-            {item}
-          </span>
-        ))}
-        {extra > 0 ? (
-          <span className='warehouse-info-chip warehouse-info-chip-more'>
-            {t('warehouse.information.moreChips', { count: extra })}
-          </span>
-        ) : null}
-      </div>
-    );
-  };
-
-  const renderValueMetric = (value: number) => (
-    <div className='warehouse-info-metric'>
-      <strong>{formatCurrency(value)}</strong>
-      <span className='warehouse-info-share-track' aria-hidden='true'>
-        <span
-          style={{
-            width: `${Math.max(valueSharePercent(value), 2)}%`,
-          }}
-        />
-      </span>
-    </div>
-  );
-
-  const renderPagination = () => (
-    <PaginationPanel
-      totalItems={rowCount}
-      page={currentPage}
-      pageSize={currentPageSize}
-      onPageChange={(nextPage) =>
-        setPageByView((current) => ({ ...current, [view]: nextPage }))
+  const availableLocations = useMemo(() => {
+    const selectedWh = warehouses.find((wh) => wh.id === warehouseId);
+    const list = selectedWh
+      ? selectedWh.locations
+      : warehouses.flatMap((wh) => wh.locations);
+    const seen = new Map<string, string>();
+    for (const loc of list) {
+      if (!seen.has(loc.id)) {
+        seen.set(loc.id, loc.name);
       }
-      onPageSizeChange={(nextPageSize) => {
-        if (view === 'products') {
-          setProductsPageSize(nextPageSize);
-        } else if (view === 'locations') {
-          setLocationsPageSize(nextPageSize);
-        } else if (view === 'suppliers') {
-          setSuppliersPageSize(nextPageSize);
-        }
-        setPageByView((current) => ({ ...current, [view]: 1 }));
-      }}
-    />
-  );
+    }
+    return Array.from(seen.entries()).map(([id, name]) => ({ id, name }));
+  }, [warehouses, warehouseId]);
 
-  return (
-    <section className='warehouse-information'>
-      <div className='finance-information-header warehouse-information-header analytics-executive-header'>
+  const resetFilters = () => {
+    setWarehouseId('');
+    setLocationId('');
+    setSupplier('');
+    setStockState('all');
+    setAgeBucket('');
+    setSearchQuery('');
+    setPage(1);
+  };
+
+  const handleSelectScenario = (scenarioId: string) => {
+    setSelectedScenarioId(scenarioId);
+    setScenarioMessage(null);
+    const found = (scenariosQuery.data ?? []).find((s) => s.id === scenarioId);
+    if (!found) {
+      setScenarioName('');
+      return;
+    }
+    setScenarioName(found.name);
+    setHorizonDays(found.horizonDays);
+    const a = found.assumptions as Partial<WarehouseScenarioAssumptions>;
+    if (typeof a.leadTimeDays === 'number') setLeadTimeDays(a.leadTimeDays);
+    if (typeof a.safetyStockDays === 'number')
+      setSafetyStockDays(a.safetyStockDays);
+    if (typeof a.demandMultiplier === 'number')
+      setDemandMultiplier(a.demandMultiplier);
+    if (typeof a.includePendingSupplierOrders === 'boolean') {
+      setIncludePendingSupplierOrders(a.includePendingSupplierOrders);
+    }
+    const f = (found.filters ?? {}) as Record<string, string>;
+    setWarehouseId(typeof f.warehouseId === 'string' ? f.warehouseId : '');
+    setLocationId(typeof f.locationId === 'string' ? f.locationId : '');
+    setSupplier(typeof f.supplier === 'string' ? f.supplier : '');
+    setStockState(typeof f.stockState === 'string' ? f.stockState : 'all');
+    setAgeBucket(typeof f.ageBucket === 'string' ? f.ageBucket : '');
+    setSearchQuery(typeof f.q === 'string' ? f.q : '');
+    setPage(1);
+  };
+
+  const handleSaveNewScenario = async () => {
+    if (!scenarioName.trim()) return;
+    const saved = await createScenarioMutation.mutateAsync({
+      domain: 'warehouse',
+      name: scenarioName.trim(),
+      horizonDays,
+      assumptions: {
+        leadTimeDays,
+        safetyStockDays,
+        demandMultiplier,
+        includePendingSupplierOrders,
+      },
+      filters: {
+        warehouseId,
+        locationId,
+        supplier,
+        stockState,
+        ageBucket,
+        q: searchQuery.trim(),
+      },
+    });
+    setSelectedScenarioId(saved.id);
+    setScenarioMessage(`Saved private scenario "${saved.name}".`);
+  };
+
+  const handleUpdateScenario = async () => {
+    if (!selectedScenarioId || !scenarioName.trim()) return;
+    const updated = await updateScenarioMutation.mutateAsync({
+      scenarioId: selectedScenarioId,
+      payload: {
+        name: scenarioName.trim(),
+        horizonDays,
+        assumptions: {
+          leadTimeDays,
+          safetyStockDays,
+          demandMultiplier,
+          includePendingSupplierOrders,
+        },
+        filters: {
+          warehouseId,
+          locationId,
+          supplier,
+          stockState,
+          ageBucket,
+          q: searchQuery.trim(),
+        },
+      },
+    });
+    setScenarioMessage(`Updated scenario "${updated.name}".`);
+  };
+
+  const handleDeleteScenario = async () => {
+    if (!selectedScenarioId) return;
+    await deleteScenarioMutation.mutateAsync(selectedScenarioId);
+    setSelectedScenarioId('');
+    setScenarioName('');
+    setScenarioMessage('Deleted saved scenario.');
+  };
+
+  const handleExportExcel = async () => {
+    if (!report) return;
+    setIsExporting(true);
+    try {
+      const fullDetails = await getWarehouseReportDetails({
+        ...reportParams,
+        page: 1,
+        pageSize: 1000,
+        sortBy,
+        sortDir,
+      });
+      const warnings = [...report.coverage.warnings];
+      if (fullDetails.total > fullDetails.items.length) {
+        warnings.push(
+          `Excel detail rows capped at ${fullDetails.items.length} of ${fullDetails.total} matching records.`,
+        );
+      }
+
+      exportReportWorkbookToDownload({
+        filename: `warehouse-information-${report.generatedAt.slice(0, 10)}.xlsx`,
+        title: 'Warehouse Information & Forecasting',
+        generatedAt: report.generatedAt,
+        timeZone: report.timeZone,
+        activeFilters: [
+          { filter: 'Warehouse', value: warehouseId || 'All' },
+          { filter: 'Location', value: locationId || 'All' },
+          { filter: 'Supplier', value: supplier || 'All' },
+          { filter: 'Stock State', value: stockState },
+          { filter: 'Aging Bucket', value: ageBucket || 'All' },
+          { filter: 'Search Query', value: searchQuery.trim() || 'None' },
+          { filter: 'Forecast Horizon', value: `${horizonDays} days` },
+          { filter: 'Lead Time (days)', value: String(leadTimeDays) },
+          { filter: 'Safety Stock (days)', value: String(safetyStockDays) },
+          { filter: 'Demand Multiplier', value: String(demandMultiplier) },
+        ],
+        definitions: [
+          {
+            metric: 'Available units',
+            definition:
+              'Current on-hand quantity minus manual reservations and uncommitted open order serial/line occupancy.',
+          },
+          {
+            metric: 'Purchase valuation',
+            definition: 'Sum of on-hand quantity multiplied by recorded purchase unit price.',
+          },
+          {
+            metric: 'Aging buckets',
+            definition:
+              'Age since recorded purchaseDate (Europe/Kiev calendar); items without purchaseDate are classified under unknown age.',
+          },
+          {
+            metric: 'Reorder suggestion',
+            definition:
+              'Estimate based on trailing 90-day observed daily demand x demandMultiplier x (leadTimeDays + safetyStockDays) minus available stock and optional pending supplier orders.',
+          },
+        ],
+        warnings,
+        sheets: [
+          {
+            name: 'Stock Records',
+            rows: fullDetails.items.map((row) => ({
+              Name: row.name,
+              Article: row.article,
+              Serial: row.serialNumber || '',
+              Supplier: row.supplier,
+              Warehouse: row.warehouseName,
+              Location: row.locationName,
+              OnHandQty: row.quantity,
+              ManualReserved: row.manualReservedQuantity,
+              OrderReserved: row.orderReservedQuantity,
+              AvailableQty: row.availableQuantity,
+              UnitCost: row.price,
+              Valuation: row.valuation,
+              PurchaseDate: row.purchaseDate ? row.purchaseDate.slice(0, 10) : 'Unknown',
+              AgeDays: row.ageDays ?? 'Unknown',
+              AgeBucket: row.ageBucket,
+              StockState: row.stockState,
+            })),
+          },
+          {
+            name: 'Forecast & Reorder',
+            rows: report.demandAndSuggestions.map((row) => ({
+              Product: row.name,
+              Supplier: row.supplier,
+              OnHandQty: row.onHandQuantity,
+              ReservedQty: row.reservedQuantity,
+              AvailableQty: row.availableQuantity,
+              PendingPOQty: row.pendingSupplierQuantity,
+              ObservedDemand90d: row.observedDemand90d,
+              DemandPattern: row.demandPattern,
+              DailyDemand: row.observedDailyDemand,
+              EstCoverageDays: row.estimatedCoverageDays ?? 'N/A',
+              TargetBufferUnits: row.targetBufferUnits,
+              SuggestedReorderQty: row.reorderSuggestedQty,
+              EstReorderCost: row.estimatedReorderCost,
+              ProjectedEndingAvail: row.horizonProjectedEndingAvailable,
+            })),
+          },
+          {
+            name: 'Aging Buckets',
+            rows: report.agingBuckets.map((b) => ({
+              Bucket: AGE_BUCKET_LABELS[b.bucket],
+              SKUs: b.skuCount,
+              Quantity: b.quantity,
+              Reserved: b.reservedQuantity,
+              Available: b.availableQuantity,
+              Valuation: b.valuation,
+            })),
+          },
+          {
+            name: 'Suppliers & Locations',
+            rows: report.distributions.bySupplier.map((s) => ({
+              Supplier: s.label,
+              SKUs: s.skuCount,
+              Quantity: s.quantity,
+              Reserved: s.reservedQuantity,
+              Available: s.availableQuantity,
+              Valuation: s.valuation,
+            })),
+          },
+        ],
+      });
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  type SuggestionRow = WarehouseReportResponse['demandAndSuggestions'][number];
+  const suggestionColumns: SortableColumn<SuggestionRow>[] = [
+    {
+      key: 'name',
+      label: 'Product / Supplier',
+      sortable: true,
+      sortValue: (r) => r.name,
+      render: (r) => (
         <div>
-          <p className='section-label'>
-            {t('warehouse.information.sectionLabel')}
-          </p>
-          <h2>{t('warehouse.information.title')}</h2>
-          <div className='finance-information-status'>
-            <span>
-              {t('warehouse.information.positionsStatus', {
-                count: report.summary.uniquePositions,
-              })}
-            </span>
-            <span>
-              {t('warehouse.information.warehousesStatus', {
-                count: report.summary.activeWarehouses,
-              })}
+          <strong>{r.name}</strong>
+          <div className="muted-copy">{r.supplier || 'Unassigned supplier'}</div>
+        </div>
+      ),
+    },
+    {
+      key: 'availableQuantity',
+      label: 'Avail / Reserved',
+      align: 'right',
+      sortable: true,
+      sortValue: (r) => r.availableQuantity,
+      render: (r) => (
+        <div>
+          <strong>{r.availableQuantity}</strong>
+          <div className="muted-copy">
+            On hand {r.onHandQuantity} · Res {r.reservedQuantity}
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: 'pendingSupplierQuantity',
+      label: 'Pending PO',
+      align: 'right',
+      sortable: true,
+      sortValue: (r) => r.pendingSupplierQuantity,
+      render: (r) => (
+        <div>
+          <span>{r.pendingSupplierQuantity}</span>
+          {r.overdueSupplierQuantity > 0 ? (
+            <div className="report-badge is-danger">
+              {r.overdueSupplierQuantity} overdue
+            </div>
+          ) : r.earliestExpectedDelivery ? (
+            <div className="muted-copy">
+              ETA {formatDate(r.earliestExpectedDelivery)}
+            </div>
+          ) : null}
+        </div>
+      ),
+    },
+    {
+      key: 'observedDemand90d',
+      label: '90d Demand',
+      align: 'right',
+      sortable: true,
+      sortValue: (r) => r.observedDemand90d,
+      render: (r) => (
+        <div>
+          <span>
+            {r.observedDemand90d} ({r.observedDailyDemand.toFixed(2)}/d)
+          </span>
+          <div>
+            <span className={DEMAND_BADGE_CLASS[r.demandPattern]}>
+              {r.demandPattern}
             </span>
           </div>
         </div>
-        <div className='hero-controls'>
-          <button
-            type='button'
-            className='toolbar-filter-button toolbar-filter-toggle-button'
-            aria-expanded={isDateFilterOpen}
-            onClick={() => setIsDateFilterOpen((current) => !current)}
-          >
-            {t('warehouse.information.filters.date')}
-            {filters.dateFrom || filters.dateTo ? (
-              <span className='toolbar-filter-count'>
-                {filters.dateFrom && filters.dateTo ? '2' : '1'}
+      ),
+    },
+    {
+      key: 'estimatedCoverageDays',
+      label: 'Est. Coverage',
+      align: 'right',
+      sortable: true,
+      sortValue: (r) => r.estimatedCoverageDays ?? 999999,
+      render: (r) =>
+        r.estimatedCoverageDays !== null ? (
+          <span>
+            {r.estimatedCoverageDays}d
+            {r.estimatedCoverageWithPendingDays !== null &&
+            r.estimatedCoverageWithPendingDays > r.estimatedCoverageDays ? (
+              <span className="muted-copy">
+                {' '}
+                ({r.estimatedCoverageWithPendingDays}d w/ PO)
               </span>
             ) : null}
-          </button>
-          <button
-            type='button'
-            className='secondary-button'
-            onClick={exportActiveView}
-          >
-            {t('warehouse.information.exportToFile')}
-          </button>
-        </div>
-      </div>
-
-      <section
-        className={
-          isDateFilterOpen
-            ? 'orders-filter-panel orders-filter-panel-open'
-            : 'orders-filter-panel'
-        }
-      >
-        <button
-          type='button'
-          className='orders-filter-panel-close'
-          aria-label={t(
-            'warehouse.information.filters.closeDateFiltersAriaLabel',
-          )}
-          onClick={() => setIsDateFilterOpen(false)}
-        >
-          &times;
-        </button>
-        <div className='orders-filter-grid'>
-          <label className='orders-filter-field'>
-            <span>{t('warehouse.information.filters.dateFrom')}</span>
-            <input
-              type='date'
-              value={draftDateFilters.dateFrom}
-              onChange={(event) =>
-                setDraftDateFilters((current) => ({
-                  ...current,
-                  dateFrom: event.target.value,
-                }))
-              }
-            />
-          </label>
-          <label className='orders-filter-field'>
-            <span>{t('warehouse.information.filters.dateTo')}</span>
-            <input
-              type='date'
-              value={draftDateFilters.dateTo}
-              onChange={(event) =>
-                setDraftDateFilters((current) => ({
-                  ...current,
-                  dateTo: event.target.value,
-                }))
-              }
-            />
-          </label>
-        </div>
-        <div className='orders-filter-actions'>
-          <button
-            type='button'
-            className='primary-button'
-            onClick={() => {
-              updateFilters((current) => ({
-                ...current,
-                dateFrom: draftDateFilters.dateFrom,
-                dateTo: draftDateFilters.dateTo,
-              }));
-              setIsDateFilterOpen(false);
-            }}
-          >
-            {t('warehouse.common.apply')}
-          </button>
-          <button
-            type='button'
-            className='secondary-button'
-            onClick={() => {
-              setDraftDateFilters({ dateFrom: '', dateTo: '' });
-              updateFilters((current) => ({
-                ...current,
-                dateFrom: '',
-                dateTo: '',
-              }));
-            }}
-          >
-            {t('warehouse.common.clear')}
-          </button>
-        </div>
-      </section>
-
-      <div className='finance-report-grid finance-report-grid-wide'>
-        <article className='analytics-summary-card'>
-          <span className='metric-label'>
-            {t('warehouse.information.summary.stockUnits')}
           </span>
-          <strong>{report.summary.totalUnits}</strong>
-        </article>
-        <article className='analytics-summary-card'>
-          <span className='metric-label'>
-            {t('warehouse.information.summary.positions')}
-          </span>
-          <strong>{report.summary.uniquePositions}</strong>
-        </article>
-        <article className='analytics-summary-card'>
-          <span className='metric-label'>
-            {t('warehouse.information.summary.purchaseValue')}
-          </span>
-          <strong>
-            {formatCurrency(report.summary.purchaseValue)}
-          </strong>
-        </article>
-        <article className='analytics-summary-card'>
-          <span className='metric-label'>
-            {t('warehouse.information.summary.activeWarehouses')}
-          </span>
-          <strong>{report.summary.activeWarehouses}</strong>
-        </article>
-      </div>
-
-      <div className='analytics-mini-grid warehouse-information-signals'>
-        <div
+        ) : (
+          <span className="muted-copy">No demand</span>
+        ),
+    },
+    {
+      key: 'reorderSuggestedQty',
+      label: 'Reorder Suggestion',
+      align: 'right',
+      sortable: true,
+      sortValue: (r) => r.reorderSuggestedQty,
+      render: (r) =>
+        r.reorderSuggestedQty > 0 ? (
+          <div>
+            <span className="report-badge is-warning">
+              +{r.reorderSuggestedQty} units
+            </span>
+            <div className="muted-copy">
+              Est. {formatCurrency(r.estimatedReorderCost)}
+            </div>
+          </div>
+        ) : (
+          <span className="report-badge is-success">Covered</span>
+        ),
+    },
+    {
+      key: 'horizonProjectedEndingAvailable',
+      label: `${horizonDays}d Projected End`,
+      align: 'right',
+      sortable: true,
+      sortValue: (r) => r.horizonProjectedEndingAvailable,
+      render: (r) => (
+        <span
           className={
-            report.summary.inactiveWarehousesWithStock > 0
-              ? 'analytics-signal-watch'
-              : 'analytics-signal-good'
+            r.horizonProjectedShortfall > 0
+              ? 'report-badge is-danger'
+              : 'report-badge'
           }
         >
-          <span className='metric-label'>
-            {t('warehouse.information.summary.inactiveWithStock')}
-          </span>
-          <strong>
-            {report.summary.inactiveWarehousesWithStock}
-          </strong>
-        </div>
+          {r.horizonProjectedEndingAvailable}
+        </span>
+      ),
+    },
+  ];
+
+  const detailColumns: SortableColumn<WarehouseDetailRow>[] = [
+    {
+      key: 'name',
+      label: 'Item / SKU',
+      sortable: true,
+      render: (row) => (
         <div>
-          <span className='metric-label'>
-            {t('warehouse.information.summary.locationsWithStock')}
+          <strong>{row.name}</strong>
+          <div className="muted-copy">
+            {[row.article, row.serialNumber].filter(Boolean).join(' · ') ||
+              'No article/serial'}
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: 'locationName',
+      label: 'Location / Supplier',
+      render: (row) => (
+        <div>
+          <span>
+            {row.warehouseName} / {row.locationName}
           </span>
-          <strong>{report.summary.locationsWithStock}</strong>
+          <div className="muted-copy">{row.supplier}</div>
+        </div>
+      ),
+    },
+    {
+      key: 'quantity',
+      label: 'On Hand',
+      align: 'right',
+      sortable: true,
+      render: (row) => row.quantity,
+    },
+    {
+      key: 'reservedQuantity',
+      label: 'Reserved (Man / Ord)',
+      align: 'right',
+      render: (row) => (
+        <span title="Manual reserved + open order occupancy">
+          {row.reservedQuantity} ({row.manualReservedQuantity} /{' '}
+          {row.orderReservedQuantity})
+        </span>
+      ),
+    },
+    {
+      key: 'availableQuantity',
+      label: 'Available',
+      align: 'right',
+      sortable: true,
+      render: (row) => (
+        <span
+          className={`report-badge ${
+            row.availableQuantity <= 0
+              ? 'is-danger'
+              : row.stockState === 'low_stock'
+                ? 'is-warning'
+                : 'is-success'
+          }`}
+        >
+          {row.availableQuantity}
+        </span>
+      ),
+    },
+    {
+      key: 'valuation',
+      label: 'Valuation',
+      align: 'right',
+      sortable: true,
+      render: (row) => (
+        <div>
+          <strong>{formatCurrency(row.valuation)}</strong>
+          <div className="muted-copy">@{formatCurrency(row.price)}</div>
+        </div>
+      ),
+    },
+    {
+      key: 'ageDays',
+      label: 'Age Bucket',
+      align: 'right',
+      sortable: true,
+      render: (row) => (
+        <div>
+          <span
+            className={`report-badge ${
+              row.ageBucket === '90+' || row.ageBucket === 'unknown'
+                ? 'is-warning'
+                : ''
+            }`.trim()}
+          >
+            {AGE_BUCKET_LABELS[row.ageBucket]}
+          </span>
+          <div className="muted-copy">
+            {row.purchaseDate ? formatDate(row.purchaseDate) : 'Unknown date'}
+          </div>
+        </div>
+      ),
+    },
+  ];
+
+  return (
+    <div className="report-upgrade-shell">
+      <div className="report-upgrade-header">
+        <div>
+          <h2 className="report-upgrade-header-title">
+            {t('warehouse.information.title')}
+          </h2>
+          <p className="report-upgrade-header-subtitle">
+            Stock valuation, reservations, aging buckets, observed 90-day demand,
+            and reorder forecasting scenarios (estimates only; no automatic POs).
+          </p>
+        </div>
+        <div className="report-upgrade-actions">
+          <button
+            type="button"
+            className="secondary-button"
+            onClick={resetFilters}
+          >
+            Reset Filters
+          </button>
+          <button
+            type="button"
+            className="primary-button"
+            disabled={!report || isExporting}
+            onClick={() => void handleExportExcel()}
+          >
+            {isExporting ? 'Exporting...' : 'Export Excel (.xlsx)'}
+          </button>
         </div>
       </div>
 
-      <div className='warehouse-information-controls'>
-        <div className='warehouse-search-modes'>
-          {(
-            [
-              'products',
-              'locations',
-              'suppliers',
-            ] as WarehouseInformationView[]
-          ).map((key) => (
-            <button
-              key={key}
-              type='button'
-              className={
-                view === key
-                  ? 'warehouse-mode-button warehouse-mode-button-active'
-                  : 'warehouse-mode-button'
-              }
-              onClick={() => {
-                setView(key);
-                setPageByView((current) => ({
-                  ...current,
-                  [key]: 1,
-                }));
-              }}
-            >
-              {t(viewLabelKeys[key])}
-            </button>
-          ))}
+      <div className="report-filter-bar" role="search" aria-label="Warehouse filters">
+        <div className="report-filter-field">
+          <label htmlFor="wh-filter-warehouse">Warehouse</label>
+          <select
+            id="wh-filter-warehouse"
+            value={warehouseId}
+            onChange={(e) => {
+              setWarehouseId(e.target.value);
+              setLocationId('');
+              setPage(1);
+            }}
+          >
+            <option value="">All warehouses</option>
+            {(report?.filterOptions.warehouses ?? warehouses).map((wh) => (
+              <option key={wh.id} value={wh.id}>
+                {wh.name}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="report-filter-field">
+          <label htmlFor="wh-filter-location">Location</label>
+          <select
+            id="wh-filter-location"
+            value={locationId}
+            onChange={(e) => {
+              setLocationId(e.target.value);
+              setPage(1);
+            }}
+          >
+            <option value="">All locations</option>
+            {availableLocations.map((loc) => (
+              <option key={loc.id} value={loc.id}>
+                {loc.name}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="report-filter-field">
+          <label htmlFor="wh-filter-supplier">Supplier</label>
+          <select
+            id="wh-filter-supplier"
+            value={supplier}
+            onChange={(e) => {
+              setSupplier(e.target.value);
+              setPage(1);
+            }}
+          >
+            <option value="">All suppliers</option>
+            {(report?.filterOptions.suppliers ?? []).map((sup) => (
+              <option key={sup} value={sup}>
+                {sup}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="report-filter-field">
+          <label htmlFor="wh-filter-state">Stock State</label>
+          <select
+            id="wh-filter-state"
+            value={stockState}
+            onChange={(e) => {
+              setStockState(e.target.value);
+              setPage(1);
+            }}
+          >
+            <option value="all">All states</option>
+            <option value="in_stock">In stock</option>
+            <option value="low_stock">Low stock (1–2 avail)</option>
+            <option value="out_of_stock">Out of stock (0 avail)</option>
+            <option value="reserved">Has reservations</option>
+          </select>
+        </div>
+
+        <div className="report-filter-field">
+          <label htmlFor="wh-filter-age">Aging Bucket</label>
+          <select
+            id="wh-filter-age"
+            value={ageBucket}
+            onChange={(e) => {
+              setAgeBucket(e.target.value);
+              setPage(1);
+            }}
+          >
+            <option value="">All ages</option>
+            {(Object.keys(AGE_BUCKET_LABELS) as WarehouseAgeBucketKey[]).map(
+              (key) => (
+                <option key={key} value={key}>
+                  {AGE_BUCKET_LABELS[key]}
+                </option>
+              ),
+            )}
+          </select>
+        </div>
+
+        <div className="report-filter-field">
+          <label htmlFor="wh-filter-search">Search</label>
+          <input
+            id="wh-filter-search"
+            type="search"
+            value={searchQuery}
+            placeholder="Name, article, serial..."
+            onChange={(e) => {
+              setSearchQuery(e.target.value);
+              setPage(1);
+            }}
+          />
         </div>
       </div>
 
-      <div className='warehouse-information-tools'>
-        <div className='warehouse-information-filters'>
-          <label className='orders-filter-field'>
-            <span>{t('warehouse.information.filters.search')}</span>
-            <input
-              value={filters.search}
-              onChange={(event) =>
-                updateFilters((current) => ({
-                  ...current,
-                  search: event.target.value,
-                }))
-              }
-              placeholder={t(
-                'warehouse.information.filters.searchPlaceholder',
-              )}
+      {reportQuery.isError ? (
+        <div className="report-state-box is-error" role="alert">
+          {reportQuery.error instanceof Error
+            ? reportQuery.error.message
+            : 'Failed to load warehouse analytics.'}
+        </div>
+      ) : null}
+
+      {report ? (
+        <>
+          <AnalyticsCoverageBanner
+            title="Data & Forecast Coverage Notes"
+            warnings={report.coverage.warnings}
+          />
+
+          <div className="report-kpi-grid">
+            <AnalyticsKpiCard
+              label="Total On-Hand Qty"
+              value={report.summary.totalQuantity}
+              hint={`${report.summary.skuCount} stock rows · ${report.summary.productGroupCount} SKU groups`}
             />
-          </label>
-          <label className='orders-filter-field'>
-            <span>
-              {t('warehouse.information.filters.warehouse')}
-            </span>
-            <select
-              value={filters.warehouseId}
-              onChange={(event) =>
-                updateFilters((current) => ({
-                  ...current,
-                  warehouseId: event.target.value,
-                  locationId: '',
-                }))
-              }
-            >
-              <option value=''>
-                {t('warehouse.information.filters.allWarehouses')}
-              </option>
-              {warehouseOptions.map((warehouse) => (
-                <option key={warehouse.id} value={warehouse.id}>
-                  {warehouse.isActive === false
-                    ? t(
-                        'warehouse.information.filters.warehouseInactiveSuffix',
-                        {
-                          name: warehouse.name,
-                        },
-                      )
-                    : warehouse.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className='orders-filter-field'>
-            <span>{t('warehouse.information.filters.location')}</span>
-            <select
-              value={filters.locationId}
-              onChange={(event) =>
-                updateFilters((current) => ({
-                  ...current,
-                  locationId: event.target.value,
-                }))
-              }
-            >
-              <option value=''>
-                {t('warehouse.information.filters.allLocations')}
-              </option>
-              {locationOptions.map((location) => (
-                <option
-                  key={`${location.warehouseName}-${location.id}`}
-                  value={location.id}
-                >
-                  {filters.warehouseId
-                    ? location.name
-                    : `${location.warehouseName} / ${location.name}`}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className='orders-filter-field warehouse-supplier-combobox'>
-            <span>{t('warehouse.information.filters.supplier')}</span>
-            <input
-              value={filters.supplier}
-              onFocus={() => setIsSupplierMenuOpen(true)}
-              onBlur={() => {
-                window.setTimeout(
-                  () => setIsSupplierMenuOpen(false),
-                  120,
-                );
-              }}
-              onChange={(event) => {
-                updateFilters((current) => ({
-                  ...current,
-                  supplier: event.target.value,
-                }));
-                setIsSupplierMenuOpen(true);
-              }}
-              placeholder={t(
-                'warehouse.information.filters.allSuppliers',
-              )}
+            <AnalyticsKpiCard
+              label="Available / Reserved"
+              value={`${report.summary.availableQuantity} / ${report.summary.reservedQuantity}`}
+              hint={`Manual: ${report.summary.manualReservedQuantity} · Open orders: ${report.summary.orderReservedQuantity}`}
             />
-            {isSupplierMenuOpen ? (
-              <div className='warehouse-supplier-combobox-menu'>
-                <button
-                  type='button'
-                  onMouseDown={(event) => event.preventDefault()}
-                  onClick={() => {
-                    updateFilters((current) => ({
-                      ...current,
-                      supplier: '',
-                    }));
-                    setIsSupplierMenuOpen(false);
-                  }}
-                >
-                  {t('warehouse.information.filters.allSuppliers')}
-                </button>
-                {visibleSupplierOptions.length === 0 ? (
-                  <span>
-                    {t(
-                      'warehouse.information.filters.noSuppliersFound',
-                    )}
-                  </span>
-                ) : (
-                  visibleSupplierOptions.map((supplier) => (
-                    <button
-                      key={supplier}
-                      type='button'
-                      onMouseDown={(event) => event.preventDefault()}
-                      onClick={() => {
-                        updateFilters((current) => ({
-                          ...current,
-                          supplier,
-                        }));
-                        setIsSupplierMenuOpen(false);
-                      }}
-                    >
-                      {supplier}
-                    </button>
-                  ))
-                )}
+            <AnalyticsKpiCard
+              label="Purchase Valuation"
+              value={formatCurrency(report.summary.purchaseValuation)}
+              hint={`Available value: ${formatCurrency(report.summary.availableValuation)}`}
+            />
+            <AnalyticsKpiCard
+              label="Out / Low / Unknown Age"
+              value={`${report.summary.outOfStockCount} / ${report.summary.lowStockCount} / ${report.summary.unknownAgeOnHandCount}`}
+              hint={`Unknown age units: ${report.summary.unknownAgeUnits}`}
+              tone={
+                report.summary.unknownAgeOnHandCount > 0 ? 'warning' : 'default'
+              }
+            />
+            <AnalyticsKpiCard
+              label="90d Observed Demand & Reorder"
+              value={`${report.summary.totalObservedDemand90d} units`}
+              hint={`${report.summary.reorderSkuCount} SKUs need ${report.summary.totalSuggestedReorderUnits} units (${formatCurrency(report.summary.totalEstimatedReorderCost)})`}
+            />
+          </div>
+
+          <div className="report-two-col-grid">
+            <AnalyticsSectionCard
+              title="Inventory Aging Buckets"
+              subtitle="Click any bucket to filter stock details below (click again to clear)."
+            >
+              <AnalyticsInteractiveBars
+                selectedId={ageBucket || null}
+                onSelect={(bucketKey) => {
+                  setAgeBucket((prev) => (prev === bucketKey ? '' : bucketKey));
+                  setPage(1);
+                }}
+                items={report.agingBuckets.map((bucket) => ({
+                  id: bucket.bucket,
+                  label: `${AGE_BUCKET_LABELS[bucket.bucket]} (${bucket.skuCount} rows)`,
+                  value: bucket.valuation,
+                  valueText: `${bucket.quantity} u · ${formatCurrency(bucket.valuation)}`,
+                  tone: AGE_BUCKET_TONES[bucket.bucket],
+                }))}
+              />
+            </AnalyticsSectionCard>
+
+            <AnalyticsSectionCard
+              title="Supplier Distribution"
+              subtitle="Click a supplier to filter stock records and demand table."
+            >
+              <AnalyticsInteractiveBars
+                selectedId={supplier || null}
+                onSelect={(supKey) => {
+                  setSupplier((prev) => (prev === supKey ? '' : supKey));
+                  setPage(1);
+                }}
+                items={report.distributions.bySupplier.slice(0, 8).map((s) => ({
+                  id: s.key,
+                  label: `${s.label} (${s.skuCount} rows)`,
+                  value: s.valuation,
+                  valueText: `${s.availableQuantity}/${s.quantity} u · ${formatCurrency(s.valuation)}`,
+                  tone: 'primary',
+                }))}
+              />
+            </AnalyticsSectionCard>
+          </div>
+
+          <AnalyticsSectionCard
+            title="Location Distribution"
+            subtitle="Click a warehouse / location to filter stock records."
+          >
+            <AnalyticsInteractiveBars
+              selectedId={
+                locationId
+                  ? `${warehouseId}::${locationId}`
+                  : warehouseId
+                    ? `${warehouseId}::`
+                    : null
+              }
+              onSelect={(locKey) => {
+                const [nextWh, nextLoc] = locKey.split('::');
+                if (warehouseId === (nextWh ?? '') && locationId === (nextLoc ?? '')) {
+                  setWarehouseId('');
+                  setLocationId('');
+                } else {
+                  setWarehouseId(nextWh ?? '');
+                  setLocationId(nextLoc ?? '');
+                }
+                setPage(1);
+              }}
+              items={report.distributions.byLocation.slice(0, 10).map((loc) => ({
+                id: `${loc.warehouseId}::${loc.locationId}`,
+                label: `${loc.label} (${loc.skuCount} rows)`,
+                value: loc.valuation,
+                valueText: `${loc.availableQuantity}/${loc.quantity} u · ${formatCurrency(loc.valuation)}`,
+                tone: 'cyan',
+              }))}
+            />
+          </AnalyticsSectionCard>
+
+          <AnalyticsSectionCard
+            title="Inventory Forecasting & Reorder Suggestions"
+            subtitle={`Projections based on trailing ${report.forecast.observationWindow.observedHistoryDays}/${report.forecast.observationWindow.windowDays} observed days. Scenarios never create POs automatically.`}
+            actions={<span className="report-estimate-pill">Estimate Only</span>}
+          >
+            <ScenarioManagerBar
+              scenarios={scenariosQuery.data ?? []}
+              selectedScenarioId={selectedScenarioId}
+              scenarioName={scenarioName}
+              onScenarioNameChange={setScenarioName}
+              onSelectScenario={handleSelectScenario}
+              onSaveNew={() => void handleSaveNewScenario()}
+              onUpdateSelected={() => void handleUpdateScenario()}
+              onDeleteSelected={() => void handleDeleteScenario()}
+              isSaving={
+                createScenarioMutation.isPending ||
+                updateScenarioMutation.isPending ||
+                deleteScenarioMutation.isPending
+              }
+            />
+            {scenarioMessage ? (
+              <div className="report-coverage-banner is-info" role="status">
+                {scenarioMessage}
               </div>
             ) : null}
-          </label>
-          <label className='orders-filter-field'>
-            <span>{t('warehouse.information.filters.status')}</span>
-            <select
-              value={filters.status}
-              onChange={(event) =>
-                updateFilters((current) => ({
-                  ...current,
-                  status: event.target
-                    .value as WarehouseInformationFilters['status'],
-                }))
-              }
-            >
-              <option value='all'>
-                {t('warehouse.information.filters.allStatuses')}
-              </option>
-              <option value='active'>
-                {t('warehouse.information.filters.activeWarehouses')}
-              </option>
-              <option value='inactive'>
-                {t(
-                  'warehouse.information.filters.inactiveWarehouses',
-                )}
-              </option>
-            </select>
-          </label>
-        </div>
-        <div className='warehouse-information-sort'>
-          <label className='orders-filter-field'>
-            <span>{t('warehouse.information.filters.sort')}</span>
-            <select
-              value={filters.sort}
-              onChange={(event) =>
-                updateFilters((current) => ({
-                  ...current,
-                  sort: event.target
-                    .value as WarehouseInformationFilters['sort'],
-                }))
-              }
-            >
-              <option value='quantity'>
-                {t('warehouse.information.filters.sortQuantity')}
-              </option>
-              <option value='value'>
-                {t('warehouse.information.filters.sortValue')}
-              </option>
-              <option value='latest'>
-                {t('warehouse.information.filters.sortLatest')}
-              </option>
-            </select>
-          </label>
-          <label className='orders-filter-field'>
-            <span>
-              {t('warehouse.information.filters.direction')}
-            </span>
-            <select
-              value={filters.sortDirection}
-              onChange={(event) =>
-                updateFilters((current) => ({
-                  ...current,
-                  sortDirection: event.target
-                    .value as WarehouseInformationFilters['sortDirection'],
-                }))
-              }
-            >
-              <option value='desc'>
-                {t('warehouse.information.filters.descending')}
-              </option>
-              <option value='asc'>
-                {t('warehouse.information.filters.ascending')}
-              </option>
-            </select>
-          </label>
-        </div>
-      </div>
 
-      <div className='warehouse-information-charts'>
-        <section className='finance-info-panel'>
-          <div className='analytics-panel-header'>
-            <div>
-              <p className='section-label'>
-                {t('warehouse.information.charts.distribution')}
-              </p>
-              <h3>{t('warehouse.information.charts.topShare')}</h3>
-            </div>
-          </div>
-          <div className='finance-cashbox-distribution'>
-            {distributionRows.length === 0 ? (
-              <p className='empty-state'>{emptyTableLabel}</p>
-            ) : (
-              distributionRows.map((row) => (
-                <div
-                  key={row.id}
-                  className='finance-distribution-row'
+            <div className="report-filter-bar">
+              <div className="report-filter-field">
+                <label htmlFor="wh-horizon">Projection Horizon</label>
+                <select
+                  id="wh-horizon"
+                  value={String(horizonDays)}
+                  onChange={(e) =>
+                    setHorizonDays((Number(e.target.value) as 30 | 60 | 90) || 30)
+                  }
                 >
-                  <div>
-                    <span title={row.name}>{row.name}</span>
-                    <strong>{formatChartMetric(row.metric)}</strong>
-                  </div>
-                  <div className='finance-distribution-track'>
-                    <span
-                      style={{
-                        width: `${Math.max(row.sharePercent, 2)}%`,
-                      }}
-                    />
-                  </div>
-                  <small>{formatPercent(row.sharePercent)}</small>
-                </div>
-              ))
-            )}
-          </div>
-        </section>
-
-        <section className='finance-info-panel'>
-          <div className='analytics-panel-header'>
-            <div>
-              <p className='section-label'>
-                {t('warehouse.information.charts.comparison')}
-              </p>
-              <h3>{t('warehouse.information.charts.topThree')}</h3>
+                  <option value="30">30 days</option>
+                  <option value="60">60 days</option>
+                  <option value="90">90 days</option>
+                </select>
+              </div>
+              <div className="report-filter-field">
+                <label htmlFor="wh-lead-time">Lead Time (days)</label>
+                <input
+                  id="wh-lead-time"
+                  type="number"
+                  min={0}
+                  max={180}
+                  value={leadTimeDays}
+                  onChange={(e) =>
+                    setLeadTimeDays(
+                      Math.min(Math.max(Number(e.target.value) || 0, 0), 180),
+                    )
+                  }
+                />
+              </div>
+              <div className="report-filter-field">
+                <label htmlFor="wh-safety-days">Safety Stock (days)</label>
+                <input
+                  id="wh-safety-days"
+                  type="number"
+                  min={0}
+                  max={180}
+                  value={safetyStockDays}
+                  onChange={(e) =>
+                    setSafetyStockDays(
+                      Math.min(Math.max(Number(e.target.value) || 0, 0), 180),
+                    )
+                  }
+                />
+              </div>
+              <div className="report-filter-field">
+                <label htmlFor="wh-demand-mult">Demand Multiplier</label>
+                <input
+                  id="wh-demand-mult"
+                  type="number"
+                  min={0.1}
+                  max={5}
+                  step={0.1}
+                  value={demandMultiplier}
+                  onChange={(e) =>
+                    setDemandMultiplier(
+                      Math.min(Math.max(Number(e.target.value) || 1, 0.1), 5),
+                    )
+                  }
+                />
+              </div>
+              <label
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  minHeight: 36,
+                  fontSize: '0.84rem',
+                  fontWeight: 600,
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={includePendingSupplierOrders}
+                  onChange={(e) =>
+                    setIncludePendingSupplierOrders(e.target.checked)
+                  }
+                />
+                Include pending POs
+              </label>
             </div>
-          </div>
-          {topBarRows.length === 0 ? (
-            <p className='empty-state'>{emptyTableLabel}</p>
-          ) : (
-            <div className='bar-chart'>
-              {topBarRows.map((row, index) => {
-                const heightPercent =
-                  (row.metric / maxBarValue) * 100;
-                return (
-                  <div key={row.id} className='bar-chart-item'>
-                    <strong>{formatChartMetric(row.metric)}</strong>
-                    <div className='bar-chart-track'>
-                      <span
-                        className='bar-chart-bar'
-                        style={{
-                          height: `${Math.max(heightPercent, 8)}%`,
-                          backgroundColor:
-                            chartColors[index % chartColors.length],
-                        }}
-                      />
-                    </div>
-                    <span>{row.name}</span>
-                  </div>
-                );
-              })}
+
+            <div className="report-kpi-grid">
+              <AnalyticsKpiCard
+                label={`${horizonDays}d Projected Demand`}
+                value={`${report.forecast.summary.projectedDemandUnits} units`}
+                hint={`Window ${report.forecast.observationWindow.dateFrom} to ${report.forecast.observationWindow.dateTo}`}
+              />
+              <AnalyticsKpiCard
+                label={`${horizonDays}d Projected Shortfall`}
+                value={`${report.forecast.summary.projectedShortfallUnits} units`}
+                tone={
+                  report.forecast.summary.projectedShortfallUnits > 0
+                    ? 'warning'
+                    : 'success'
+                }
+                hint={`${report.forecast.summary.skusAtRiskCount} SKU(s) projected below 0`}
+              />
+              <AnalyticsKpiCard
+                label="Pending Incoming POs"
+                value={`${report.summary.pendingSupplierUnits} units`}
+                hint={
+                  includePendingSupplierOrders
+                    ? 'Included in coverage & reorder calculations'
+                    : 'Excluded by current assumption'
+                }
+              />
             </div>
-          )}
-        </section>
-      </div>
 
-      {view === 'products' ? (
-        <div className='catalog-table-wrap'>
-          <table className='catalog-table warehouse-information-table table-card-stack'>
-            <thead>
-              <tr>
-                <th>
-                  {t(
-                    'warehouse.information.productsTable.columns.product',
-                  )}
-                </th>
-                <th>
-                  {t(
-                    'warehouse.information.productsTable.columns.article',
-                  )}
-                </th>
-                <th className='warehouse-info-num'>
-                  {t(
-                    'warehouse.information.productsTable.columns.units',
-                  )}
-                </th>
-                <th className='warehouse-info-num'>
-                  {t(
-                    'warehouse.information.productsTable.columns.value',
-                  )}
-                </th>
-                <th>
-                  {t(
-                    'warehouse.information.productsTable.columns.warehouses',
-                  )}
-                </th>
-                <th>
-                  {t(
-                    'warehouse.information.productsTable.columns.locations',
-                  )}
-                </th>
-                <th>
-                  {t(
-                    'warehouse.information.productsTable.columns.suppliers',
-                  )}
-                </th>
-                <th>
-                  {t(
-                    'warehouse.information.productsTable.columns.latest',
-                  )}
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {report.products.length === 0 ? (
-                <tr>
-                  <td colSpan={8}>
-                    {t('warehouse.information.productsTable.empty')}
-                  </td>
-                </tr>
-              ) : (
-                paginatedProducts.map((row) => (
-                  <tr key={row.id}>
-                    <td
-                      className='catalog-name-cell'
-                      data-label={t(
-                        'warehouse.information.productsTable.columns.product',
-                      )}
-                    >
-                      {row.name}
-                    </td>
-                    <td
-                      data-label={t(
-                        'warehouse.information.productsTable.columns.article',
-                      )}
-                    >
-                      {isBlankArticle(row.article) ? (
-                        <span className='warehouse-info-empty'>
-                          —
-                        </span>
-                      ) : (
-                        row.article
-                      )}
-                    </td>
-                    <td
-                      className='warehouse-info-num'
-                      data-label={t(
-                        'warehouse.information.productsTable.columns.units',
-                      )}
-                    >
-                      {row.units}
-                    </td>
-                    <td
-                      className='warehouse-info-num'
-                      data-label={t(
-                        'warehouse.information.productsTable.columns.value',
-                      )}
-                    >
-                      {renderValueMetric(row.value)}
-                    </td>
-                    <td
-                      data-label={t(
-                        'warehouse.information.productsTable.columns.warehouses',
-                      )}
-                    >
-                      {renderChipList(row.warehouses)}
-                    </td>
-                    <td
-                      data-label={t(
-                        'warehouse.information.productsTable.columns.locations',
-                      )}
-                    >
-                      {renderChipList(row.locations)}
-                    </td>
-                    <td
-                      data-label={t(
-                        'warehouse.information.productsTable.columns.suppliers',
-                      )}
-                    >
-                      {renderChipList(row.suppliers)}
-                    </td>
-                    <td
-                      data-label={t(
-                        'warehouse.information.productsTable.columns.latest',
-                      )}
-                    >
-                      {formatDate(row.latestPurchaseDate)}
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-          {renderPagination()}
-        </div>
+            <AnalyticsSortableTable
+              columns={suggestionColumns}
+              rows={report.demandAndSuggestions}
+              getRowKey={(r) => r.nameKey}
+              emptyText="No matching SKUs for demand and reorder analysis."
+            />
+          </AnalyticsSectionCard>
+        </>
+      ) : reportQuery.isLoading ? (
+        <div className="report-state-box">Loading warehouse analytics...</div>
       ) : null}
 
-      {view === 'locations' ? (
-        <div className='catalog-table-wrap'>
-          <table className='catalog-table warehouse-information-table table-card-stack'>
-            <thead>
-              <tr>
-                <th>
-                  {t(
-                    'warehouse.information.locationsTable.columns.warehouse',
-                  )}
-                </th>
-                <th>
-                  {t(
-                    'warehouse.information.locationsTable.columns.status',
-                  )}
-                </th>
-                <th>
-                  {t(
-                    'warehouse.information.locationsTable.columns.location',
-                  )}
-                </th>
-                <th className='warehouse-info-num'>
-                  {t(
-                    'warehouse.information.locationsTable.columns.units',
-                  )}
-                </th>
-                <th className='warehouse-info-num'>
-                  {t(
-                    'warehouse.information.locationsTable.columns.products',
-                  )}
-                </th>
-                <th className='warehouse-info-num'>
-                  {t(
-                    'warehouse.information.locationsTable.columns.value',
-                  )}
-                </th>
-                <th>
-                  {t(
-                    'warehouse.information.locationsTable.columns.latest',
-                  )}
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {report.locations.length === 0 ? (
-                <tr>
-                  <td colSpan={7}>
-                    {t('warehouse.information.locationsTable.empty')}
-                  </td>
-                </tr>
-              ) : (
-                paginatedLocations.map((row) => (
-                  <tr key={row.id}>
-                    <td
-                      className='catalog-name-cell'
-                      data-label={t(
-                        'warehouse.information.locationsTable.columns.warehouse',
-                      )}
-                    >
-                      {row.warehouseName}
-                    </td>
-                    <td
-                      data-label={t(
-                        'warehouse.information.locationsTable.columns.status',
-                      )}
-                    >
-                      <span
-                        className={
-                          row.isWarehouseActive
-                            ? 'receipt-status receipt-status-received'
-                            : 'receipt-status receipt-status-cancelled'
-                        }
-                      >
-                        {row.isWarehouseActive
-                          ? t('warehouse.common.active')
-                          : t('warehouse.common.inactive')}
-                      </span>
-                    </td>
-                    <td
-                      data-label={t(
-                        'warehouse.information.locationsTable.columns.location',
-                      )}
-                    >
-                      {row.locationName}
-                    </td>
-                    <td
-                      className='warehouse-info-num'
-                      data-label={t(
-                        'warehouse.information.locationsTable.columns.units',
-                      )}
-                    >
-                      {row.units}
-                    </td>
-                    <td
-                      className='warehouse-info-num'
-                      data-label={t(
-                        'warehouse.information.locationsTable.columns.products',
-                      )}
-                    >
-                      {row.uniqueProducts}
-                    </td>
-                    <td
-                      className='warehouse-info-num'
-                      data-label={t(
-                        'warehouse.information.locationsTable.columns.value',
-                      )}
-                    >
-                      {renderValueMetric(row.value)}
-                    </td>
-                    <td
-                      data-label={t(
-                        'warehouse.information.locationsTable.columns.latest',
-                      )}
-                    >
-                      {formatDate(row.latestPurchaseDate)}
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-          {renderPagination()}
-        </div>
-      ) : null}
-
-      {view === 'suppliers' ? (
-        <div className='catalog-table-wrap'>
-          <table className='catalog-table warehouse-information-table table-card-stack'>
-            <thead>
-              <tr>
-                <th>
-                  {t(
-                    'warehouse.information.suppliersTable.columns.supplier',
-                  )}
-                </th>
-                <th className='warehouse-info-num'>
-                  {t(
-                    'warehouse.information.suppliersTable.columns.units',
-                  )}
-                </th>
-                <th className='warehouse-info-num'>
-                  {t(
-                    'warehouse.information.suppliersTable.columns.value',
-                  )}
-                </th>
-                <th>
-                  {t(
-                    'warehouse.information.suppliersTable.columns.products',
-                  )}
-                </th>
-                <th>
-                  {t(
-                    'warehouse.information.suppliersTable.columns.warehouses',
-                  )}
-                </th>
-                <th>
-                  {t(
-                    'warehouse.information.suppliersTable.columns.latest',
-                  )}
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {report.suppliers.length === 0 ? (
-                <tr>
-                  <td colSpan={6}>
-                    {t('warehouse.information.suppliersTable.empty')}
-                  </td>
-                </tr>
-              ) : (
-                paginatedSuppliers.map((row) => (
-                  <tr key={row.id}>
-                    <td
-                      className='catalog-name-cell'
-                      data-label={t(
-                        'warehouse.information.suppliersTable.columns.supplier',
-                      )}
-                    >
-                      {row.supplierName}
-                    </td>
-                    <td
-                      className='warehouse-info-num'
-                      data-label={t(
-                        'warehouse.information.suppliersTable.columns.units',
-                      )}
-                    >
-                      {row.units}
-                    </td>
-                    <td
-                      className='warehouse-info-num'
-                      data-label={t(
-                        'warehouse.information.suppliersTable.columns.value',
-                      )}
-                    >
-                      {renderValueMetric(row.value)}
-                    </td>
-                    <td
-                      data-label={t(
-                        'warehouse.information.suppliersTable.columns.products',
-                      )}
-                    >
-                      {renderChipList(row.products)}
-                    </td>
-                    <td
-                      data-label={t(
-                        'warehouse.information.suppliersTable.columns.warehouses',
-                      )}
-                    >
-                      {renderChipList(row.warehouses)}
-                    </td>
-                    <td
-                      data-label={t(
-                        'warehouse.information.suppliersTable.columns.latest',
-                      )}
-                    >
-                      {formatDate(row.latestPurchaseDate)}
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-          {renderPagination()}
-        </div>
-      ) : null}
-    </section>
+      <AnalyticsSectionCard
+        title="Stock Records Drill-Down"
+        subtitle={
+          details
+            ? `Matching total across all pages: ${details.total} records (${details.totals.availableQuantity} available / ${details.totals.totalQuantity} on hand · ${formatCurrency(details.totals.valuation)})`
+            : 'Filter or click chart segments above to narrow down stock rows.'
+        }
+      >
+        <AnalyticsSortableTable
+          columns={detailColumns}
+          rows={details?.items ?? []}
+          getRowKey={(row) => row.id}
+          sortBy={sortBy}
+          sortDir={sortDir}
+          onSortChange={(nextKey, nextDir) => {
+            setSortBy(nextKey);
+            setSortDir(nextDir);
+            setPage(1);
+          }}
+          loading={detailsQuery.isLoading}
+          error={
+            detailsQuery.isError
+              ? detailsQuery.error instanceof Error
+                ? detailsQuery.error.message
+                : 'Failed to load stock details.'
+              : null
+          }
+          page={details?.page ?? page}
+          pageSize={details?.pageSize ?? pageSize}
+          total={details?.total ?? 0}
+          onPageChange={setPage}
+        />
+      </AnalyticsSectionCard>
+    </div>
   );
 };

@@ -291,6 +291,8 @@ export const takeOnChargeSupplierOrder = async (
           });
         }
         item.receiptStatus = 'received';
+        (item as { receivedAt?: Date | null }).receivedAt =
+          (item as { receivedAt?: Date | null }).receivedAt ?? new Date();
       }
 
       applyResolvedStatusFromItems(existing);

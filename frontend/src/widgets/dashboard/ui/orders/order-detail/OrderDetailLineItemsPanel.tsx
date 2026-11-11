@@ -164,6 +164,12 @@ export interface OrderDetailLineItemsPanelProps {
         | 'quantity'
         | 'warrantyPeriod'
         | 'serialNumbers'
+        | 'costMethod'
+        | 'recordedMinutes'
+        | 'fixedCost'
+        | 'hourlyCost'
+        | 'directExpenses'
+        | 'unitCostOverride'
       >
     >,
   ) => void;
@@ -178,6 +184,7 @@ export interface OrderDetailLineItemsPanelProps {
   onError: (message: string) => void;
   onSuccess: (message: string) => void;
   canManageOrders?: boolean;
+  canManageFinancialCosts?: boolean;
 }
 
 type ProductEntrySuggestion =
@@ -222,6 +229,7 @@ export const OrderDetailLineItemsPanel: React.FC<
   onError,
   onSuccess,
   canManageOrders = true,
+  canManageFinancialCosts = false,
 }) => {
   const { t } = useTranslation();
   const warrantyOptions = getWarrantyOptions();
@@ -1691,6 +1699,13 @@ export const OrderDetailLineItemsPanel: React.FC<
           : selectedProduct.id
         : undefined;
 
+    const matchedCatalogService =
+      kind === 'service'
+        ? (entryService ??
+          serviceSuggestions.find((service) => service.id === nextServiceId) ??
+          null)
+        : null;
+
     onAddItem({
       kind,
       productId: resolvedProductId,
@@ -1702,6 +1717,13 @@ export const OrderDetailLineItemsPanel: React.FC<
       quantity: normalizedQuantity,
       warrantyPeriod: Number(warrantyPeriod),
       serialNumbers: undefined,
+      ...(matchedCatalogService
+        ? {
+            costMethod: matchedCatalogService.costMethod ?? 'fixed',
+            recordedMinutes:
+              matchedCatalogService.defaultDurationMinutes ?? null,
+          }
+        : {}),
     });
     setName('');
     setPrice('');
@@ -2150,6 +2172,47 @@ export const OrderDetailLineItemsPanel: React.FC<
                         >
                           {item.name}
                         </button>
+                        {!isProductKind &&
+                        (item.costMethod === 'time_rate' ||
+                          (item.recordedMinutes !== null &&
+                            item.recordedMinutes !== undefined)) ? (
+                          <label
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: 6,
+                              marginTop: 4,
+                              fontSize: '0.76rem',
+                              color: 'var(--color-muted)',
+                            }}
+                          >
+                            <span>Minutes:</span>
+                            <input
+                              type='number'
+                              min={0}
+                              step={1}
+                              style={{ width: 68, padding: '2px 6px' }}
+                              value={
+                                item.recordedMinutes !== undefined &&
+                                item.recordedMinutes !== null
+                                  ? String(item.recordedMinutes)
+                                  : ''
+                              }
+                              disabled={
+                                isReadOnly ||
+                                (Boolean(item.costSnapshot?.capturedAt) &&
+                                  !canManageFinancialCosts)
+                              }
+                              onChange={(event) => {
+                                const raw = event.target.value.trim();
+                                onUpdateItem(item.id, undefined, {
+                                  recordedMinutes:
+                                    raw === '' ? null : Math.max(0, Number(raw) || 0),
+                                });
+                              }}
+                            />
+                          </label>
+                        ) : null}
                       </div>
                       {showSerialColumn ? (
                         <div

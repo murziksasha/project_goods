@@ -19,6 +19,21 @@ import {
   getSaleStatusChangeStockDeltas,
   type SaleLineItem,
 } from './stock';
+import { employeeHasPermission } from '../auth/service';
+import type { EmployeeDocument } from '../employee/model';
+import {
+  buildNextStatusTransitions,
+  isRepairCompletedStatus,
+  prepareLineItemsWithCostSnapshots,
+  type CostableSaleLineItem,
+  type StatusTransitionValue,
+} from './costing';
+
+const toCostingEmployee = (actor?: EmployeeCashboxActor | null) =>
+  actor as unknown as
+    | Pick<EmployeeDocument, '_id' | 'name' | 'role' | 'permissions'>
+    | null
+    | undefined;
 
 type SalePaymentAction = 'deposit' | 'depositAndIssue' | 'issueWithoutPayment';
 type SalePaymentTargetStatus = 'issued' | 'issuedWithoutRepair' | 'paid';
@@ -245,24 +260,61 @@ export const acceptSalePayment = async (
     ];
   }
 
+  const saleAny = sale as unknown as {
+    firstStockCommittedAt?: Date | null;
+    completedAt?: Date | null;
+    statusTransitions?: StatusTransitionValue[];
+  };
+  const costEmployee = toCostingEmployee(actor);
+  const preparedCosts = await prepareLineItemsWithCostSnapshots({
+    kind: sale.kind,
+    nextStatus,
+    existingLineItems: (sale.lineItems ?? []) as unknown as CostableSaleLineItem[],
+    incomingLineItems: lineItems as unknown as CostableSaleLineItem[],
+    existingFirstStockCommittedAt: saleAny.firstStockCommittedAt ?? null,
+    employee: costEmployee,
+    now: createdAt,
+    canOverrideCosts: true,
+  });
+  const nextStatusTransitions = buildNextStatusTransitions({
+    existingTransitions: saleAny.statusTransitions ?? [],
+    fromStatus: sale.status ?? null,
+    toStatus: nextStatus,
+    employee: costEmployee,
+    now: createdAt,
+  });
+  const nextCompletedAt =
+    saleAny.completedAt ??
+    (sale.kind === 'repair' && isRepairCompletedStatus(nextStatus)
+      ? createdAt
+      : null);
+
   let stockDeltasApplied = false;
   try {
     await applyStockDeltas(stockDeltas);
     stockDeltasApplied = true;
 
+    const updateDoc: Record<string, unknown> = {
+      status: nextStatus,
+      paidAmount: nextPaidAmount,
+      issuedBy: shouldSetIssuedBy ? issuedBy?._id ?? null : null,
+      issuedBySnapshot:
+        shouldSetIssuedBy && issuedBy
+          ? { name: issuedBy.name, role: issuedBy.role }
+          : undefined,
+      paymentHistory: nextPaymentHistory,
+      timeline: nextTimeline,
+      firstStockCommittedAt: preparedCosts.firstStockCommittedAt,
+      completedAt: nextCompletedAt,
+      statusTransitions: nextStatusTransitions,
+    };
+    if ((sale.lineItems ?? []).length > 0) {
+      updateDoc.lineItems = preparedCosts.lineItems;
+    }
+
     const updatedSale = await Sale.findByIdAndUpdate(
       saleId,
-      {
-        status: nextStatus,
-        paidAmount: nextPaidAmount,
-        issuedBy: shouldSetIssuedBy ? issuedBy?._id ?? null : null,
-        issuedBySnapshot:
-          shouldSetIssuedBy && issuedBy
-            ? { name: issuedBy.name, role: issuedBy.role }
-            : undefined,
-        paymentHistory: nextPaymentHistory,
-        timeline: nextTimeline,
-      },
+      updateDoc,
       { returnDocument: 'after', runValidators: true },
     ).lean<SaleDocument | null>();
 
@@ -270,7 +322,12 @@ export const acceptSalePayment = async (
       throw new HttpError(404, 'Sale not found.');
     }
 
-    return formatSale(updatedSale);
+    return formatSale(updatedSale, {
+      includeCosts:
+        costEmployee && costEmployee.permissions !== undefined
+          ? employeeHasPermission(costEmployee, 'finance.view')
+          : true,
+    });
   } catch (error) {
     if (stockDeltasApplied) {
       await applyStockDeltas(
@@ -391,24 +448,61 @@ export const refundSalePayment = async (
     ...(sale.timeline ?? []),
   ];
 
+  const saleAny = sale as unknown as {
+    firstStockCommittedAt?: Date | null;
+    completedAt?: Date | null;
+    statusTransitions?: StatusTransitionValue[];
+  };
+  const costEmployee = toCostingEmployee(actor);
+  const preparedCosts = await prepareLineItemsWithCostSnapshots({
+    kind: sale.kind,
+    nextStatus,
+    existingLineItems: (sale.lineItems ?? []) as unknown as CostableSaleLineItem[],
+    incomingLineItems: lineItems as unknown as CostableSaleLineItem[],
+    existingFirstStockCommittedAt: saleAny.firstStockCommittedAt ?? null,
+    employee: costEmployee,
+    now: createdAt,
+    canOverrideCosts: true,
+  });
+  const nextStatusTransitions = buildNextStatusTransitions({
+    existingTransitions: saleAny.statusTransitions ?? [],
+    fromStatus: sale.status ?? null,
+    toStatus: nextStatus,
+    employee: costEmployee,
+    now: createdAt,
+  });
+  const nextCompletedAt =
+    saleAny.completedAt ??
+    (sale.kind === 'repair' && isRepairCompletedStatus(nextStatus)
+      ? createdAt
+      : null);
+
   let stockDeltasApplied = false;
   try {
     await applyStockDeltas(stockDeltas);
     stockDeltasApplied = true;
 
+    const updateDoc: Record<string, unknown> = {
+      status: nextStatus,
+      paidAmount: nextPaidAmount,
+      issuedBy: shouldSetIssuedBy ? issuedBy?._id ?? null : null,
+      issuedBySnapshot:
+        shouldSetIssuedBy && issuedBy
+          ? { name: issuedBy.name, role: issuedBy.role }
+          : undefined,
+      paymentHistory: nextPaymentHistory,
+      timeline: nextTimeline,
+      firstStockCommittedAt: preparedCosts.firstStockCommittedAt,
+      completedAt: nextCompletedAt,
+      statusTransitions: nextStatusTransitions,
+    };
+    if ((sale.lineItems ?? []).length > 0) {
+      updateDoc.lineItems = preparedCosts.lineItems;
+    }
+
     const updatedSale = await Sale.findByIdAndUpdate(
       saleId,
-      {
-        status: nextStatus,
-        paidAmount: nextPaidAmount,
-        issuedBy: shouldSetIssuedBy ? issuedBy?._id ?? null : null,
-        issuedBySnapshot:
-          shouldSetIssuedBy && issuedBy
-            ? { name: issuedBy.name, role: issuedBy.role }
-            : undefined,
-        paymentHistory: nextPaymentHistory,
-        timeline: nextTimeline,
-      },
+      updateDoc,
       { returnDocument: 'after', runValidators: true },
     ).lean<SaleDocument | null>();
 
@@ -416,7 +510,12 @@ export const refundSalePayment = async (
       throw new HttpError(404, 'Sale not found.');
     }
 
-    return formatSale(updatedSale);
+    return formatSale(updatedSale, {
+      includeCosts:
+        costEmployee && costEmployee.permissions !== undefined
+          ? employeeHasPermission(costEmployee, 'finance.view')
+          : true,
+    });
   } catch (error) {
     if (stockDeltasApplied) {
       await applyStockDeltas(

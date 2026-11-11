@@ -16,6 +16,16 @@ export type SaleLineItem = {
   quantity: number;
   warrantyPeriod?: number;
   serialNumbers?: string[];
+  costMethod?: 'fixed' | 'time_rate' | null;
+  recordedMinutes?: number | null;
+  fixedCost?: number | null;
+  hourlyCost?: number | null;
+  directExpenses?: number | null;
+  unitCostOverride?: number | null;
+  isCostOverridden?: boolean | null;
+  costSnapshot?: unknown;
+  auditedCost?: unknown;
+  costAuditLog?: unknown[];
 };
 
 export const isStockCommittedSaleStatus = (status: string) => {

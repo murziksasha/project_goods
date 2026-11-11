@@ -236,7 +236,14 @@ See also: [SECURITY.md](./SECURITY.md) for auth model and LAN deployment notes.
 - Orders payment modal requires `finance.transactions.deposit`.
 - Orders refund/return flows that return money require `finance.transactions.withdraw`.
 - Cashbox list loading in payment/refund forms requires `finance.cashboxes.view` or `finance.view`.
-- Orders `Supplier Order` and `Information` tabs require `supplierOrders.view` or `supplierOrders.manage`.
+- Orders `Supplier Order` tab requires `supplierOrders.view` or `supplierOrders.manage`.
+- Orders `Information` tab (`ordersTab=supplierInformation`) is accessible when the employee has repair/sales order read access OR supplier-order read access; subviews enforce strict isolation:
+  - **Repairs** (`GET /reports/orders/repairs*`): requires `orders.view`, `orders.manage`, `repairs.execute`, or `kanban.use`.
+  - **Sales** (`GET /reports/orders/sales*`): requires `orders.view` or `sales.manage`.
+  - **Procurement** (`GET /reports/orders/procurement*`): requires `supplierOrders.view` or `supplierOrders.manage`.
+- Catalog service costing defaults (`costMethod`, `fixedCost`, `hourlyCost`, `defaultDurationMinutes`) require `inventory.manage` to write and (`inventory.manage` or `finance.view`) to read.
+- Financial order line cost overrides (`unitCostOverride`, `fixedCost`, `hourlyCost`, `directExpenses`) and post-closure `PATCH /sales/:saleId/costs` require BOTH `orders.manage` (repairs) / `sales.manage` (sales) AND `finance.view`; line cost fields are redacted when `finance.view` is absent.
+- Private forecasting scenarios (`GET/POST/PUT/DELETE /scenarios`): scoped by `employeeId` and domain permission (`inventory.manage` for `warehouse`, `finance.view` for `cashflow`).
 - Supplier-order create, edit, cancel, status change, and take-on-charge actions require `supplierOrders.manage`.
 - Starred supplier-order state is visible with supplier-order read access, but changing the star requires `supplierOrders.manage`.
 - Starred Orders/Sales state is visible with order read access; changing repair-order stars requires `orders.manage`, and changing product-sale stars requires `sales.manage`.

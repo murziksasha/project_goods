@@ -38,6 +38,7 @@ import {
   unbindClientDevice,
 } from '../../../../../entities/client-device';
 import { OrderPaymentDiscountControl } from './OrderPaymentDiscountControl';
+import { OrderCostAuditModal } from './OrderCostAuditModal';
 import {
   getCashboxes,
   issueSupplierOrderWithoutPayment,
@@ -304,6 +305,37 @@ export const OrderDetailCard: React.FC<OrderDetailCardProps> = ({
   const isContentLocked =
     isReadOnly ||
     !isOrderEditableStatus(sale, normalizeOrderStatus(sale.status));
+  const [isCostAuditModalOpen, setIsCostAuditModalOpen] = useState(false);
+  const canViewFinanceCosts = hasEmployeePermission(
+    currentEmployee ?? null,
+    'finance.view',
+  );
+  const canManageFinancialCosts =
+    canViewFinanceCosts &&
+    hasEmployeePermission(
+      currentEmployee ?? null,
+      isSaleCard ? 'sales.manage' : 'orders.manage',
+    );
+  const costWarnings = Array.isArray(sale.costWarnings)
+    ? sale.costWarnings
+    : [];
+  const lineCostStats = useMemo(() => {
+    let knownCostTotal = 0;
+    let unknownCount = 0;
+    for (const item of lineItems) {
+      const effective = item.auditedCost ?? item.costSnapshot ?? null;
+      if (effective?.status === 'known' && effective.totalCost !== null) {
+        knownCostTotal += Number(effective.totalCost) || 0;
+      } else {
+        unknownCount += 1;
+      }
+    }
+    return {
+      knownCostTotal: Math.round(knownCostTotal * 100) / 100,
+      unknownCount,
+      isCommittedSnapshot: Boolean(sale.firstStockCommittedAt),
+    };
+  }, [lineItems, sale.firstStockCommittedAt]);
   const lastInitializedSaleIdRef = useRef<string | null>(null);
 
   useEffect(() => {
@@ -1631,6 +1663,7 @@ export const OrderDetailCard: React.FC<OrderDetailCardProps> = ({
               onSuccess={onSuccess}
               onSupplierOrderCreated={onSupplierOrderCreated}
               canManageOrders={canManageOrders}
+              canManageFinancialCosts={canManageFinancialCosts}
               isReadOnly={isContentLocked}
             />
           ) : null}
@@ -1701,6 +1734,7 @@ export const OrderDetailCard: React.FC<OrderDetailCardProps> = ({
               onSuccess={onSuccess}
               onSupplierOrderCreated={onSupplierOrderCreated}
               canManageOrders={canManageOrders}
+              canManageFinancialCosts={canManageFinancialCosts}
               isReadOnly={isContentLocked}
             />
           ) : null}
@@ -1756,6 +1790,69 @@ export const OrderDetailCard: React.FC<OrderDetailCardProps> = ({
             >
               {t('orders.payment.refundToClient')}
             </button>
+          ) : null}
+          {costWarnings.length > 0 ||
+          (canViewFinanceCosts && lineCostStats.unknownCount > 0) ? (
+            <div className='report-coverage-banner' role='status'>
+              <strong>Missing cost data (non-blocking)</strong>
+              {costWarnings.length > 0 ? (
+                <ul>
+                  {costWarnings.map((warning, idx) => (
+                    <li key={`${idx}-${warning.slice(0, 20)}`}>{warning}</li>
+                  ))}
+                </ul>
+              ) : (
+                <div>
+                  {lineCostStats.unknownCount} line item(s) currently have
+                  unknown cost. Closure stays allowed; profitability will be
+                  marked incomplete until audited.
+                </div>
+              )}
+            </div>
+          ) : null}
+          {canViewFinanceCosts ? (
+            <div
+              style={{
+                display: 'grid',
+                gap: 6,
+                marginTop: 8,
+                paddingTop: 8,
+                borderTop: '1px solid var(--color-line)',
+              }}
+            >
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  gap: 8,
+                  fontSize: '0.84rem',
+                }}
+              >
+                <span>
+                  Known Cost Total:{' '}
+                  <strong>{formatCurrency(lineCostStats.knownCostTotal)}</strong>
+                </span>
+                <span
+                  className={`report-badge ${
+                    lineCostStats.unknownCount > 0 ? 'is-warning' : 'is-success'
+                  }`}
+                >
+                  {lineCostStats.isCommittedSnapshot
+                    ? 'Committed Snapshot'
+                    : 'Draft Estimate'}
+                </span>
+              </div>
+              {canManageFinancialCosts ? (
+                <button
+                  type='button'
+                  className='secondary-button'
+                  onClick={() => setIsCostAuditModalOpen(true)}
+                >
+                  Audit / Complete Costs
+                </button>
+              ) : null}
+            </div>
           ) : null}
         </section>
 
@@ -2253,6 +2350,16 @@ export const OrderDetailCard: React.FC<OrderDetailCardProps> = ({
             setIsUnboundSerialIssueOpen(false);
             void persistMainInfo();
           }}
+        />
+      ) : null}
+      {isCostAuditModalOpen ? (
+        <OrderCostAuditModal
+          saleId={sale.id}
+          initialSale={sale}
+          isOpen={isCostAuditModalOpen}
+          onClose={() => setIsCostAuditModalOpen(false)}
+          onError={onError}
+          onSuccess={onSuccess}
         />
       ) : null}
     </article>

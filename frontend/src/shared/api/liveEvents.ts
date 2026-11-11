@@ -21,9 +21,15 @@ const DEFAULT_MAX_BACKOFF_MS = 30_000;
 const invalidateForPath = (path: string) => {
   if (path.includes('/sales')) {
     void queryClient.invalidateQueries({ queryKey: queryKeys.sales });
+    void queryClient.invalidateQueries({ queryKey: queryKeys.warehouseReportRoot });
+    void queryClient.invalidateQueries({ queryKey: queryKeys.ordersRepairsReportRoot });
+    void queryClient.invalidateQueries({ queryKey: queryKeys.ordersSalesReportRoot });
+    void queryClient.invalidateQueries({ queryKey: ['financeProfitReport'] });
+    void queryClient.invalidateQueries({ queryKey: queryKeys.cashboxesReportRoot });
   }
   if (path.includes('/products')) {
     void queryClient.invalidateQueries({ queryKey: queryKeys.products });
+    void queryClient.invalidateQueries({ queryKey: queryKeys.warehouseReportRoot });
   }
   if (path.includes('/clients')) {
     void queryClient.invalidateQueries({ queryKey: queryKeys.clients });
@@ -34,6 +40,9 @@ const invalidateForPath = (path: string) => {
   }
   if (path.includes('/supplier-orders')) {
     void queryClient.invalidateQueries({ queryKey: queryKeys.supplierOrders });
+    void queryClient.invalidateQueries({ queryKey: queryKeys.warehouseReportRoot });
+    void queryClient.invalidateQueries({ queryKey: queryKeys.ordersProcurementReportRoot });
+    void queryClient.invalidateQueries({ queryKey: queryKeys.cashboxesReportRoot });
   }
   if (path.includes('/finance/categories')) {
     void queryClient.invalidateQueries({ queryKey: queryKeys.financeCategories });
@@ -45,6 +54,12 @@ const invalidateForPath = (path: string) => {
     void queryClient.invalidateQueries({ queryKey: queryKeys.financeCategories });
     void queryClient.invalidateQueries({ queryKey: queryKeys.financeTransactions });
     void queryClient.invalidateQueries({ queryKey: queryKeys.financeReport });
+    void queryClient.invalidateQueries({ queryKey: ['financeProfitReport'] });
+    void queryClient.invalidateQueries({ queryKey: queryKeys.cashboxesReportRoot });
+    void queryClient.invalidateQueries({ queryKey: queryKeys.ordersProcurementReportRoot });
+  }
+  if (path.includes('/scenarios')) {
+    void queryClient.invalidateQueries({ queryKey: queryKeys.scenariosRoot });
   }
   if (path.includes('/employees')) {
     void queryClient.invalidateQueries({ queryKey: queryKeys.employees });

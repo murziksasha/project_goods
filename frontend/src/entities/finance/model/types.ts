@@ -180,7 +180,7 @@ export type CreateFinanceTransactionPayload = {
   idempotencyKey?: string;
 };
 
-export type ProfitReportPeriod = 'whole' | 'day' | 'week' | 'month' | 'year';
+export type ProfitReportPeriod = 'whole' | 'day' | 'week' | 'month' | 'year' | 'last30';
 export type ProfitReportSource = 'all' | 'sales' | 'services';
 
 export type ProfitReportParams = {
@@ -188,6 +188,13 @@ export type ProfitReportParams = {
   dateFrom?: string;
   dateTo?: string;
   source?: ProfitReportSource;
+  lossOnly?: boolean;
+  missingCostOnly?: boolean;
+  q?: string;
+  page?: number;
+  pageSize?: number;
+  sortBy?: string;
+  sortDir?: 'asc' | 'desc';
 };
 
 export type ProfitMarginRow = {
@@ -197,9 +204,12 @@ export type ProfitMarginRow = {
   quantity: number;
   cost: number;
   revenue: number;
+  knownCostRevenue?: number;
   profit: number;
   marginPct: number | null;
   costKnown: boolean;
+  knownCount?: number;
+  unknownCount?: number;
   catalogProductId?: string | null;
   serviceId?: string | null;
 };
@@ -227,6 +237,48 @@ export type ProfitCashBucket = {
   net: number;
 };
 
+export type ProfitTrendPoint = {
+  dateKey: string;
+  revenue: number;
+  knownCost: number;
+  knownProfit: number;
+  cashCollected: number;
+  cashOutflows: number;
+  cashNet: number;
+};
+
+export type FinanceProfitMarginTotals = {
+  revenue: number;
+  cogs: number;
+  grossProfit: number | null;
+  grossMarginPct: number | null;
+  unknownCostCount: number;
+  isIncomplete?: boolean;
+  knownCostRevenue?: number;
+  knownCostCogs?: number;
+  knownCostGrossProfit?: number;
+  knownCostGrossMarginPct?: number | null;
+  costCoveragePct?: number;
+};
+
+export type ProfitComparisonSnapshot = {
+  period: {
+    key: ProfitReportPeriod | 'custom';
+    dateFrom: string | null;
+    dateTo: string | null;
+  };
+  margin: FinanceProfitMarginTotals;
+  cash: {
+    collected: number;
+    inventoryPurchases: number;
+    opex: number;
+    refunds: number;
+    net: number;
+    byCurrency?: Record<string, ProfitCashBucket>;
+  };
+  saleCount: number;
+};
+
 export type FinanceProfitReport = {
   period: {
     key: ProfitReportPeriod | 'custom';
@@ -234,16 +286,14 @@ export type FinanceProfitReport = {
     dateTo: string | null;
     timeZone: string;
   };
+  previousPeriod?: {
+    dateFrom: string | null;
+    dateTo: string | null;
+  } | null;
   source: ProfitReportSource;
   currency: FinanceCurrency;
   otherCurrencies: string[];
-  margin: {
-    revenue: number;
-    cogs: number;
-    grossProfit: number;
-    grossMarginPct: number | null;
-    unknownCostCount: number;
-  };
+  margin: FinanceProfitMarginTotals;
   cash: {
     collected: number;
     inventoryPurchases: number;
@@ -253,9 +303,240 @@ export type FinanceProfitReport = {
     opexByCategory: ProfitCashCategoryRow[];
     byCurrency?: Record<string, ProfitCashBucket>;
     operations: ProfitCashOperation[];
+    transfersVolume?: number;
+    transfersCount?: number;
   };
   rows: ProfitMarginRow[];
+  trendSeries?: ProfitTrendPoint[];
+  previousComparison?: ProfitComparisonSnapshot | null;
   dataScope: 'live_sales_only';
   coldSalesPurgedExist: boolean;
   saleCount: number;
+  coverage?: {
+    coldSalesPurgedExist: boolean;
+    isProfitIncomplete: boolean;
+    warnings: string[];
+  };
+};
+
+export type ProfitReportDetailItem = {
+  id: string;
+  recordNumber: string | null;
+  kind: 'sale' | 'repair';
+  status: string;
+  saleDate: string;
+  clientName: string;
+  revenue: number;
+  knownCostRevenue: number;
+  knownCost: number;
+  knownProfit: number;
+  profit: number | null;
+  marginPct: number | null;
+  isIncomplete: boolean;
+  missingCostCount: number;
+  knownCostCount: number;
+  isLoss: boolean;
+  matchingLineCount: number;
+};
+
+export type ProfitReportDetailsResponse = {
+  items: ProfitReportDetailItem[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totals: {
+    revenue: number;
+    knownCost: number;
+    knownProfit: number;
+    missingCostRecordsCount: number;
+    lossRecordsCount: number;
+  };
+};
+
+export type PlannedCashEvent = {
+  id: string;
+  title: string;
+  type: 'inflow' | 'outflow';
+  amount: number;
+  currency: string;
+  scheduledDate: string;
+  obligationKind?: 'supplier_order' | 'sale_balance' | null;
+  obligationId?: string | null;
+};
+
+export type CashboxesReportParams = {
+  period?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  cashboxId?: string;
+  currency?: string;
+  type?: string;
+  category?: string;
+  q?: string;
+  horizonDays?: 30 | 60 | 90;
+  demandMultiplier?: number;
+  inflowMultiplier?: number;
+  outflowMultiplier?: number;
+  inflowTimingShiftDays?: number;
+  outflowTimingShiftDays?: number;
+  plannedEvents?: PlannedCashEvent[];
+  page?: number;
+  pageSize?: number;
+  sortBy?: string;
+  sortDir?: 'asc' | 'desc';
+};
+
+export type CashboxReconciliationRow = {
+  cashboxId: string;
+  name: string;
+  currency: string;
+  currentBalance: number;
+  openingBalance: number | null;
+  closingBalance: number | null;
+  inflows: number;
+  outflows: number;
+  transfersIn: number;
+  transfersOut: number;
+  reconciliationDelta: number | null;
+};
+
+export type CashboxCurrencyReport = {
+  currency: string;
+  currentBalance: number;
+  inflows: number;
+  outflows: number;
+  netExternalCashflow: number;
+  inflowsCount: number;
+  outflowsCount: number;
+  transfersVolume: number;
+  transfersCount: number;
+  transfersIn: number;
+  transfersOut: number;
+  reconciliation: {
+    currentBalance: number;
+    openingBalance: number | null;
+    closingBalance: number | null;
+    reconciliationDelta: number | null;
+    reconciled: boolean;
+    complete: boolean;
+    perCashbox: CashboxReconciliationRow[];
+  };
+  comparison: {
+    inflowsPrev: number;
+    outflowsPrev: number;
+    netExternalCashflowPrev: number;
+    inflowsDeltaPct: number | null;
+    outflowsDeltaPct: number | null;
+  } | null;
+  trend: Array<{
+    dateKey: string;
+    inflows: number;
+    outflows: number;
+    netExternal: number;
+    transfers: number;
+  }>;
+  forecast: {
+    isEstimate: boolean;
+    horizonDays: 30 | 60 | 90;
+    startingBalance: number;
+    avgDailyInflow: number;
+    avgDailyOutflow: number;
+    adjustedDailyInflow: number;
+    adjustedDailyOutflow: number;
+    totalProjectedBaselineInflows: number;
+    totalProjectedBaselineOutflows: number;
+    totalPlannedInflows: number;
+    totalPlannedOutflows: number;
+    endingProjectedBalance: number;
+    lowestProjectedBalance: number;
+    series: Array<{
+      day: number;
+      dateKey: string;
+      baselineInflow: number;
+      baselineOutflow: number;
+      plannedInflow: number;
+      plannedOutflow: number;
+      projectedBalance: number;
+    }>;
+  };
+};
+
+export type UnscheduledCashObligation = {
+  obligationKind: 'supplier_order' | 'sale_balance';
+  obligationId: string;
+  label: string;
+  type: 'inflow' | 'outflow';
+  currency: string;
+  amount: number;
+  dueDate: string | null;
+  isScheduled: boolean;
+};
+
+export type CashboxesReportResponse = {
+  generatedAt: string;
+  timeZone: string;
+  period: {
+    key: string;
+    dateFrom: string | null;
+    dateTo: string | null;
+  };
+  previousPeriod: {
+    dateFrom: string | null;
+    dateTo: string | null;
+  } | null;
+  currencies: string[];
+  allCurrencies: string[];
+  cashboxes: Array<{
+    id: string;
+    name: string;
+    balances: Record<string, number>;
+    isArchived: boolean;
+  }>;
+  byCurrency: Record<string, CashboxCurrencyReport>;
+  assumptions: {
+    horizonDays: 30 | 60 | 90;
+    demandMultiplier: number;
+    inflowMultiplier: number;
+    outflowMultiplier: number;
+    inflowTimingShiftDays: number;
+    outflowTimingShiftDays: number;
+    plannedEvents: PlannedCashEvent[];
+  };
+  unscheduledObligations: UnscheduledCashObligation[];
+  obligationSummary: {
+    unscheduledPayablesTotal: number;
+    unscheduledReceivablesTotal: number;
+    unscheduledCount: number;
+    scheduledCount: number;
+  };
+  coverage: {
+    sealedThrough: string | null;
+    purgedBeforeSeal: boolean;
+    purgedTxCount: number;
+    reconciliationUnavailableBySeal: boolean;
+    observedHistoryDays: number;
+    historyWindowDays: number;
+    warnings: string[];
+  };
+};
+
+export type CashboxesReportDetailItem = {
+  id: string;
+  type: FinanceTransactionType;
+  amount: number;
+  currency: string;
+  category: string;
+  fromCashboxId: string | null;
+  fromCashboxName: string | null;
+  toCashboxId: string | null;
+  toCashboxName: string | null;
+  note: string;
+  transactionDate: string;
+};
+
+export type CashboxesReportDetailsResponse = {
+  items: CashboxesReportDetailItem[];
+  total: number;
+  page: number;
+  pageSize: number;
 };

@@ -70,6 +70,12 @@ export type OrderDetailCardProps = {
         | 'quantity'
         | 'warrantyPeriod'
         | 'serialNumbers'
+        | 'costMethod'
+        | 'recordedMinutes'
+        | 'fixedCost'
+        | 'hourlyCost'
+        | 'directExpenses'
+        | 'unitCostOverride'
       >
     >,
   ) => void;

@@ -2,6 +2,8 @@ import mongoose from 'mongoose';
 import { formatSale } from '../../shared/lib/formatters';
 import { HttpError } from '../../shared/lib/errors';
 import { isValidObjectIdOrThrow } from '../../shared/lib/query';
+import type { EmployeeDocument } from '../employee/model';
+import { employeeHasPermission } from '../auth/service';
 import { Sale, type SaleDocument } from './model';
 import {
   buildSalesFilter,
@@ -9,6 +11,10 @@ import {
   SALES_LIST_COMPACT_EXCLUDE,
 } from './list-sales-query';
 import { findOccupiedSerialNumbers } from './validators';
+
+const canIncludeSaleCosts = (
+  employee?: Pick<EmployeeDocument, 'role' | 'permissions'> | null,
+) => (employee ? employeeHasPermission(employee, 'finance.view') : true);
 
 const parseOccupiedSerialsQuery = (value: unknown): string[] => {
   const raw = Array.isArray(value)
@@ -35,18 +41,25 @@ export const listOccupiedSerialNumbers = async (
   return { occupied };
 };
 
-export const getSaleById = async (saleId: string) => {
+export const getSaleById = async (
+  saleId: string,
+  employee?: Pick<EmployeeDocument, 'role' | 'permissions'> | null,
+) => {
   isValidObjectIdOrThrow(saleId, 'saleId');
   const sale = await Sale.findById(saleId).lean<SaleDocument | null>();
   if (!sale) {
     throw new HttpError(404, 'Sale not found.');
   }
-  return formatSale(sale);
+  return formatSale(sale, { includeCosts: canIncludeSaleCosts(employee) });
 };
 
-export const listSales = async (query: Record<string, unknown> = {}) => {
+export const listSales = async (
+  query: Record<string, unknown> = {},
+  employee?: Pick<EmployeeDocument, 'role' | 'permissions'> | null,
+) => {
   const options = parseListSalesQuery(query);
   const filter = buildSalesFilter(options);
+  const includeCosts = canIncludeSaleCosts(employee);
 
   // Query builder is typed loosely: Mongoose select() changes generics and breaks reassignment.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -62,7 +75,7 @@ export const listSales = async (query: Record<string, unknown> = {}) => {
       findQuery.skip(skip).limit(options.pageSize).lean() as Promise<SaleDocument[]>,
     ]);
     return {
-      items: sales.map(formatSale),
+      items: sales.map((sale) => formatSale(sale, { includeCosts })),
       total,
       page: options.page,
       pageSize: options.pageSize,
@@ -74,12 +87,13 @@ export const listSales = async (query: Record<string, unknown> = {}) => {
   }
 
   const sales = (await findQuery.lean()) as SaleDocument[];
-  return sales.map(formatSale);
+  return sales.map((sale) => formatSale(sale, { includeCosts }));
 };
 
 export const updateSaleFavorite = async (
   saleId: string,
   payload: { isFavorite?: unknown },
+  employee?: Pick<EmployeeDocument, 'role' | 'permissions'> | null,
 ) => {
   isValidObjectIdOrThrow(saleId, 'saleId');
   const existingSale = await Sale.findById(saleId);
@@ -89,5 +103,7 @@ export const updateSaleFavorite = async (
 
   existingSale.isFavorite = payload.isFavorite === true;
   const updatedSale = await existingSale.save();
-  return formatSale(updatedSale.toObject<SaleDocument>());
+  return formatSale(updatedSale.toObject<SaleDocument>(), {
+    includeCosts: canIncludeSaleCosts(employee),
+  });
 };

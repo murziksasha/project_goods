@@ -201,8 +201,8 @@ This document defines financial behavior in the `Accounting` workspace (cashboxe
 
 ## Profit report (`GET /finance/profit-report`)
 
-- Filters: source **All / Services / Sales**; period **All time (default) / Day / Week / Month / Year**; optional custom `dateFrom`/`dateTo`. Week is Monday–Sunday in `Europe/Kiev`.
-- **Gross margin** uses stock-committed documents only (sale `paid`/`issued`, repair `issued`/`issuedWithoutRepair`). COGS is `Product.price` of linked units. Services have cost `0`. Order discount is allocated pro-rata across lines. Open repairs are excluded.
+- Filters: source **All / Services / Sales**; period **Last 30 days (default for initial open) / All time / Day / Week / Month / Year**; optional custom `dateFrom`/`dateTo` plus `lossOnly` / `missingCostOnly` flags. Week is Monday–Sunday in `Europe/Kiev`.
+- **Gross margin** uses stock-committed documents only (sale `paid`/`issued`, repair `issued`/`issuedWithoutRepair`). Line COGS uses immutable `costSnapshot` / `auditedCost` (falling back to warehouse `Product.price` for legacy un-snapshotted products); unset costs stay `unknown` rather than silently defaulting to `0` (explicit `0` is `known`), leaving overall profit/margin `Incomplete` alongside known-cost subtotals and coverage %. Order discount is allocated pro-rata across lines. Open repairs are excluded.
 - **Cash result** uses active finance txs (not cancelled, not reversals). Transfers are ignored.
   - Collected = `client_payment` deposits
   - Inventory purchases = `supplier_payment` withdraws
@@ -211,14 +211,14 @@ This document defines financial behavior in the `Accounting` workspace (cashboxe
   - Net cash = collected − purchases − opex − refunds
 - Manual **Withdraw** in the operation modal requires a category (default Other). The category control is a custom listbox: **5 visible rows** then scroll **inside the list** (the operation modal itself does not scroll when the menu opens); **Other** is always last; a separator plus **Add category** stays below the scrolling list and opens a nested create modal. **Add category** is shown only with `finance.cashboxes.manage`. After create, the new category is selected and the operation modal stays open. Order payments, refunds, and supplier-order pay set auto categories in the backend.
 - Custom withdraw categories are extra opex buckets in cash result / expense bars (no new P&L buckets). Labels: i18n for system slugs, stored `name` for custom. Deleting a custom category moves those withdraws into **Other**; the custom bar disappears on the next profit-report fetch.
-- **Export Excel** downloads the current **API** period/source/date combination (Summary, Margin, Cash sheets). Table search, type, margin band, and row selection do **not** change the workbook.
+- **Export Excel** downloads the current **API** period/source/date/flag combination (`Summary`, `Margin`, `Cash`, optional `Source Records`, and `Metadata & Definitions` sheets). Table search, type, margin band, and row selection do **not** change the workbook.
 
 ### Visual analysis (Reports tab)
 
 - KPI tiles use app tokens: revenue/collected primary, COGS/purchases orange, profit/net/margin green or red by sign, opex warning.
 - **Visual** (toolbar, not the cashboxes gear) persists in `localStorage` key `project-goods.accounting-profit-visual`:
   - show charts (default on)
-  - chart metric: profit (default) / revenue / quantity — drives mix donut and top-item bars only
+  - chart metric: profit (default) / revenue / quantity — drives mix donut (with an inline switcher synced to Visual settings) and top-item bars; when viewing profit, Mix also notes revenue from items with missing costs that are excluded from known profit
   - highlight loss rows (default on)
   - compact table (default off)
 - Charts (no extra library, same SVG/CSS as Analytics / Warehouse Information): product vs service mix, top 8 distribution, top 3 bars, cash waterfall. Clicking a top-item bar/track sets the table search to that name.
@@ -286,3 +286,9 @@ This document defines financial behavior in the `Accounting` workspace (cashboxe
 - Cashbox debits must use conditional atomic updates so the balance can never become negative under concurrent requests.
 - Transfer and cancellation flows must update balances and transaction records in one transaction.
 - Manual transaction requests may include an optional idempotency key; repeated requests with the same key return the existing transaction.
+
+## Cashboxes Information & Cashbox Reports Upgrade (2026-11-11)
+
+- **Cashboxes Information (`accountingTab=information`)**: powered by `GET /finance/cashboxes-report` & `/details` with `last30` (`Europe/Kiev`) default period, strict per-currency separation, internal transfers shown separately from external inflows/outflows, opening/closing balance reconciliation honoring `FinancePeriodSnapshot` seal/purge coverage limits, 30/60/90-day cashflow scenarios (multipliers, timing shifts, planned cash events, unscheduled supplier/client obligations preventing double-counting), private `'cashflow'` scenarios, paginated transaction drill-downs, and `.xlsx` export with `Metadata & Definitions`.
+- **Cashbox Reports (`accountingTab=reports`)**: keeps Gross Profitability strictly separate from Cash Flow (multi-currency buckets kept separate); defaults initial view to `last30` (preserving stored `localStorage` filters); captures immutable `costSnapshot` on order stock commit; treats explicit `0` as known cost while leaving unset/missing cost as `unknown`; includes revenue from incomplete-cost records while showing overall profit/margin as `Incomplete` plus known-cost subtotals and coverage %; supports `lossOnly`/`missingCostOnly` filters, equal-length prior comparisons (disabled for `whole`), post-closure audited cost completion (`PATCH /sales/:saleId/costs`), and Excel export with source records and `Metadata & Definitions`.
+- **Labor vs Salary Separation**: service labor costing (`fixed` or `recordedMinutes * hourlyCost`) informs accrual Gross Profitability; cashbox `salary` withdrawals remain operating expenses in Cash Flow and are not double-deducted from Gross Profit.

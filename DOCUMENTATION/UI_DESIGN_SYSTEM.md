@@ -267,8 +267,15 @@ shared/styles/
     accounting.css
     employees.css
     settings.css         # Settings tabs, groups, print builder chrome, backups, db report
+    reports-upgrade.css  # Shared analytics KPIs, filters, bar/SVG trend charts, scenario bar, audit log
     adaptive-tables.css  # card-stack tables, kanban snap, create menu
 ```
+
+### Upgraded Analytics & Reports Primitives (2026-11-11)
+
+- Component primitives in `widgets/dashboard/ui/common/AnalyticsPrimitives.tsx`: `AnalyticsKpiCard`, `AnalyticsComparisonBadge`, `AnalyticsCoverageBanner`, `AnalyticsSectionCard`, `AnalyticsInteractiveBars`, `AnalyticsTrendChart` (`padLeft = 92` with `overflow: visible` on `.report-trend-svg` and `overflow-y: visible` on `.report-trend-chart-wrap` to prevent clipping formatted currency Y-axis labels), `AnalyticsSortableTable`, and `ScenarioManagerBar`.
+- All trend charts and interactive breakdown bars use CSS custom properties (`--color-primary`, `--color-success`, `--color-warning`, `--color-danger`, `--accent-cyan`, `--color-line`, `--bg-card`) so light/dark themes adapt automatically.
+- Responsive breakpoints in `reports-upgrade.css`: `900px` collapses two-column charts/tables to single column; `720px` stacks filter grids and collapses KPI grid to 2 columns; `480px` stacks KPIs and scenario actions vertically.
 
 ## Reference screenshots
 

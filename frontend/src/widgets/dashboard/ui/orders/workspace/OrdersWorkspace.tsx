@@ -2706,6 +2706,12 @@ export const OrdersWorkspace: React.FC<OrdersWorkspaceProps> = ({
         | 'quantity'
         | 'warrantyPeriod'
         | 'serialNumbers'
+        | 'costMethod'
+        | 'recordedMinutes'
+        | 'fixedCost'
+        | 'hourlyCost'
+        | 'directExpenses'
+        | 'unitCostOverride'
       >
     >,
   ) => {

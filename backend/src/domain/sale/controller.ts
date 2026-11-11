@@ -12,9 +12,11 @@ import {
   returnSaleLineItemBySerials,
   returnSaleLineItemToStock,
   updateSaleFavorite,
+  updateSaleLineCosts,
   updateSaleWorkspace,
   updateSale,
 } from './service';
+import { employeeHasAllPermissions } from './costing';
 import { Sale } from './model';
 import {
   getSaleFavoritePermission,
@@ -49,8 +51,8 @@ export const saleReadPermissions = [
 ] as const;
 
 export const list = async (req: Request, res: Response): Promise<void> => {
-  await requireAnyPermission(req, saleReadPermissions);
-  res.json(await listSales(req.query as Record<string, unknown>));
+  const employee = await requireAnyPermission(req, saleReadPermissions);
+  res.json(await listSales(req.query as Record<string, unknown>, employee));
 };
 
 export const listOccupiedSerials = async (req: Request, res: Response): Promise<void> => {
@@ -59,14 +61,14 @@ export const listOccupiedSerials = async (req: Request, res: Response): Promise<
 };
 
 export const getById = async (req: Request, res: Response): Promise<void> => {
-  await requireAnyPermission(req, saleReadPermissions);
-  res.json(await getSaleById(routeParam(req, 'saleId')));
+  const employee = await requireAnyPermission(req, saleReadPermissions);
+  res.json(await getSaleById(routeParam(req, 'saleId'), employee));
 };
 
 export const create = async (req: Request, res: Response): Promise<void> => {
   const payload = req.body as SalePayload;
-  await requirePermission(req, getSaleManagePermission(payload.kind));
-  res.status(201).json(await createSale(payload));
+  const employee = await requirePermission(req, getSaleManagePermission(payload.kind));
+  res.status(201).json(await createSale(payload, employee));
 };
 
 export const update = async (req: Request, res: Response): Promise<void> => {
@@ -75,8 +77,8 @@ export const update = async (req: Request, res: Response): Promise<void> => {
   if (!existingSale) {
     throw new HttpError(404, 'Sale not found.');
   }
-  await requirePermission(req, getSaleManagePermission(existingSale.kind));
-  res.json(await updateSale(saleId, req.body as SalePayload));
+  const employee = await requirePermission(req, getSaleManagePermission(existingSale.kind));
+  res.json(await updateSale(saleId, req.body as SalePayload, employee));
 };
 
 export const updateFavorite = async (req: Request, res: Response): Promise<void> => {
@@ -85,14 +87,14 @@ export const updateFavorite = async (req: Request, res: Response): Promise<void>
   if (!existingSale) {
     throw new HttpError(404, 'Sale not found.');
   }
-  await requirePermission(
+  const employee = await requirePermission(
     req,
     getSaleFavoritePermission(existingSale.kind),
     existingSale.kind === 'sale'
       ? 'Current employee does not have permission to manage sales.'
       : 'Current employee does not have permission to manage orders.',
   );
-  res.json(await updateSaleFavorite(saleId, req.body as { isFavorite?: unknown }));
+  res.json(await updateSaleFavorite(saleId, req.body as { isFavorite?: unknown }, employee));
 };
 
 export const updateWorkspace = async (req: Request, res: Response): Promise<void> => {
@@ -102,23 +104,47 @@ export const updateWorkspace = async (req: Request, res: Response): Promise<void
     throw new HttpError(404, 'Sale not found.');
   }
   const payload = req.body as SalePayload;
+  let employee;
   if (isManualCommentWorkspacePatch(existingSale, payload)) {
-    await requirePermission(
+    employee = await requirePermission(
       req,
       'orders.chat',
       'Current employee does not have permission to add live feed comments.',
     );
   } else if (isAwayStatusWorkspacePatch(existingSale, payload)) {
-    await requireAnyPermission(req, saleReadPermissions);
+    employee = await requireAnyPermission(req, saleReadPermissions);
   } else if (isKanbanBoardWorkspacePatch(existingSale, payload)) {
-    await requireAnyPermission(req, [
+    employee = await requireAnyPermission(req, [
       'kanban.use',
       getSaleManagePermission(existingSale.kind),
     ]);
   } else {
-    await requirePermission(req, getSaleManagePermission(existingSale.kind));
+    employee = await requirePermission(req, getSaleManagePermission(existingSale.kind));
   }
-  res.json(await updateSaleWorkspace(saleId, payload));
+  res.json(await updateSaleWorkspace(saleId, payload, employee));
+};
+
+export const updateCosts = async (req: Request, res: Response): Promise<void> => {
+  const saleId = routeParam(req, 'saleId');
+  const existingSale = await Sale.findById(saleId).lean();
+  if (!existingSale) {
+    throw new HttpError(404, 'Sale not found.');
+  }
+  const managePermission = getSaleManagePermission(existingSale.kind);
+  const employee = await requirePermission(req, managePermission);
+  if (!employeeHasAllPermissions(employee, [managePermission, 'finance.view'])) {
+    throw new HttpError(
+      403,
+      'Updating order costs requires order/sale management and finance.view permissions.',
+    );
+  }
+  res.json(
+    await updateSaleLineCosts(
+      saleId,
+      req.body as { items?: unknown; reason?: unknown },
+      employee,
+    ),
+  );
 };
 
 export const acceptPayment = async (req: Request, res: Response): Promise<void> => {
@@ -160,8 +186,8 @@ export const returnLineItemSerials = async (req: Request, res: Response): Promis
 };
 
 export const returnLineItemStock = async (req: Request, res: Response): Promise<void> => {
-  await requireAnyPermission(req, ['orders.manage', 'inventory.manage']);
-  res.json(await returnSaleLineItemToStock(routeParam(req, 'saleId'), req.body));
+  const employee = await requireAnyPermission(req, ['orders.manage', 'inventory.manage']);
+  res.json(await returnSaleLineItemToStock(routeParam(req, 'saleId'), req.body, employee));
 };
 
 export const returnSaleHandler = async (req: Request, res: Response): Promise<void> => {
