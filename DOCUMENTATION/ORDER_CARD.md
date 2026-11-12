@@ -210,8 +210,11 @@ Related: [ORDER_FLOW.md](./ORDER_FLOW.md) · [SALE_CARD.md](./SALE_CARD.md) · [
 - Tier toggle (`ProductSalePriceTierToggle`): `aria-pressed`; Arrow Left/Right switches R/W inside the group.
 - Design tokens and component catalog: [`UI_DESIGN_SYSTEM.md`](./UI_DESIGN_SYSTEM.md).
 
-### Line-item costing & audited completion (2026-11-11)
+### Line-item costing & product purchase cost audit (2026-11-12)
 
-- Service items with `costMethod = time_rate` expose an inline `Minutes` (`recordedMinutes`) input inside the line item name cell (operational input allowed without `finance.view`, locked after cost snapshot commit unless authorized).
-- Financial cost summaries, missing-cost non-blocking banners (`costWarnings`), and post-closure audited cost editing (`OrderCostAuditModal` via `PATCH /api/sales/:saleId/costs`) are shown only when the employee has BOTH the management permission (`orders.manage` for repairs, `sales.manage` for sales) AND `finance.view`.
+- Service items with `costMethod = time_rate` expose an inline `Minutes` (`recordedMinutes`) input inside the line item name cell (operational input allowed without `finance.view`, locked after cost snapshot commit unless authorized). Service costing remains active in financial reports and is not edited via the card `Audit` modal.
+- In the `Payment` panel, an `Audit` button renders immediately to the right of `Accept payment` (`Paid`) when the repair order contains at least one `Products` line item added without a purchase price (`requiresCostAudit: true`, or legacy unknown-cost / previously audited product lines) AND the employee has BOTH `orders.manage` AND `finance.view`.
+- `Audit` is available both before payment/closure and after payment/issue (even when the rest of the card is read-only). `requiresCostAudit` remains `true` after cost completion so recorded prices can still be corrected with a reason.
+- The yellow missing-cost warning banner, `Known Cost Total`, and `Draft Estimate` / `Committed Snapshot` badges are not shown inside the order card; incomplete-cost tracking remains active in financial reports.
+- `OrderCostAuditModal` opens in a full-page portal above the sidebar/topbar with pinned header and footer and internal scroll for the product list; it displays only audit-eligible products, sends only modified rows via `PATCH /api/sales/:saleId/costs`, accepts explicit `0` as a known zero cost, and requires an audit reason (`>= 2` chars) when correcting or clearing an already recorded price.
 - Catalog service costing defaults (`costMethod`, `fixedCost`, `hourlyCost`, `defaultDurationMinutes`) are configurable in `ServiceCatalogForm`, `CatalogServiceModal`, and `OrderDetailCatalogServiceEditorModal`.

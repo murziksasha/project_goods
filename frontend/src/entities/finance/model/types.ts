@@ -182,6 +182,103 @@ export type CreateFinanceTransactionPayload = {
 
 export type ProfitReportPeriod = 'whole' | 'day' | 'week' | 'month' | 'year' | 'last30';
 export type ProfitReportSource = 'all' | 'sales' | 'services';
+export type ServiceProfitMode = 'full' | 'revenue_only' | 'exclude';
+
+export type FinancePolicyReportDefaults = {
+  period: ProfitReportPeriod;
+  source: ProfitReportSource;
+  showCharts: boolean;
+  showTable: boolean;
+};
+
+export type FinancePolicy = {
+  serviceAuditEnabled: boolean;
+  serviceProfitMode: ServiceProfitMode;
+  reportDefaults: FinancePolicyReportDefaults;
+  version: number;
+  updatedById: string | null;
+  updatedByName: string | null;
+  updatedAt: string | null;
+};
+
+export type UpdateFinancePolicyPayload = {
+  version: number;
+  serviceAuditEnabled?: boolean;
+  serviceProfitMode?: ServiceProfitMode;
+  reportDefaults?: Partial<FinancePolicyReportDefaults>;
+  reason?: string;
+};
+
+export type FinancePolicyPreviewPayload = {
+  serviceProfitMode: ServiceProfitMode;
+  period?: ProfitReportPeriod;
+  dateFrom?: string;
+  dateTo?: string;
+  source?: ProfitReportSource;
+};
+
+export type FinancePolicyPreviewSnapshot = {
+  serviceProfitMode: ServiceProfitMode;
+  version?: number;
+  source: ProfitReportSource;
+  margin: FinanceProfitMarginTotals;
+  cash: {
+    collected: number;
+    inventoryPurchases: number;
+    opex: number;
+    refunds: number;
+    net: number;
+  };
+  saleCount: number;
+  rowCount: number;
+};
+
+export type FinancePolicyPreviewResponse = {
+  period: {
+    key: ProfitReportPeriod | 'custom';
+    dateFrom: string | null;
+    dateTo: string | null;
+    timeZone: string;
+  };
+  requestedSource: ProfitReportSource;
+  current: FinancePolicyPreviewSnapshot;
+  proposed: FinancePolicyPreviewSnapshot;
+  delta: {
+    revenue: number;
+    cogs: number;
+    grossProfit: number | null;
+    knownCostGrossProfit: number;
+    saleCount: number;
+  };
+};
+
+export type FinancePolicyHistoryItem = {
+  id: string;
+  previousVersion: number;
+  version: number;
+  changedFields: string[];
+  previous: {
+    serviceAuditEnabled: boolean;
+    serviceProfitMode: ServiceProfitMode;
+    reportDefaults: FinancePolicyReportDefaults;
+  };
+  next: {
+    serviceAuditEnabled: boolean;
+    serviceProfitMode: ServiceProfitMode;
+    reportDefaults: FinancePolicyReportDefaults;
+  };
+  reason: string;
+  authorId: string | null;
+  authorName: string;
+  changedAt: string;
+};
+
+export type FinancePolicyHistoryResponse = {
+  items: FinancePolicyHistoryItem[];
+  total: number;
+  page: number;
+  pageSize: number;
+};
 
 export type ProfitReportParams = {
   period?: ProfitReportPeriod;
@@ -291,6 +388,11 @@ export type FinanceProfitReport = {
     dateTo: string | null;
   } | null;
   source: ProfitReportSource;
+  policy?: {
+    serviceProfitMode: ServiceProfitMode;
+    serviceAuditEnabled: boolean;
+    version: number;
+  };
   currency: FinanceCurrency;
   otherCurrencies: string[];
   margin: FinanceProfitMarginTotals;
@@ -344,6 +446,11 @@ export type ProfitReportDetailsResponse = {
   total: number;
   page: number;
   pageSize: number;
+  policy?: {
+    serviceProfitMode: ServiceProfitMode;
+    serviceAuditEnabled: boolean;
+    version: number;
+  };
   totals: {
     revenue: number;
     knownCost: number;

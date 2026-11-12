@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Product } from '../product/model';
 import { Sale } from '../sale/model';
 import * as yearlyDump from '../archive/yearly-dump';
-import { FinanceCategory, FinanceTransaction } from './model';
+import { FinanceCategory, FinancePolicy, FinanceTransaction } from './model';
 import {
   allocateLineRevenues,
   buildProfitCashSummary,
@@ -10,6 +10,7 @@ import {
   getFinanceProfitReport,
   getFinanceProfitReportDetails,
   isStockCommittedSale,
+  previewFinancePolicyImpact,
   resolveProfitReportBounds,
   resolveReportedFinanceCategory,
   resolveTransactionCategory,
@@ -592,5 +593,210 @@ describe('getFinanceProfitReport', () => {
 
     const missingOnly = await getFinanceProfitReportDetails({ period: 'whole', missingCostOnly: true });
     expect(missingOnly.items.map((r) => r.recordNumber)).toEqual(['R000002']);
+  });
+
+  it('applies full, revenue_only, and exclude service profit modes consistently across report, details, preview, and leaves cash unchanged', async () => {
+    vi.spyOn(yearlyDump, 'coldSalesPurgedExist').mockResolvedValue(false);
+    let activeMode: 'full' | 'revenue_only' | 'exclude' = 'full';
+    let activeVersion = 1;
+    vi.spyOn(FinancePolicy, 'findOne').mockImplementation(
+      () =>
+        ({
+          lean: async () => ({
+            serviceAuditEnabled: true,
+            serviceProfitMode: activeMode,
+            reportDefaults: {
+              period: 'last30',
+              source: 'all',
+              showCharts: true,
+              showTable: true,
+            },
+            version: activeVersion,
+          }),
+        }) as never,
+    );
+
+    const mixedSales = [
+      {
+        _id: { toString: () => 's-mixed' },
+        recordNumber: 'R000101',
+        saleDate: new Date('2026-09-15T10:00:00.000Z'),
+        kind: 'repair',
+        status: 'issued',
+        salePrice: 1350,
+        quantity: 2,
+        discount: { mode: 'percent', value: 10 },
+        clientSnapshot: { name: 'Mixed Client' },
+        lineItems: [
+          {
+            id: 'p-1',
+            kind: 'product',
+            name: 'Display',
+            price: 1000,
+            quantity: 1,
+            productId: 'p1',
+            costSnapshot: {
+              status: 'known',
+              unitCost: 600,
+              totalCost: 600,
+              method: 'stock',
+              capturedAt: new Date(),
+            },
+          },
+          {
+            id: 'sv-1',
+            kind: 'service',
+            name: 'Replacement',
+            price: 500,
+            quantity: 1,
+            costSnapshot: {
+              status: 'known',
+              unitCost: 150,
+              totalCost: 150,
+              method: 'fixed',
+              capturedAt: new Date(),
+            },
+          },
+        ],
+      },
+      {
+        _id: { toString: () => 's-pure-svc' },
+        recordNumber: 'R000102',
+        saleDate: new Date('2026-09-15T12:00:00.000Z'),
+        kind: 'repair',
+        status: 'issued',
+        salePrice: 300,
+        quantity: 1,
+        discount: { mode: 'percent', value: 0 },
+        clientSnapshot: { name: 'Service Only' },
+        lineItems: [
+          {
+            id: 'sv-2',
+            kind: 'service',
+            name: 'Diagnostics',
+            price: 300,
+            quantity: 1,
+            costSnapshot: {
+              status: 'known',
+              unitCost: 50,
+              totalCost: 50,
+              method: 'fixed',
+              capturedAt: new Date(),
+            },
+          },
+        ],
+      },
+    ];
+
+    const txs = [
+      {
+        type: 'deposit',
+        amount: 1650,
+        currency: 'UAH',
+        category: 'client_payment',
+        note: 'Payment for order R000101',
+        status: 'active',
+        isCancellation: false,
+        transactionDate: new Date('2026-09-15T13:00:00.000Z'),
+      },
+      {
+        type: 'withdraw',
+        amount: 200,
+        currency: 'UAH',
+        category: 'rent',
+        note: 'Rent',
+        status: 'active',
+        isCancellation: false,
+        transactionDate: new Date('2026-09-15T14:00:00.000Z'),
+      },
+    ];
+
+    vi.spyOn(Sale, 'find').mockReturnValue({
+      select: vi.fn().mockReturnValue({ lean: vi.fn().mockResolvedValue(mixedSales) }),
+    } as never);
+    vi.spyOn(FinanceTransaction, 'find').mockReturnValue({
+      select: vi.fn().mockReturnValue({ lean: vi.fn().mockResolvedValue(txs) }),
+    } as never);
+    vi.spyOn(FinanceCategory, 'find').mockReturnValue({
+      select: vi.fn().mockReturnValue({ lean: vi.fn().mockResolvedValue([]) }),
+    } as never);
+    vi.spyOn(Product, 'find').mockReturnValue({
+      select: vi.fn().mockReturnValue({
+        lean: vi.fn().mockResolvedValue([{ _id: { toString: () => 'p1' }, price: 600 }]),
+      }),
+    } as never);
+
+    // 1. Full mode: Display (900 - 600 = 300), Replacement (450 - 150 = 300), Diagnostics (300 - 50 = 250)
+    const full = await getFinanceProfitReport({ period: 'whole' });
+    expect(full.policy).toEqual({
+      serviceProfitMode: 'full',
+      serviceAuditEnabled: true,
+      version: 1,
+    });
+    expect(full.margin.revenue).toBe(1650);
+    expect(full.margin.cogs).toBe(800);
+    expect(full.margin.grossProfit).toBe(850);
+    expect(full.margin.isIncomplete).toBe(false);
+    expect(full.cash.collected).toBe(1650);
+    expect(full.cash.net).toBe(1450);
+
+    // 2. Preview revenue_only before saving
+    const previewRevOnly = await previewFinancePolicyImpact({
+      serviceProfitMode: 'revenue_only',
+      period: 'whole',
+    });
+    expect(previewRevOnly.current.margin.grossProfit).toBe(850);
+    expect(previewRevOnly.proposed.margin.revenue).toBe(1650);
+    expect(previewRevOnly.proposed.margin.cogs).toBe(600);
+    expect(previewRevOnly.proposed.margin.isIncomplete).toBe(true);
+    expect(previewRevOnly.proposed.margin.grossProfit).toBeNull();
+    expect(previewRevOnly.proposed.margin.knownCostGrossProfit).toBe(300);
+    expect(previewRevOnly.proposed.cash.net).toBe(1450);
+
+    // 3. Revenue-only mode active
+    activeMode = 'revenue_only';
+    activeVersion = 2;
+    const revOnly = await getFinanceProfitReport({ period: 'whole' });
+    expect(revOnly.policy).toEqual({
+      serviceProfitMode: 'revenue_only',
+      serviceAuditEnabled: true,
+      version: 2,
+    });
+    expect(revOnly.margin.revenue).toBe(1650);
+    expect(revOnly.margin.cogs).toBe(600);
+    expect(revOnly.margin.isIncomplete).toBe(true);
+    expect(revOnly.margin.grossProfit).toBeNull();
+    expect(revOnly.margin.knownCostRevenue).toBe(900);
+    expect(revOnly.margin.knownCostGrossProfit).toBe(300);
+    expect(revOnly.cash.net).toBe(1450);
+
+    const revOnlyDetails = await getFinanceProfitReportDetails({ period: 'whole' });
+    expect(revOnlyDetails.policy.serviceProfitMode).toBe('revenue_only');
+    expect(revOnlyDetails.items).toHaveLength(2);
+    expect(revOnlyDetails.items.every((item) => item.isIncomplete)).toBe(true);
+
+    // 4. Exclude mode active: services omitted, Display (with allocated 10% discount = 900) stays, cash unchanged!
+    activeMode = 'exclude';
+    activeVersion = 3;
+    const excluded = await getFinanceProfitReport({ period: 'whole' });
+    expect(excluded.policy).toEqual({
+      serviceProfitMode: 'exclude',
+      serviceAuditEnabled: true,
+      version: 3,
+    });
+    expect(excluded.margin.revenue).toBe(900);
+    expect(excluded.margin.cogs).toBe(600);
+    expect(excluded.margin.grossProfit).toBe(300);
+    expect(excluded.margin.isIncomplete).toBe(false);
+    expect(excluded.rows).toHaveLength(1);
+    expect(excluded.rows[0]?.type).toBe('product');
+    expect(excluded.cash.collected).toBe(1650);
+    expect(excluded.cash.net).toBe(1450);
+
+    const excludedDetails = await getFinanceProfitReportDetails({ period: 'whole' });
+    expect(excludedDetails.policy.version).toBe(3);
+    expect(excludedDetails.items).toHaveLength(1);
+    expect(excludedDetails.items[0]?.recordNumber).toBe('R000101');
+    expect(excludedDetails.items[0]?.revenue).toBe(900);
   });
 });

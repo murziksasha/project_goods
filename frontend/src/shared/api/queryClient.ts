@@ -28,6 +28,10 @@ export const queryKeys = {
     ['financeProfitReport', params] as const,
   financeSupplierOrdersQueue: ['financeSupplierOrdersQueue'] as const,
   financeSettings: ['financeSettings'] as const,
+  financePolicy: ['financePolicy'] as const,
+  financePolicyHistoryRoot: ['financePolicyHistory'] as const,
+  financePolicyHistory: (params: Record<string, unknown> = {}) =>
+    ['financePolicyHistory', params] as const,
   marketRates: ['marketRates'] as const,
   weatherForecast: ['weatherForecast'] as const,
   dashboardAnalytics: (params: Record<string, unknown> = {}) =>

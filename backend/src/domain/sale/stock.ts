@@ -23,6 +23,7 @@ export type SaleLineItem = {
   directExpenses?: number | null;
   unitCostOverride?: number | null;
   isCostOverridden?: boolean | null;
+  requiresCostAudit?: boolean | null;
   costSnapshot?: unknown;
   auditedCost?: unknown;
   costAuditLog?: unknown[];

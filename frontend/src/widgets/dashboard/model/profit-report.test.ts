@@ -132,12 +132,14 @@ describe('profit report visual settings', () => {
   it('persists and restores valid visual settings', () => {
     storeProfitReportVisualSettings({
       showCharts: false,
+      showTable: false,
       chartMetric: 'quantity',
       highlightLosses: false,
       compactTable: true,
     });
     expect(getStoredProfitReportVisualSettings()).toEqual({
       showCharts: false,
+      showTable: false,
       chartMetric: 'quantity',
       highlightLosses: false,
       compactTable: true,

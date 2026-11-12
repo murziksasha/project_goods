@@ -24,6 +24,10 @@ financeRouter.get('/finance/cashboxes-report', asyncHandler(controller.getCashbo
 financeRouter.get('/finance/cashboxes-report/details', asyncHandler(controller.getCashboxesReportDetailsHandler));
 financeRouter.get('/finance/profit-report', asyncHandler(controller.getProfitReport));
 financeRouter.get('/finance/profit-report/details', asyncHandler(controller.getProfitReportDetailsHandler));
+financeRouter.get('/finance/policy', asyncHandler(controller.getFinancePolicyHandler));
+financeRouter.patch('/finance/policy', asyncHandler(controller.updateFinancePolicyHandler));
+financeRouter.post('/finance/policy/preview', asyncHandler(controller.previewFinancePolicyHandler));
+financeRouter.get('/finance/policy/history', asyncHandler(controller.getFinancePolicyHistoryHandler));
 financeRouter.get('/finance/supplier-orders', asyncHandler(controller.listSupplierOrders));
 financeRouter.post('/finance/supplier-orders/:supplierOrderId/pay', asyncHandler(controller.paySupplierOrder));
 financeRouter.post(

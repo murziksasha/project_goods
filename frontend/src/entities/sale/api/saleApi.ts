@@ -424,6 +424,7 @@ export const useUpdateSaleLineCostsMutation = () =>
       payload: SaleLineCostsPayload;
     }) => updateSaleLineCosts(saleId, payload),
     onSuccess: (updated) => {
+      queryClient.setQueryData(queryKeys.saleDetail(updated.id), updated);
       void Promise.all([
         queryClient.invalidateQueries({ queryKey: queryKeys.sales }),
         queryClient.invalidateQueries({

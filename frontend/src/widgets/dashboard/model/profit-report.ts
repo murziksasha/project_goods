@@ -62,6 +62,22 @@ export const defaultProfitReportFilters =
     dateTo: '',
   });
 
+export const hasStoredProfitReportFilters = (): boolean => {
+  try {
+    return window.localStorage.getItem(profitReportFiltersStorageKey) !== null;
+  } catch {
+    return false;
+  }
+};
+
+export const clearStoredProfitReportFilters = () => {
+  try {
+    window.localStorage.removeItem(profitReportFiltersStorageKey);
+  } catch {
+    // Ignore localStorage remove errors.
+  }
+};
+
 export const getStoredProfitReportFilters =
   (): StoredProfitReportFilters => {
     const fallback = defaultProfitReportFilters();
@@ -122,6 +138,7 @@ export type ProfitReportRowSort =
 
 export type ProfitReportVisualSettings = {
   showCharts: boolean;
+  showTable: boolean;
   chartMetric: ProfitReportChartMetric;
   highlightLosses: boolean;
   compactTable: boolean;
@@ -272,10 +289,27 @@ export const profitReportRowSortOptions: Array<{
 export const defaultProfitReportVisualSettings =
   (): ProfitReportVisualSettings => ({
     showCharts: true,
+    showTable: true,
     chartMetric: 'profit',
     highlightLosses: true,
     compactTable: false,
   });
+
+export const hasStoredProfitReportVisualSettings = (): boolean => {
+  try {
+    return window.localStorage.getItem(profitReportVisualStorageKey) !== null;
+  } catch {
+    return false;
+  }
+};
+
+export const clearStoredProfitReportVisualSettings = () => {
+  try {
+    window.localStorage.removeItem(profitReportVisualStorageKey);
+  } catch {
+    // Ignore localStorage remove errors.
+  }
+};
 
 export const defaultProfitReportRowFilters =
   (): ProfitReportRowFilters => ({
@@ -306,6 +340,10 @@ export const getStoredProfitReportVisualSettings =
           typeof parsed.showCharts === 'boolean'
             ? parsed.showCharts
             : fallback.showCharts,
+        showTable:
+          typeof parsed.showTable === 'boolean'
+            ? parsed.showTable
+            : fallback.showTable,
         chartMetric: isChartMetric(parsed.chartMetric)
           ? parsed.chartMetric
           : fallback.chartMetric,
@@ -679,11 +717,15 @@ export const exportProfitReportWorkbook = ({
     report.period.dateFrom && report.period.dateTo
       ? `${report.period.dateFrom} – ${report.period.dateTo}`
       : report.period.key;
+  const policyMode = report.policy?.serviceProfitMode ?? 'full';
+  const policyVersion = report.policy?.version ?? 1;
   const summaryRows: Array<Array<string | number>> = [
     [labels.title],
     [labels.generated, generatedAt],
     [labels.source, report.source],
     [labels.period, periodLabel],
+    ['Service profit mode', policyMode],
+    ['Policy version', `v${policyVersion}`],
     [labels.filters, `${report.source}; ${periodLabel}${extraFilters ? `; ${extraFilters}` : ''}`],
     [],
     [labels.revenue, report.margin.revenue],
@@ -817,6 +859,8 @@ export const exportProfitReportWorkbook = ({
     { Section: 'Report', Key: 'Business Time Zone', Value: report.period.timeZone || 'Europe/Kiev' },
     { Section: 'Active Filter', Key: 'Source', Value: report.source },
     { Section: 'Active Filter', Key: 'Period', Value: periodLabel },
+    { Section: 'Active Policy', Key: 'Service Profit Mode', Value: policyMode },
+    { Section: 'Active Policy', Key: 'Policy Version', Value: `v${policyVersion}` },
     ...(extraFilters ? [{ Section: 'Active Filter', Key: 'Flags', Value: extraFilters }] : []),
     {
       Section: 'Metric Definition',

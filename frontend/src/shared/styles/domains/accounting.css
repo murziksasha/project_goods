@@ -1416,3 +1416,175 @@
 .modal-backdrop:has(.finance-category-create-modal) {
   z-index: 130;
 }
+
+.finance-policy-settings {
+  display: grid;
+  gap: 14px;
+}
+
+.finance-policy-section {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid var(--color-line-panel);
+  border-radius: 8px;
+  background: var(--bg-card);
+  min-width: 0;
+}
+
+.finance-policy-section h3 {
+  margin: 0;
+  font-size: 1rem;
+  color: var(--color-text-body);
+}
+
+.finance-policy-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.finance-policy-toggle {
+  font-weight: 600;
+}
+
+.finance-policy-hint {
+  margin: 0;
+  font-size: 0.85rem;
+  line-height: 1.45;
+}
+
+.finance-policy-conflict {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  text-align: left;
+}
+
+.finance-policy-mode-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.finance-policy-mode-card {
+  display: grid;
+  gap: 6px;
+  align-content: start;
+  padding: 12px;
+  border: 1px solid var(--color-line-panel);
+  border-radius: 8px;
+  background: var(--bg-panel-muted);
+  cursor: pointer;
+  min-width: 0;
+}
+
+.finance-policy-mode-card.is-selected {
+  border-color: var(--color-primary);
+  background: var(--bg-soft-primary);
+}
+
+.finance-policy-mode-card-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.finance-policy-mode-card p {
+  margin: 0;
+  font-size: 0.84rem;
+  line-height: 1.4;
+}
+
+.finance-policy-preview-controls {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: flex-end;
+}
+
+.finance-policy-preview-table {
+  width: 100%;
+}
+
+.finance-policy-defaults-grid {
+  margin-bottom: 0;
+}
+
+.finance-policy-defaults-toggles {
+  display: flex;
+  gap: 18px;
+  flex-wrap: wrap;
+}
+
+.finance-policy-save-bar {
+  display: flex;
+  gap: 12px;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  padding-top: 6px;
+  border-top: 1px solid var(--color-line-panel);
+}
+
+.finance-policy-reason-field {
+  flex: 1 1 260px;
+  min-width: 0;
+}
+
+.finance-policy-history-list {
+  display: grid;
+  gap: 10px;
+}
+
+.finance-policy-history-item {
+  border: 1px solid var(--color-line-panel);
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: var(--bg-panel-muted);
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.finance-policy-history-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.finance-policy-history-changes {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 2px;
+  font-size: 0.86rem;
+}
+
+.finance-policy-history-reason {
+  margin: 0;
+  font-size: 0.84rem;
+}
+
+@media (max-width: 900px) {
+  .finance-policy-mode-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 720px) {
+  .finance-policy-section {
+    padding: 12px;
+  }
+
+  .finance-policy-preview-controls,
+  .finance-policy-save-bar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}

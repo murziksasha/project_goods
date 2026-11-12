@@ -30,6 +30,24 @@ export type FinanceCategoryKind = (typeof financeCategoryKinds)[number];
 export const OTHER_CATEGORY_SLUG = 'other';
 export const customFinanceCategorySlugPattern = /^c_[a-f0-9]{24}$/i;
 
+export const serviceProfitModes = ['full', 'revenue_only', 'exclude'] as const;
+export type ServiceProfitMode = (typeof serviceProfitModes)[number];
+
+export const financePolicyReportPeriods = [
+  'last30',
+  'whole',
+  'day',
+  'week',
+  'month',
+  'year',
+] as const;
+export type FinancePolicyReportPeriod =
+  (typeof financePolicyReportPeriods)[number];
+
+export const financePolicyReportSources = ['all', 'sales', 'services'] as const;
+export type FinancePolicyReportSource =
+  (typeof financePolicyReportSources)[number];
+
 const defaultBalances = () => ({ UAH: 0, USD: 0 });
 const defaultEnabledCurrencies = () => ({ UAH: true, USD: false });
 
@@ -271,6 +289,193 @@ financeTransactionSchema.index(
 
 financeTransactionSchema.index({ category: 1, transactionDate: 1 });
 
+export const financePolicySchema = new mongoose.Schema(
+  {
+    key: {
+      type: String,
+      required: true,
+      default: 'default',
+      unique: true,
+      index: true,
+    },
+    serviceAuditEnabled: {
+      type: Boolean,
+      required: true,
+      default: false,
+    },
+    serviceProfitMode: {
+      type: String,
+      enum: serviceProfitModes,
+      required: true,
+      default: 'full',
+    },
+    reportDefaults: {
+      type: new mongoose.Schema(
+        {
+          period: {
+            type: String,
+            enum: financePolicyReportPeriods,
+            required: true,
+            default: 'last30',
+          },
+          source: {
+            type: String,
+            enum: financePolicyReportSources,
+            required: true,
+            default: 'all',
+          },
+          showCharts: {
+            type: Boolean,
+            required: true,
+            default: true,
+          },
+          showTable: {
+            type: Boolean,
+            required: true,
+            default: true,
+          },
+        },
+        { _id: false },
+      ),
+      required: true,
+      default: () => ({
+        period: 'last30',
+        source: 'all',
+        showCharts: true,
+        showTable: true,
+      }),
+    },
+    version: {
+      type: Number,
+      required: true,
+      default: 1,
+      min: 1,
+    },
+    updatedById: {
+      type: String,
+      required: false,
+      default: null,
+    },
+    updatedByName: {
+      type: String,
+      required: false,
+      default: null,
+    },
+  },
+  {
+    timestamps: true,
+    versionKey: false,
+  },
+);
+
+const financePolicySnapshotSchema = new mongoose.Schema(
+  {
+    serviceAuditEnabled: { type: Boolean, required: true },
+    serviceProfitMode: {
+      type: String,
+      enum: serviceProfitModes,
+      required: true,
+    },
+    reportDefaults: {
+      type: new mongoose.Schema(
+        {
+          period: {
+            type: String,
+            enum: financePolicyReportPeriods,
+            required: true,
+          },
+          source: {
+            type: String,
+            enum: financePolicyReportSources,
+            required: true,
+          },
+          showCharts: { type: Boolean, required: true },
+          showTable: { type: Boolean, required: true },
+        },
+        { _id: false },
+      ),
+      required: true,
+    },
+  },
+  { _id: false },
+);
+
+export const financePolicyAuditLogSchema = new mongoose.Schema(
+  {
+    policyKey: {
+      type: String,
+      required: true,
+      default: 'default',
+      index: true,
+    },
+    previousVersion: {
+      type: Number,
+      required: true,
+      min: 1,
+    },
+    version: {
+      type: Number,
+      required: true,
+      min: 1,
+      index: true,
+    },
+    changedFields: {
+      type: [String],
+      required: true,
+      default: [],
+    },
+    previous: {
+      type: financePolicySnapshotSchema,
+      required: true,
+    },
+    next: {
+      type: financePolicySnapshotSchema,
+      required: true,
+    },
+    reason: {
+      type: String,
+      trim: true,
+      maxlength: [300, 'Policy change reason must contain no more than 300 characters'],
+      default: '',
+    },
+    authorId: {
+      type: String,
+      required: false,
+      default: null,
+    },
+    authorName: {
+      type: String,
+      required: true,
+      default: 'System',
+    },
+    changedAt: {
+      type: Date,
+      required: true,
+      default: Date.now,
+      index: true,
+    },
+  },
+  {
+    timestamps: false,
+    versionKey: false,
+  },
+);
+
+financePolicyAuditLogSchema.index({ policyKey: 1, changedAt: -1, version: -1 });
+
+for (const hook of [
+  'updateOne',
+  'updateMany',
+  'findOneAndUpdate',
+  'deleteOne',
+  'deleteMany',
+  'findOneAndDelete',
+] as const) {
+  financePolicyAuditLogSchema.pre(hook, function () {
+    throw new Error('FinancePolicyAuditLog is immutable and cannot be modified or deleted.');
+  });
+}
+
 export type CashboxDocument = mongoose.InferSchemaType<typeof cashboxSchema> & {
   _id: mongoose.Types.ObjectId;
   createdAt: Date;
@@ -301,6 +506,20 @@ export type FinanceTransactionDocument = mongoose.InferSchemaType<
   updatedAt: Date;
 };
 
+export type FinancePolicyDocument = mongoose.InferSchemaType<
+  typeof financePolicySchema
+> & {
+  _id: mongoose.Types.ObjectId;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+export type FinancePolicyAuditLogDocument = mongoose.InferSchemaType<
+  typeof financePolicyAuditLogSchema
+> & {
+  _id: mongoose.Types.ObjectId;
+};
+
 export const Cashbox = mongoose.model('Cashbox', cashboxSchema);
 export const FinanceCurrencyConfig = mongoose.model(
   'FinanceCurrencyConfig',
@@ -313,4 +532,12 @@ export const FinanceCategory = mongoose.model(
 export const FinanceTransaction = mongoose.model(
   'FinanceTransaction',
   financeTransactionSchema,
+);
+export const FinancePolicy = mongoose.model(
+  'FinancePolicy',
+  financePolicySchema,
+);
+export const FinancePolicyAuditLog = mongoose.model(
+  'FinancePolicyAuditLog',
+  financePolicyAuditLogSchema,
 );

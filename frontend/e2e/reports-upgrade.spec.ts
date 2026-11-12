@@ -30,15 +30,15 @@ const installReportsMocks = async (
     paymentHistory: [],
     lineItems: [
       {
-        id: 'line-svc-1',
-        kind: 'service',
-        name: 'Board Microsoldering',
+        id: 'line-prod-1',
+        kind: 'product',
+        name: 'Board Module',
         price: 1200,
         quantity: 1,
         warrantyPeriod: 1,
-        costMethod: 'fixed',
+        requiresCostAudit: true,
         costSnapshot: saleCostAudited
-          ? { status: 'known', unitCost: 300, totalCost: 300, method: 'fixed' }
+          ? { status: 'known', unitCost: 300, totalCost: 300, method: 'manual' }
           : { status: 'unknown', unitCost: null, totalCost: null, method: 'unknown' },
         costAuditLog: saleCostAudited
           ? [
@@ -801,7 +801,7 @@ test.describe('Upgraded Information Tabs and Cashbox Reports', () => {
     const dialog = page.getByRole('dialog');
     await expect(dialog).toBeVisible();
     await dialog.getByPlaceholder('0.00').first().fill('300');
-    await dialog.getByRole('button', { name: 'Save Audited Costs' }).click();
+    await dialog.getByRole('button', { name: 'Save' }).click();
 
     await expect(dialog).toHaveCount(0);
     await expect(page.getByText('900.00 UAH').first()).toBeVisible();

@@ -17,8 +17,12 @@ import {
   FinanceTransaction,
   OTHER_CATEGORY_SLUG,
   financeTransactionCategories,
+  serviceProfitModes,
+  type ServiceProfitMode,
   type TransactionType,
 } from './model';
+import { getFinancePolicy, parseServiceProfitMode } from './policy';
+import { HttpError } from '../../shared/lib/errors';
 
 export const profitReportPeriods = [
   'whole',
@@ -401,10 +405,72 @@ const cashFieldForCategory = (
   return null;
 };
 
+const evaluateProfitLineItem = (
+  item: LineItemLike,
+  index: number,
+  productPriceMap: Map<string, number | null>,
+  source: ProfitReportSource,
+  serviceProfitMode: ServiceProfitMode,
+):
+  | { included: false }
+  | {
+      included: true;
+      type: 'product' | 'service';
+      costKnown: boolean;
+      cost: number;
+    } => {
+  const type = lineType(item);
+  if (type === 'service' && serviceProfitMode === 'exclude') {
+    return { included: false };
+  }
+  if (!matchesSource(type, source)) {
+    return { included: false };
+  }
+  if (type === 'service' && serviceProfitMode === 'revenue_only') {
+    return {
+      included: true,
+      type,
+      costKnown: false,
+      cost: 0,
+    };
+  }
+  const quantity = Number(item.quantity ?? 0);
+  const resolvedCost = resolveLineItemEffectiveCost(
+    {
+      id: String(item.id ?? `${type}-${index}`),
+      kind: type,
+      productId: item.productId ? toId(item.productId) : null,
+      catalogProductId: item.catalogProductId ? toId(item.catalogProductId) : null,
+      serviceId: item.serviceId ? toId(item.serviceId) : null,
+      name: String(item.name ?? ''),
+      price: Number(item.price ?? 0),
+      quantity,
+      costMethod: item.costMethod ?? null,
+      recordedMinutes: item.recordedMinutes ?? null,
+      fixedCost: item.fixedCost ?? null,
+      hourlyCost: item.hourlyCost ?? null,
+      directExpenses: item.directExpenses ?? null,
+      unitCostOverride: item.unitCostOverride ?? null,
+      costSnapshot: item.costSnapshot as CostableSaleLineItem['costSnapshot'],
+      auditedCost: item.auditedCost as CostableSaleLineItem['auditedCost'],
+    },
+    productPriceMap,
+  );
+  const costKnown = resolvedCost.status === 'known';
+  const cost = costKnown ? roundMoney(Number(resolvedCost.totalCost ?? 0)) : 0;
+  return {
+    included: true,
+    type,
+    costKnown,
+    cost,
+  };
+};
+
 export const buildProfitMarginRows = (
   sales: SaleLike[],
   productCostById: Record<string, number>,
   source: ProfitReportSource,
+  serviceProfitMode: ServiceProfitMode = 'full',
 ): { rows: ProfitMarginRow[]; unknownCostCount: number; knownCostRevenue: number } => {
   const productPriceMap = new Map<string, number | null>(
     Object.entries(productCostById).map(([id, price]) => [id, price]),
@@ -437,33 +503,17 @@ export const buildProfitMarginRows = (
     );
 
     items.forEach((item, index) => {
-      const type = lineType(item);
-      if (!matchesSource(type, source)) return;
+      const evaluation = evaluateProfitLineItem(
+        item,
+        index,
+        productPriceMap,
+        source,
+        serviceProfitMode,
+      );
+      if (!evaluation.included) return;
+      const { type, costKnown, cost } = evaluation;
       const quantity = Number(item.quantity ?? 0);
       const revenue = revenues[index] ?? 0;
-      const resolvedCost = resolveLineItemEffectiveCost(
-        {
-          id: String(item.id ?? `${type}-${index}`),
-          kind: type,
-          productId: item.productId ? toId(item.productId) : null,
-          catalogProductId: item.catalogProductId ? toId(item.catalogProductId) : null,
-          serviceId: item.serviceId ? toId(item.serviceId) : null,
-          name: String(item.name ?? ''),
-          price: Number(item.price ?? 0),
-          quantity,
-          costMethod: item.costMethod ?? null,
-          recordedMinutes: item.recordedMinutes ?? null,
-          fixedCost: item.fixedCost ?? null,
-          hourlyCost: item.hourlyCost ?? null,
-          directExpenses: item.directExpenses ?? null,
-          unitCostOverride: item.unitCostOverride ?? null,
-          costSnapshot: item.costSnapshot as CostableSaleLineItem['costSnapshot'],
-          auditedCost: item.auditedCost as CostableSaleLineItem['auditedCost'],
-        },
-        productPriceMap,
-      );
-      const costKnown = resolvedCost.status === 'known';
-      const cost = costKnown ? roundMoney(Number(resolvedCost.totalCost ?? 0)) : 0;
       const key = lineGroupKey(item, type);
       const catalogProductId =
         type === 'product' ? toId(item.catalogProductId) || null : null;
@@ -647,6 +697,7 @@ const summarizeOrderForReport = (
   sale: SaleLike,
   productPriceMap: Map<string, number | null>,
   source: ProfitReportSource,
+  serviceProfitMode: ServiceProfitMode = 'full',
 ) => {
   const saleAny = sale as unknown as Record<string, unknown>;
   const items = getSaleLineItems(sale);
@@ -665,35 +716,20 @@ const summarizeOrderForReport = (
   let unknownLines = 0;
 
   items.forEach((item, idx) => {
-    const type = lineType(item);
-    if (!matchesSource(type, source)) return;
+    const evaluation = evaluateProfitLineItem(
+      item,
+      idx,
+      productPriceMap,
+      source,
+      serviceProfitMode,
+    );
+    if (!evaluation.included) return;
     const rev = revenues[idx] ?? 0;
     revenue = roundMoney(revenue + rev);
-    const eff = resolveLineItemEffectiveCost(
-      {
-        id: String(item.id ?? `${type}-${idx}`),
-        kind: type,
-        productId: item.productId ? toId(item.productId) : null,
-        catalogProductId: item.catalogProductId ? toId(item.catalogProductId) : null,
-        serviceId: item.serviceId ? toId(item.serviceId) : null,
-        name: String(item.name ?? ''),
-        price: Number(item.price ?? 0),
-        quantity: Number(item.quantity ?? 0),
-        costMethod: item.costMethod ?? null,
-        recordedMinutes: item.recordedMinutes ?? null,
-        fixedCost: item.fixedCost ?? null,
-        hourlyCost: item.hourlyCost ?? null,
-        directExpenses: item.directExpenses ?? null,
-        unitCostOverride: item.unitCostOverride ?? null,
-        costSnapshot: item.costSnapshot as CostableSaleLineItem['costSnapshot'],
-        auditedCost: item.auditedCost as CostableSaleLineItem['auditedCost'],
-      },
-      productPriceMap,
-    );
-    if (eff.status === 'known') {
+    if (evaluation.costKnown) {
       knownLines += 1;
       knownCostRevenue = roundMoney(knownCostRevenue + rev);
-      knownCost = roundMoney(knownCost + Number(eff.totalCost ?? 0));
+      knownCost = roundMoney(knownCost + evaluation.cost);
     } else {
       unknownLines += 1;
     }
@@ -829,7 +865,100 @@ const loadProfitReportRawData = async (
   };
 };
 
-export const getFinanceProfitReport = async (query: ProfitReportQuery = {}) => {
+const summarizePeriodMarginAndCash = ({
+  salesSubset,
+  txSubset,
+  productCostById,
+  knownCategorySlugs,
+  source,
+  serviceProfitMode,
+}: {
+  salesSubset: SaleLike[];
+  txSubset: TransactionLike[];
+  productCostById: Record<string, number>;
+  knownCategorySlugs: Set<string>;
+  source: ProfitReportSource;
+  serviceProfitMode: ServiceProfitMode;
+}) => {
+  const { rows, unknownCostCount, knownCostRevenue } = buildProfitMarginRows(
+    salesSubset,
+    productCostById,
+    source,
+    serviceProfitMode,
+  );
+  const cash = buildProfitCashSummary(txSubset, knownCategorySlugs);
+  const revenue = roundMoney(rows.reduce((sum, row) => sum + row.revenue, 0));
+  const cogs = roundMoney(rows.reduce((sum, row) => sum + row.cost, 0));
+  const isIncomplete = unknownCostCount > 0;
+  const knownCostGrossProfit = roundMoney(knownCostRevenue - cogs);
+  const knownCostGrossMarginPct =
+    knownCostRevenue > 0
+      ? roundMoney((knownCostGrossProfit / knownCostRevenue) * 100)
+      : null;
+  const costCoveragePct =
+    revenue > 0
+      ? roundMoney((knownCostRevenue / revenue) * 100)
+      : rows.length > 0
+        ? roundMoney(((rows.length - unknownCostCount) / rows.length) * 100)
+        : 100;
+  const grossProfit = isIncomplete ? null : roundMoney(revenue - cogs);
+  const grossMarginPct =
+    !isIncomplete && revenue > 0 && grossProfit !== null
+      ? roundMoney((grossProfit / revenue) * 100)
+      : null;
+
+  // Separate internal transfer totals without folding them into external cash flow.
+  let transfersVolume = 0;
+  let transfersCount = 0;
+  txSubset.forEach((tx) => {
+    if ((tx.status ?? 'active') === 'cancelled' || tx.isCancellation) return;
+    if (String(tx.type ?? '') === 'transfer') {
+      const cur = String(tx.currency ?? PRIMARY_CURRENCY).toUpperCase();
+      if (cur === PRIMARY_CURRENCY) {
+        transfersVolume = roundMoney(
+          transfersVolume + Math.max(Number(tx.amount ?? 0), 0),
+        );
+        transfersCount += 1;
+      }
+    }
+  });
+
+  return {
+    rows,
+    margin: {
+      revenue,
+      cogs,
+      grossProfit,
+      grossMarginPct,
+      unknownCostCount,
+      isIncomplete,
+      knownCostRevenue,
+      knownCostCogs: cogs,
+      knownCostGrossProfit,
+      knownCostGrossMarginPct,
+      costCoveragePct,
+    },
+    cash: {
+      collected: cash.collected,
+      inventoryPurchases: cash.inventoryPurchases,
+      opex: cash.opex,
+      refunds: cash.refunds,
+      net: cash.net,
+      opexByCategory: cash.opexByCategory,
+      byCurrency: cash.byCurrency,
+      operations: cash.operations,
+      transfersVolume,
+      transfersCount,
+    },
+    otherCurrencies: cash.otherCurrencies,
+    saleCount: salesSubset.length,
+  };
+};
+
+export const getFinanceProfitReport = async (
+  query: ProfitReportQuery = {},
+  options?: { serviceProfitModeOverride?: ServiceProfitMode },
+) => {
   const bounds = resolveProfitReportBounds(query);
   const prevBounds = resolvePreviousBounds(bounds);
   const source = parseSource(query.source);
@@ -837,10 +966,16 @@ export const getFinanceProfitReport = async (query: ProfitReportQuery = {}) => {
   const missingCostOnly = parseBoolFlag(query.missingCostOnly);
   const searchQuery = String(query.q ?? '').trim().toLowerCase();
 
-  const wideBounds: ProfitReportBounds = prevBounds
-    ? { key: 'custom', dateFrom: prevBounds.dateFrom, dateTo: bounds.dateTo }
-    : bounds;
+  const [activePolicy, rawData] = await Promise.all([
+    getFinancePolicy(),
+    loadProfitReportRawData(
+      prevBounds
+        ? { key: 'custom', dateFrom: prevBounds.dateFrom, dateTo: bounds.dateTo }
+        : bounds,
+    ),
+  ]);
 
+  const serviceProfitMode = options?.serviceProfitModeOverride ?? activePolicy.serviceProfitMode;
   const {
     committedAll,
     transactions,
@@ -848,11 +983,16 @@ export const getFinanceProfitReport = async (query: ProfitReportQuery = {}) => {
     knownCategorySlugs,
     productCostById,
     productPriceMap,
-  } = await loadProfitReportRawData(wideBounds);
+  } = rawData;
 
   const filterSalesByFlags = (candidateSales: SaleLike[]) =>
     candidateSales.filter((sale) => {
-      const orderSummary = summarizeOrderForReport(sale, productPriceMap, source);
+      const orderSummary = summarizeOrderForReport(
+        sale,
+        productPriceMap,
+        source,
+        serviceProfitMode,
+      );
       if (orderSummary.matchingLineCount === 0) return false;
       if (lossOnly && !orderSummary.isLoss) return false;
       if (missingCostOnly && !orderSummary.isIncomplete) return false;
@@ -873,80 +1013,15 @@ export const getFinanceProfitReport = async (query: ProfitReportQuery = {}) => {
   const summarizePeriod = (
     salesSubset: SaleLike[],
     txSubset: TransactionLike[],
-  ) => {
-    const { rows, unknownCostCount, knownCostRevenue } = buildProfitMarginRows(
+  ) =>
+    summarizePeriodMarginAndCash({
       salesSubset,
+      txSubset,
       productCostById,
+      knownCategorySlugs,
       source,
-    );
-    const cash = buildProfitCashSummary(txSubset, knownCategorySlugs);
-    const revenue = roundMoney(rows.reduce((sum, row) => sum + row.revenue, 0));
-    const cogs = roundMoney(rows.reduce((sum, row) => sum + row.cost, 0));
-    const isIncomplete = unknownCostCount > 0;
-    const knownCostGrossProfit = roundMoney(knownCostRevenue - cogs);
-    const knownCostGrossMarginPct =
-      knownCostRevenue > 0
-        ? roundMoney((knownCostGrossProfit / knownCostRevenue) * 100)
-        : null;
-    const costCoveragePct =
-      revenue > 0
-        ? roundMoney((knownCostRevenue / revenue) * 100)
-        : rows.length > 0
-          ? roundMoney(((rows.length - unknownCostCount) / rows.length) * 100)
-          : 100;
-    const grossProfit = isIncomplete ? null : roundMoney(revenue - cogs);
-    const grossMarginPct =
-      !isIncomplete && revenue > 0 && grossProfit !== null
-        ? roundMoney((grossProfit / revenue) * 100)
-        : null;
-
-    // Separate internal transfer totals without folding them into external cash flow.
-    let transfersVolume = 0;
-    let transfersCount = 0;
-    txSubset.forEach((tx) => {
-      if ((tx.status ?? 'active') === 'cancelled' || tx.isCancellation) return;
-      if (String(tx.type ?? '') === 'transfer') {
-        const cur = String(tx.currency ?? PRIMARY_CURRENCY).toUpperCase();
-        if (cur === PRIMARY_CURRENCY) {
-          transfersVolume = roundMoney(
-            transfersVolume + Math.max(Number(tx.amount ?? 0), 0),
-          );
-          transfersCount += 1;
-        }
-      }
+      serviceProfitMode,
     });
-
-    return {
-      rows,
-      margin: {
-        revenue,
-        cogs,
-        grossProfit,
-        grossMarginPct,
-        unknownCostCount,
-        isIncomplete,
-        knownCostRevenue,
-        knownCostCogs: cogs,
-        knownCostGrossProfit,
-        knownCostGrossMarginPct,
-        costCoveragePct,
-      },
-      cash: {
-        collected: cash.collected,
-        inventoryPurchases: cash.inventoryPurchases,
-        opex: cash.opex,
-        refunds: cash.refunds,
-        net: cash.net,
-        opexByCategory: cash.opexByCategory,
-        byCurrency: cash.byCurrency,
-        operations: cash.operations,
-        transfersVolume,
-        transfersCount,
-      },
-      otherCurrencies: cash.otherCurrencies,
-      saleCount: salesSubset.length,
-    };
-  };
 
   const currentSummary = summarizePeriod(scopedSales, scopedTransactions);
 
@@ -1005,7 +1080,12 @@ export const getFinanceProfitReport = async (query: ProfitReportQuery = {}) => {
   scopedSales.forEach((sale) => {
     const dateKey = getAccountingBusinessDateKey(sale.saleDate ?? '');
     if (!dateKey) return;
-    const s = summarizeOrderForReport(sale, productPriceMap, source);
+    const s = summarizeOrderForReport(
+      sale,
+      productPriceMap,
+      source,
+      serviceProfitMode,
+    );
     const day = ensureDay(dateKey);
     day.revenue = roundMoney(day.revenue + s.revenue);
     day.knownCost = roundMoney(day.knownCost + s.knownCost);
@@ -1054,6 +1134,15 @@ export const getFinanceProfitReport = async (query: ProfitReportQuery = {}) => {
       'Cold yearly archive purges exist; profitability metrics cover live persisted sales only.',
     );
   }
+  if (serviceProfitMode === 'revenue_only') {
+    warnings.push(
+      'Service profit mode is set to revenue only: service costs are omitted and overall profit/margin are marked incomplete when services are present.',
+    );
+  } else if (serviceProfitMode === 'exclude') {
+    warnings.push(
+      'Service profit mode is set to exclude: service lines are omitted from profitability while products and actual cash flow remain included.',
+    );
+  }
   if (currentSummary.margin.isIncomplete) {
     warnings.push(
       `${currentSummary.margin.unknownCostCount} SKU group(s) have incomplete cost records; overall gross profit/margin is incomplete.`,
@@ -1071,6 +1160,11 @@ export const getFinanceProfitReport = async (query: ProfitReportQuery = {}) => {
       ? { dateFrom: prevBounds.dateFrom, dateTo: prevBounds.dateTo }
       : null,
     source,
+    policy: {
+      serviceProfitMode,
+      serviceAuditEnabled: activePolicy.serviceAuditEnabled,
+      version: activePolicy.version,
+    },
     currency: PRIMARY_CURRENCY,
     otherCurrencies: currentSummary.otherCurrencies,
     margin: currentSummary.margin,
@@ -1091,6 +1185,7 @@ export const getFinanceProfitReport = async (query: ProfitReportQuery = {}) => {
 
 export const getFinanceProfitReportDetails = async (
   query: ProfitReportQuery = {},
+  options?: { serviceProfitModeOverride?: ServiceProfitMode },
 ) => {
   const bounds = resolveProfitReportBounds(query);
   const source = parseSource(query.source);
@@ -1098,11 +1193,19 @@ export const getFinanceProfitReportDetails = async (
   const missingCostOnly = parseBoolFlag(query.missingCostOnly);
   const searchQuery = String(query.q ?? '').trim().toLowerCase();
 
-  const { committedAll, productPriceMap } = await loadProfitReportRawData(bounds);
+  const [activePolicy, rawData] = await Promise.all([
+    getFinancePolicy(),
+    loadProfitReportRawData(bounds),
+  ]);
+
+  const serviceProfitMode = options?.serviceProfitModeOverride ?? activePolicy.serviceProfitMode;
+  const { committedAll, productPriceMap } = rawData;
 
   const records = committedAll
     .filter((sale) => isSaleInBounds(sale, bounds))
-    .map((sale) => summarizeOrderForReport(sale, productPriceMap, source))
+    .map((sale) =>
+      summarizeOrderForReport(sale, productPriceMap, source, serviceProfitMode),
+    )
     .filter((row) => {
       if (row.matchingLineCount === 0) return false;
       if (lossOnly && !row.isLoss) return false;
@@ -1132,12 +1235,153 @@ export const getFinanceProfitReportDetails = async (
     total: records.length,
     page,
     pageSize,
+    policy: {
+      serviceProfitMode,
+      serviceAuditEnabled: activePolicy.serviceAuditEnabled,
+      version: activePolicy.version,
+    },
     totals: {
       revenue: roundMoney(records.reduce((s, r) => s + r.revenue, 0)),
       knownCost: roundMoney(records.reduce((s, r) => s + r.knownCost, 0)),
       knownProfit: roundMoney(records.reduce((s, r) => s + r.knownProfit, 0)),
       missingCostRecordsCount: records.filter((r) => r.isIncomplete).length,
       lossRecordsCount: records.filter((r) => r.isLoss).length,
+    },
+  };
+};
+
+export const previewFinancePolicyImpact = async (payload: {
+  serviceProfitMode?: unknown;
+  period?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  source?: string;
+}) => {
+  const activePolicy = await getFinancePolicy();
+  const rawMode = payload.serviceProfitMode;
+  let proposedMode = activePolicy.serviceProfitMode;
+  if (rawMode !== undefined) {
+    const normalizedMode = String(rawMode ?? '').trim();
+    if (!serviceProfitModes.includes(normalizedMode as ServiceProfitMode)) {
+      throw new HttpError(
+        400,
+        'serviceProfitMode must be "full", "revenue_only", or "exclude".',
+      );
+    }
+    proposedMode = parseServiceProfitMode(normalizedMode, activePolicy.serviceProfitMode);
+  }
+
+  const effectiveQuery: ProfitReportQuery = {
+    period: payload.period ?? activePolicy.reportDefaults.period,
+    dateFrom: payload.dateFrom,
+    dateTo: payload.dateTo,
+    source: payload.source ?? 'all',
+  };
+  const bounds = resolveProfitReportBounds(effectiveQuery);
+  const requestedSource = parseSource(effectiveQuery.source);
+  const currentSource =
+    activePolicy.serviceProfitMode === 'exclude' && requestedSource === 'services'
+      ? 'all'
+      : requestedSource;
+  const proposedSource =
+    proposedMode === 'exclude' && requestedSource === 'services'
+      ? 'all'
+      : requestedSource;
+
+  const {
+    committedAll,
+    transactions,
+    knownCategorySlugs,
+    productCostById,
+    productPriceMap,
+  } = await loadProfitReportRawData(bounds);
+
+  const periodSales = committedAll.filter((sale) => isSaleInBounds(sale, bounds));
+  const periodTxs = transactions.filter((tx) => isTransactionInBounds(tx, bounds));
+
+  const filterForPreview = (
+    sourceFilter: ProfitReportSource,
+    mode: ServiceProfitMode,
+  ) =>
+    periodSales.filter(
+      (sale) =>
+        summarizeOrderForReport(sale, productPriceMap, sourceFilter, mode)
+          .matchingLineCount > 0,
+    );
+
+  const currentSummary = summarizePeriodMarginAndCash({
+    salesSubset: filterForPreview(currentSource, activePolicy.serviceProfitMode),
+    txSubset: periodTxs,
+    productCostById,
+    knownCategorySlugs,
+    source: currentSource,
+    serviceProfitMode: activePolicy.serviceProfitMode,
+  });
+
+  const proposedSummary = summarizePeriodMarginAndCash({
+    salesSubset: filterForPreview(proposedSource, proposedMode),
+    txSubset: periodTxs,
+    productCostById,
+    knownCategorySlugs,
+    source: proposedSource,
+    serviceProfitMode: proposedMode,
+  });
+
+  return {
+    period: {
+      key: bounds.key,
+      dateFrom: bounds.dateFrom,
+      dateTo: bounds.dateTo,
+      timeZone: 'Europe/Kiev',
+    },
+    requestedSource,
+    current: {
+      serviceProfitMode: activePolicy.serviceProfitMode,
+      version: activePolicy.version,
+      source: currentSource,
+      margin: currentSummary.margin,
+      cash: {
+        collected: currentSummary.cash.collected,
+        inventoryPurchases: currentSummary.cash.inventoryPurchases,
+        opex: currentSummary.cash.opex,
+        refunds: currentSummary.cash.refunds,
+        net: currentSummary.cash.net,
+      },
+      saleCount: currentSummary.saleCount,
+      rowCount: currentSummary.rows.length,
+    },
+    proposed: {
+      serviceProfitMode: proposedMode,
+      source: proposedSource,
+      margin: proposedSummary.margin,
+      cash: {
+        collected: proposedSummary.cash.collected,
+        inventoryPurchases: proposedSummary.cash.inventoryPurchases,
+        opex: proposedSummary.cash.opex,
+        refunds: proposedSummary.cash.refunds,
+        net: proposedSummary.cash.net,
+      },
+      saleCount: proposedSummary.saleCount,
+      rowCount: proposedSummary.rows.length,
+    },
+    delta: {
+      revenue: roundMoney(
+        proposedSummary.margin.revenue - currentSummary.margin.revenue,
+      ),
+      cogs: roundMoney(proposedSummary.margin.cogs - currentSummary.margin.cogs),
+      grossProfit:
+        proposedSummary.margin.grossProfit !== null &&
+        currentSummary.margin.grossProfit !== null
+          ? roundMoney(
+              proposedSummary.margin.grossProfit -
+                currentSummary.margin.grossProfit,
+            )
+          : null,
+      knownCostGrossProfit: roundMoney(
+        proposedSummary.margin.knownCostGrossProfit -
+          currentSummary.margin.knownCostGrossProfit,
+      ),
+      saleCount: proposedSummary.saleCount - currentSummary.saleCount,
     },
   };
 };

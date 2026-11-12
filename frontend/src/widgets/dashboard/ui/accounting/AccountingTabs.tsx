@@ -5,6 +5,7 @@ import type { AccountingTab } from '../../model/accounting';
 export interface AccountingTabsProps {
   activeTab: AccountingTab;
   canManageCashboxes: boolean;
+  canOpenSettings?: boolean;
   isFinanceSettingsOpen: boolean;
   onOpenSettings: () => void;
   onTabChange: (tab: AccountingTab) => void;
@@ -21,11 +22,13 @@ const accountingTabs: Array<[AccountingTab, string]> = [
 export const AccountingTabs: React.FC<AccountingTabsProps> = ({
   activeTab,
   canManageCashboxes,
+  canOpenSettings,
   isFinanceSettingsOpen,
   onOpenSettings,
   onTabChange,
 }) => {
   const { t } = useTranslation();
+  const showSettingsButton = canOpenSettings ?? canManageCashboxes;
 
   return (
   <div className='finance-tabs-row'>
@@ -44,7 +47,7 @@ export const AccountingTabs: React.FC<AccountingTabsProps> = ({
         </button>
       ))}
     </div>
-    {canManageCashboxes ? (
+    {showSettingsButton ? (
       <div className='toolbar-settings'>
         <button
           type='button'

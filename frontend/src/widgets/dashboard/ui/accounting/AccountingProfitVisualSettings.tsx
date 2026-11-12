@@ -32,6 +32,16 @@ export const AccountingProfitVisualSettings: React.FC<AccountingProfitVisualSett
         />
         {t('accounting.profit.visual.showCharts')}
       </label>
+      <label className='finance-profit-visual-check'>
+        <input
+          type='checkbox'
+          checked={settings.showTable}
+          onChange={(event) =>
+            onChange({ ...settings, showTable: event.target.checked })
+          }
+        />
+        {t('accounting.profit.visual.showTable')}
+      </label>
       <label className='orders-filter-field'>
         <span>{t('accounting.profit.visual.chartMetric')}</span>
         <select

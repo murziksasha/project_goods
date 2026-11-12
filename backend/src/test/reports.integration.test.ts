@@ -56,7 +56,7 @@ describe('Reports, Scenarios & Cost Permissions API', () => {
     const { Supplier } = await import('../domain/supplier/model');
     const { CatalogProduct } = await import('../domain/catalog-product/model');
     const { WarehouseSettings } = await import('../domain/warehouse-settings/model');
-    const { Cashbox, FinanceCategory, FinanceCurrencyConfig, FinanceTransaction } =
+    const { Cashbox, FinanceCategory, FinanceCurrencyConfig, FinancePolicy, FinancePolicyAuditLog, FinanceTransaction } =
       await import('../domain/finance/model');
     const periodSnapshot = await import('../domain/finance/period-snapshot');
     const { Scenario } = await import('../domain/scenario/model');
@@ -76,6 +76,24 @@ describe('Reports, Scenarios & Cost Permissions API', () => {
     vi.spyOn(FinanceCategory, 'find').mockReturnValue(chain([]) as never);
     vi.spyOn(FinanceCurrencyConfig, 'find').mockReturnValue(chain([]) as never);
     vi.spyOn(FinanceCurrencyConfig, 'findOneAndUpdate').mockReturnValue(chain(null) as never);
+    vi.spyOn(FinancePolicy, 'findOne').mockReturnValue(
+      chain({
+        serviceAuditEnabled: false,
+        serviceProfitMode: 'full',
+        reportDefaults: {
+          period: 'last30',
+          source: 'all',
+          showCharts: true,
+          showTable: true,
+        },
+        version: 1,
+        updatedById: null,
+        updatedByName: null,
+        updatedAt: new Date('2026-11-12T10:00:00.000Z'),
+      }) as never,
+    );
+    vi.spyOn(FinancePolicyAuditLog, 'find').mockReturnValue(chain([]) as never);
+    vi.spyOn(FinancePolicyAuditLog, 'countDocuments').mockResolvedValue(0 as never);
     vi.spyOn(periodSnapshot, 'getActiveFinancePeriodSnapshot').mockResolvedValue(null);
     vi.spyOn(Scenario, 'find').mockReturnValue(chain([]) as never);
     vi.spyOn(Scenario, 'countDocuments').mockResolvedValue(0 as never);
@@ -209,6 +227,7 @@ describe('Reports, Scenarios & Cost Permissions API', () => {
       .expect(200);
     expect(resWithoutFin.body.lineItems[0].fixedCost).toBeUndefined();
     expect(resWithoutFin.body.lineItems[0].costSnapshot).toBeUndefined();
+    expect(resWithoutFin.body.lineItems[0].requiresCostAudit).toBeUndefined();
 
     await request(app)
       .patch(`/api/sales/${saleId}/costs`)
@@ -227,11 +246,124 @@ describe('Reports, Scenarios & Cost Permissions API', () => {
       .expect(200);
     expect(resWithFin.body.lineItems[0].fixedCost).toBe(180);
     expect(resWithFin.body.lineItems[0].costSnapshot.totalCost).toBe(200);
+    expect(resWithFin.body.lineItems[0].requiresCostAudit).toBe(false);
 
     await request(app)
       .patch(`/api/sales/${saleId}/costs`)
       .set('Authorization', `Bearer ${TOKEN}`)
       .send({ items: [{ lineItemId: 'li-1', unitCost: 150 }], reason: 'Unauthorized' })
       .expect(403);
+
+    // orders.manage + finance.view -> PATCH /costs still rejects services (400)
+    activeEmployeeRecord = {
+      role: 'manager',
+      permissions: ['orders.view', 'orders.manage', 'finance.view'],
+    };
+    await request(app)
+      .patch(`/api/sales/${saleId}/costs`)
+      .set('Authorization', `Bearer ${TOKEN}`)
+      .send({ items: [{ lineItemId: 'li-1', unitCost: 150 }], reason: 'Service attempt' })
+      .expect(400);
+  });
+
+  it('enforces finance.policy.manage vs finance.view permissions and version concurrency on /api/finance/policy', async () => {
+    const { FinancePolicy, FinancePolicyAuditLog } = await import(
+      '../domain/finance/model'
+    );
+
+    await request(app).get('/api/finance/policy').expect(401);
+
+    // Without finance.view or finance.policy.manage -> 403
+    activeEmployeeRecord = {
+      role: 'support',
+      permissions: ['orders.view'],
+    };
+    await request(app)
+      .get('/api/finance/policy')
+      .set('Authorization', `Bearer ${TOKEN}`)
+      .expect(403);
+    await request(app)
+      .get('/api/finance/policy/history')
+      .set('Authorization', `Bearer ${TOKEN}`)
+      .expect(403);
+    await request(app)
+      .post('/api/finance/policy/preview')
+      .set('Authorization', `Bearer ${TOKEN}`)
+      .send({ serviceProfitMode: 'revenue_only' })
+      .expect(403);
+
+    // finance.view gives read-only access (GET + preview succeed, PATCH denied 403)
+    activeEmployeeRecord = {
+      role: 'accountant',
+      permissions: ['finance.view'],
+    };
+    const policyRes = await request(app)
+      .get('/api/finance/policy')
+      .set('Authorization', `Bearer ${TOKEN}`)
+      .expect(200);
+    expect(policyRes.body.version).toBe(1);
+    expect(policyRes.body.serviceAuditEnabled).toBe(false);
+
+    await request(app)
+      .get('/api/finance/policy/history')
+      .set('Authorization', `Bearer ${TOKEN}`)
+      .expect(200);
+    await request(app)
+      .post('/api/finance/policy/preview')
+      .set('Authorization', `Bearer ${TOKEN}`)
+      .send({ serviceProfitMode: 'revenue_only', period: 'last30' })
+      .expect(200);
+    await request(app)
+      .patch('/api/finance/policy')
+      .set('Authorization', `Bearer ${TOKEN}`)
+      .send({ version: 1, serviceAuditEnabled: true })
+      .expect(403);
+
+    // owner has finance.policy.manage by default -> stale version returns 409, matching version returns 200
+    activeEmployeeRecord = {
+      role: 'owner',
+      permissions: [],
+    };
+    await request(app)
+      .patch('/api/finance/policy')
+      .set('Authorization', `Bearer ${TOKEN}`)
+      .send({ version: 99, serviceAuditEnabled: true })
+      .expect(409);
+
+    vi.spyOn(FinancePolicy, 'findOneAndUpdate').mockReturnValue({
+      lean: vi.fn().mockResolvedValue({
+        serviceAuditEnabled: true,
+        serviceProfitMode: 'revenue_only',
+        reportDefaults: {
+          period: 'last30',
+          source: 'all',
+          showCharts: true,
+          showTable: true,
+        },
+        version: 2,
+        updatedById: '507f1f77bcf86cd799439011',
+        updatedByName: 'Test Employee',
+        updatedAt: new Date('2026-11-12T10:15:00.000Z'),
+      }),
+    } as never);
+    const logSpy = vi
+      .spyOn(FinancePolicyAuditLog, 'create')
+      .mockResolvedValue({} as never);
+
+    const updatedRes = await request(app)
+      .patch('/api/finance/policy')
+      .set('Authorization', `Bearer ${TOKEN}`)
+      .send({
+        version: 1,
+        serviceAuditEnabled: true,
+        serviceProfitMode: 'revenue_only',
+        reason: 'Policy test',
+      })
+      .expect(200);
+
+    expect(updatedRes.body.version).toBe(2);
+    expect(updatedRes.body.serviceAuditEnabled).toBe(true);
+    expect(updatedRes.body.serviceProfitMode).toBe('revenue_only');
+    expect(logSpy).toHaveBeenCalledTimes(1);
   });
 });

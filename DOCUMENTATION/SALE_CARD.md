@@ -143,6 +143,13 @@ Related: [SALE_FLOW.md](./SALE_FLOW.md) · [ORDER_CARD.md](./ORDER_CARD.md) · [
 - After a successful payment modal action (`Accept to cashbox`, `Accept and mark paid`, `Accept and issue`, or allowed `Issue/Mark without payment`), the payment modal closes automatically.
 - `Accept and issue` with target `issued` shows the unbound-serial confirm when any product line has no warehouse `serialNumbers`. **Cancel** stays in the payment modal. **Continue** issues. `Accept to cashbox` and `Issue without payment` do not show this alert.
 
+## Product Purchase Cost Audit (2026-11-12)
+
+- In the `Payment` panel, an `Audit` button renders immediately to the right of `Accept payment` (`Paid`) when the sale contains at least one `Products` line item added without a purchase price (`requiresCostAudit: true`, or legacy unknown-cost / previously audited product lines) AND the employee has BOTH `sales.manage` AND `finance.view`.
+- `Audit` is available both before payment and after payment/issue (even in read-only `issued` state). Products added with a warehouse stock price (including `0`), explicit `0` cost, or services do not trigger `Audit`.
+- `OrderCostAuditModal` opens in a full-page portal with pinned header/footer and an internally scrolling product list, displays only audit-eligible products, sends only modified rows via `PATCH /api/sales/:saleId/costs`, and requires a reason when correcting or clearing an already-known price.
+- The yellow missing-cost banner, `Known Cost Total`, and `Draft Estimate` are not displayed in the sale card; incomplete-cost tracking remains active in financial reports.
+
 ## Notes
 
 - Sale cards use the same collapsible `Notes` panel as repair order cards (`order-detail-note`). Full expand rules: [ORDER_CARD.md → Notes](./ORDER_CARD.md#notes).
