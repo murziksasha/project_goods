@@ -86,6 +86,7 @@ For any mutation that can affect shared screens (orders, sales, stock, client de
 - Persisted state must be restored automatically on page load and immediately applied to the list/query result.
 - This includes at least: Orders filters, Clients filters, Supplier Orders filters, Warehouse search/filter mode, and dashboard-level catalog/orders search inputs.
 - `Orders -> Supplier Order` and `Orders -> Information` share the supplier-order filter state, so the analytics tab reflects the same persisted search/status/payment/date/starred working set as the supplier-order table.
+- `Orders -> Reports` persists last-used kind, mode, filters, visible columns, groupBy, and sort in `localStorage` key `project-goods.orders-reports-settings`. Saved presets are server state in the `ordersReport` scenario domain (`GET/POST/PUT/DELETE /api/scenarios`). **Reset** clears the local key and restores defaults.
 - `Orders` and `Sales` each persist their active `favoritesOnly` starred filter with the rest of the order filters.
 
 ## Dashboard Settings Storage Rule (2026-06-23)
@@ -200,6 +201,7 @@ For any mutation that can affect shared screens (orders, sales, stock, client de
 - Added dedicated TanStack Query keys and SSE path invalidations in `shared/api/queryClient.ts` & `liveEvents.ts`:
   - `warehouseReport` / `warehouseReportDetails` (invalidated by `/products`, `/sales`, `/supplier-orders`)
   - `ordersRepairsReport*`, `ordersSalesReport*`, `ordersProcurementReport*` (invalidated by `/sales`, `/supplier-orders`, `/finance`)
+  - `ordersReportsTable(kind, params)` for the Orders Reports register/summary (invalidated by `/sales`, `/supplier-orders`, `/finance`)
   - `cashboxesReport*`, `financeProfitReportDetails` (invalidated by `/finance`, `/sales`, `/supplier-orders`)
-  - `scenarios(domain)` (private per-employee scenarios invalidated by `/scenarios` mutations)
+  - `scenarios(domain)` (private per-employee scenarios — domains `warehouse`, `cashflow`, `ordersReport` — invalidated by `/scenarios` mutations)
 - Default period for upgraded trend views initializes to `last30` while preserving existing stored preferences (`project-goods.accounting-profit-filters`).

@@ -366,4 +366,60 @@ describe('Reports, Scenarios & Cost Permissions API', () => {
     expect(updatedRes.body.serviceProfitMode).toBe('revenue_only');
     expect(logSpy).toHaveBeenCalledTimes(1);
   });
+
+  it('enforces Orders Reports table permissions, finance redaction, and ordersReport scenarios', async () => {
+    activeEmployeeRecord = {
+      role: 'master',
+      permissions: ['orders.view', 'repairs.execute', 'kanban.use'],
+    };
+    await request(app)
+      .get('/api/reports/orders/table/repairs')
+      .set('Authorization', `Bearer ${TOKEN}`)
+      .expect(200);
+    await request(app)
+      .get('/api/reports/orders/table/procurement')
+      .set('Authorization', `Bearer ${TOKEN}`)
+      .expect(403);
+    await request(app)
+      .get('/api/reports/orders/table/repairs/export')
+      .set('Authorization', `Bearer ${TOKEN}`)
+      .expect(200);
+
+    const withoutFinance = await request(app)
+      .get('/api/reports/orders/table/repairs?period=last30')
+      .set('Authorization', `Bearer ${TOKEN}`)
+      .expect(200);
+    const body = withoutFinance.body as Record<string, unknown>;
+    expect(JSON.stringify(body)).not.toContain('knownCost');
+    expect(JSON.stringify(body)).not.toContain('knownProfit');
+
+    const { Scenario } = await import('../domain/scenario/model');
+    vi.spyOn(Scenario, 'create').mockImplementation(async (doc) => ({
+      toObject: () => ({
+        _id: { toString: () => '507f1f77bcf86cd799439099' },
+        createdAt: new Date('2026-11-11T10:00:00.000Z'),
+        updatedAt: new Date('2026-11-11T10:00:00.000Z'),
+        ...(doc as Record<string, unknown>),
+      }),
+    }) as never);
+
+    const created = await request(app)
+      .post('/api/scenarios')
+      .set('Authorization', `Bearer ${TOKEN}`)
+      .send({ domain: 'ordersReport', name: 'Preset A', horizonDays: 30, assumptions: { kind: 'repairs' } })
+      .expect(201);
+    expect(created.body.domain).toBe('ordersReport');
+    expect(created.body.name).toBe('Preset A');
+
+    // warehouse role defaults include orders.view, so use a role with no defaults
+    activeEmployeeRecord = {
+      role: 'temp',
+      permissions: ['inventory.manage'],
+    };
+    await request(app)
+      .get('/api/scenarios?domain=ordersReport')
+      .set('Authorization', `Bearer ${TOKEN}`)
+      .expect(403);
+  });
+
 });

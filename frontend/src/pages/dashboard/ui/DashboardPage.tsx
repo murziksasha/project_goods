@@ -158,6 +158,11 @@ const OrdersInformationWorkspace = lazy(() =>
     (module) => ({ default: module.OrdersInformationWorkspace }),
   ),
 );
+const OrdersReportsWorkspace = lazy(() =>
+  import('../../../widgets/dashboard/ui/orders/OrdersReportsWorkspace').then(
+    (module) => ({ default: module.OrdersReportsWorkspace }),
+  ),
+);
 
 const pageKeys: PageKey[] = [
   'home',
@@ -1646,7 +1651,8 @@ export const DashboardPage: React.FC = () => {
               activePage === 'orders' &&
               isCreateOrderOpen &&
               effectiveOrdersTab !== 'supplierOrders' &&
-              effectiveOrdersTab !== 'supplierInformation' ? (
+              effectiveOrdersTab !== 'supplierInformation' &&
+              effectiveOrdersTab !== 'ordersReports' ? (
                 <CreateOrderCard
                   isSaving={state.isSaleSaving}
                   employees={state.allEmployees}
@@ -1665,6 +1671,32 @@ export const DashboardPage: React.FC = () => {
                   onRapidSaleCreated={handleRapidSaleCreated}
                   onError={actions.showError}
                   onOpenClientCard={openClientCardFromOrders}
+                />
+              ) : activePage === 'orders' &&
+                effectiveOrdersTab === 'ordersReports' ? (
+                <OrdersReportsWorkspace
+                  activeTab={effectiveOrdersTab}
+                  visibleTabs={displayedOrdersTabs}
+                  permittedTabs={availableOrdersTabs}
+                  onActiveTabChange={changeOrdersTab}
+                  onToggleTabVisibility={toggleOrdersTabVisibility}
+                  employees={state.allEmployees}
+                  canViewRepairs={hasAnyEmployeePermission(currentEmployee, [
+                    'orders.view',
+                    'orders.manage',
+                    'repairs.execute',
+                    'kanban.use',
+                  ])}
+                  canViewSales={hasAnyEmployeePermission(currentEmployee, [
+                    'orders.view',
+                    'sales.manage',
+                  ])}
+                  canViewProcurement={canViewSupplierOrders}
+                  canViewFinance={canViewAccounting}
+                  onOpenSaleCard={openSaleFromClientCard}
+                  onOpenSupplierOrderTab={() =>
+                    changeOrdersTab('supplierOrders')
+                  }
                 />
               ) : activePage === 'orders' &&
                 effectiveOrdersTab === 'supplierInformation' ? (

@@ -1,10 +1,11 @@
 import type { Request, Response } from 'express';
 import { HttpError } from '../../shared/lib/errors';
 import { routeParam } from '../../shared/lib/http';
-import { employeeHasPermission } from '../auth/service';
+import { employeeHasAnyPermission, employeeHasPermission } from '../auth/service';
 import type { EmployeeDocument } from '../employee/model';
-import { scenarioDomains, type ScenarioDomain } from './model';
+import { type ScenarioDomain } from './model';
 import {
+  canonicalScenarioDomain,
   createScenario,
   deleteScenario,
   listScenarios,
@@ -33,6 +34,19 @@ export const resolveAllowedScenarioDomains = (
   if (employeeHasPermission(employee, 'finance.view')) {
     allowed.push('cashflow');
   }
+  if (
+    employeeHasAnyPermission(employee, [
+      'orders.view',
+      'orders.manage',
+      'repairs.execute',
+      'kanban.use',
+      'sales.manage',
+      'supplierOrders.view',
+      'supplierOrders.manage',
+    ])
+  ) {
+    allowed.push('ordersReport');
+  }
   return allowed;
 };
 
@@ -40,15 +54,21 @@ const assertDomainPermission = (
   employee: Pick<EmployeeDocument, 'role' | 'permissions'>,
   domainRaw: unknown,
 ) => {
-  const normalized = String(domainRaw ?? '').trim().toLowerCase();
-  if (!scenarioDomains.includes(normalized as ScenarioDomain)) {
-    throw new HttpError(400, 'Scenario domain must be "warehouse" or "cashflow".');
+  const domain = canonicalScenarioDomain(domainRaw);
+  if (!domain) {
+    throw new HttpError(400, 'Scenario domain must be "warehouse", "cashflow", or "ordersReport".');
   }
-  if (normalized === 'warehouse' && !employeeHasPermission(employee, 'inventory.manage')) {
+  if (domain === 'warehouse' && !employeeHasPermission(employee, 'inventory.manage')) {
     throw new HttpError(403, 'Warehouse scenarios require inventory.manage permission.');
   }
-  if (normalized === 'cashflow' && !employeeHasPermission(employee, 'finance.view')) {
+  if (domain === 'cashflow' && !employeeHasPermission(employee, 'finance.view')) {
     throw new HttpError(403, 'Cashflow scenarios require finance.view permission.');
+  }
+  if (domain === 'ordersReport') {
+    const allowed = resolveAllowedScenarioDomains(employee);
+    if (!allowed.includes('ordersReport')) {
+      throw new HttpError(403, 'Orders report scenarios require orders, sales, or supplier-order access.');
+    }
   }
 };
 

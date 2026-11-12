@@ -433,6 +433,7 @@ export const useUpdateSaleLineCostsMutation = () =>
         queryClient.invalidateQueries({ queryKey: ['financeProfitReport'] }),
         queryClient.invalidateQueries({ queryKey: queryKeys.ordersRepairsReportRoot }),
         queryClient.invalidateQueries({ queryKey: queryKeys.ordersSalesReportRoot }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.ordersReportsTableRoot }),
       ]);
     },
   });

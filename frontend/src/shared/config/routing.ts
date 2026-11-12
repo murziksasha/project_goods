@@ -14,7 +14,8 @@ export type OrdersTab =
   | 'kanban'
   | 'sales'
   | 'supplierOrders'
-  | 'supplierInformation';
+  | 'supplierInformation'
+  | 'ordersReports';
 
 export type CreateOrderTab = 'repair' | 'sale';
 
@@ -52,6 +53,7 @@ export const ordersTabs: OrdersTab[] = [
   'sales',
   'supplierOrders',
   'supplierInformation',
+  'ordersReports',
 ];
 
 export const ordersTabStorageKey = 'project-goods.orders-tab';

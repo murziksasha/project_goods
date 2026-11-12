@@ -1,6 +1,6 @@
 import mongoose from 'mongoose';
 
-export const scenarioDomains = ['warehouse', 'cashflow'] as const;
+export const scenarioDomains = ['warehouse', 'cashflow', 'ordersReport'] as const;
 export type ScenarioDomain = (typeof scenarioDomains)[number];
 
 export const scenarioSchema = new mongoose.Schema(

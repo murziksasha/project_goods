@@ -104,6 +104,7 @@ export const ordersTabPreferenceOptions = [
   'sales',
   'supplierOrders',
   'supplierInformation',
+  'ordersReports',
 ] as const;
 
 import type {

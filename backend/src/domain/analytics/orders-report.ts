@@ -905,10 +905,13 @@ export const getOrdersSalesDetails = async (
       lineItems: 1,
       returnEvents: 1,
       isRapidSale: 1,
+      paymentHistory: 1,
     })
     .lean<SaleDocument[]>();
 
   const statusFilter = String(query.status ?? '').trim().toLowerCase();
+  const lineKindFilter = String(query.lineKind ?? 'all').trim().toLowerCase();
+  const paymentMethodFilter = String(query.paymentMethod ?? '').trim().toLowerCase();
   const searchQuery = String(query.q ?? '').trim().toLowerCase();
 
   const rows = sales
@@ -917,6 +920,25 @@ export const getOrdersSalesDetails = async (
       if (!isDateKeyInsideRange(key, current.dateFrom, current.dateTo)) return false;
       if (statusFilter && String(sale.status ?? '').toLowerCase() !== statusFilter) {
         return false;
+      }
+      if (paymentMethodFilter) {
+        const methods = (sale.paymentHistory ?? []).map((p) => p.paymentMethod);
+        if (paymentMethodFilter === 'unpaid' && (sale.paidAmount ?? 0) > 0) return false;
+        if (
+          paymentMethodFilter !== 'unpaid' &&
+          !methods.includes(paymentMethodFilter as 'cash' | 'non-cash')
+        ) {
+          return false;
+        }
+      }
+      if (lineKindFilter === 'product' || lineKindFilter === 'service') {
+        const items = sale.lineItems ?? [];
+        if (items.length > 0 && !items.some((li) => li.kind === lineKindFilter)) {
+          return false;
+        }
+        if (items.length === 0 && lineKindFilter === 'service') {
+          return false;
+        }
       }
       if (searchQuery) {
         const hay = `${sale.recordNumber ?? ''} ${sale.clientSnapshot?.name ?? ''} ${(sale.lineItems ?? []).map((i) => i.name).join(' ')}`.toLowerCase();

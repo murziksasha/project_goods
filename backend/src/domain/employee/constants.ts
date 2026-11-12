@@ -45,6 +45,7 @@ export const ordersTabPreferenceKeys = [
   'sales',
   'supplierOrders',
   'supplierInformation',
+  'ordersReports',
 ] as const;
 
 export type OrdersTabPreferenceKey = (typeof ordersTabPreferenceKeys)[number];

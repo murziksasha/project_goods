@@ -56,7 +56,7 @@ All dashboard views share one path (`/` or the deployed SPA root). Section state
 | Parameter | When present | Values / notes |
 |-----------|--------------|----------------|
 | `page` | Non-home sections | `orders`, `clients`, `employees`, `settings`, `accounting`, `catalog`, `warehouse` |
-| `ordersTab` | `page=orders` | `orders`, `kanban`, `sales`, `supplierOrders`, `supplierInformation` |
+| `ordersTab` | `page=orders` | `orders`, `kanban`, `sales`, `supplierOrders`, `supplierInformation`, `ordersReports` |
 | legacy `page=kanban` | parse only | remapped to `page=orders&ordersTab=kanban` (keeps `saleId`) |
 | `createOrder` | Create-order card open | `repair`, `sale` |
 | `saleId` | Order/sale detail card open | Sale document id. Omitted while `createOrder` is set. |
@@ -112,7 +112,7 @@ Duplicate entries are skipped: if the target URL equals the current URL, no hist
 - `project-goods.orders-tab` — last orders workspace tab
 - `project-goods.accounting-tab` — last accounting sub-tab
 
-Which orders workspace tabs are shown (gear checkboxes after Information) is **not** in localStorage. It is stored per employee in MongoDB (`uiPreferences.hiddenOrdersTabs`) and loaded with `GET /auth/me`. A hidden `ordersTab` in the URL falls back to the first still-visible permitted tab.
+Which orders workspace tabs are shown (gear checkboxes after Reports) is **not** in localStorage. It is stored per employee in MongoDB (`uiPreferences.hiddenOrdersTabs`) and loaded with `GET /auth/me`. A hidden `ordersTab` in the URL falls back to the first still-visible permitted tab.
 
 On **Back / Forward**, the URL is authoritative. `localStorage` must not override URL-derived state during `popstate`.
 

@@ -16,6 +16,12 @@ import {
   type RepairsReportQuery,
   type SalesReportQuery,
 } from './orders-report';
+import {
+  getOrdersProcurementTable,
+  getOrdersRepairsTable,
+  getOrdersSalesTable,
+  type OrdersTableQuery,
+} from './orders-reports';
 import { employeeHasPermission } from '../auth/service';
 import { requireAnyPermission, requirePermission } from '../../shared/lib/http';
 
@@ -122,3 +128,70 @@ export const getProcurementDetailsHandler = async (
   );
 };
 
+const tableOptions = (
+  employee: { role?: string; permissions?: readonly string[] },
+  exportMode: boolean,
+) => ({
+  includeCosts: employeeHasPermission(employee, 'finance.view'),
+  exportMode,
+});
+
+export const getRepairsTableHandler = async (
+  req: Request,
+  res: Response,
+): Promise<void> => {
+  const employee = await requireAnyPermission(req, repairsReportPermissions);
+  res.json(
+    await getOrdersRepairsTable(req.query as OrdersTableQuery, tableOptions(employee, false)),
+  );
+};
+
+export const exportRepairsTableHandler = async (
+  req: Request,
+  res: Response,
+): Promise<void> => {
+  const employee = await requireAnyPermission(req, repairsReportPermissions);
+  res.json(
+    await getOrdersRepairsTable(req.query as OrdersTableQuery, tableOptions(employee, true)),
+  );
+};
+
+export const getSalesTableHandler = async (
+  req: Request,
+  res: Response,
+): Promise<void> => {
+  const employee = await requireAnyPermission(req, salesReportPermissions);
+  res.json(
+    await getOrdersSalesTable(req.query as OrdersTableQuery, tableOptions(employee, false)),
+  );
+};
+
+export const exportSalesTableHandler = async (
+  req: Request,
+  res: Response,
+): Promise<void> => {
+  const employee = await requireAnyPermission(req, salesReportPermissions);
+  res.json(
+    await getOrdersSalesTable(req.query as OrdersTableQuery, tableOptions(employee, true)),
+  );
+};
+
+export const getProcurementTableHandler = async (
+  req: Request,
+  res: Response,
+): Promise<void> => {
+  await requireAnyPermission(req, procurementReportPermissions);
+  res.json(
+    await getOrdersProcurementTable(req.query as OrdersTableQuery, { exportMode: false }),
+  );
+};
+
+export const exportProcurementTableHandler = async (
+  req: Request,
+  res: Response,
+): Promise<void> => {
+  await requireAnyPermission(req, procurementReportPermissions);
+  res.json(
+    await getOrdersProcurementTable(req.query as OrdersTableQuery, { exportMode: true }),
+  );
+};

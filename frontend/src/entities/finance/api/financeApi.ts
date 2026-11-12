@@ -44,6 +44,7 @@ const invalidateFinanceQueries = () => {
     queryClient.invalidateQueries({ queryKey: ['financeProfitReport'] }),
     queryClient.invalidateQueries({ queryKey: queryKeys.cashboxesReportRoot }),
     queryClient.invalidateQueries({ queryKey: queryKeys.ordersProcurementReportRoot }),
+    queryClient.invalidateQueries({ queryKey: queryKeys.ordersReportsTableRoot }),
     queryClient.invalidateQueries({
       queryKey: queryKeys.financeSupplierOrdersQueue,
     }),

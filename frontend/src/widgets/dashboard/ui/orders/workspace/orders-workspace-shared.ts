@@ -120,7 +120,8 @@ export type OrdersTab =
   | 'kanban'
   | 'sales'
   | 'supplierOrders'
-  | 'supplierInformation';
+  | 'supplierInformation'
+  | 'ordersReports';
 export type OrdersColumnKey =
   | 'orderNumber'
   | 'client'
@@ -263,6 +264,10 @@ export const orderTabs: OrderTabDefinition[] = [
   {
     key: 'supplierInformation',
     labelKey: 'orders.tabs.supplierInformation',
+  },
+  {
+    key: 'ordersReports',
+    labelKey: 'orders.tabs.ordersReports',
   },
 ];
 
@@ -407,7 +412,8 @@ export const getStoredOrderDetailRelatedTab = (): OrdersTab => {
       storedTab === 'kanban' ||
       storedTab === 'sales' ||
       storedTab === 'supplierOrders' ||
-      storedTab === 'supplierInformation'
+      storedTab === 'supplierInformation' ||
+      storedTab === 'ordersReports'
       ? storedTab
       : 'orders';
   } catch {
@@ -518,6 +524,7 @@ export const defaultVisibleColumns: OrdersColumnVisibility = {
   ],
   supplierOrders: allOrdersColumnKeys,
   supplierInformation: allOrdersColumnKeys,
+  ordersReports: allOrdersColumnKeys,
 };
 export const availableColumnsByTab: Record<
   OrdersTab,
@@ -528,6 +535,7 @@ export const availableColumnsByTab: Record<
   sales: [...defaultVisibleColumns.sales, 'received'],
   supplierOrders: allOrdersColumnKeys,
   supplierInformation: allOrdersColumnKeys,
+  ordersReports: allOrdersColumnKeys,
 };
 export const lockedColumnsByTab: Record<
   OrdersTab,
@@ -538,6 +546,7 @@ export const lockedColumnsByTab: Record<
   sales: ['orderNumber'],
   supplierOrders: ['orderNumber'],
   supplierInformation: ['orderNumber'],
+  ordersReports: ['orderNumber'],
 };
 
 export const repairStatuses: Array<{
@@ -711,6 +720,7 @@ export const readActiveOrderFilters = () => {
       sales: normalizeOne(raw.sales),
       supplierOrders: normalizeOne(raw.supplierOrders),
       supplierInformation: normalizeOne(raw.supplierInformation),
+      ordersReports: normalizeOne(raw.ordersReports),
     } as Record<OrdersTab, OrdersFilters>;
   } catch {
     return {
@@ -719,6 +729,7 @@ export const readActiveOrderFilters = () => {
       sales: emptyOrdersFilters,
       supplierOrders: emptyOrdersFilters,
       supplierInformation: emptyOrdersFilters,
+      ordersReports: emptyOrdersFilters,
     } as Record<OrdersTab, OrdersFilters>;
   }
 };
@@ -2151,6 +2162,7 @@ export const readVisibleColumns = (): OrdersColumnVisibility => {
       sales: sanitizeColumns(saved.sales, 'sales'),
       supplierOrders: defaultVisibleColumns.orders,
       supplierInformation: defaultVisibleColumns.orders,
+      ordersReports: defaultVisibleColumns.orders,
     };
   } catch {
     return defaultVisibleColumns;
