@@ -2430,7 +2430,56 @@
         "noRowsFound": "Рядків не знайдено.",
         "productsFilename": "warehouse-products.xlsx",
         "locationsFilename": "warehouse-locations.xlsx",
-        "suppliersFilename": "warehouse-suppliers.xlsx"
+        "suppliersFilename": "warehouse-suppliers.xlsx",
+        "forecastTitle": "Інформація складу та прогнозування",
+        "sheetStockRecords": "Складські записи",
+        "sheetForecastReorder": "Прогноз і дозамовлення",
+        "sheetAgingBuckets": "Групи давності",
+        "sheetSuppliersLocations": "Постачальники та локації",
+        "definitions": {
+          "availableUnits": "Доступні одиниці",
+          "availableUnitsDef": "Поточна кількість на складі мінус ручні резерви та зайнятість незакритими відкритими замовленнями (серійні номери/рядки).",
+          "purchaseValuation": "Закупівельна вартість",
+          "purchaseValuationDef": "Сума кількості на складі, помноженої на зафіксовану закупівельну ціну одиниці.",
+          "agingBuckets": "Групи давності",
+          "agingBucketsDef": "Термін від зафіксованої дати закупівлі purchaseDate (календар Europe/Kiev); позиції без purchaseDate віднесено до невідомого терміну.",
+          "reorderSuggestion": "Пропозиція дозамовлення",
+          "reorderSuggestionDef": "Оцінка на основі спостережуваного щоденного попиту за 90 днів × demandMultiplier × (leadTimeDays + safetyStockDays) мінус доступний залишок і за бажанням очікувані замовлення постачальнику."
+        },
+        "cols": {
+          "name": "Назва",
+          "article": "Артикул",
+          "serial": "Серійний номер",
+          "supplier": "Постачальник",
+          "warehouse": "Склад",
+          "location": "Локація",
+          "onHandQty": "Кількість на складі",
+          "manualReserved": "Ручний резерв",
+          "orderReserved": "Резерв замовлень",
+          "availableQty": "Доступно",
+          "unitCost": "Ціна закупівлі",
+          "valuation": "Вартість",
+          "purchaseDate": "Дата закупівлі",
+          "ageDays": "Днів давності",
+          "ageBucket": "Група давності",
+          "stockState": "Стан залишку",
+          "product": "Товар",
+          "reservedQty": "Зарезервовано",
+          "pendingPoQty": "Очікувані ЗП",
+          "observedDemand90d": "Попит за 90 днів",
+          "demandPattern": "Характер попиту",
+          "dailyDemand": "Щоденний попит",
+          "estCoverageDays": "Оцінка покриття, дні",
+          "targetBufferUnits": "Цільовий буфер",
+          "suggestedReorderQty": "Пропонована кількість",
+          "estReorderCost": "Оцінка вартості дозамовлення",
+          "projectedEndingAvail": "Прогноз доступного залишку",
+          "bucket": "Група",
+          "skus": "SKU",
+          "quantity": "Кількість",
+          "reserved": "Зарезервовано",
+          "available": "Доступно"
+        }
       },
       "filters": {
         "date": "Дата",
@@ -2465,7 +2514,18 @@
         "statusActive": "Статус: {{value}}",
         "dateFromActive": "Дата від: {{value}}",
         "dateToActive": "Дата до: {{value}}",
-        "sortActive": "Сортування: {{field}} {{direction}}"
+        "sortActive": "Сортування: {{field}} {{direction}}",
+        "stockState": "Стан залишку",
+        "allStates": "Усі стани",
+        "agingBucket": "Група давності",
+        "allAges": "Усі терміни",
+        "searchPlaceholderAnalytics": "Назва, артикул, серійний...",
+        "searchQuery": "Пошуковий запит",
+        "forecastHorizon": "Горизонт прогнозу",
+        "leadTimeDays": "Час поставки (дні)",
+        "safetyStockDays": "Страховий запас (дні)",
+        "demandMultiplier": "Множник попиту",
+        "horizonDaysValue": "{{count}} днів"
       },
       "productsTable": {
         "columns": {
@@ -2529,6 +2589,157 @@
           "latestPurchase": "Остання закупівля"
         },
         "empty": "Рядків постачальників не знайдено."
+      },
+      "subtitle": "Оцінка запасів, резерви, групи давності, спостережуваний попит за 90 днів і сценарії прогнозу дозамовлення (лише оцінки; без автоматичних замовлень постачальнику).",
+      "resetFilters": "Скинути фільтри",
+      "exportExcel": "Експорт Excel (.xlsx)",
+      "filtersAria": "Фільтри складу",
+      "all": "Усі",
+      "none": "Немає",
+      "na": "н/д",
+      "unknown": "Невідомо",
+      "unknownDate": "Невідома дата",
+      "unassignedSupplier": "Без постачальника",
+      "unassignedWarehouse": "Без складу",
+      "unassignedLocation": "Без локації",
+      "stockStates": {
+        "all": "Усі стани",
+        "in_stock": "В наявності",
+        "low_stock": "Низький залишок (1–2 доступно)",
+        "out_of_stock": "Немає в наявності (0 доступно)",
+        "reserved": "Є резерви"
+      },
+      "stockStateLabels": {
+        "in_stock": "В наявності",
+        "low_stock": "Низький залишок",
+        "out_of_stock": "Немає в наявності",
+        "reserved": "Зарезервовано"
+      },
+      "aging": {
+        "0-30": "0–30 днів",
+        "31-60": "31–60 днів",
+        "61-90": "61–90 днів",
+        "90+": "90+ днів",
+        "unknown": "Невідомий термін"
+      },
+      "coverage": {
+        "title": "Примітки про дані та покриття прогнозу"
+      },
+      "kpi": {
+        "totalOnHand": "Загальна кількість на складі",
+        "stockRowsAndGroups": "{{rows}} рядків залишків · {{groups}} груп SKU",
+        "availableReserved": "Доступно / зарезервовано",
+        "manualAndOpenOrders": "Вручну: {{manual}} · Відкриті замовлення: {{orders}}",
+        "purchaseValuation": "Закупівельна вартість",
+        "availableValue": "Доступна вартість: {{amount}}",
+        "outLowUnknown": "Немає / низький / невідомий термін",
+        "unknownAgeUnits": "Одиниць без дати: {{count}}",
+        "observedDemandReorder": "Спостережуваний попит за 90 днів і дозамовлення",
+        "unitsCount": "{{count}} од.",
+        "skusNeedUnits": "{{skus}} SKU потребують {{units}} од. ({{cost}})",
+        "projectedDemand": "Прогнозований попит на {{days}} дн.",
+        "windowRange": "Вікно {{from}} до {{to}}",
+        "projectedShortfall": "Прогнозований дефіцит на {{days}} дн.",
+        "skusBelowZero_one": "{{count}} SKU прогнозується нижче 0",
+        "skusBelowZero_few": "{{count}} SKU прогнозуються нижче 0",
+        "skusBelowZero_many": "{{count}} SKU прогнозуються нижче 0",
+        "skusBelowZero_other": "{{count}} SKU прогнозуються нижче 0",
+        "pendingIncomingPos": "Очікувані поставки",
+        "pendingIncluded": "Враховано в розрахунках покриття та дозамовлення",
+        "pendingExcluded": "Виключено за поточним припущенням"
+      },
+      "sections": {
+        "agingBuckets": "Групи давності запасів",
+        "agingBucketsSubtitle": "Натисніть групу, щоб відфільтрувати залишки нижче (натисніть ще раз, щоб скинути).",
+        "supplierDistribution": "Розподіл за постачальниками",
+        "supplierDistributionSubtitle": "Натисніть постачальника, щоб відфільтрувати залишки та таблицю попиту.",
+        "locationDistribution": "Розподіл за локаціями",
+        "locationDistributionSubtitle": "Натисніть склад / локацію, щоб відфільтрувати залишки.",
+        "forecastTitle": "Прогноз запасів і пропозиції дозамовлення",
+        "forecastSubtitle": "Прогнози на основі {{observed}}/{{window}} днів спостережень. Сценарії ніколи не створюють замовлення постачальнику автоматично.",
+        "estimateOnly": "Лише оцінка",
+        "stockDrillDown": "Деталізація складських записів",
+        "matchingTotal": "Усього на всіх сторінках: {{total}} записів ({{available}} доступно / {{onHand}} на складі · {{valuation}})",
+        "stockDrillDownEmpty": "Відфільтруйте або натисніть сегменти графіка вище, щоб звузити рядки залишків."
+      },
+      "bars": {
+        "labelRows_one": "{{label}} ({{count}} рядок)",
+        "labelRows_few": "{{label}} ({{count}} рядки)",
+        "labelRows_many": "{{label}} ({{count}} рядків)",
+        "labelRows_other": "{{label}} ({{count}} рядків)",
+        "valueUnits": "{{quantity}} од. · {{value}}",
+        "valueAvailUnits": "{{available}}/{{quantity}} од. · {{value}}"
+      },
+      "forecast": {
+        "horizon": "Горизонт прогнозу",
+        "days": "{{count}} днів",
+        "leadTime": "Час поставки (дні)",
+        "safetyStock": "Страховий запас (дні)",
+        "demandMultiplier": "Множник попиту",
+        "includePendingPos": "Враховувати очікувані замовлення"
+      },
+      "columns": {
+        "productSupplier": "Товар / постачальник",
+        "availReserved": "Доступно / резерв",
+        "pendingPo": "Очікуване ЗП",
+        "demand90d": "Попит за 90 днів",
+        "estCoverage": "Оцінка покриття",
+        "reorderSuggestion": "Пропозиція дозамовлення",
+        "projectedEnd": "Прогноз залишку на {{days}} дн.",
+        "itemSku": "Позиція / SKU",
+        "locationSupplier": "Локація / постачальник",
+        "onHand": "На складі",
+        "reservedManOrd": "Резерв (руч. / зам.)",
+        "available": "Доступно",
+        "valuation": "Вартість",
+        "ageBucket": "Група давності"
+      },
+      "cells": {
+        "onHandRes": "На складі {{onHand}} · Рез. {{reserved}}",
+        "overdue_one": "{{count}} прострочена од.",
+        "overdue_few": "{{count}} прострочені од.",
+        "overdue_many": "{{count}} прострочених од.",
+        "overdue_other": "{{count}} прострочених од.",
+        "eta": "Очікується {{date}}",
+        "dailyDemand": "{{value}}/дн.",
+        "coverageDays": "{{days}} дн.",
+        "coverageWithPo": " ({{days}} дн. з поставками)",
+        "noDemand": "Немає попиту",
+        "reorderUnits": "+{{count}} од.",
+        "estCost": "Оцінка {{amount}}",
+        "covered": "Покрито",
+        "noArticleSerial": "Немає артикула/серійного",
+        "reservedTitle": "Ручний резерв + зайнятість відкритими замовленнями",
+        "unitPrice": "@{{amount}}",
+        "warehouseLocation": "{{warehouse}} / {{location}}"
+      },
+      "demandPatterns": {
+        "steady": "стабільний",
+        "sparse": "рідкісний",
+        "zero": "нульовий"
+      },
+      "errors": {
+        "loadAnalytics": "Не вдалося завантажити аналітику складу.",
+        "loadDetails": "Не вдалося завантажити деталі залишків."
+      },
+      "loading": "Завантаження аналітики складу...",
+      "emptyDemand": "Немає відповідних SKU для аналізу попиту та дозамовлення.",
+      "warnings": {
+        "coldArchiveDemand": "Є архіви з холодним річним очищенням; попит за період відображає лише живі збережені продажі.",
+        "shortSalesHistory_one": "У 90-денному вікні спостереження доступний лише {{count}} день живої історії продажів.",
+        "shortSalesHistory_few": "У 90-денному вікні спостереження доступні лише {{count}} дні живої історії продажів.",
+        "shortSalesHistory_many": "У 90-денному вікні спостереження доступні лише {{count}} днів живої історії продажів.",
+        "shortSalesHistory_other": "У 90-денному вікні спостереження доступні лише {{count}} днів живої історії продажів.",
+        "unknownAgeOnHand_one": "{{count}} запис на складі ({{units}} од.) не має дати закупівлі (невідомий термін).",
+        "unknownAgeOnHand_few": "{{count}} записи на складі ({{units}} од.) не мають дати закупівлі (невідомий термін).",
+        "unknownAgeOnHand_many": "{{count}} записів на складі ({{units}} од.) не мають дати закупівлі (невідомий термін).",
+        "unknownAgeOnHand_other": "{{count}} записів на складі ({{units}} од.) не мають дати закупівлі (невідомий термін).",
+        "excelCapped": "Рядки деталей Excel обмежено {{shown}} з {{total}} відповідних записів."
+      },
+      "scenarios": {
+        "saved": "Збережено приватний сценарій «{{name}}».",
+        "updated": "Оновлено сценарій «{{name}}».",
+        "deleted": "Видалено збережений сценарій."
       }
     },
     "transfer": {
@@ -4086,6 +4297,16 @@
       "prev": "Назад",
       "next": "Далі",
       "pageOf": "Сторінка {{page}} / {{totalPages}}"
+    },
+    "scenario": {
+      "estimateScenario": "Сценарій оцінки",
+      "privateSaved": "Приватні збережені сценарії",
+      "currentAdhoc": "-- Поточний / разовий --",
+      "namedHorizon": "{{name}} ({{days}} дн.)",
+      "namePlaceholder": "Назва сценарію...",
+      "nameAria": "Назва сценарію",
+      "saveNew": "Зберегти новий",
+      "updateSaved": "Оновити збережений"
     }
   },
   "app": {

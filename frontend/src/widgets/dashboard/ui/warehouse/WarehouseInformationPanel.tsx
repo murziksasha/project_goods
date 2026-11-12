@@ -31,6 +31,15 @@ import {
   ScenarioManagerBar,
   type SortableColumn,
 } from '../common/AnalyticsPrimitives';
+import {
+  AGE_BUCKET_KEYS,
+  translateAgeBucket,
+  translateAssignedName,
+  translateCoverageWarnings,
+  translateDemandPattern,
+  translateLocationLabel,
+  translateStockState,
+} from './warehouse-information-i18n';
 
 export interface WarehouseInformationPanelProps {
   products: Product[];
@@ -38,14 +47,6 @@ export interface WarehouseInformationPanelProps {
   warehouses: WarehouseItem[];
   supplierOrders: SupplierOrder[];
 }
-
-const AGE_BUCKET_LABELS: Record<WarehouseAgeBucketKey, string> = {
-  '0-30': '0–30 days',
-  '31-60': '31–60 days',
-  '61-90': '61–90 days',
-  '90+': '90+ days',
-  unknown: 'Unknown age',
-};
 
 const AGE_BUCKET_TONES: Record<
   WarehouseAgeBucketKey,
@@ -218,7 +219,9 @@ export const WarehouseInformationPanel: React.FC<
       },
     });
     setSelectedScenarioId(saved.id);
-    setScenarioMessage(`Saved private scenario "${saved.name}".`);
+    setScenarioMessage(
+      t('warehouse.information.scenarios.saved', { name: saved.name }),
+    );
   };
 
   const handleUpdateScenario = async () => {
@@ -244,7 +247,9 @@ export const WarehouseInformationPanel: React.FC<
         },
       },
     });
-    setScenarioMessage(`Updated scenario "${updated.name}".`);
+    setScenarioMessage(
+      t('warehouse.information.scenarios.updated', { name: updated.name }),
+    );
   };
 
   const handleDeleteScenario = async () => {
@@ -252,8 +257,15 @@ export const WarehouseInformationPanel: React.FC<
     await deleteScenarioMutation.mutateAsync(selectedScenarioId);
     setSelectedScenarioId('');
     setScenarioName('');
-    setScenarioMessage('Deleted saved scenario.');
+    setScenarioMessage(t('warehouse.information.scenarios.deleted'));
   };
+
+  const allLabel = t('warehouse.information.all');
+  const noneLabel = t('warehouse.information.none');
+  const naLabel = t('warehouse.information.na');
+  const unknownLabel = t('warehouse.information.unknown');
+  const exportCol = (key: string) =>
+    t(`warehouse.information.export.cols.${key}`);
 
   const handleExportExcel = async () => {
     if (!report) return;
@@ -266,113 +278,180 @@ export const WarehouseInformationPanel: React.FC<
         sortBy,
         sortDir,
       });
-      const warnings = [...report.coverage.warnings];
+      const warnings = translateCoverageWarnings(
+        t,
+        report.coverage.warnings,
+        report.coverage.warningItems,
+      );
       if (fullDetails.total > fullDetails.items.length) {
         warnings.push(
-          `Excel detail rows capped at ${fullDetails.items.length} of ${fullDetails.total} matching records.`,
+          t('warehouse.information.warnings.excelCapped', {
+            shown: fullDetails.items.length,
+            total: fullDetails.total,
+          }),
         );
       }
 
       exportReportWorkbookToDownload({
         filename: `warehouse-information-${report.generatedAt.slice(0, 10)}.xlsx`,
-        title: 'Warehouse Information & Forecasting',
+        title: t('warehouse.information.export.forecastTitle'),
         generatedAt: report.generatedAt,
         timeZone: report.timeZone,
         activeFilters: [
-          { filter: 'Warehouse', value: warehouseId || 'All' },
-          { filter: 'Location', value: locationId || 'All' },
-          { filter: 'Supplier', value: supplier || 'All' },
-          { filter: 'Stock State', value: stockState },
-          { filter: 'Aging Bucket', value: ageBucket || 'All' },
-          { filter: 'Search Query', value: searchQuery.trim() || 'None' },
-          { filter: 'Forecast Horizon', value: `${horizonDays} days` },
-          { filter: 'Lead Time (days)', value: String(leadTimeDays) },
-          { filter: 'Safety Stock (days)', value: String(safetyStockDays) },
-          { filter: 'Demand Multiplier', value: String(demandMultiplier) },
+          {
+            filter: t('warehouse.information.filters.warehouse'),
+            value: warehouseId || allLabel,
+          },
+          {
+            filter: t('warehouse.information.filters.location'),
+            value: locationId || allLabel,
+          },
+          {
+            filter: t('warehouse.information.filters.supplier'),
+            value: supplier || allLabel,
+          },
+          {
+            filter: t('warehouse.information.filters.stockState'),
+            value: translateStockState(t, stockState, 'filter'),
+          },
+          {
+            filter: t('warehouse.information.filters.agingBucket'),
+            value: ageBucket
+              ? translateAgeBucket(t, ageBucket as WarehouseAgeBucketKey)
+              : allLabel,
+          },
+          {
+            filter: t('warehouse.information.filters.searchQuery'),
+            value: searchQuery.trim() || noneLabel,
+          },
+          {
+            filter: t('warehouse.information.filters.forecastHorizon'),
+            value: t('warehouse.information.filters.horizonDaysValue', {
+              count: horizonDays,
+            }),
+          },
+          {
+            filter: t('warehouse.information.filters.leadTimeDays'),
+            value: String(leadTimeDays),
+          },
+          {
+            filter: t('warehouse.information.filters.safetyStockDays'),
+            value: String(safetyStockDays),
+          },
+          {
+            filter: t('warehouse.information.filters.demandMultiplier'),
+            value: String(demandMultiplier),
+          },
         ],
         definitions: [
           {
-            metric: 'Available units',
-            definition:
-              'Current on-hand quantity minus manual reservations and uncommitted open order serial/line occupancy.',
+            metric: t(
+              'warehouse.information.export.definitions.availableUnits',
+            ),
+            definition: t(
+              'warehouse.information.export.definitions.availableUnitsDef',
+            ),
           },
           {
-            metric: 'Purchase valuation',
-            definition: 'Sum of on-hand quantity multiplied by recorded purchase unit price.',
+            metric: t(
+              'warehouse.information.export.definitions.purchaseValuation',
+            ),
+            definition: t(
+              'warehouse.information.export.definitions.purchaseValuationDef',
+            ),
           },
           {
-            metric: 'Aging buckets',
-            definition:
-              'Age since recorded purchaseDate (Europe/Kiev calendar); items without purchaseDate are classified under unknown age.',
+            metric: t(
+              'warehouse.information.export.definitions.agingBuckets',
+            ),
+            definition: t(
+              'warehouse.information.export.definitions.agingBucketsDef',
+            ),
           },
           {
-            metric: 'Reorder suggestion',
-            definition:
-              'Estimate based on trailing 90-day observed daily demand x demandMultiplier x (leadTimeDays + safetyStockDays) minus available stock and optional pending supplier orders.',
+            metric: t(
+              'warehouse.information.export.definitions.reorderSuggestion',
+            ),
+            definition: t(
+              'warehouse.information.export.definitions.reorderSuggestionDef',
+            ),
           },
         ],
         warnings,
         sheets: [
           {
-            name: 'Stock Records',
+            name: t('warehouse.information.export.sheetStockRecords'),
             rows: fullDetails.items.map((row) => ({
-              Name: row.name,
-              Article: row.article,
-              Serial: row.serialNumber || '',
-              Supplier: row.supplier,
-              Warehouse: row.warehouseName,
-              Location: row.locationName,
-              OnHandQty: row.quantity,
-              ManualReserved: row.manualReservedQuantity,
-              OrderReserved: row.orderReservedQuantity,
-              AvailableQty: row.availableQuantity,
-              UnitCost: row.price,
-              Valuation: row.valuation,
-              PurchaseDate: row.purchaseDate ? row.purchaseDate.slice(0, 10) : 'Unknown',
-              AgeDays: row.ageDays ?? 'Unknown',
-              AgeBucket: row.ageBucket,
-              StockState: row.stockState,
+              [exportCol('name')]: row.name,
+              [exportCol('article')]: row.article,
+              [exportCol('serial')]: row.serialNumber || '',
+              [exportCol('supplier')]: translateAssignedName(t, row.supplier),
+              [exportCol('warehouse')]: translateAssignedName(
+                t,
+                row.warehouseName,
+              ),
+              [exportCol('location')]: translateAssignedName(
+                t,
+                row.locationName,
+              ),
+              [exportCol('onHandQty')]: row.quantity,
+              [exportCol('manualReserved')]: row.manualReservedQuantity,
+              [exportCol('orderReserved')]: row.orderReservedQuantity,
+              [exportCol('availableQty')]: row.availableQuantity,
+              [exportCol('unitCost')]: row.price,
+              [exportCol('valuation')]: row.valuation,
+              [exportCol('purchaseDate')]: row.purchaseDate
+                ? row.purchaseDate.slice(0, 10)
+                : unknownLabel,
+              [exportCol('ageDays')]: row.ageDays ?? unknownLabel,
+              [exportCol('ageBucket')]: translateAgeBucket(t, row.ageBucket),
+              [exportCol('stockState')]: translateStockState(t, row.stockState),
             })),
           },
           {
-            name: 'Forecast & Reorder',
+            name: t('warehouse.information.export.sheetForecastReorder'),
             rows: report.demandAndSuggestions.map((row) => ({
-              Product: row.name,
-              Supplier: row.supplier,
-              OnHandQty: row.onHandQuantity,
-              ReservedQty: row.reservedQuantity,
-              AvailableQty: row.availableQuantity,
-              PendingPOQty: row.pendingSupplierQuantity,
-              ObservedDemand90d: row.observedDemand90d,
-              DemandPattern: row.demandPattern,
-              DailyDemand: row.observedDailyDemand,
-              EstCoverageDays: row.estimatedCoverageDays ?? 'N/A',
-              TargetBufferUnits: row.targetBufferUnits,
-              SuggestedReorderQty: row.reorderSuggestedQty,
-              EstReorderCost: row.estimatedReorderCost,
-              ProjectedEndingAvail: row.horizonProjectedEndingAvailable,
+              [exportCol('product')]: row.name,
+              [exportCol('supplier')]: translateAssignedName(t, row.supplier),
+              [exportCol('onHandQty')]: row.onHandQuantity,
+              [exportCol('reservedQty')]: row.reservedQuantity,
+              [exportCol('availableQty')]: row.availableQuantity,
+              [exportCol('pendingPoQty')]: row.pendingSupplierQuantity,
+              [exportCol('observedDemand90d')]: row.observedDemand90d,
+              [exportCol('demandPattern')]: translateDemandPattern(
+                t,
+                row.demandPattern,
+              ),
+              [exportCol('dailyDemand')]: row.observedDailyDemand,
+              [exportCol('estCoverageDays')]:
+                row.estimatedCoverageDays ?? naLabel,
+              [exportCol('targetBufferUnits')]: row.targetBufferUnits,
+              [exportCol('suggestedReorderQty')]: row.reorderSuggestedQty,
+              [exportCol('estReorderCost')]: row.estimatedReorderCost,
+              [exportCol('projectedEndingAvail')]:
+                row.horizonProjectedEndingAvailable,
             })),
           },
           {
-            name: 'Aging Buckets',
+            name: t('warehouse.information.export.sheetAgingBuckets'),
             rows: report.agingBuckets.map((b) => ({
-              Bucket: AGE_BUCKET_LABELS[b.bucket],
-              SKUs: b.skuCount,
-              Quantity: b.quantity,
-              Reserved: b.reservedQuantity,
-              Available: b.availableQuantity,
-              Valuation: b.valuation,
+              [exportCol('bucket')]: translateAgeBucket(t, b.bucket),
+              [exportCol('skus')]: b.skuCount,
+              [exportCol('quantity')]: b.quantity,
+              [exportCol('reserved')]: b.reservedQuantity,
+              [exportCol('available')]: b.availableQuantity,
+              [exportCol('valuation')]: b.valuation,
             })),
           },
           {
-            name: 'Suppliers & Locations',
+            name: t('warehouse.information.export.sheetSuppliersLocations'),
             rows: report.distributions.bySupplier.map((s) => ({
-              Supplier: s.label,
-              SKUs: s.skuCount,
-              Quantity: s.quantity,
-              Reserved: s.reservedQuantity,
-              Available: s.availableQuantity,
-              Valuation: s.valuation,
+              [exportCol('supplier')]: translateAssignedName(t, s.label),
+              [exportCol('skus')]: s.skuCount,
+              [exportCol('quantity')]: s.quantity,
+              [exportCol('reserved')]: s.reservedQuantity,
+              [exportCol('available')]: s.availableQuantity,
+              [exportCol('valuation')]: s.valuation,
             })),
           },
         ],
@@ -386,19 +465,21 @@ export const WarehouseInformationPanel: React.FC<
   const suggestionColumns: SortableColumn<SuggestionRow>[] = [
     {
       key: 'name',
-      label: 'Product / Supplier',
+      label: t('warehouse.information.columns.productSupplier'),
       sortable: true,
       sortValue: (r) => r.name,
       render: (r) => (
         <div>
           <strong>{r.name}</strong>
-          <div className="muted-copy">{r.supplier || 'Unassigned supplier'}</div>
+          <div className="muted-copy">
+            {translateAssignedName(t, r.supplier || 'Unassigned supplier')}
+          </div>
         </div>
       ),
     },
     {
       key: 'availableQuantity',
-      label: 'Avail / Reserved',
+      label: t('warehouse.information.columns.availReserved'),
       align: 'right',
       sortable: true,
       sortValue: (r) => r.availableQuantity,
@@ -406,14 +487,17 @@ export const WarehouseInformationPanel: React.FC<
         <div>
           <strong>{r.availableQuantity}</strong>
           <div className="muted-copy">
-            On hand {r.onHandQuantity} · Res {r.reservedQuantity}
+            {t('warehouse.information.cells.onHandRes', {
+              onHand: r.onHandQuantity,
+              reserved: r.reservedQuantity,
+            })}
           </div>
         </div>
       ),
     },
     {
       key: 'pendingSupplierQuantity',
-      label: 'Pending PO',
+      label: t('warehouse.information.columns.pendingPo'),
       align: 'right',
       sortable: true,
       sortValue: (r) => r.pendingSupplierQuantity,
@@ -422,11 +506,15 @@ export const WarehouseInformationPanel: React.FC<
           <span>{r.pendingSupplierQuantity}</span>
           {r.overdueSupplierQuantity > 0 ? (
             <div className="report-badge is-danger">
-              {r.overdueSupplierQuantity} overdue
+              {t('warehouse.information.cells.overdue', {
+                count: r.overdueSupplierQuantity,
+              })}
             </div>
           ) : r.earliestExpectedDelivery ? (
             <div className="muted-copy">
-              ETA {formatDate(r.earliestExpectedDelivery)}
+              {t('warehouse.information.cells.eta', {
+                date: formatDate(r.earliestExpectedDelivery),
+              })}
             </div>
           ) : null}
         </div>
@@ -434,18 +522,22 @@ export const WarehouseInformationPanel: React.FC<
     },
     {
       key: 'observedDemand90d',
-      label: '90d Demand',
+      label: t('warehouse.information.columns.demand90d'),
       align: 'right',
       sortable: true,
       sortValue: (r) => r.observedDemand90d,
       render: (r) => (
         <div>
           <span>
-            {r.observedDemand90d} ({r.observedDailyDemand.toFixed(2)}/d)
+            {r.observedDemand90d} (
+            {t('warehouse.information.cells.dailyDemand', {
+              value: r.observedDailyDemand.toFixed(2),
+            })}
+            )
           </span>
           <div>
             <span className={DEMAND_BADGE_CLASS[r.demandPattern]}>
-              {r.demandPattern}
+              {translateDemandPattern(t, r.demandPattern)}
             </span>
           </div>
         </div>
@@ -453,29 +545,34 @@ export const WarehouseInformationPanel: React.FC<
     },
     {
       key: 'estimatedCoverageDays',
-      label: 'Est. Coverage',
+      label: t('warehouse.information.columns.estCoverage'),
       align: 'right',
       sortable: true,
       sortValue: (r) => r.estimatedCoverageDays ?? 999999,
       render: (r) =>
         r.estimatedCoverageDays !== null ? (
           <span>
-            {r.estimatedCoverageDays}d
+            {t('warehouse.information.cells.coverageDays', {
+              days: r.estimatedCoverageDays,
+            })}
             {r.estimatedCoverageWithPendingDays !== null &&
             r.estimatedCoverageWithPendingDays > r.estimatedCoverageDays ? (
               <span className="muted-copy">
-                {' '}
-                ({r.estimatedCoverageWithPendingDays}d w/ PO)
+                {t('warehouse.information.cells.coverageWithPo', {
+                  days: r.estimatedCoverageWithPendingDays,
+                })}
               </span>
             ) : null}
           </span>
         ) : (
-          <span className="muted-copy">No demand</span>
+          <span className="muted-copy">
+            {t('warehouse.information.cells.noDemand')}
+          </span>
         ),
     },
     {
       key: 'reorderSuggestedQty',
-      label: 'Reorder Suggestion',
+      label: t('warehouse.information.columns.reorderSuggestion'),
       align: 'right',
       sortable: true,
       sortValue: (r) => r.reorderSuggestedQty,
@@ -483,19 +580,27 @@ export const WarehouseInformationPanel: React.FC<
         r.reorderSuggestedQty > 0 ? (
           <div>
             <span className="report-badge is-warning">
-              +{r.reorderSuggestedQty} units
+              {t('warehouse.information.cells.reorderUnits', {
+                count: r.reorderSuggestedQty,
+              })}
             </span>
             <div className="muted-copy">
-              Est. {formatCurrency(r.estimatedReorderCost)}
+              {t('warehouse.information.cells.estCost', {
+                amount: formatCurrency(r.estimatedReorderCost),
+              })}
             </div>
           </div>
         ) : (
-          <span className="report-badge is-success">Covered</span>
+          <span className="report-badge is-success">
+            {t('warehouse.information.cells.covered')}
+          </span>
         ),
     },
     {
       key: 'horizonProjectedEndingAvailable',
-      label: `${horizonDays}d Projected End`,
+      label: t('warehouse.information.columns.projectedEnd', {
+        days: horizonDays,
+      }),
       align: 'right',
       sortable: true,
       sortValue: (r) => r.horizonProjectedEndingAvailable,
@@ -516,43 +621,45 @@ export const WarehouseInformationPanel: React.FC<
   const detailColumns: SortableColumn<WarehouseDetailRow>[] = [
     {
       key: 'name',
-      label: 'Item / SKU',
+      label: t('warehouse.information.columns.itemSku'),
       sortable: true,
       render: (row) => (
         <div>
           <strong>{row.name}</strong>
           <div className="muted-copy">
             {[row.article, row.serialNumber].filter(Boolean).join(' · ') ||
-              'No article/serial'}
+              t('warehouse.information.cells.noArticleSerial')}
           </div>
         </div>
       ),
     },
     {
       key: 'locationName',
-      label: 'Location / Supplier',
+      label: t('warehouse.information.columns.locationSupplier'),
       render: (row) => (
         <div>
           <span>
-            {row.warehouseName} / {row.locationName}
+            {translateLocationLabel(t, row.warehouseName, row.locationName)}
           </span>
-          <div className="muted-copy">{row.supplier}</div>
+          <div className="muted-copy">
+            {translateAssignedName(t, row.supplier || 'Unassigned supplier')}
+          </div>
         </div>
       ),
     },
     {
       key: 'quantity',
-      label: 'On Hand',
+      label: t('warehouse.information.columns.onHand'),
       align: 'right',
       sortable: true,
       render: (row) => row.quantity,
     },
     {
       key: 'reservedQuantity',
-      label: 'Reserved (Man / Ord)',
+      label: t('warehouse.information.columns.reservedManOrd'),
       align: 'right',
       render: (row) => (
-        <span title="Manual reserved + open order occupancy">
+        <span title={t('warehouse.information.cells.reservedTitle')}>
           {row.reservedQuantity} ({row.manualReservedQuantity} /{' '}
           {row.orderReservedQuantity})
         </span>
@@ -560,7 +667,7 @@ export const WarehouseInformationPanel: React.FC<
     },
     {
       key: 'availableQuantity',
-      label: 'Available',
+      label: t('warehouse.information.columns.available'),
       align: 'right',
       sortable: true,
       render: (row) => (
@@ -579,19 +686,23 @@ export const WarehouseInformationPanel: React.FC<
     },
     {
       key: 'valuation',
-      label: 'Valuation',
+      label: t('warehouse.information.columns.valuation'),
       align: 'right',
       sortable: true,
       render: (row) => (
         <div>
           <strong>{formatCurrency(row.valuation)}</strong>
-          <div className="muted-copy">@{formatCurrency(row.price)}</div>
+          <div className="muted-copy">
+            {t('warehouse.information.cells.unitPrice', {
+              amount: formatCurrency(row.price),
+            })}
+          </div>
         </div>
       ),
     },
     {
       key: 'ageDays',
-      label: 'Age Bucket',
+      label: t('warehouse.information.columns.ageBucket'),
       align: 'right',
       sortable: true,
       render: (row) => (
@@ -603,15 +714,25 @@ export const WarehouseInformationPanel: React.FC<
                 : ''
             }`.trim()}
           >
-            {AGE_BUCKET_LABELS[row.ageBucket]}
+            {translateAgeBucket(t, row.ageBucket)}
           </span>
           <div className="muted-copy">
-            {row.purchaseDate ? formatDate(row.purchaseDate) : 'Unknown date'}
+            {row.purchaseDate
+              ? formatDate(row.purchaseDate)
+              : t('warehouse.information.unknownDate')}
           </div>
         </div>
       ),
     },
   ];
+
+  const coverageWarnings = report
+    ? translateCoverageWarnings(
+        t,
+        report.coverage.warnings,
+        report.coverage.warningItems,
+      )
+    : [];
 
   return (
     <div className="report-upgrade-shell">
@@ -621,8 +742,7 @@ export const WarehouseInformationPanel: React.FC<
             {t('warehouse.information.title')}
           </h2>
           <p className="report-upgrade-header-subtitle">
-            Stock valuation, reservations, aging buckets, observed 90-day demand,
-            and reorder forecasting scenarios (estimates only; no automatic POs).
+            {t('warehouse.information.subtitle')}
           </p>
         </div>
         <div className="report-upgrade-actions">
@@ -631,7 +751,7 @@ export const WarehouseInformationPanel: React.FC<
             className="secondary-button"
             onClick={resetFilters}
           >
-            Reset Filters
+            {t('warehouse.information.resetFilters')}
           </button>
           <button
             type="button"
@@ -639,14 +759,22 @@ export const WarehouseInformationPanel: React.FC<
             disabled={!report || isExporting}
             onClick={() => void handleExportExcel()}
           >
-            {isExporting ? 'Exporting...' : 'Export Excel (.xlsx)'}
+            {isExporting
+              ? t('common.exporting')
+              : t('warehouse.information.exportExcel')}
           </button>
         </div>
       </div>
 
-      <div className="report-filter-bar" role="search" aria-label="Warehouse filters">
+      <div
+        className="report-filter-bar"
+        role="search"
+        aria-label={t('warehouse.information.filtersAria')}
+      >
         <div className="report-filter-field">
-          <label htmlFor="wh-filter-warehouse">Warehouse</label>
+          <label htmlFor="wh-filter-warehouse">
+            {t('warehouse.information.filters.warehouse')}
+          </label>
           <select
             id="wh-filter-warehouse"
             value={warehouseId}
@@ -656,7 +784,9 @@ export const WarehouseInformationPanel: React.FC<
               setPage(1);
             }}
           >
-            <option value="">All warehouses</option>
+            <option value="">
+              {t('warehouse.information.filters.allWarehouses')}
+            </option>
             {(report?.filterOptions.warehouses ?? warehouses).map((wh) => (
               <option key={wh.id} value={wh.id}>
                 {wh.name}
@@ -666,7 +796,9 @@ export const WarehouseInformationPanel: React.FC<
         </div>
 
         <div className="report-filter-field">
-          <label htmlFor="wh-filter-location">Location</label>
+          <label htmlFor="wh-filter-location">
+            {t('warehouse.information.filters.location')}
+          </label>
           <select
             id="wh-filter-location"
             value={locationId}
@@ -675,7 +807,9 @@ export const WarehouseInformationPanel: React.FC<
               setPage(1);
             }}
           >
-            <option value="">All locations</option>
+            <option value="">
+              {t('warehouse.information.filters.allLocations')}
+            </option>
             {availableLocations.map((loc) => (
               <option key={loc.id} value={loc.id}>
                 {loc.name}
@@ -685,7 +819,9 @@ export const WarehouseInformationPanel: React.FC<
         </div>
 
         <div className="report-filter-field">
-          <label htmlFor="wh-filter-supplier">Supplier</label>
+          <label htmlFor="wh-filter-supplier">
+            {t('warehouse.information.filters.supplier')}
+          </label>
           <select
             id="wh-filter-supplier"
             value={supplier}
@@ -694,17 +830,21 @@ export const WarehouseInformationPanel: React.FC<
               setPage(1);
             }}
           >
-            <option value="">All suppliers</option>
+            <option value="">
+              {t('warehouse.information.filters.allSuppliers')}
+            </option>
             {(report?.filterOptions.suppliers ?? []).map((sup) => (
               <option key={sup} value={sup}>
-                {sup}
+                {translateAssignedName(t, sup)}
               </option>
             ))}
           </select>
         </div>
 
         <div className="report-filter-field">
-          <label htmlFor="wh-filter-state">Stock State</label>
+          <label htmlFor="wh-filter-state">
+            {t('warehouse.information.filters.stockState')}
+          </label>
           <select
             id="wh-filter-state"
             value={stockState}
@@ -713,16 +853,28 @@ export const WarehouseInformationPanel: React.FC<
               setPage(1);
             }}
           >
-            <option value="all">All states</option>
-            <option value="in_stock">In stock</option>
-            <option value="low_stock">Low stock (1–2 avail)</option>
-            <option value="out_of_stock">Out of stock (0 avail)</option>
-            <option value="reserved">Has reservations</option>
+            <option value="all">
+              {t('warehouse.information.stockStates.all')}
+            </option>
+            <option value="in_stock">
+              {t('warehouse.information.stockStates.in_stock')}
+            </option>
+            <option value="low_stock">
+              {t('warehouse.information.stockStates.low_stock')}
+            </option>
+            <option value="out_of_stock">
+              {t('warehouse.information.stockStates.out_of_stock')}
+            </option>
+            <option value="reserved">
+              {t('warehouse.information.stockStates.reserved')}
+            </option>
           </select>
         </div>
 
         <div className="report-filter-field">
-          <label htmlFor="wh-filter-age">Aging Bucket</label>
+          <label htmlFor="wh-filter-age">
+            {t('warehouse.information.filters.agingBucket')}
+          </label>
           <select
             id="wh-filter-age"
             value={ageBucket}
@@ -731,24 +883,28 @@ export const WarehouseInformationPanel: React.FC<
               setPage(1);
             }}
           >
-            <option value="">All ages</option>
-            {(Object.keys(AGE_BUCKET_LABELS) as WarehouseAgeBucketKey[]).map(
-              (key) => (
-                <option key={key} value={key}>
-                  {AGE_BUCKET_LABELS[key]}
-                </option>
-              ),
-            )}
+            <option value="">
+              {t('warehouse.information.filters.allAges')}
+            </option>
+            {AGE_BUCKET_KEYS.map((key) => (
+              <option key={key} value={key}>
+                {translateAgeBucket(t, key)}
+              </option>
+            ))}
           </select>
         </div>
 
         <div className="report-filter-field">
-          <label htmlFor="wh-filter-search">Search</label>
+          <label htmlFor="wh-filter-search">
+            {t('warehouse.information.filters.search')}
+          </label>
           <input
             id="wh-filter-search"
             type="search"
             value={searchQuery}
-            placeholder="Name, article, serial..."
+            placeholder={t(
+              'warehouse.information.filters.searchPlaceholderAnalytics',
+            )}
             onChange={(e) => {
               setSearchQuery(e.target.value);
               setPage(1);
@@ -761,52 +917,70 @@ export const WarehouseInformationPanel: React.FC<
         <div className="report-state-box is-error" role="alert">
           {reportQuery.error instanceof Error
             ? reportQuery.error.message
-            : 'Failed to load warehouse analytics.'}
+            : t('warehouse.information.errors.loadAnalytics')}
         </div>
       ) : null}
 
       {report ? (
         <>
           <AnalyticsCoverageBanner
-            title="Data & Forecast Coverage Notes"
-            warnings={report.coverage.warnings}
+            title={t('warehouse.information.coverage.title')}
+            warnings={coverageWarnings}
           />
 
           <div className="report-kpi-grid">
             <AnalyticsKpiCard
-              label="Total On-Hand Qty"
+              label={t('warehouse.information.kpi.totalOnHand')}
               value={report.summary.totalQuantity}
-              hint={`${report.summary.skuCount} stock rows · ${report.summary.productGroupCount} SKU groups`}
+              hint={t('warehouse.information.kpi.stockRowsAndGroups', {
+                rows: report.summary.skuCount,
+                groups: report.summary.productGroupCount,
+              })}
             />
             <AnalyticsKpiCard
-              label="Available / Reserved"
+              label={t('warehouse.information.kpi.availableReserved')}
               value={`${report.summary.availableQuantity} / ${report.summary.reservedQuantity}`}
-              hint={`Manual: ${report.summary.manualReservedQuantity} · Open orders: ${report.summary.orderReservedQuantity}`}
+              hint={t('warehouse.information.kpi.manualAndOpenOrders', {
+                manual: report.summary.manualReservedQuantity,
+                orders: report.summary.orderReservedQuantity,
+              })}
             />
             <AnalyticsKpiCard
-              label="Purchase Valuation"
+              label={t('warehouse.information.kpi.purchaseValuation')}
               value={formatCurrency(report.summary.purchaseValuation)}
-              hint={`Available value: ${formatCurrency(report.summary.availableValuation)}`}
+              hint={t('warehouse.information.kpi.availableValue', {
+                amount: formatCurrency(report.summary.availableValuation),
+              })}
             />
             <AnalyticsKpiCard
-              label="Out / Low / Unknown Age"
+              label={t('warehouse.information.kpi.outLowUnknown')}
               value={`${report.summary.outOfStockCount} / ${report.summary.lowStockCount} / ${report.summary.unknownAgeOnHandCount}`}
-              hint={`Unknown age units: ${report.summary.unknownAgeUnits}`}
+              hint={t('warehouse.information.kpi.unknownAgeUnits', {
+                count: report.summary.unknownAgeUnits,
+              })}
               tone={
                 report.summary.unknownAgeOnHandCount > 0 ? 'warning' : 'default'
               }
             />
             <AnalyticsKpiCard
-              label="90d Observed Demand & Reorder"
-              value={`${report.summary.totalObservedDemand90d} units`}
-              hint={`${report.summary.reorderSkuCount} SKUs need ${report.summary.totalSuggestedReorderUnits} units (${formatCurrency(report.summary.totalEstimatedReorderCost)})`}
+              label={t('warehouse.information.kpi.observedDemandReorder')}
+              value={t('warehouse.information.kpi.unitsCount', {
+                count: report.summary.totalObservedDemand90d,
+              })}
+              hint={t('warehouse.information.kpi.skusNeedUnits', {
+                skus: report.summary.reorderSkuCount,
+                units: report.summary.totalSuggestedReorderUnits,
+                cost: formatCurrency(report.summary.totalEstimatedReorderCost),
+              })}
             />
           </div>
 
           <div className="report-two-col-grid">
             <AnalyticsSectionCard
-              title="Inventory Aging Buckets"
-              subtitle="Click any bucket to filter stock details below (click again to clear)."
+              title={t('warehouse.information.sections.agingBuckets')}
+              subtitle={t(
+                'warehouse.information.sections.agingBucketsSubtitle',
+              )}
             >
               <AnalyticsInteractiveBars
                 selectedId={ageBucket || null}
@@ -816,17 +990,25 @@ export const WarehouseInformationPanel: React.FC<
                 }}
                 items={report.agingBuckets.map((bucket) => ({
                   id: bucket.bucket,
-                  label: `${AGE_BUCKET_LABELS[bucket.bucket]} (${bucket.skuCount} rows)`,
+                  label: t('warehouse.information.bars.labelRows', {
+                    label: translateAgeBucket(t, bucket.bucket),
+                    count: bucket.skuCount,
+                  }),
                   value: bucket.valuation,
-                  valueText: `${bucket.quantity} u · ${formatCurrency(bucket.valuation)}`,
+                  valueText: t('warehouse.information.bars.valueUnits', {
+                    quantity: bucket.quantity,
+                    value: formatCurrency(bucket.valuation),
+                  }),
                   tone: AGE_BUCKET_TONES[bucket.bucket],
                 }))}
               />
             </AnalyticsSectionCard>
 
             <AnalyticsSectionCard
-              title="Supplier Distribution"
-              subtitle="Click a supplier to filter stock records and demand table."
+              title={t('warehouse.information.sections.supplierDistribution')}
+              subtitle={t(
+                'warehouse.information.sections.supplierDistributionSubtitle',
+              )}
             >
               <AnalyticsInteractiveBars
                 selectedId={supplier || null}
@@ -836,9 +1018,16 @@ export const WarehouseInformationPanel: React.FC<
                 }}
                 items={report.distributions.bySupplier.slice(0, 8).map((s) => ({
                   id: s.key,
-                  label: `${s.label} (${s.skuCount} rows)`,
+                  label: t('warehouse.information.bars.labelRows', {
+                    label: translateAssignedName(t, s.label),
+                    count: s.skuCount,
+                  }),
                   value: s.valuation,
-                  valueText: `${s.availableQuantity}/${s.quantity} u · ${formatCurrency(s.valuation)}`,
+                  valueText: t('warehouse.information.bars.valueAvailUnits', {
+                    available: s.availableQuantity,
+                    quantity: s.quantity,
+                    value: formatCurrency(s.valuation),
+                  }),
                   tone: 'primary',
                 }))}
               />
@@ -846,8 +1035,10 @@ export const WarehouseInformationPanel: React.FC<
           </div>
 
           <AnalyticsSectionCard
-            title="Location Distribution"
-            subtitle="Click a warehouse / location to filter stock records."
+            title={t('warehouse.information.sections.locationDistribution')}
+            subtitle={t(
+              'warehouse.information.sections.locationDistributionSubtitle',
+            )}
           >
             <AnalyticsInteractiveBars
               selectedId={
@@ -859,7 +1050,10 @@ export const WarehouseInformationPanel: React.FC<
               }
               onSelect={(locKey) => {
                 const [nextWh, nextLoc] = locKey.split('::');
-                if (warehouseId === (nextWh ?? '') && locationId === (nextLoc ?? '')) {
+                if (
+                  warehouseId === (nextWh ?? '') &&
+                  locationId === (nextLoc ?? '')
+                ) {
                   setWarehouseId('');
                   setLocationId('');
                 } else {
@@ -870,18 +1064,36 @@ export const WarehouseInformationPanel: React.FC<
               }}
               items={report.distributions.byLocation.slice(0, 10).map((loc) => ({
                 id: `${loc.warehouseId}::${loc.locationId}`,
-                label: `${loc.label} (${loc.skuCount} rows)`,
+                label: t('warehouse.information.bars.labelRows', {
+                  label: translateLocationLabel(
+                    t,
+                    loc.warehouseName,
+                    loc.locationName,
+                  ),
+                  count: loc.skuCount,
+                }),
                 value: loc.valuation,
-                valueText: `${loc.availableQuantity}/${loc.quantity} u · ${formatCurrency(loc.valuation)}`,
+                valueText: t('warehouse.information.bars.valueAvailUnits', {
+                  available: loc.availableQuantity,
+                  quantity: loc.quantity,
+                  value: formatCurrency(loc.valuation),
+                }),
                 tone: 'cyan',
               }))}
             />
           </AnalyticsSectionCard>
 
           <AnalyticsSectionCard
-            title="Inventory Forecasting & Reorder Suggestions"
-            subtitle={`Projections based on trailing ${report.forecast.observationWindow.observedHistoryDays}/${report.forecast.observationWindow.windowDays} observed days. Scenarios never create POs automatically.`}
-            actions={<span className="report-estimate-pill">Estimate Only</span>}
+            title={t('warehouse.information.sections.forecastTitle')}
+            subtitle={t('warehouse.information.sections.forecastSubtitle', {
+              observed: report.forecast.observationWindow.observedHistoryDays,
+              window: report.forecast.observationWindow.windowDays,
+            })}
+            actions={
+              <span className="report-estimate-pill">
+                {t('warehouse.information.sections.estimateOnly')}
+              </span>
+            }
           >
             <ScenarioManagerBar
               scenarios={scenariosQuery.data ?? []}
@@ -906,7 +1118,9 @@ export const WarehouseInformationPanel: React.FC<
 
             <div className="report-filter-bar">
               <div className="report-filter-field">
-                <label htmlFor="wh-horizon">Projection Horizon</label>
+                <label htmlFor="wh-horizon">
+                  {t('warehouse.information.forecast.horizon')}
+                </label>
                 <select
                   id="wh-horizon"
                   value={String(horizonDays)}
@@ -914,13 +1128,21 @@ export const WarehouseInformationPanel: React.FC<
                     setHorizonDays((Number(e.target.value) as 30 | 60 | 90) || 30)
                   }
                 >
-                  <option value="30">30 days</option>
-                  <option value="60">60 days</option>
-                  <option value="90">90 days</option>
+                  <option value="30">
+                    {t('warehouse.information.forecast.days', { count: 30 })}
+                  </option>
+                  <option value="60">
+                    {t('warehouse.information.forecast.days', { count: 60 })}
+                  </option>
+                  <option value="90">
+                    {t('warehouse.information.forecast.days', { count: 90 })}
+                  </option>
                 </select>
               </div>
               <div className="report-filter-field">
-                <label htmlFor="wh-lead-time">Lead Time (days)</label>
+                <label htmlFor="wh-lead-time">
+                  {t('warehouse.information.forecast.leadTime')}
+                </label>
                 <input
                   id="wh-lead-time"
                   type="number"
@@ -935,7 +1157,9 @@ export const WarehouseInformationPanel: React.FC<
                 />
               </div>
               <div className="report-filter-field">
-                <label htmlFor="wh-safety-days">Safety Stock (days)</label>
+                <label htmlFor="wh-safety-days">
+                  {t('warehouse.information.forecast.safetyStock')}
+                </label>
                 <input
                   id="wh-safety-days"
                   type="number"
@@ -950,7 +1174,9 @@ export const WarehouseInformationPanel: React.FC<
                 />
               </div>
               <div className="report-filter-field">
-                <label htmlFor="wh-demand-mult">Demand Multiplier</label>
+                <label htmlFor="wh-demand-mult">
+                  {t('warehouse.information.forecast.demandMultiplier')}
+                </label>
                 <input
                   id="wh-demand-mult"
                   type="number"
@@ -982,33 +1208,48 @@ export const WarehouseInformationPanel: React.FC<
                     setIncludePendingSupplierOrders(e.target.checked)
                   }
                 />
-                Include pending POs
+                {t('warehouse.information.forecast.includePendingPos')}
               </label>
             </div>
 
             <div className="report-kpi-grid">
               <AnalyticsKpiCard
-                label={`${horizonDays}d Projected Demand`}
-                value={`${report.forecast.summary.projectedDemandUnits} units`}
-                hint={`Window ${report.forecast.observationWindow.dateFrom} to ${report.forecast.observationWindow.dateTo}`}
+                label={t('warehouse.information.kpi.projectedDemand', {
+                  days: horizonDays,
+                })}
+                value={t('warehouse.information.kpi.unitsCount', {
+                  count: report.forecast.summary.projectedDemandUnits,
+                })}
+                hint={t('warehouse.information.kpi.windowRange', {
+                  from: report.forecast.observationWindow.dateFrom,
+                  to: report.forecast.observationWindow.dateTo,
+                })}
               />
               <AnalyticsKpiCard
-                label={`${horizonDays}d Projected Shortfall`}
-                value={`${report.forecast.summary.projectedShortfallUnits} units`}
+                label={t('warehouse.information.kpi.projectedShortfall', {
+                  days: horizonDays,
+                })}
+                value={t('warehouse.information.kpi.unitsCount', {
+                  count: report.forecast.summary.projectedShortfallUnits,
+                })}
                 tone={
                   report.forecast.summary.projectedShortfallUnits > 0
                     ? 'warning'
                     : 'success'
                 }
-                hint={`${report.forecast.summary.skusAtRiskCount} SKU(s) projected below 0`}
+                hint={t('warehouse.information.kpi.skusBelowZero', {
+                  count: report.forecast.summary.skusAtRiskCount,
+                })}
               />
               <AnalyticsKpiCard
-                label="Pending Incoming POs"
-                value={`${report.summary.pendingSupplierUnits} units`}
+                label={t('warehouse.information.kpi.pendingIncomingPos')}
+                value={t('warehouse.information.kpi.unitsCount', {
+                  count: report.summary.pendingSupplierUnits,
+                })}
                 hint={
                   includePendingSupplierOrders
-                    ? 'Included in coverage & reorder calculations'
-                    : 'Excluded by current assumption'
+                    ? t('warehouse.information.kpi.pendingIncluded')
+                    : t('warehouse.information.kpi.pendingExcluded')
                 }
               />
             </div>
@@ -1017,20 +1258,27 @@ export const WarehouseInformationPanel: React.FC<
               columns={suggestionColumns}
               rows={report.demandAndSuggestions}
               getRowKey={(r) => r.nameKey}
-              emptyText="No matching SKUs for demand and reorder analysis."
+              emptyText={t('warehouse.information.emptyDemand')}
             />
           </AnalyticsSectionCard>
         </>
       ) : reportQuery.isLoading ? (
-        <div className="report-state-box">Loading warehouse analytics...</div>
+        <div className="report-state-box">
+          {t('warehouse.information.loading')}
+        </div>
       ) : null}
 
       <AnalyticsSectionCard
-        title="Stock Records Drill-Down"
+        title={t('warehouse.information.sections.stockDrillDown')}
         subtitle={
           details
-            ? `Matching total across all pages: ${details.total} records (${details.totals.availableQuantity} available / ${details.totals.totalQuantity} on hand · ${formatCurrency(details.totals.valuation)})`
-            : 'Filter or click chart segments above to narrow down stock rows.'
+            ? t('warehouse.information.sections.matchingTotal', {
+                total: details.total,
+                available: details.totals.availableQuantity,
+                onHand: details.totals.totalQuantity,
+                valuation: formatCurrency(details.totals.valuation),
+              })
+            : t('warehouse.information.sections.stockDrillDownEmpty')
         }
       >
         <AnalyticsSortableTable
@@ -1049,7 +1297,7 @@ export const WarehouseInformationPanel: React.FC<
             detailsQuery.isError
               ? detailsQuery.error instanceof Error
                 ? detailsQuery.error.message
-                : 'Failed to load stock details.'
+                : t('warehouse.information.errors.loadDetails')
               : null
           }
           page={details?.page ?? page}

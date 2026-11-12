@@ -737,20 +737,28 @@ export const getWarehouseReport = async (
     });
 
   const warnings: string[] = [];
+  const warningItems: Array<{ code: string; count?: number; units?: number }> = [];
   if (purgedArchiveExists) {
     warnings.push(
       'Cold yearly archive purges exist; trailing demand only reflects live persisted sales.',
     );
+    warningItems.push({ code: 'coldArchiveDemand' });
   }
   if (observedHistoryDays < 90) {
     warnings.push(
       `Only ${observedHistoryDays} day(s) of live sales history available in the 90-day observation window.`,
     );
+    warningItems.push({ code: 'shortSalesHistory', count: observedHistoryDays });
   }
   if (unknownAgeOnHandCount > 0) {
     warnings.push(
       `${unknownAgeOnHandCount} on-hand record(s) (${unknownAgeUnits} unit(s)) have no purchase date (Unknown age).`,
     );
+    warningItems.push({
+      code: 'unknownAgeOnHand',
+      count: unknownAgeOnHandCount,
+      units: unknownAgeUnits,
+    });
   }
 
   return {
@@ -846,6 +854,7 @@ export const getWarehouseReport = async (
       earliestLiveSaleDate,
       unknownAgeOnHandCount,
       warnings,
+      warningItems,
     },
   };
 };
