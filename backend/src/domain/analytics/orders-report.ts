@@ -357,17 +357,24 @@ export const getOrdersRepairsReport = async (
         : 0;
 
   const warnings: string[] = [];
+  const warningItems: Array<{ code: string; count?: number }> = [];
   if (purgedArchiveExists) {
-    warnings.push(
-      'Cold yearly archive purges exist; period analytics cover live persisted repairs only.',
-    );
+    const message =
+      'Cold yearly archive purges exist; period analytics cover live persisted repairs only.';
+    warnings.push(message);
+    warningItems.push({ code: 'coldArchiveRepairs' });
   }
   if (curWindow.untrackedCompletedCount > 0) {
     warnings.push(
       `${curWindow.untrackedCompletedCount} closed repair(s) lack structured completion timestamps and are excluded from turnaround averages.`,
     );
+    warningItems.push({
+      code: 'untrackedCompletions',
+      count: curWindow.untrackedCompletedCount,
+    });
   } else if (totalClosed === 0) {
     warnings.push('No closed repairs with structured completion timestamps in this period.');
+    warningItems.push({ code: 'noStructuredCompletions' });
   }
 
   return {
@@ -427,10 +434,15 @@ export const getOrdersRepairsReport = async (
         curWindow.untrackedCompletedCount > 0
           ? 'Legacy closed orders without structured completion timestamps are excluded from turnaround metrics.'
           : null,
+      warningCode:
+        curWindow.untrackedCompletedCount > 0
+          ? 'legacyCompletionsExcluded'
+          : null,
     },
     coverage: {
       coldSalesPurgedExist: purgedArchiveExists,
       warnings,
+      warningItems,
     },
   };
 };
@@ -804,10 +816,12 @@ export const getOrdersSalesReport = async (
   });
 
   const warnings: string[] = [];
+  const warningItems: Array<{ code: string; count?: number }> = [];
   if (purgedArchiveExists) {
     warnings.push(
       'Cold yearly archive purges exist; sales figures reflect live persisted records only.',
     );
+    warningItems.push({ code: 'coldArchiveSales' });
   }
 
   return {
@@ -863,6 +877,7 @@ export const getOrdersSalesReport = async (
     coverage: {
       coldSalesPurgedExist: purgedArchiveExists,
       warnings,
+      warningItems,
     },
   };
 };
@@ -1338,10 +1353,15 @@ export const getOrdersProcurementReport = async (
   });
 
   const warnings: string[] = [];
+  const warningItems: Array<{ code: string; count?: number }> = [];
   if (cur.receiptPerformance.untrackedLegacyItemsCount > 0) {
     warnings.push(
       `${cur.receiptPerformance.untrackedLegacyItemsCount} legacy received item(s) lack structured receipt timestamps and are excluded from lead-time & on-time performance.`,
     );
+    warningItems.push({
+      code: 'untrackedReceipts',
+      count: cur.receiptPerformance.untrackedLegacyItemsCount,
+    });
   }
 
   return {
@@ -1387,6 +1407,7 @@ export const getOrdersProcurementReport = async (
       .sort((a, b) => a.name.localeCompare(b.name)),
     coverage: {
       warnings,
+      warningItems,
     },
   };
 };

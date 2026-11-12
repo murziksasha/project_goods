@@ -235,4 +235,42 @@ describe('OrdersInformationWorkspace', () => {
     expect(salesHookSpy).toHaveBeenCalled();
     expect(screen.getByText('Average Order Value')).toBeInTheDocument();
   });
+
+  it('renders Ukrainian copy when the interface language is uk', async () => {
+    await i18n.changeLanguage('uk');
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <I18nextProvider i18n={i18n}>
+          <OrdersInformationWorkspace
+            activeTab="supplierInformation"
+            visibleTabs={['orders', 'sales', 'supplierOrders', 'supplierInformation']}
+            onActiveTabChange={vi.fn()}
+            employees={[]}
+            canViewRepairs
+            canViewSales
+            canViewProcurement={false}
+            onOpenSaleCard={vi.fn()}
+          />
+        </I18nextProvider>
+      </QueryClientProvider>,
+    );
+
+    expect(
+      screen.getByRole('heading', { name: 'Інформація та аналітика замовлень' }),
+    ).toBeInTheDocument();
+    const subviews = within(screen.getByLabelText('Види аналітики замовлень'));
+    expect(subviews.getByRole('tab', { name: 'Ремонти' })).toBeInTheDocument();
+    expect(subviews.getByRole('tab', { name: 'Продажі' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Скинути' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Експорт Excel (.xlsx)' }),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText('Період')).toBeInTheDocument();
+    expect(screen.getByText('Останні 30 днів')).toBeInTheDocument();
+    expect(screen.getByText('Поточне відкрите навантаження')).toBeInTheDocument();
+    expect(screen.getByText('Без майстра: 1')).toBeInTheDocument();
+    expect(screen.getByText('14.5 год / 12 год')).toBeInTheDocument();
+    expect(screen.getByText('Групи давності відкритих ремонтів')).toBeInTheDocument();
+    expect(screen.getByText('Деталізація ремонтів')).toBeInTheDocument();
+  });
 });

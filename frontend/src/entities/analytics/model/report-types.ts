@@ -254,10 +254,12 @@ export type OrdersRepairsReportResponse = {
     coveragePct: number;
     available: boolean;
     warning: string | null;
+    warningCode?: string | null;
   };
   coverage: {
     coldSalesPurgedExist: boolean;
     warnings: string[];
+    warningItems?: Array<{ code: string; count?: number }>;
   };
 };
 
@@ -336,6 +338,7 @@ export type OrdersSalesReportResponse = {
   coverage: {
     coldSalesPurgedExist: boolean;
     warnings: string[];
+    warningItems?: Array<{ code: string; count?: number }>;
   };
 };
 
@@ -428,6 +431,7 @@ export type OrdersProcurementReportResponse = {
   supplierOptions: Array<{ id: string; name: string }>;
   coverage: {
     warnings: string[];
+    warningItems?: Array<{ code: string; count?: number }>;
   };
 };
 
