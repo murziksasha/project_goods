@@ -1023,3 +1023,233 @@ describe('sale costing & snapshot domain logic', () => {
     expect((savedItems[0]?.costAuditLog as unknown[]).length).toBe(1);
   });
 });
+
+describe('assertNoUnauthorizedFinancialCostOverrides unchanged cost field echoes', () => {
+  const capturedAt = new Date('2026-10-01T10:00:00.000Z');
+  const snapshot = {
+    status: 'known' as const,
+    unitCost: 200,
+    totalCost: 200,
+    method: 'fixed' as const,
+    laborCost: 200,
+    directExpenses: 0,
+    recordedMinutes: null,
+    hourlyCost: null,
+    fixedCost: 200,
+    capturedAt,
+    capturedById: 'emp-fin',
+    capturedByName: 'Olga Finance',
+  };
+  const auditEntry = {
+    id: 'audit-1',
+    previousStatus: 'known' as const,
+    previousUnitCost: 180,
+    previousTotalCost: 180,
+    newStatus: 'known' as const,
+    newUnitCost: 200,
+    newTotalCost: 200,
+    method: 'fixed' as const,
+    directExpenses: 0,
+    recordedMinutes: null,
+    hourlyCost: null,
+    fixedCost: 200,
+    reason: 'Price correction',
+    authorId: 'emp-fin',
+    authorName: 'Olga Finance',
+    changedAt: capturedAt,
+  };
+  const existingLine = {
+    id: '1',
+    kind: 'service' as const,
+    name: 'Repair',
+    price: 500,
+    quantity: 1,
+    costMethod: 'fixed' as const,
+    fixedCost: 200,
+    costSnapshot: snapshot,
+    auditedCost: { ...snapshot, totalCost: 220, unitCost: 220 },
+    costAuditLog: [auditEntry],
+  };
+
+  it('allows echoing unchanged costSnapshot, auditedCost and costAuditLog without finance.view', () => {
+    expect(() =>
+      assertNoUnauthorizedFinancialCostOverrides({
+        kind: 'repair',
+        existingLineItems: [existingLine],
+        incomingLineItems: [
+          {
+            id: '1',
+            kind: 'service',
+            name: 'Repair',
+            price: 500,
+            quantity: 1,
+            // Dates echoed as ISO strings, matching a JSON-serialized frontend payload
+            costSnapshot: {
+              ...snapshot,
+              capturedAt: capturedAt.toISOString(),
+            },
+            auditedCost: {
+              ...snapshot,
+              totalCost: 220,
+              unitCost: 220,
+              capturedAt: '2026-10-01T10:00:00.000Z',
+            },
+            costAuditLog: [
+              { ...auditEntry, changedAt: capturedAt.toISOString() },
+            ],
+          },
+        ],
+        employee: managerWithoutFinance,
+      }),
+    ).not.toThrow();
+  });
+
+  it('treats null, undefined and empty-array cost fields as equal', () => {
+    expect(() =>
+      assertNoUnauthorizedFinancialCostOverrides({
+        kind: 'repair',
+        existingLineItems: [
+          {
+            id: '1',
+            kind: 'service',
+            name: 'Repair',
+            price: 500,
+            quantity: 1,
+            costSnapshot: null,
+            auditedCost: undefined,
+            costAuditLog: [],
+          },
+        ],
+        incomingLineItems: [
+          {
+            id: '1',
+            kind: 'service',
+            name: 'Repair',
+            price: 500,
+            quantity: 1,
+            costSnapshot: null,
+            auditedCost: null,
+            costAuditLog: [],
+          },
+        ],
+        employee: managerWithoutFinance,
+      }),
+    ).not.toThrow();
+  });
+
+  it('rejects a changed costSnapshot, auditedCost or costAuditLog without finance.view', () => {
+    expect(() =>
+      assertNoUnauthorizedFinancialCostOverrides({
+        kind: 'repair',
+        existingLineItems: [existingLine],
+        incomingLineItems: [
+          {
+            id: '1',
+            costSnapshot: { ...snapshot, totalCost: 999 },
+          },
+        ],
+        employee: managerWithoutFinance,
+      }),
+    ).toThrow(/Direct cost snapshot modifications require .*finance\.view/i);
+
+    expect(() =>
+      assertNoUnauthorizedFinancialCostOverrides({
+        kind: 'repair',
+        existingLineItems: [existingLine],
+        incomingLineItems: [
+          {
+            id: '1',
+            auditedCost: { ...existingLine.auditedCost, totalCost: 1 },
+          },
+        ],
+        employee: managerWithoutFinance,
+      }),
+    ).toThrow(/Direct audited cost modifications require .*finance\.view/i);
+
+    expect(() =>
+      assertNoUnauthorizedFinancialCostOverrides({
+        kind: 'repair',
+        existingLineItems: [existingLine],
+        incomingLineItems: [
+          {
+            id: '1',
+            costAuditLog: [
+              { ...auditEntry, reason: 'Tampered reason' },
+            ],
+          },
+        ],
+        employee: managerWithoutFinance,
+      }),
+    ).toThrow(/Direct cost audit log modifications are not permitted/i);
+  });
+
+  it('rejects non-empty cost fields on new lines, and allows empty ones, without finance.view', () => {
+    expect(() =>
+      assertNoUnauthorizedFinancialCostOverrides({
+        kind: 'repair',
+        existingLineItems: [],
+        incomingLineItems: [
+          {
+            id: 'new-1',
+            kind: 'service',
+            name: 'New repair',
+            costSnapshot: snapshot,
+          },
+        ],
+        employee: managerWithoutFinance,
+      }),
+    ).toThrow(/Direct cost snapshot modifications require .*finance\.view/i);
+
+    expect(() =>
+      assertNoUnauthorizedFinancialCostOverrides({
+        kind: 'repair',
+        existingLineItems: [],
+        incomingLineItems: [
+          {
+            id: 'new-1',
+            kind: 'service',
+            name: 'New repair',
+            auditedCost: snapshot,
+          },
+        ],
+        employee: managerWithoutFinance,
+      }),
+    ).toThrow(/Direct audited cost modifications require .*finance\.view/i);
+
+    expect(() =>
+      assertNoUnauthorizedFinancialCostOverrides({
+        kind: 'repair',
+        existingLineItems: [],
+        incomingLineItems: [
+          {
+            id: 'new-1',
+            kind: 'service',
+            name: 'New repair',
+            costAuditLog: [auditEntry],
+          },
+        ],
+        employee: managerWithoutFinance,
+      }),
+    ).toThrow(/Direct cost audit log modifications are not permitted/i);
+
+    expect(() =>
+      assertNoUnauthorizedFinancialCostOverrides({
+        kind: 'repair',
+        existingLineItems: [],
+        incomingLineItems: [
+          {
+            id: 'new-1',
+            kind: 'service',
+            name: 'New repair',
+            price: 100,
+            quantity: 1,
+            costSnapshot: null,
+            auditedCost: null,
+            costAuditLog: [],
+          },
+        ],
+        employee: managerWithoutFinance,
+      }),
+    ).not.toThrow();
+  });
+});

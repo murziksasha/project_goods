@@ -181,6 +181,61 @@ const hasOwn = (obj: unknown, key: string) =>
   obj !== null &&
   Object.prototype.hasOwnProperty.call(obj, key);
 
+const isEmptyFinancialValue = (value: unknown): boolean =>
+  value === undefined ||
+  value === null ||
+  (Array.isArray(value) && value.length === 0);
+
+const toComparableIso = (value: unknown): string | null => {
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? null : value.toISOString();
+  }
+  if (
+    typeof value === 'string' &&
+    /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/.test(
+      value,
+    )
+  ) {
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
+  }
+  return null;
+};
+
+const normalizeFinancialValue = (value: unknown): unknown => {
+  if (isEmptyFinancialValue(value)) return null;
+  const iso = toComparableIso(value);
+  if (iso) return iso;
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return Math.round(value * 10000) / 10000;
+  }
+  if (Array.isArray(value)) {
+    return value.map(normalizeFinancialValue);
+  }
+  if (typeof value === 'object') {
+    const obj = value as Record<string, unknown>;
+    const next: Record<string, unknown> = {};
+    for (const key of Object.keys(obj).sort()) {
+      const normalized = normalizeFinancialValue(obj[key]);
+      if (normalized !== null) {
+        next[key] = normalized;
+      }
+    }
+    return next;
+  }
+  return value;
+};
+
+const financialValuesEqual = (incoming: unknown, existing: unknown): boolean => {
+  if (isEmptyFinancialValue(incoming) && isEmptyFinancialValue(existing)) {
+    return true;
+  }
+  return (
+    JSON.stringify(normalizeFinancialValue(incoming)) ===
+    JSON.stringify(normalizeFinancialValue(existing))
+  );
+};
+
 export const assertNoUnauthorizedFinancialCostOverrides = ({
   kind,
   existingLineItems = [],
@@ -232,26 +287,35 @@ export const assertNoUnauthorizedFinancialCostOverrides = ({
       }
     }
 
-    if (hasOwn(raw, 'costSnapshot') && raw.costSnapshot !== undefined) {
-      throw new HttpError(
-        403,
-        'Direct cost snapshot modifications require order/sale management and finance.view permissions.',
-      );
-    }
+    const assertUnchangedFinancialField = (
+      field: 'costSnapshot' | 'auditedCost' | 'costAuditLog',
+      message: string,
+    ) => {
+      if (!hasOwn(raw, field) || raw[field] === undefined) return;
+      const incoming = raw[field];
+      if (!existing) {
+        if (!isEmptyFinancialValue(incoming)) {
+          throw new HttpError(403, message);
+        }
+        return;
+      }
+      if (!financialValuesEqual(incoming, existing[field])) {
+        throw new HttpError(403, message);
+      }
+    };
 
-    if (hasOwn(raw, 'auditedCost') && raw.auditedCost !== undefined) {
-      throw new HttpError(
-        403,
-        'Direct audited cost modifications require order/sale management and finance.view permissions.',
-      );
-    }
-
-    if (hasOwn(raw, 'costAuditLog') && raw.costAuditLog !== undefined) {
-      throw new HttpError(
-        403,
-        'Direct cost audit log modifications are not permitted.',
-      );
-    }
+    assertUnchangedFinancialField(
+      'costSnapshot',
+      'Direct cost snapshot modifications require order/sale management and finance.view permissions.',
+    );
+    assertUnchangedFinancialField(
+      'auditedCost',
+      'Direct audited cost modifications require order/sale management and finance.view permissions.',
+    );
+    assertUnchangedFinancialField(
+      'costAuditLog',
+      'Direct cost audit log modifications are not permitted.',
+    );
 
     if (
       hasOwn(raw, 'costMethod') &&
