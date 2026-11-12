@@ -89,6 +89,6 @@ Canonical order (keys): `number`, `product`, `quantity`, `price`, `total`, `paid
 | `POST /supplier-orders/:id/cancel`             | `supplierOrders.manage` (pending only)           |
 | `POST /supplier-orders/:id/cancel-item`        | `supplierOrders.manage`                          |
 | `GET /reports/orders/procurement` & `/details` | `supplierOrders.view` or `supplierOrders.manage` |
-| `GET /reports/orders/table/procurement` & `/export` | `supplierOrders.view` or `supplierOrders.manage` |
+| `GET /reports/orders/table/procurement` & `/export` | `supplierOrders.view` or `supplierOrders.manage` (no finance columns) |
 
 Full auth matrix: [API.md](./API.md#authentication).

@@ -215,6 +215,17 @@ All `/api/*` routes except health, login, and invitation flows require a valid B
 
 See also: [SECURITY.md](./SECURITY.md) for auth model and LAN deployment notes.
 
+### Analytics, Orders Reports & Scenarios
+| Endpoint | Required access |
+| --- | --- |
+| `GET /reports/warehouse`, `/details` | `inventory.manage`. |
+| `GET /reports/orders/repairs`, `/details`, `/table/repairs`, `/table/repairs/export` | `orders.view`, `orders.manage`, `repairs.execute`, or `kanban.use`. |
+| `GET /reports/orders/sales`, `/details`, `/table/sales`, `/table/sales/export` | `orders.view` or `sales.manage`. |
+| `GET /reports/orders/procurement`, `/details`, `/table/procurement`, `/table/procurement/export` | `supplierOrders.view` or `supplierOrders.manage`. |
+| `GET/POST /scenarios`, `PUT/DELETE /scenarios/:id` | Authenticated owner of the scenario; domain must be in the employee's allowed set (`inventory.manage` for `warehouse`, `finance.view` for `cashflow`, Orders Reports tab permissions for `ordersReport`). Max 50 per employee per domain. |
+
+Finance fields on `GET /reports/orders/table/{repairs,sales}` and `/export` (`knownCost`, `knownProfit`, `marginPct`, `isIncomplete`, `missingCostCount`) are included only when the employee also has `finance.view`; they are omitted entirely otherwise. Procurement table/export responses never include finance fields.
+
 ## Frontend Visibility Rules
 - Sidebar shows `Employees` when employee is `owner` or has `employees.manage`.
 - Sidebar shows `Accounting` when employee is `owner` or has `finance.view`.
@@ -246,7 +257,7 @@ See also: [SECURITY.md](./SECURITY.md) for auth model and LAN deployment notes.
   - **Repairs** (`GET /reports/orders/repairs*`): requires `orders.view`, `orders.manage`, `repairs.execute`, or `kanban.use`.
   - **Sales** (`GET /reports/orders/sales*`): requires `orders.view` or `sales.manage`.
   - **Procurement** (`GET /reports/orders/procurement*`): requires `supplierOrders.view` or `supplierOrders.manage`.
-- Orders `Reports` tab (`ordersTab=ordersReports`) uses the same tab visibility and per-subview isolation as Information. No additional permission is introduced. Table and export endpoints are `GET /reports/orders/table/{repairs,sales,procurement}` and `/export`. Finance columns (`knownCost`, `knownProfit`, `marginPct`, `isIncomplete`, `missingCostCount`) are included only with `finance.view`.
+- Orders `Reports` tab (`ordersTab=ordersReports`) uses the same tab visibility and per-subview isolation as Information. No additional permission is introduced. Table and export endpoints are `GET /reports/orders/table/{repairs,sales,procurement}` and `/export`. Finance columns (`knownCost`, `knownProfit`, `marginPct`, `isIncomplete`, `missingCostCount`) appear only with `finance.view`, and only on the Repairs and Sales subviews (Procurement has none).
 - Catalog service costing defaults (`costMethod`, `fixedCost`, `hourlyCost`, `defaultDurationMinutes`) require `inventory.manage` to write and (`inventory.manage` or `finance.view`) to read.
 - Financial order line cost overrides (`unitCostOverride`, `fixedCost`, `hourlyCost`, `directExpenses`) and pre-payment/post-closure cost audit (`PATCH /sales/:saleId/costs` for eligible `product` lines and, when `serviceAuditEnabled` is enabled, eligible `service` lines) require BOTH `orders.manage` (repairs) / `sales.manage` (sales) AND `finance.view`; line cost fields (including `requiresCostAudit`) are redacted when `finance.view` is absent.
 - Workspace updates that do not send `lineItems` (changing the master, saving notes, or posting Live feed / timeline chat) never require `finance.view`. Echoing unchanged cost fields (`costSnapshot`, `auditedCost`, `costAuditLog`) is also allowed without `finance.view`; only actual modifications of those fields require it.

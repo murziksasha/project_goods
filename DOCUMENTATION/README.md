@@ -7,7 +7,7 @@ One topic → one source of truth. Other files **link**, they do not copy the ru
 | Local run / Docker / tests | [DEVELOPMENT.md](./DEVELOPMENT.md) | [DEPLOYMENT.md](./DEPLOYMENT.md), [TESTING.md](./TESTING.md) |
 | Architecture / repo layout | [ARCHITECTURE.md](./ARCHITECTURE.md) | [PROJECT_STRUCTURE.md](./PROJECT_STRUCTURE.md) |
 | HTTP API | [API.md](./API.md) | [SECURITY.md](./SECURITY.md), [Permission_Flow.md](./Permission_Flow.md) |
-| Repair orders | [ORDER_FLOW.md](./ORDER_FLOW.md) | [ORDER_CARD.md](./ORDER_CARD.md), [REPAIR_KANBAN_SPEC.md](./REPAIR_KANBAN_SPEC.md) |
+| Repair orders | [ORDER_FLOW.md](./ORDER_FLOW.md) | [ORDER_CARD.md](./ORDER_CARD.md), [REPAIR_KANBAN_SPEC.md](./REPAIR_KANBAN_SPEC.md); Orders Information and Reports tabs in [ORDER_FLOW.md](./ORDER_FLOW.md#orders-reports-tab-2026-11-12) |
 | Sales / Rapid sale | [SALE_FLOW.md](./SALE_FLOW.md) | [SALE_CARD.md](./SALE_CARD.md) |
 | Warehouse / serials | [WAREHOUSE_FLOW.md](./WAREHOUSE_FLOW.md) | [SERIAL_NUMBER_SEQUENCE_SPEC.md](./SERIAL_NUMBER_SEQUENCE_SPEC.md) |
 | Bind serial occupancy | [WAREHOUSE_FLOW.md §4.3.0](./WAREHOUSE_FLOW.md#430-bind-modal-occupancy-opened-repair-and-sale-cards) | API: `GET /sales/occupied-serials` in [API.md](./API.md) |
