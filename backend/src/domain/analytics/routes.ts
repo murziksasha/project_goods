@@ -13,4 +13,9 @@ analyticsRouter.get('/reports/orders/sales', asyncHandler(controller.getSalesRep
 analyticsRouter.get('/reports/orders/sales/details', asyncHandler(controller.getSalesDetailsHandler));
 analyticsRouter.get('/reports/orders/procurement', asyncHandler(controller.getProcurementReportHandler));
 analyticsRouter.get('/reports/orders/procurement/details', asyncHandler(controller.getProcurementDetailsHandler));
-
+analyticsRouter.get('/reports/orders/table/repairs', asyncHandler(controller.getRepairsTableHandler));
+analyticsRouter.get('/reports/orders/table/repairs/export', asyncHandler(controller.exportRepairsTableHandler));
+analyticsRouter.get('/reports/orders/table/sales', asyncHandler(controller.getSalesTableHandler));
+analyticsRouter.get('/reports/orders/table/sales/export', asyncHandler(controller.exportSalesTableHandler));
+analyticsRouter.get('/reports/orders/table/procurement', asyncHandler(controller.getProcurementTableHandler));
+analyticsRouter.get('/reports/orders/table/procurement/export', asyncHandler(controller.exportProcurementTableHandler));

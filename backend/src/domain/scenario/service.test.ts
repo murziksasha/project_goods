@@ -15,7 +15,7 @@ const {
 }));
 
 vi.mock('./model', () => ({
-  scenarioDomains: ['warehouse', 'cashflow'],
+  scenarioDomains: ['warehouse', 'cashflow', 'ordersReport'],
   Scenario: {
     find: findMock,
     countDocuments: countDocumentsMock,
@@ -77,12 +77,18 @@ describe('scenario service & permissions', () => {
   it('resolves allowed domains strictly from employee permissions', () => {
     expect(
       resolveAllowedScenarioDomains({ role: 'warehouse', permissions: ['inventory.manage'] }),
-    ).toEqual(['warehouse']);
+    ).toEqual(['warehouse', 'ordersReport']);
     expect(
       resolveAllowedScenarioDomains({ role: 'support', permissions: ['finance.view'] }),
-    ).toEqual(['cashflow']);
+    ).toEqual(['cashflow', 'ordersReport']);
     expect(
       resolveAllowedScenarioDomains({ role: 'support', permissions: ['orders.view'] }),
+    ).toEqual(['ordersReport']);
+    expect(
+      resolveAllowedScenarioDomains({ role: 'temp', permissions: ['inventory.manage'] }),
+    ).toEqual(['warehouse']);
+    expect(
+      resolveAllowedScenarioDomains({ role: 'temp', permissions: ['printForms.manage'] }),
     ).toEqual([]);
   });
 
@@ -166,5 +172,79 @@ describe('scenario service & permissions', () => {
     await expect(
       deleteScenario(emp1, scenId, ['cashflow']),
     ).resolves.toEqual({ deleted: true, id: scenId });
+  });
+});
+
+describe('ordersReport scenario domain', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('normalizes ordersReport assumptions and drops unknown groupBy values', () => {
+    expect(
+      normalizeScenarioAssumptions('ordersReport', {
+        kind: 'sales',
+        mode: 'summary',
+        groupBy: ['master', 'nope', 'status', 'client'],
+        columns: ['recordNumber', 'total'],
+        filters: { period: 'last30', status: 'issued' },
+        sort: { sortBy: 'total', sortDir: 'asc' },
+      }),
+    ).toEqual({
+      kind: 'sales',
+      mode: 'summary',
+      filters: { period: 'last30', status: 'issued' },
+      columns: ['recordNumber', 'total'],
+      columnsByKind: {},
+      groupBy: ['master', 'status'],
+      sort: { sortBy: 'total', sortDir: 'asc' },
+    });
+  });
+
+  it('includes ordersReport in allowed domains for order viewers and rejects others', () => {
+    expect(
+      resolveAllowedScenarioDomains({
+        role: 'master',
+        permissions: ['orders.view', 'repairs.execute'],
+      }),
+    ).toEqual(['ordersReport']);
+    expect(
+      resolveAllowedScenarioDomains({
+        role: 'temp',
+        permissions: ['inventory.manage'],
+      }),
+    ).toEqual(['warehouse']);
+    expect(
+      resolveAllowedScenarioDomains({
+        role: 'temp',
+        permissions: ['printForms.manage'],
+      }),
+    ).toEqual([]);
+  });
+
+  it('lists and isolates ordersReport scenarios per employee', async () => {
+    const docs = [
+      {
+        _id: { toString: () => scenId },
+        employeeId: { toString: () => emp1 },
+        domain: 'ordersReport',
+        name: 'My repairs',
+        horizonDays: 30,
+        assumptions: { kind: 'repairs', mode: 'register' },
+        filters: {},
+        createdAt: new Date('2026-11-01T00:00:00.000Z'),
+        updatedAt: new Date('2026-11-01T00:00:00.000Z'),
+      },
+    ];
+    findMock.mockReturnValue({
+      sort: vi.fn().mockReturnValue({ lean: vi.fn().mockResolvedValue(docs) }),
+    });
+    const list = await listScenarios(emp1, ['ordersReport'], 'ordersReport');
+    expect(list).toHaveLength(1);
+    expect(list[0].domain).toBe('ordersReport');
+
+    await expect(listScenarios(emp1, ['warehouse'], 'ordersReport')).rejects.toMatchObject({
+      statusCode: 403,
+    });
   });
 });

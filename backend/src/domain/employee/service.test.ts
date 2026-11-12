@@ -53,4 +53,11 @@ describe('normalizeHiddenOrdersTabs', () => {
       'Invalid orders tab.',
     );
   });
+
+  it('accepts the ordersReports tab key', () => {
+    expect(normalizeHiddenOrdersTabs(['ordersReports', 'supplierInformation'])).toEqual([
+      'ordersReports',
+      'supplierInformation',
+    ]);
+  });
 });

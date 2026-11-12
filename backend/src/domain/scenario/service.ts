@@ -5,12 +5,15 @@ import { Scenario, scenarioDomains, type ScenarioDocument, type ScenarioDomain }
 const MAX_SCENARIOS_PER_DOMAIN = 50;
 const VALID_HORIZONS = new Set([30, 60, 90]);
 
-const normalizeDomain = (value: unknown): ScenarioDomain => {
+export const canonicalScenarioDomain = (value: unknown): ScenarioDomain | null => {
   const normalized = String(value ?? '').trim().toLowerCase();
-  if (scenarioDomains.includes(normalized as ScenarioDomain)) {
-    return normalized as ScenarioDomain;
-  }
-  throw new HttpError(400, 'Scenario domain must be "warehouse" or "cashflow".');
+  return scenarioDomains.find((domain) => domain.toLowerCase() === normalized) ?? null;
+};
+
+const normalizeDomain = (value: unknown): ScenarioDomain => {
+  const domain = canonicalScenarioDomain(value);
+  if (domain) return domain;
+  throw new HttpError(400, 'Scenario domain must be "warehouse", "cashflow", or "ordersReport".');
 };
 
 const normalizeName = (value: unknown) => {
@@ -48,6 +51,76 @@ const clampNumber = (value: unknown, fallback: number, min: number, max: number)
   return Math.min(Math.max(n, min), max);
 };
 
+
+const ORDERS_REPORT_KINDS = new Set(['repairs', 'sales', 'procurement']);
+const ORDERS_REPORT_MODES = new Set(['register', 'summary']);
+const ORDERS_REPORT_GROUP_BY = new Set([
+  'master',
+  'status',
+  'manager',
+  'client',
+  'supplier',
+  'day',
+  'week',
+  'month',
+  'product',
+  'service',
+]);
+
+const normalizeStringArray = (value: unknown, max: number): string[] => {
+  if (!Array.isArray(value)) return [];
+  const out: string[] = [];
+  for (const item of value) {
+    const s = String(item ?? '').trim();
+    if (s && !out.includes(s) && out.length < max) out.push(s);
+  }
+  return out;
+};
+
+const normalizeOrdersReportAssumptions = (
+  obj: Record<string, unknown>,
+): Record<string, unknown> => {
+  const kindRaw = String(obj.kind ?? 'repairs').trim();
+  const modeRaw = String(obj.mode ?? 'register').trim();
+  const groupBy = normalizeStringArray(obj.groupBy, 10)
+    .filter((item) => ORDERS_REPORT_GROUP_BY.has(item))
+    .slice(0, 2);
+  const columns = normalizeStringArray(obj.columns, 60);
+  const filtersRaw =
+    obj.filters && typeof obj.filters === 'object' && !Array.isArray(obj.filters)
+      ? (obj.filters as Record<string, unknown>)
+      : {};
+  const sortRaw =
+    obj.sort && typeof obj.sort === 'object' && !Array.isArray(obj.sort)
+      ? (obj.sort as Record<string, unknown>)
+      : {};
+  const sortDir = String(sortRaw.sortDir ?? 'desc').toLowerCase() === 'asc' ? 'asc' : 'desc';
+  const columnsByKindRaw =
+    obj.columnsByKind &&
+    typeof obj.columnsByKind === 'object' &&
+    !Array.isArray(obj.columnsByKind)
+      ? (obj.columnsByKind as Record<string, unknown>)
+      : {};
+  const columnsByKind: Record<string, string[]> = {};
+  for (const key of ['repairs', 'sales', 'procurement']) {
+    if (Array.isArray(columnsByKindRaw[key])) {
+      columnsByKind[key] = normalizeStringArray(columnsByKindRaw[key], 60);
+    }
+  }
+  return {
+    kind: ORDERS_REPORT_KINDS.has(kindRaw) ? kindRaw : 'repairs',
+    mode: ORDERS_REPORT_MODES.has(modeRaw) ? modeRaw : 'register',
+    filters: { ...filtersRaw },
+    columns,
+    columnsByKind,
+    groupBy,
+    sort: {
+      sortBy: String(sortRaw.sortBy ?? '').trim() || 'saleDate',
+      sortDir,
+    },
+  };
+};
+
 export const normalizeScenarioAssumptions = (
   domain: ScenarioDomain,
   raw: unknown,
@@ -63,6 +136,10 @@ export const normalizeScenarioAssumptions = (
           ? true
           : Boolean(obj.includePendingSupplierOrders),
     };
+  }
+
+  if (domain === 'ordersReport') {
+    return normalizeOrdersReportAssumptions(obj);
   }
 
   const rawEvents = Array.isArray(obj.plannedEvents) ? obj.plannedEvents : [];
