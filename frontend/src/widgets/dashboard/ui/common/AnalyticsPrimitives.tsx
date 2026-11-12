@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { ScenarioRecord } from '../../../../entities/scenario';
 
 export interface AnalyticsComparisonBadgeProps {
@@ -13,6 +14,7 @@ export const AnalyticsComparisonBadge: React.FC<AnalyticsComparisonBadgeProps> =
   invertColors = false,
   label,
 }) => {
+  const { t } = useTranslation();
   if (deltaPct === null || deltaPct === undefined || !Number.isFinite(deltaPct)) {
     return null;
   }
@@ -27,7 +29,7 @@ export const AnalyticsComparisonBadge: React.FC<AnalyticsComparisonBadgeProps> =
   return (
     <span
       className={`report-delta-badge ${stateClass}`}
-      title={label ?? 'Change vs preceding equal-length period'}
+      title={label ?? t('analytics.primitives.deltaTitle')}
     >
       {prefix}
       {rounded.toFixed(1)}%
@@ -141,10 +143,12 @@ export const AnalyticsInteractiveBars: React.FC<AnalyticsInteractiveBarsProps> =
   items,
   selectedId,
   onSelect,
-  emptyText = 'No breakdown data available.',
+  emptyText,
 }) => {
+  const { t } = useTranslation();
+  const resolvedEmpty = emptyText ?? t('analytics.primitives.noBreakdown');
   if (items.length === 0) {
-    return <div className="report-state-box">{emptyText}</div>;
+    return <div className="report-state-box">{resolvedEmpty}</div>;
   }
   const maxValue = Math.max(...items.map((item) => Math.max(item.value, 0)), 1);
 
@@ -202,10 +206,12 @@ export const AnalyticsTrendChart = <T extends { dateKey: string }>({
   points,
   series,
   height = 200,
-  emptyText = 'No trend points in the selected period.',
+  emptyText,
   formatYValue = (v) => String(Math.round(v * 100) / 100),
   onSelectDateKey,
 }: AnalyticsTrendChartProps<T>) => {
+  const { t } = useTranslation();
+  const resolvedEmpty = emptyText ?? t('analytics.primitives.noTrend');
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
 
   const chartStats = useMemo(() => {
@@ -217,7 +223,7 @@ export const AnalyticsTrendChart = <T extends { dateKey: string }>({
   }, [points, series]);
 
   if (points.length === 0) {
-    return <div className="report-state-box">{emptyText}</div>;
+    return <div className="report-state-box">{resolvedEmpty}</div>;
   }
 
   const width = 640;
@@ -273,7 +279,7 @@ export const AnalyticsTrendChart = <T extends { dateKey: string }>({
         viewBox={`0 0 ${width} ${height}`}
         className="report-trend-svg"
         role="img"
-        aria-label="Period trend chart"
+        aria-label={t('analytics.primitives.trendChartAria')}
       >
         {[0, 0.5, 1].map((fraction) => {
           const val = chartStats.maxVal - fraction * chartStats.span;
@@ -411,12 +417,14 @@ export const AnalyticsSortableTable = <Row,>({
   onSortChange,
   loading = false,
   error = null,
-  emptyText = 'No matching records found.',
+  emptyText,
   page,
   pageSize,
   total,
   onPageChange,
 }: AnalyticsSortableTableProps<Row>) => {
+  const { t } = useTranslation();
+  const resolvedEmpty = emptyText ?? t('analytics.primitives.noMatchingRecords');
   const [localSortBy, setLocalSortBy] = useState<string>('');
   const [localSortDir, setLocalSortDir] = useState<'asc' | 'desc'>('desc');
 
@@ -450,7 +458,11 @@ export const AnalyticsSortableTable = <Row,>({
   };
 
   if (loading) {
-    return <div className="report-state-box">Loading records...</div>;
+    return (
+      <div className="report-state-box">
+        {t('analytics.primitives.loadingRecords')}
+      </div>
+    );
   }
   if (error) {
     return (
@@ -460,7 +472,7 @@ export const AnalyticsSortableTable = <Row,>({
     );
   }
   if (sortedRows.length === 0) {
-    return <div className="report-state-box">{emptyText}</div>;
+    return <div className="report-state-box">{resolvedEmpty}</div>;
   }
 
   const totalPages =
@@ -524,8 +536,11 @@ export const AnalyticsSortableTable = <Row,>({
       {page !== undefined && pageSize !== undefined && total !== undefined && onPageChange ? (
         <div className="report-pagination-bar">
           <span>
-            Showing {(page - 1) * pageSize + 1}–
-            {Math.min(page * pageSize, total)} of {total}
+            {t('analytics.primitives.showingRange', {
+              from: (page - 1) * pageSize + 1,
+              to: Math.min(page * pageSize, total),
+              total,
+            })}
           </span>
           <div className="report-pagination-controls">
             <button
@@ -534,10 +549,10 @@ export const AnalyticsSortableTable = <Row,>({
               disabled={page <= 1}
               onClick={() => onPageChange(page - 1)}
             >
-              Prev
+              {t('analytics.primitives.prev')}
             </button>
             <span>
-              Page {page} / {totalPages}
+              {t('analytics.primitives.pageOf', { page, totalPages })}
             </span>
             <button
               type="button"
@@ -545,7 +560,7 @@ export const AnalyticsSortableTable = <Row,>({
               disabled={page >= totalPages}
               onClick={() => onPageChange(page + 1)}
             >
-              Next
+              {t('analytics.primitives.next')}
             </button>
           </div>
         </div>

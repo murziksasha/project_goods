@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import type React from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   getOrdersProcurementDetails,
   getOrdersRepairsDetails,
@@ -31,6 +32,18 @@ import {
 } from '../common/AnalyticsPrimitives';
 import { OrdersWorkspaceTabList } from './workspace/OrdersWorkspaceTabList';
 import type { OrdersTab } from './workspace/orders-workspace-shared';
+import {
+  ORDERS_INFO_PERIOD_KEYS,
+  translateCoverageWarnings,
+  translateLineKind,
+  translatePaymentStatus,
+  translateReceiptStatus,
+  translateRepairStatus,
+  translateSaleStatus,
+  translateSupplierOrderStatus,
+  translateTechnicianName,
+  translateTurnaroundWarning,
+} from './orders-information-i18n';
 
 type OrdersInfoSubview = 'repairs' | 'sales' | 'procurement';
 
@@ -48,16 +61,7 @@ export interface OrdersInformationWorkspaceProps {
   onOpenSupplierOrderTab?: () => void;
 }
 
-const PERIOD_OPTIONS: Array<{ key: BoundedReportPeriod; label: string }> = [
-  { key: 'last30', label: 'Last 30 days' },
-  { key: 'last7', label: 'Last 7 days' },
-  { key: 'day', label: 'Today' },
-  { key: 'week', label: 'This week' },
-  { key: 'month', label: 'This month' },
-  { key: 'year', label: 'This year' },
-  { key: 'whole', label: 'All time' },
-  { key: 'custom', label: 'Custom range' },
-];
+const PERIOD_OPTIONS: BoundedReportPeriod[] = [...ORDERS_INFO_PERIOD_KEYS];
 
 export const OrdersInformationWorkspace: React.FC<
   OrdersInformationWorkspaceProps
@@ -74,25 +78,26 @@ export const OrdersInformationWorkspace: React.FC<
   onOpenSaleCard,
   onOpenSupplierOrderTab,
 }) => {
+  const { t } = useTranslation();
+
   const availableSubviews = useMemo(() => {
-    const list: Array<{ key: OrdersInfoSubview; label: string }> = [];
-    if (canViewRepairs) list.push({ key: 'repairs', label: 'Repairs' });
-    if (canViewSales) list.push({ key: 'sales', label: 'Sales' });
-    if (canViewProcurement)
-      list.push({ key: 'procurement', label: 'Procurement' });
+    const list: OrdersInfoSubview[] = [];
+    if (canViewRepairs) list.push('repairs');
+    if (canViewSales) list.push('sales');
+    if (canViewProcurement) list.push('procurement');
     return list;
   }, [canViewRepairs, canViewSales, canViewProcurement]);
 
   const [subview, setSubview] = useState<OrdersInfoSubview>(
-    () => availableSubviews[0]?.key ?? 'repairs',
+    () => availableSubviews[0] ?? 'repairs',
   );
 
   useEffect(() => {
     if (
       availableSubviews.length > 0 &&
-      !availableSubviews.some((item) => item.key === subview)
+      !availableSubviews.some((item) => item === subview)
     ) {
-      setSubview(availableSubviews[0].key);
+      setSubview(availableSubviews[0]);
     }
   }, [availableSubviews, subview]);
 
@@ -248,6 +253,30 @@ export const OrdersInformationWorkspace: React.FC<
     }
   };
 
+  const yesNo = (value: boolean) =>
+    t(value ? 'orders.information.yes' : 'orders.information.no');
+  const allLabel = t('orders.information.all');
+  const noneLabel = t('orders.information.none');
+  const naLabel = t('orders.information.na');
+  const periodFilterValue = (from: string | null, to: string | null) =>
+    t('orders.information.export.periodValue', {
+      from: from ?? allLabel,
+      to: to ?? allLabel,
+    });
+  const exportShowingWarning = (shown: number, total: number) =>
+    t('orders.information.export.showingRecords', {
+      shown,
+      total,
+      count: total,
+    });
+  const exportCol = (key: string) => t(`orders.information.export.cols.${key}`);
+  const paymentMethodLabel = (method: string) => {
+    if (!method) return allLabel;
+    if (method === 'cash') return t('orders.information.filters.cash');
+    if (method === 'non-cash') return t('orders.information.filters.nonCash');
+    return method;
+  };
+
   const handleExportActive = async () => {
     setIsExporting(true);
     try {
@@ -260,69 +289,113 @@ export const OrdersInformationWorkspace: React.FC<
           sortBy: repairsSortBy,
           sortDir: repairsSortDir,
         });
-        const warnings = [...rep.coverage.warnings];
-        if (rep.turnaroundCoverage.warning)
-          warnings.push(rep.turnaroundCoverage.warning);
+        const warnings = translateCoverageWarnings(
+          t,
+          rep.coverage.warnings,
+          rep.coverage.warningItems,
+        );
+        const turnaroundWarning = translateTurnaroundWarning(
+          t,
+          rep.turnaroundCoverage.warning,
+          rep.turnaroundCoverage.warningCode,
+        );
+        if (turnaroundWarning) warnings.push(turnaroundWarning);
         if (det.total > det.items.length)
-          warnings.push(`Showing ${det.items.length} of ${det.total} records.`);
+          warnings.push(exportShowingWarning(det.items.length, det.total));
         exportReportWorkbookToDownload({
           filename: `orders-repairs-information-${rep.generatedAt.slice(0, 10)}.xlsx`,
-          title: 'Orders Information — Repairs',
+          title: t('orders.information.export.repairsTitle'),
           generatedAt: rep.generatedAt,
           timeZone: rep.timeZone,
           activeFilters: [
-            { filter: 'Period', value: `${rep.period.dateFrom ?? 'All'} to ${rep.period.dateTo ?? 'All'}` },
-            { filter: 'Status', value: repairStatus || 'All' },
-            { filter: 'Technician', value: repairMasterId || 'All' },
-            { filter: 'Unassigned only', value: repairUnassignedOnly ? 'Yes' : 'No' },
-            { filter: 'Open Age Bucket', value: repairAgeBucket || 'All' },
-            { filter: 'Search', value: repairSearch.trim() || 'None' },
+            {
+              filter: t('orders.information.filters.period'),
+              value: periodFilterValue(rep.period.dateFrom, rep.period.dateTo),
+            },
+            {
+              filter: t('orders.information.filters.status'),
+              value: repairStatus
+                ? translateRepairStatus(t, repairStatus)
+                : allLabel,
+            },
+            {
+              filter: t('orders.information.filters.technician'),
+              value: repairMasterId || allLabel,
+            },
+            {
+              filter: t('orders.information.filters.unassignedOnly'),
+              value: yesNo(repairUnassignedOnly),
+            },
+            {
+              filter: t('orders.information.filters.openAgeBucket'),
+              value: repairAgeBucket || allLabel,
+            },
+            {
+              filter: t('orders.information.filters.search'),
+              value: repairSearch.trim() || noneLabel,
+            },
           ],
           definitions: [
             {
-              metric: 'Turnaround Hours',
-              definition:
-                'Calculated strictly from structured intake date (saleDate) to structured completedAt timestamp (never updatedAt).',
+              metric: t('orders.information.export.definitions.turnaroundHours'),
+              definition: t(
+                'orders.information.export.definitions.turnaroundHoursDef',
+              ),
             },
             {
-              metric: 'Open Repair Aging',
-              definition: 'Europe/Kiev days open from intake date to report timestamp.',
+              metric: t('orders.information.export.definitions.openRepairAging'),
+              definition: t(
+                'orders.information.export.definitions.openRepairAgingDef',
+              ),
             },
           ],
           warnings,
           sheets: [
             {
-              name: 'Repairs Detail',
+              name: t('orders.information.export.sheetRepairsDetail'),
               rows: det.items.map((r) => ({
-                OrderNumber: r.recordNumber || r.id,
-                IntakeDate: r.saleDate.slice(0, 10),
-                Status: r.status,
-                Client: r.clientName,
-                Device: r.deviceName,
-                Serial: r.serialNumber,
-                Technician: r.technicianName,
-                IsOpen: r.isOpen ? 'Open' : 'Closed',
-                OpenAgeDays: r.ageDays ?? '',
-                AgeBucket: r.ageBucket ?? '',
-                CompletedAt: r.completedAt ? r.completedAt.slice(0, 10) : 'Legacy/Unknown',
-                TurnaroundHours: r.turnaroundHours ?? 'N/A',
-                OrderTotal: r.total,
+                [exportCol('orderNumber')]: r.recordNumber || r.id,
+                [exportCol('intakeDate')]: r.saleDate.slice(0, 10),
+                [exportCol('status')]: translateRepairStatus(t, r.status),
+                [exportCol('client')]: r.clientName,
+                [exportCol('device')]: r.deviceName,
+                [exportCol('serial')]: r.serialNumber,
+                [exportCol('technician')]: translateTechnicianName(
+                  t,
+                  r.technicianName,
+                  r.technicianId,
+                ),
+                [exportCol('isOpen')]: r.isOpen
+                  ? t('orders.information.openClosed.open')
+                  : t('orders.information.openClosed.closed'),
+                [exportCol('openAgeDays')]: r.ageDays ?? '',
+                [exportCol('ageBucket')]: r.ageBucket ?? '',
+                [exportCol('completedAt')]: r.completedAt
+                  ? r.completedAt.slice(0, 10)
+                  : t('orders.information.export.legacyUnknown'),
+                [exportCol('turnaroundHours')]: r.turnaroundHours ?? naLabel,
+                [exportCol('orderTotal')]: r.total,
               })),
             },
             {
-              name: 'By Technician',
+              name: t('orders.information.export.sheetByTechnician'),
               rows: rep.byTechnician.map((tRow) => ({
-                Technician: tRow.name,
-                OpenWorkload: tRow.openCount,
-                CompletedInPeriod: tRow.completedInPeriod,
+                [exportCol('technician')]: translateTechnicianName(
+                  t,
+                  tRow.name,
+                  tRow.technicianId,
+                ),
+                [exportCol('openWorkload')]: tRow.openCount,
+                [exportCol('completedInPeriod')]: tRow.completedInPeriod,
               })),
             },
             {
-              name: 'Completion Trend',
+              name: t('orders.information.export.sheetCompletionTrend'),
               rows: rep.completionTrend.map((pt) => ({
-                Date: pt.dateKey,
-                CompletedCount: pt.completedCount,
-                AvgTurnaroundHours: pt.avgTurnaroundHours ?? 'N/A',
+                [exportCol('date')]: pt.dateKey,
+                [exportCol('completedCount')]: pt.completedCount,
+                [exportCol('avgTurnaroundHours')]:
+                  pt.avgTurnaroundHours ?? naLabel,
               })),
             },
           ],
@@ -336,66 +409,95 @@ export const OrdersInformationWorkspace: React.FC<
           sortBy: salesSortBy,
           sortDir: salesSortDir,
         });
-        const warnings = [...rep.coverage.warnings];
+        const warnings = translateCoverageWarnings(
+          t,
+          rep.coverage.warnings,
+          rep.coverage.warningItems,
+        );
         if (det.total > det.items.length)
-          warnings.push(`Showing ${det.items.length} of ${det.total} records.`);
+          warnings.push(exportShowingWarning(det.items.length, det.total));
         exportReportWorkbookToDownload({
           filename: `orders-sales-information-${rep.generatedAt.slice(0, 10)}.xlsx`,
-          title: 'Orders Information — Sales',
+          title: t('orders.information.export.salesTitle'),
           generatedAt: rep.generatedAt,
           timeZone: rep.timeZone,
           activeFilters: [
-            { filter: 'Period', value: `${rep.period.dateFrom ?? 'All'} to ${rep.period.dateTo ?? 'All'}` },
-            { filter: 'Status', value: salesStatus || 'All' },
-            { filter: 'Line Kind', value: salesLineKind },
-            { filter: 'Payment Method', value: salesPaymentMethod || 'All' },
-            { filter: 'Search', value: salesSearch.trim() || 'None' },
+            {
+              filter: t('orders.information.filters.period'),
+              value: periodFilterValue(rep.period.dateFrom, rep.period.dateTo),
+            },
+            {
+              filter: t('orders.information.filters.status'),
+              value: salesStatus
+                ? translateSaleStatus(t, salesStatus)
+                : allLabel,
+            },
+            {
+              filter: t('orders.information.filters.lineKind'),
+              value: translateLineKind(t, salesLineKind),
+            },
+            {
+              filter: t('orders.information.filters.paymentMethod'),
+              value: paymentMethodLabel(salesPaymentMethod),
+            },
+            {
+              filter: t('orders.information.filters.search'),
+              value: salesSearch.trim() || noneLabel,
+            },
           ],
           definitions: [
-            { metric: 'Net Revenue', definition: 'Gross line total minus order discount.' },
-            { metric: 'AOV', definition: 'Net revenue divided by non-cancelled order count.' },
             {
-              metric: 'Returns',
-              definition: 'Derived from structured returnEvents and returned order statuses.',
+              metric: t('orders.information.export.definitions.netRevenue'),
+              definition: t(
+                'orders.information.export.definitions.netRevenueDef',
+              ),
+            },
+            {
+              metric: t('orders.information.export.definitions.aov'),
+              definition: t('orders.information.export.definitions.aovDef'),
+            },
+            {
+              metric: t('orders.information.export.definitions.returns'),
+              definition: t('orders.information.export.definitions.returnsDef'),
             },
           ],
           warnings,
           sheets: [
             {
-              name: 'Sales Detail',
+              name: t('orders.information.export.sheetSalesDetail'),
               rows: det.items.map((r) => ({
-                OrderNumber: r.recordNumber || r.id,
-                Date: r.saleDate.slice(0, 10),
-                Status: r.status,
-                Client: r.clientName,
-                Units: r.units,
-                GrossTotal: r.grossTotal,
-                Discount: r.discountTotal,
-                NetTotal: r.netTotal,
-                PaidAmount: r.paidAmount,
-                ReturnEvents: r.returnCount,
-                RapidSale: r.isRapidSale ? 'Yes' : 'No',
+                [exportCol('orderNumber')]: r.recordNumber || r.id,
+                [exportCol('date')]: r.saleDate.slice(0, 10),
+                [exportCol('status')]: translateSaleStatus(t, r.status),
+                [exportCol('client')]: r.clientName,
+                [exportCol('units')]: r.units,
+                [exportCol('grossTotal')]: r.grossTotal,
+                [exportCol('discount')]: r.discountTotal,
+                [exportCol('netTotal')]: r.netTotal,
+                [exportCol('paidAmount')]: r.paidAmount,
+                [exportCol('returnEvents')]: r.returnCount,
+                [exportCol('rapidSale')]: yesNo(r.isRapidSale),
               })),
             },
             {
-              name: 'Top Items',
+              name: t('orders.information.export.sheetTopItems'),
               rows: rep.topItems.map((i) => ({
-                Name: i.name,
-                Kind: i.kind,
-                Units: i.units,
-                Revenue: i.revenue,
-                KnownCost: i.knownCost ?? '',
-                UnknownCostLines: i.unknownCostCount ?? '',
+                [exportCol('name')]: i.name,
+                [exportCol('kind')]: translateLineKind(t, i.kind),
+                [exportCol('units')]: i.units,
+                [exportCol('revenue')]: i.revenue,
+                [exportCol('knownCost')]: i.knownCost ?? '',
+                [exportCol('unknownCostLines')]: i.unknownCostCount ?? '',
               })),
             },
             {
-              name: 'Daily Trend',
+              name: t('orders.information.export.sheetDailyTrend'),
               rows: rep.trend.map((pt) => ({
-                Date: pt.dateKey,
-                NetRevenue: pt.revenue,
-                OrdersCount: pt.ordersCount,
-                Units: pt.units,
-                ReturnsAmount: pt.returnsAmount,
+                [exportCol('date')]: pt.dateKey,
+                [exportCol('netRevenue')]: pt.revenue,
+                [exportCol('ordersCount')]: pt.ordersCount,
+                [exportCol('units')]: pt.units,
+                [exportCol('returnsAmount')]: pt.returnsAmount,
               })),
             },
           ],
@@ -409,78 +511,117 @@ export const OrdersInformationWorkspace: React.FC<
           sortBy: procSortBy,
           sortDir: procSortDir,
         });
-        const warnings = [...rep.coverage.warnings];
+        const warnings = translateCoverageWarnings(
+          t,
+          rep.coverage.warnings,
+          rep.coverage.warningItems,
+        );
         if (det.total > det.items.length)
-          warnings.push(`Showing ${det.items.length} of ${det.total} records.`);
+          warnings.push(exportShowingWarning(det.items.length, det.total));
         exportReportWorkbookToDownload({
           filename: `orders-procurement-information-${rep.generatedAt.slice(0, 10)}.xlsx`,
-          title: 'Orders Information — Procurement',
+          title: t('orders.information.export.procurementTitle'),
           generatedAt: rep.generatedAt,
           timeZone: rep.timeZone,
           activeFilters: [
-            { filter: 'Period', value: `${rep.period.dateFrom ?? 'All'} to ${rep.period.dateTo ?? 'All'}` },
-            { filter: 'Status', value: procStatus || 'All' },
-            { filter: 'Supplier', value: procSupplierId || 'All' },
-            { filter: 'Overdue Only', value: procOverdueOnly ? 'Yes' : 'No' },
-            { filter: 'Search', value: procSearch.trim() || 'None' },
+            {
+              filter: t('orders.information.filters.period'),
+              value: periodFilterValue(rep.period.dateFrom, rep.period.dateTo),
+            },
+            {
+              filter: t('orders.information.filters.status'),
+              value: procStatus
+                ? translateSupplierOrderStatus(t, procStatus)
+                : allLabel,
+            },
+            {
+              filter: t('orders.information.filters.supplier'),
+              value: procSupplierId || allLabel,
+            },
+            {
+              filter: t('orders.information.filters.overdueOnlyExport'),
+              value: yesNo(procOverdueOnly),
+            },
+            {
+              filter: t('orders.information.filters.search'),
+              value: procSearch.trim() || noneLabel,
+            },
           ],
           definitions: [
             {
-              metric: 'Receipt Performance',
-              definition:
-                'On-time rate and lead days computed strictly from structured item receivedAt and order stockedAt timestamps.',
+              metric: t(
+                'orders.information.export.definitions.receiptPerformance',
+              ),
+              definition: t(
+                'orders.information.export.definitions.receiptPerformanceDef',
+              ),
             },
             {
-              metric: 'Price Variation %',
-              definition: '((maxPrice - minPrice) / minPrice) x 100 across PO lines.',
+              metric: t('orders.information.export.definitions.priceVariation'),
+              definition: t(
+                'orders.information.export.definitions.priceVariationDef',
+              ),
             },
           ],
           warnings,
           sheets: [
             {
-              name: 'Procurement Orders',
+              name: t('orders.information.export.sheetProcurementOrders'),
               rows: det.items.map((r) => ({
-                OrderNumber: r.displayNumber,
-                Created: r.createdAt.slice(0, 10),
-                DeliveryDate: r.deliveryDate ? r.deliveryDate.slice(0, 10) : '',
-                Supplier: r.supplierName,
-                Status: r.status,
-                PaymentStatus: r.paymentStatus,
-                ReceiptStatus: r.receiptStatus,
-                Overdue: r.isOverdue ? 'Yes' : 'No',
-                OrderedUnits: r.orderedUnits,
-                ReceivedUnits: r.receivedUnits,
-                TotalSpend: r.total,
-                Paid: r.paid,
-                Outstanding: r.outstanding,
-                StockedAt: r.stockedAt ? r.stockedAt.slice(0, 10) : 'Untracked/Pending',
+                [exportCol('orderNumber')]: r.displayNumber,
+                [exportCol('created')]: r.createdAt.slice(0, 10),
+                [exportCol('deliveryDate')]: r.deliveryDate
+                  ? r.deliveryDate.slice(0, 10)
+                  : '',
+                [exportCol('supplier')]: r.supplierName,
+                [exportCol('status')]: translateSupplierOrderStatus(
+                  t,
+                  r.status,
+                ),
+                [exportCol('paymentStatus')]: translatePaymentStatus(
+                  t,
+                  r.paymentStatus,
+                ),
+                [exportCol('receiptStatus')]: translateReceiptStatus(
+                  t,
+                  r.receiptStatus,
+                ),
+                [exportCol('overdue')]: yesNo(r.isOverdue),
+                [exportCol('orderedUnits')]: r.orderedUnits,
+                [exportCol('receivedUnits')]: r.receivedUnits,
+                [exportCol('totalSpend')]: r.total,
+                [exportCol('paid')]: r.paid,
+                [exportCol('outstanding')]: r.outstanding,
+                [exportCol('stockedAt')]: r.stockedAt
+                  ? r.stockedAt.slice(0, 10)
+                  : t('orders.information.export.untrackedPending'),
               })),
             },
             {
-              name: 'Supplier Comparison',
+              name: t('orders.information.export.sheetSupplierComparison'),
               rows: rep.bySupplier.map((s) => ({
-                Supplier: s.supplierName,
-                Orders: s.ordersCount,
-                OrderedUnits: s.orderedUnits,
-                ReceivedUnits: s.receivedUnits,
-                TotalSpend: s.totalSpend,
-                Paid: s.paidAmount,
-                Outstanding: s.outstandingAmount,
-                OverdueCount: s.overdueCount,
-                AvgLeadDays: s.avgReceiptLeadDays ?? 'N/A',
+                [exportCol('supplier')]: s.supplierName,
+                [exportCol('orders')]: s.ordersCount,
+                [exportCol('orderedUnits')]: s.orderedUnits,
+                [exportCol('receivedUnits')]: s.receivedUnits,
+                [exportCol('totalSpend')]: s.totalSpend,
+                [exportCol('paid')]: s.paidAmount,
+                [exportCol('outstanding')]: s.outstandingAmount,
+                [exportCol('overdueCount')]: s.overdueCount,
+                [exportCol('avgLeadDays')]: s.avgReceiptLeadDays ?? naLabel,
               })),
             },
             {
-              name: 'Product Prices',
-              rows: rep.byProduct.map((p) => ({
-                Product: p.productName,
-                Orders: p.ordersCount,
-                OrderedUnits: p.orderedUnits,
-                MinPrice: p.minPrice,
-                MaxPrice: p.maxPrice,
-                AvgPrice: p.avgPrice,
-                LatestPrice: p.latestPrice,
-                VariationPct: p.priceVariationPct,
+              name: t('orders.information.export.sheetProductPrices'),
+              rows: rep.byProduct.map((prod) => ({
+                [exportCol('product')]: prod.productName,
+                [exportCol('orders')]: prod.ordersCount,
+                [exportCol('orderedUnits')]: prod.orderedUnits,
+                [exportCol('minPrice')]: prod.minPrice,
+                [exportCol('maxPrice')]: prod.maxPrice,
+                [exportCol('avgPrice')]: prod.avgPrice,
+                [exportCol('latestPrice')]: prod.latestPrice,
+                [exportCol('variationPct')]: prod.priceVariationPct,
               })),
             },
           ],
@@ -500,7 +641,7 @@ export const OrdersInformationWorkspace: React.FC<
   const repairDetailColumns: SortableColumn<OrdersRepairDetailRow>[] = [
     {
       key: 'recordNumber',
-      label: 'Order',
+      label: t('orders.information.columns.order'),
       render: (r) => (
         <button
           type="button"
@@ -513,11 +654,13 @@ export const OrdersInformationWorkspace: React.FC<
     },
     {
       key: 'saleDate',
-      label: 'Intake / Device',
+      label: t('orders.information.columns.intakeDevice'),
       sortable: true,
       render: (r) => (
         <div>
-          <strong>{r.deviceName || 'Device'}</strong>
+          <strong>
+            {r.deviceName || t('orders.information.deviceFallback')}
+          </strong>
           <div className="muted-copy">
             {formatDate(r.saleDate)} · {r.clientName}
           </div>
@@ -526,18 +669,22 @@ export const OrdersInformationWorkspace: React.FC<
     },
     {
       key: 'status',
-      label: 'Status / Technician',
+      label: t('orders.information.columns.statusTechnician'),
       sortable: true,
       render: (r) => (
         <div>
-          <span className="report-badge">{r.status}</span>
-          <div className="muted-copy">{r.technicianName}</div>
+          <span className="report-badge">
+            {translateRepairStatus(t, r.status)}
+          </span>
+          <div className="muted-copy">
+            {translateTechnicianName(t, r.technicianName, r.technicianId)}
+          </div>
         </div>
       ),
     },
     {
       key: 'ageDays',
-      label: 'Age / Turnaround',
+      label: t('orders.information.columns.ageTurnaround'),
       align: 'right',
       sortable: true,
       render: (r) =>
@@ -549,17 +696,21 @@ export const OrdersInformationWorkspace: React.FC<
                 : 'is-info'
             }`}
           >
-            Open {r.ageDays ?? 0}d
+            {t('orders.information.cells.openDays', { days: r.ageDays ?? 0 })}
           </span>
         ) : r.turnaroundHours !== null ? (
-          <span>{r.turnaroundHours}h</span>
+          <span>
+            {t('orders.information.cells.hours', { hours: r.turnaroundHours })}
+          </span>
         ) : (
-          <span className="muted-copy">Legacy (untracked)</span>
+          <span className="muted-copy">
+            {t('orders.information.cells.legacyUntracked')}
+          </span>
         ),
     },
     {
       key: 'total',
-      label: 'Total',
+      label: t('orders.information.columns.total'),
       align: 'right',
       sortable: true,
       render: (r) => formatCurrency(r.total),
@@ -569,7 +720,7 @@ export const OrdersInformationWorkspace: React.FC<
   const saleDetailColumns: SortableColumn<OrdersSaleDetailRow>[] = [
     {
       key: 'recordNumber',
-      label: 'Order',
+      label: t('orders.information.columns.order'),
       render: (r) => (
         <button
           type="button"
@@ -582,7 +733,7 @@ export const OrdersInformationWorkspace: React.FC<
     },
     {
       key: 'saleDate',
-      label: 'Date / Client',
+      label: t('orders.information.columns.dateClient'),
       sortable: true,
       render: (r) => (
         <div>
@@ -593,14 +744,16 @@ export const OrdersInformationWorkspace: React.FC<
     },
     {
       key: 'status',
-      label: 'Status',
+      label: t('orders.information.columns.status'),
       sortable: true,
       render: (r) => (
         <div>
-          <span className="report-badge">{r.status}</span>
+          <span className="report-badge">{translateSaleStatus(t, r.status)}</span>
           {r.returnCount > 0 ? (
             <span className="report-badge is-warning" style={{ marginLeft: 4 }}>
-              Returns: {r.returnCount}
+              {t('orders.information.cells.returnsCount', {
+                count: r.returnCount,
+              })}
             </span>
           ) : null}
         </div>
@@ -608,28 +761,32 @@ export const OrdersInformationWorkspace: React.FC<
     },
     {
       key: 'units',
-      label: 'Units',
+      label: t('orders.information.columns.units'),
       align: 'right',
       sortable: true,
       render: (r) => r.units,
     },
     {
       key: 'netTotal',
-      label: 'Net / Discount',
+      label: t('orders.information.columns.netDiscount'),
       align: 'right',
       sortable: true,
       render: (r) => (
         <div>
           <strong>{formatCurrency(r.netTotal)}</strong>
           {r.discountTotal > 0 ? (
-            <div className="muted-copy">Disc -{formatCurrency(r.discountTotal)}</div>
+            <div className="muted-copy">
+              {t('orders.information.cells.discountAmount', {
+                amount: formatCurrency(r.discountTotal),
+              })}
+            </div>
           ) : null}
         </div>
       ),
     },
     {
       key: 'paidAmount',
-      label: 'Paid',
+      label: t('orders.information.columns.paid'),
       align: 'right',
       render: (r) => formatCurrency(r.paidAmount),
     },
@@ -640,19 +797,19 @@ export const OrdersInformationWorkspace: React.FC<
   >[] = [
     {
       key: 'name',
-      label: 'Item / Kind',
+      label: t('orders.information.columns.itemKind'),
       sortable: true,
       sortValue: (i) => i.name,
       render: (i) => (
         <div>
           <strong>{i.name}</strong>
-          <div className="muted-copy">{i.kind}</div>
+          <div className="muted-copy">{translateLineKind(t, i.kind)}</div>
         </div>
       ),
     },
     {
       key: 'units',
-      label: 'Units',
+      label: t('orders.information.columns.units'),
       align: 'right',
       sortable: true,
       sortValue: (i) => i.units,
@@ -660,7 +817,7 @@ export const OrdersInformationWorkspace: React.FC<
     },
     {
       key: 'revenue',
-      label: 'Revenue',
+      label: t('orders.information.columns.revenue'),
       align: 'right',
       sortable: true,
       sortValue: (i) => i.revenue,
@@ -673,7 +830,7 @@ export const OrdersInformationWorkspace: React.FC<
   >[] = [
     {
       key: 'supplierName',
-      label: 'Supplier',
+      label: t('orders.information.columns.supplier'),
       sortable: true,
       sortValue: (s) => s.supplierName,
       render: (s) => (
@@ -693,7 +850,7 @@ export const OrdersInformationWorkspace: React.FC<
     },
     {
       key: 'ordersCount',
-      label: 'POs / Units',
+      label: t('orders.information.columns.posUnits'),
       align: 'right',
       sortable: true,
       sortValue: (s) => s.ordersCount,
@@ -701,7 +858,7 @@ export const OrdersInformationWorkspace: React.FC<
     },
     {
       key: 'totalSpend',
-      label: 'Total Spend',
+      label: t('orders.information.columns.totalSpend'),
       align: 'right',
       sortable: true,
       sortValue: (s) => s.totalSpend,
@@ -709,7 +866,7 @@ export const OrdersInformationWorkspace: React.FC<
     },
     {
       key: 'outstandingAmount',
-      label: 'Outstanding',
+      label: t('orders.information.columns.outstanding'),
       align: 'right',
       sortable: true,
       sortValue: (s) => s.outstandingAmount,
@@ -717,12 +874,14 @@ export const OrdersInformationWorkspace: React.FC<
     },
     {
       key: 'avgReceiptLeadDays',
-      label: 'Avg Lead Days',
+      label: t('orders.information.columns.avgLeadDays'),
       align: 'right',
       sortable: true,
       sortValue: (s) => s.avgReceiptLeadDays ?? 9999,
       render: (s) =>
-        s.avgReceiptLeadDays !== null ? `${s.avgReceiptLeadDays}d` : 'N/A',
+        s.avgReceiptLeadDays !== null
+          ? t('orders.information.cells.days', { days: s.avgReceiptLeadDays })
+          : naLabel,
     },
   ];
 
@@ -731,14 +890,14 @@ export const OrdersInformationWorkspace: React.FC<
   >[] = [
     {
       key: 'productName',
-      label: 'Product',
+      label: t('orders.information.columns.product'),
       sortable: true,
       sortValue: (p) => p.productName,
       render: (p) => p.productName,
     },
     {
       key: 'orderedUnits',
-      label: 'Ordered / Recv',
+      label: t('orders.information.columns.orderedRecv'),
       align: 'right',
       sortable: true,
       sortValue: (p) => p.orderedUnits,
@@ -746,7 +905,7 @@ export const OrdersInformationWorkspace: React.FC<
     },
     {
       key: 'minPrice',
-      label: 'Min / Max Price',
+      label: t('orders.information.columns.minMaxPrice'),
       align: 'right',
       sortable: true,
       sortValue: (p) => p.minPrice,
@@ -755,7 +914,7 @@ export const OrdersInformationWorkspace: React.FC<
     },
     {
       key: 'avgPrice',
-      label: 'Avg / Latest',
+      label: t('orders.information.columns.avgLatest'),
       align: 'right',
       sortable: true,
       sortValue: (p) => p.avgPrice,
@@ -764,7 +923,7 @@ export const OrdersInformationWorkspace: React.FC<
     },
     {
       key: 'priceVariationPct',
-      label: 'Variation %',
+      label: t('orders.information.columns.variationPct'),
       align: 'right',
       sortable: true,
       sortValue: (p) => p.priceVariationPct,
@@ -783,7 +942,7 @@ export const OrdersInformationWorkspace: React.FC<
   const procDetailColumns: SortableColumn<OrdersProcurementDetailRow>[] = [
     {
       key: 'displayNumber',
-      label: 'PO #',
+      label: t('orders.information.columns.poNumber'),
       render: (r) => (
         <button
           type="button"
@@ -796,7 +955,7 @@ export const OrdersInformationWorkspace: React.FC<
     },
     {
       key: 'createdAt',
-      label: 'Supplier / Created',
+      label: t('orders.information.columns.supplierCreated'),
       sortable: true,
       render: (r) => (
         <div>
@@ -807,40 +966,87 @@ export const OrdersInformationWorkspace: React.FC<
     },
     {
       key: 'status',
-      label: 'Status / Delivery',
+      label: t('orders.information.columns.statusDelivery'),
       render: (r) => (
         <div>
           <span
             className={`report-badge ${r.isOverdue ? 'is-danger' : ''}`.trim()}
           >
-            {r.status} {r.isOverdue ? '(OVERDUE)' : ''}
+            {translateSupplierOrderStatus(t, r.status)}
+            {r.isOverdue
+              ? ` ${t('orders.information.cells.overdueBadge')}`
+              : ''}
           </span>
           <div className="muted-copy">
-            ETA {r.deliveryDate ? formatDate(r.deliveryDate) : 'N/A'}
-            {r.stockedAt ? ` · Stocked ${formatDateTime(r.stockedAt)}` : ''}
+            {r.deliveryDate
+              ? t('orders.information.cells.eta', {
+                  date: formatDate(r.deliveryDate),
+                })
+              : t('orders.information.cells.etaNA')}
+            {r.stockedAt
+              ? t('orders.information.cells.stockedAt', {
+                  datetime: formatDateTime(r.stockedAt),
+                })
+              : ''}
           </div>
         </div>
       ),
     },
     {
       key: 'orderedUnits',
-      label: 'Recv / Ord Units',
+      label: t('orders.information.columns.recvOrdUnits'),
       align: 'right',
       render: (r) => `${r.receivedUnits} / ${r.orderedUnits}`,
     },
     {
       key: 'total',
-      label: 'Spend / Outst.',
+      label: t('orders.information.columns.spendOutst'),
       align: 'right',
       sortable: true,
       render: (r) => (
         <div>
           <strong>{formatCurrency(r.total)}</strong>
-          <div className="muted-copy">Due: {formatCurrency(r.outstanding)}</div>
+          <div className="muted-copy">
+            {t('orders.information.cells.dueAmount', {
+              amount: formatCurrency(r.outstanding),
+            })}
+          </div>
         </div>
       ),
     },
   ];
+
+  const repairsCoverageWarnings = (() => {
+    if (!repairsReportQuery.data) return [];
+    const items = translateCoverageWarnings(
+      t,
+      repairsReportQuery.data.coverage.warnings,
+      repairsReportQuery.data.coverage.warningItems,
+    );
+    const turnaround = translateTurnaroundWarning(
+      t,
+      repairsReportQuery.data.turnaroundCoverage.warning,
+      repairsReportQuery.data.turnaroundCoverage.warningCode,
+    );
+    if (turnaround) items.push(turnaround);
+    return items;
+  })();
+
+  const salesCoverageWarnings = salesReportQuery.data
+    ? translateCoverageWarnings(
+        t,
+        salesReportQuery.data.coverage.warnings,
+        salesReportQuery.data.coverage.warningItems,
+      )
+    : [];
+
+  const procCoverageWarnings = procReportQuery.data
+    ? translateCoverageWarnings(
+        t,
+        procReportQuery.data.coverage.warnings,
+        procReportQuery.data.coverage.warningItems,
+      )
+    : [];
 
   return (
     <section className="orders-workspace">
@@ -856,27 +1062,30 @@ export const OrdersInformationWorkspace: React.FC<
         <div className="report-upgrade-header">
           <div>
             <h2 className="report-upgrade-header-title">
-              Orders Information & Analytics
+              {t('orders.information.title')}
             </h2>
             <p className="report-upgrade-header-subtitle">
-              Actionable analytics across Repairs, Sales, and Procurement with
-              preceding equal-period comparisons and source drill-downs.
+              {t('orders.information.subtitle')}
             </p>
           </div>
           <div className="report-upgrade-actions">
-            <div className="report-subview-tabs" role="tablist" aria-label="Orders analytics views">
+            <div
+              className="report-subview-tabs"
+              role="tablist"
+              aria-label={t('orders.information.viewsAria')}
+            >
               {availableSubviews.map((item) => (
                 <button
-                  key={item.key}
+                  key={item}
                   type="button"
                   role="tab"
-                  aria-selected={subview === item.key}
+                  aria-selected={subview === item}
                   className={`report-toggle-chip ${
-                    subview === item.key ? 'is-active' : ''
+                    subview === item ? 'is-active' : ''
                   }`.trim()}
-                  onClick={() => setSubview(item.key)}
+                  onClick={() => setSubview(item)}
                 >
-                  {item.label}
+                  {t(`orders.information.subviews.${item}`)}
                 </button>
               ))}
             </div>
@@ -885,7 +1094,7 @@ export const OrdersInformationWorkspace: React.FC<
               className="secondary-button"
               onClick={resetActiveFilters}
             >
-              Reset
+              {t('orders.information.reset')}
             </button>
             <button
               type="button"
@@ -893,15 +1102,23 @@ export const OrdersInformationWorkspace: React.FC<
               disabled={isExporting}
               onClick={() => void handleExportActive()}
             >
-              {isExporting ? 'Exporting...' : 'Export Excel (.xlsx)'}
+              {isExporting
+                ? t('common.exporting')
+                : t('orders.information.exportExcel')}
             </button>
           </div>
         </div>
 
         {/* Period & subview-specific filter bar */}
-        <div className="report-filter-bar" role="search" aria-label="Orders analytics filters">
+        <div
+          className="report-filter-bar"
+          role="search"
+          aria-label={t('orders.information.filtersAria')}
+        >
           <div className="report-filter-field">
-            <label htmlFor="oi-period">Period</label>
+            <label htmlFor="oi-period">
+              {t('orders.information.filters.period')}
+            </label>
             <select
               id="oi-period"
               value={period}
@@ -913,8 +1130,8 @@ export const OrdersInformationWorkspace: React.FC<
               }}
             >
               {PERIOD_OPTIONS.map((opt) => (
-                <option key={opt.key} value={opt.key}>
-                  {opt.label}
+                <option key={opt} value={opt}>
+                  {t(`orders.information.periods.${opt}`)}
                 </option>
               ))}
             </select>
@@ -923,7 +1140,9 @@ export const OrdersInformationWorkspace: React.FC<
           {period === 'custom' ? (
             <>
               <div className="report-filter-field">
-                <label htmlFor="oi-from">From (Europe/Kiev)</label>
+                <label htmlFor="oi-from">
+                  {t('orders.information.filters.dateFrom')}
+                </label>
                 <input
                   id="oi-from"
                   type="date"
@@ -932,7 +1151,9 @@ export const OrdersInformationWorkspace: React.FC<
                 />
               </div>
               <div className="report-filter-field">
-                <label htmlFor="oi-to">To (Europe/Kiev)</label>
+                <label htmlFor="oi-to">
+                  {t('orders.information.filters.dateTo')}
+                </label>
                 <input
                   id="oi-to"
                   type="date"
@@ -946,7 +1167,9 @@ export const OrdersInformationWorkspace: React.FC<
           {subview === 'repairs' && canViewRepairs ? (
             <>
               <div className="report-filter-field">
-                <label htmlFor="oi-rep-tech">Technician</label>
+                <label htmlFor="oi-rep-tech">
+                  {t('orders.information.filters.technician')}
+                </label>
                 <select
                   id="oi-rep-tech"
                   value={repairMasterId}
@@ -956,7 +1179,9 @@ export const OrdersInformationWorkspace: React.FC<
                     setRepairsPage(1);
                   }}
                 >
-                  <option value="">All technicians</option>
+                  <option value="">
+                    {t('orders.information.filters.allTechnicians')}
+                  </option>
                   {technicians.map((emp) => (
                     <option key={emp.id} value={emp.id}>
                       {emp.name}
@@ -965,12 +1190,14 @@ export const OrdersInformationWorkspace: React.FC<
                 </select>
               </div>
               <div className="report-filter-field">
-                <label htmlFor="oi-rep-status">Status</label>
+                <label htmlFor="oi-rep-status">
+                  {t('orders.information.filters.status')}
+                </label>
                 <input
                   id="oi-rep-status"
                   type="text"
                   value={repairStatus}
-                  placeholder="All statuses"
+                  placeholder={t('orders.information.filters.allStatuses')}
                   onChange={(e) => {
                     setRepairStatus(e.target.value);
                     setRepairsPage(1);
@@ -978,12 +1205,16 @@ export const OrdersInformationWorkspace: React.FC<
                 />
               </div>
               <div className="report-filter-field">
-                <label htmlFor="oi-rep-search">Search</label>
+                <label htmlFor="oi-rep-search">
+                  {t('orders.information.filters.search')}
+                </label>
                 <input
                   id="oi-rep-search"
                   type="search"
                   value={repairSearch}
-                  placeholder="Order #, client, device..."
+                  placeholder={t(
+                    'orders.information.filters.repairSearchPlaceholder',
+                  )}
                   onChange={(e) => {
                     setRepairSearch(e.target.value);
                     setRepairsPage(1);
@@ -1000,7 +1231,7 @@ export const OrdersInformationWorkspace: React.FC<
                   setRepairsPage(1);
                 }}
               >
-                Unassigned only
+                {t('orders.information.filters.unassignedOnly')}
               </button>
             </>
           ) : null}
@@ -1008,22 +1239,34 @@ export const OrdersInformationWorkspace: React.FC<
           {subview === 'sales' && canViewSales ? (
             <>
               <div className="report-filter-field">
-                <label htmlFor="oi-sales-kind">Mix Filter</label>
+                <label htmlFor="oi-sales-kind">
+                  {t('orders.information.filters.mixFilter')}
+                </label>
                 <select
                   id="oi-sales-kind"
                   value={salesLineKind}
                   onChange={(e) => {
-                    setSalesLineKind(e.target.value as 'all' | 'product' | 'service');
+                    setSalesLineKind(
+                      e.target.value as 'all' | 'product' | 'service',
+                    );
                     setSalesPage(1);
                   }}
                 >
-                  <option value="all">Products + Services</option>
-                  <option value="product">Products only</option>
-                  <option value="service">Services only</option>
+                  <option value="all">
+                    {t('orders.information.filters.productsAndServices')}
+                  </option>
+                  <option value="product">
+                    {t('orders.information.filters.productsOnly')}
+                  </option>
+                  <option value="service">
+                    {t('orders.information.filters.servicesOnly')}
+                  </option>
                 </select>
               </div>
               <div className="report-filter-field">
-                <label htmlFor="oi-sales-pm">Payment Method</label>
+                <label htmlFor="oi-sales-pm">
+                  {t('orders.information.filters.paymentMethod')}
+                </label>
                 <select
                   id="oi-sales-pm"
                   value={salesPaymentMethod}
@@ -1032,18 +1275,28 @@ export const OrdersInformationWorkspace: React.FC<
                     setSalesPage(1);
                   }}
                 >
-                  <option value="">All methods</option>
-                  <option value="cash">Cash</option>
-                  <option value="non-cash">Non-cash</option>
+                  <option value="">
+                    {t('orders.information.filters.allMethods')}
+                  </option>
+                  <option value="cash">
+                    {t('orders.information.filters.cash')}
+                  </option>
+                  <option value="non-cash">
+                    {t('orders.information.filters.nonCash')}
+                  </option>
                 </select>
               </div>
               <div className="report-filter-field">
-                <label htmlFor="oi-sales-search">Search</label>
+                <label htmlFor="oi-sales-search">
+                  {t('orders.information.filters.search')}
+                </label>
                 <input
                   id="oi-sales-search"
                   type="search"
                   value={salesSearch}
-                  placeholder="Order #, client, item..."
+                  placeholder={t(
+                    'orders.information.filters.salesSearchPlaceholder',
+                  )}
                   onChange={(e) => {
                     setSalesSearch(e.target.value);
                     setSalesPage(1);
@@ -1056,7 +1309,9 @@ export const OrdersInformationWorkspace: React.FC<
           {subview === 'procurement' && canViewProcurement ? (
             <>
               <div className="report-filter-field">
-                <label htmlFor="oi-proc-sup">Supplier</label>
+                <label htmlFor="oi-proc-sup">
+                  {t('orders.information.filters.supplier')}
+                </label>
                 <select
                   id="oi-proc-sup"
                   value={procSupplierId}
@@ -1065,7 +1320,9 @@ export const OrdersInformationWorkspace: React.FC<
                     setProcPage(1);
                   }}
                 >
-                  <option value="">All suppliers</option>
+                  <option value="">
+                    {t('orders.information.filters.allSuppliers')}
+                  </option>
                   {(procReportQuery.data?.supplierOptions ?? []).map((s) => (
                     <option key={s.id} value={s.id}>
                       {s.name}
@@ -1074,12 +1331,16 @@ export const OrdersInformationWorkspace: React.FC<
                 </select>
               </div>
               <div className="report-filter-field">
-                <label htmlFor="oi-proc-search">Search</label>
+                <label htmlFor="oi-proc-search">
+                  {t('orders.information.filters.search')}
+                </label>
                 <input
                   id="oi-proc-search"
                   type="search"
                   value={procSearch}
-                  placeholder="PO #, supplier, product..."
+                  placeholder={t(
+                    'orders.information.filters.procSearchPlaceholder',
+                  )}
                   onChange={(e) => {
                     setProcSearch(e.target.value);
                     setProcPage(1);
@@ -1095,7 +1356,7 @@ export const OrdersInformationWorkspace: React.FC<
                   setProcPage(1);
                 }}
               >
-                Overdue only
+                {t('orders.information.filters.overdueOnly')}
               </button>
             </>
           ) : null}
@@ -1103,8 +1364,7 @@ export const OrdersInformationWorkspace: React.FC<
 
         {period === 'whole' ? (
           <div className="report-coverage-banner is-info" role="status">
-            Comparison indicators are disabled for the All-time period. Select a
-            bounded window (e.g. Last 30 days) for preceding equal-length comparisons.
+            {t('orders.information.comparisonDisabledNotice')}
           </div>
         ) : null}
 
@@ -1114,25 +1374,22 @@ export const OrdersInformationWorkspace: React.FC<
             <div className="report-state-box is-error" role="alert">
               {repairsReportQuery.error instanceof Error
                 ? repairsReportQuery.error.message
-                : 'Failed to load repairs report.'}
+                : t('orders.information.errors.loadRepairsReport')}
             </div>
           ) : repairsReportQuery.data ? (
             <>
               <AnalyticsCoverageBanner
-                title="Structured History & Coverage Warnings"
-                warnings={[
-                  ...repairsReportQuery.data.coverage.warnings,
-                  ...(repairsReportQuery.data.turnaroundCoverage.warning
-                    ? [repairsReportQuery.data.turnaroundCoverage.warning]
-                    : []),
-                ]}
+                title={t('orders.information.coverage.structuredHistoryTitle')}
+                warnings={repairsCoverageWarnings}
               />
 
               <div className="report-kpi-grid">
                 <AnalyticsKpiCard
-                  label="Current Open Workload"
+                  label={t('orders.information.kpi.openWorkload')}
                   value={repairsReportQuery.data.summary.openCount}
-                  hint={`Unassigned: ${repairsReportQuery.data.summary.unassignedOpenCount}`}
+                  hint={t('orders.information.kpi.unassignedCount', {
+                    count: repairsReportQuery.data.summary.unassignedOpenCount,
+                  })}
                   tone={
                     repairsReportQuery.data.summary.unassignedOpenCount > 0
                       ? 'warning'
@@ -1140,36 +1397,56 @@ export const OrdersInformationWorkspace: React.FC<
                   }
                 />
                 <AnalyticsKpiCard
-                  label="Intake in Period"
+                  label={t('orders.information.kpi.intakeInPeriod')}
                   value={repairsReportQuery.data.summary.intakeCount}
                   deltaPct={repairsReportQuery.data.comparison?.intakeDeltaPct}
                   hint={
                     repairsReportQuery.data.comparison
-                      ? `Prev period: ${repairsReportQuery.data.comparison.intakeCountPrev}`
+                      ? t('orders.information.kpi.prevPeriod', {
+                          count:
+                            repairsReportQuery.data.comparison.intakeCountPrev,
+                        })
                       : undefined
                   }
                 />
                 <AnalyticsKpiCard
-                  label="Completions in Period"
+                  label={t('orders.information.kpi.completionsInPeriod')}
                   value={repairsReportQuery.data.summary.totalCompletedCount}
-                  deltaPct={repairsReportQuery.data.comparison?.completedDeltaPct}
-                  hint={`Structured timestamps: ${repairsReportQuery.data.summary.trackedCompletedCount} · Legacy: ${repairsReportQuery.data.summary.untrackedCompletedCount}`}
+                  deltaPct={
+                    repairsReportQuery.data.comparison?.completedDeltaPct
+                  }
+                  hint={t('orders.information.kpi.structuredAndLegacy', {
+                    structured:
+                      repairsReportQuery.data.summary.trackedCompletedCount,
+                    legacy:
+                      repairsReportQuery.data.summary.untrackedCompletedCount,
+                  })}
                 />
                 <AnalyticsKpiCard
-                  label="Avg / Median Turnaround"
+                  label={t('orders.information.kpi.avgMedianTurnaround')}
                   value={
                     repairsReportQuery.data.summary.avgTurnaroundHours !== null
-                      ? `${repairsReportQuery.data.summary.avgTurnaroundHours}h / ${repairsReportQuery.data.summary.medianTurnaroundHours ?? '-'}h`
-                      : 'Unavailable'
+                      ? t('orders.information.kpi.hoursPair', {
+                          avg: repairsReportQuery.data.summary
+                            .avgTurnaroundHours,
+                          median:
+                            repairsReportQuery.data.summary
+                              .medianTurnaroundHours ?? '-',
+                        })
+                      : t('orders.information.unavailable')
                   }
-                  hint={`Structured turnaround coverage: ${repairsReportQuery.data.turnaroundCoverage.coveragePct}%`}
+                  hint={t('orders.information.kpi.turnaroundCoverage', {
+                    pct: repairsReportQuery.data.turnaroundCoverage.coveragePct,
+                  })}
                 />
               </div>
 
               <div className="report-two-col-grid">
                 <AnalyticsSectionCard
-                  title="Open Aging Buckets"
-                  subtitle="Click a bucket to filter repairs below."
+                  title={t('orders.information.sections.openAgingBuckets')}
+                  subtitle={t(
+                    'orders.information.sections.openAgingBucketsSubtitle',
+                  )}
                 >
                   <AnalyticsInteractiveBars
                     selectedId={repairAgeBucket || null}
@@ -1177,24 +1454,30 @@ export const OrdersInformationWorkspace: React.FC<
                       setRepairAgeBucket((prev) => (prev === b ? '' : b));
                       setRepairsPage(1);
                     }}
-                    items={repairsReportQuery.data.openAgingBuckets.map((b) => ({
-                      id: b.bucket,
-                      label: `${b.bucket} days open`,
-                      value: b.count,
-                      valueText: `${b.count}`,
-                      tone:
-                        b.bucket === '30+'
-                          ? 'danger'
-                          : b.bucket === '15-30'
-                            ? 'warning'
-                            : 'primary',
-                    }))}
+                    items={repairsReportQuery.data.openAgingBuckets.map(
+                      (b) => ({
+                        id: b.bucket,
+                        label: t('orders.information.aging.daysOpen', {
+                          bucket: b.bucket,
+                        }),
+                        value: b.count,
+                        valueText: `${b.count}`,
+                        tone:
+                          b.bucket === '30+'
+                            ? 'danger'
+                            : b.bucket === '15-30'
+                              ? 'warning'
+                              : 'primary',
+                      }),
+                    )}
                   />
                 </AnalyticsSectionCard>
 
                 <AnalyticsSectionCard
-                  title="Workload by Status & Technician"
-                  subtitle="Click a status bar to filter details."
+                  title={t('orders.information.sections.workloadByStatus')}
+                  subtitle={t(
+                    'orders.information.sections.workloadByStatusSubtitle',
+                  )}
                 >
                   <AnalyticsInteractiveBars
                     selectedId={repairStatus || null}
@@ -1204,7 +1487,7 @@ export const OrdersInformationWorkspace: React.FC<
                     }}
                     items={repairsReportQuery.data.byStatus.map((s) => ({
                       id: s.status,
-                      label: s.status,
+                      label: translateRepairStatus(t, s.status),
                       value: s.count,
                       valueText: `${s.count}`,
                       tone: 'cyan',
@@ -1214,8 +1497,10 @@ export const OrdersInformationWorkspace: React.FC<
               </div>
 
               <AnalyticsSectionCard
-                title="Technician Open Load vs Structured Completions"
-                subtitle="Click a technician bar to filter repairs."
+                title={t('orders.information.sections.techLoadVsCompletions')}
+                subtitle={t(
+                  'orders.information.sections.techLoadVsCompletionsSubtitle',
+                )}
               >
                 <AnalyticsInteractiveBars
                   selectedId={
@@ -1235,24 +1520,33 @@ export const OrdersInformationWorkspace: React.FC<
                   }}
                   items={repairsReportQuery.data.byTechnician.map((tech) => ({
                     id: tech.technicianId ?? '__unassigned__',
-                    label: tech.name,
+                    label: translateTechnicianName(
+                      t,
+                      tech.name,
+                      tech.technicianId,
+                    ),
                     value: tech.openCount + tech.completedInPeriod,
-                    valueText: `${tech.openCount} open · ${tech.completedInPeriod} completed`,
+                    valueText: t('orders.information.tech.openAndCompleted', {
+                      open: tech.openCount,
+                      completed: tech.completedInPeriod,
+                    }),
                     tone: tech.technicianId ? 'primary' : 'warning',
                   }))}
                 />
               </AnalyticsSectionCard>
 
               <AnalyticsSectionCard
-                title="Structured Completion Trend"
-                subtitle="Completed repairs count by structured completedAt day (Europe/Kiev)."
+                title={t('orders.information.sections.completionTrend')}
+                subtitle={t(
+                  'orders.information.sections.completionTrendSubtitle',
+                )}
               >
                 <AnalyticsTrendChart
                   points={repairsReportQuery.data.completionTrend}
                   series={[
                     {
                       key: 'completed',
-                      label: 'Completed repairs',
+                      label: t('orders.information.charts.completedRepairs'),
                       color: 'var(--color-primary)',
                       getValue: (pt) => pt.completedCount,
                     },
@@ -1260,7 +1554,9 @@ export const OrdersInformationWorkspace: React.FC<
                 />
               </AnalyticsSectionCard>
 
-              <AnalyticsSectionCard title="Repairs Drill-Down">
+              <AnalyticsSectionCard
+                title={t('orders.information.sections.repairsDrillDown')}
+              >
                 <AnalyticsSortableTable
                   columns={repairDetailColumns}
                   rows={repairsDetailsQuery.data?.items ?? []}
@@ -1277,7 +1573,7 @@ export const OrdersInformationWorkspace: React.FC<
                     repairsDetailsQuery.isError
                       ? repairsDetailsQuery.error instanceof Error
                         ? repairsDetailsQuery.error.message
-                        : 'Failed to load repair records.'
+                        : t('orders.information.errors.loadRepairRecords')
                       : null
                   }
                   page={repairsDetailsQuery.data?.page ?? repairsPage}
@@ -1288,7 +1584,9 @@ export const OrdersInformationWorkspace: React.FC<
               </AnalyticsSectionCard>
             </>
           ) : (
-            <div className="report-state-box">Loading repairs analytics...</div>
+            <div className="report-state-box">
+              {t('orders.information.loading.repairs')}
+            </div>
           )
         ) : null}
 
@@ -1298,52 +1596,90 @@ export const OrdersInformationWorkspace: React.FC<
             <div className="report-state-box is-error" role="alert">
               {salesReportQuery.error instanceof Error
                 ? salesReportQuery.error.message
-                : 'Failed to load sales report.'}
+                : t('orders.information.errors.loadSalesReport')}
             </div>
           ) : salesReportQuery.data ? (
             <>
-              <AnalyticsCoverageBanner warnings={salesReportQuery.data.coverage.warnings} />
+              <AnalyticsCoverageBanner warnings={salesCoverageWarnings} />
 
               <div className="report-kpi-grid">
                 <AnalyticsKpiCard
-                  label="Net Revenue"
-                  value={formatCurrency(salesReportQuery.data.summary.netRevenue)}
+                  label={t('orders.information.kpi.netRevenue')}
+                  value={formatCurrency(
+                    salesReportQuery.data.summary.netRevenue,
+                  )}
                   deltaPct={salesReportQuery.data.comparison?.netRevenueDeltaPct}
-                  hint={`Gross: ${formatCurrency(salesReportQuery.data.summary.grossRevenue)} · Disc: -${formatCurrency(salesReportQuery.data.summary.discountAmount)}`}
+                  hint={t('orders.information.kpi.grossAndDisc', {
+                    gross: formatCurrency(
+                      salesReportQuery.data.summary.grossRevenue,
+                    ),
+                    disc: formatCurrency(
+                      salesReportQuery.data.summary.discountAmount,
+                    ),
+                  })}
                 />
                 <AnalyticsKpiCard
-                  label="Orders / Units Sold"
+                  label={t('orders.information.kpi.ordersUnitsSold')}
                   value={`${salesReportQuery.data.summary.ordersCount} / ${salesReportQuery.data.summary.unitsSold}`}
-                  deltaPct={salesReportQuery.data.comparison?.ordersCountDeltaPct}
+                  deltaPct={
+                    salesReportQuery.data.comparison?.ordersCountDeltaPct
+                  }
                   hint={
                     salesReportQuery.data.comparison
-                      ? `Prev units: ${salesReportQuery.data.comparison.unitsSoldPrev}`
+                      ? t('orders.information.kpi.prevUnits', {
+                          count: salesReportQuery.data.comparison.unitsSoldPrev,
+                        })
                       : undefined
                   }
                 />
                 <AnalyticsKpiCard
-                  label="Average Order Value"
+                  label={t('orders.information.kpi.averageOrderValue')}
                   value={formatCurrency(salesReportQuery.data.summary.aov)}
                   deltaPct={salesReportQuery.data.comparison?.aovDeltaPct}
-                  hint={`Collected: ${formatCurrency(salesReportQuery.data.summary.collectedAmount)}`}
+                  hint={t('orders.information.kpi.collected', {
+                    amount: formatCurrency(
+                      salesReportQuery.data.summary.collectedAmount,
+                    ),
+                  })}
                 />
                 <AnalyticsKpiCard
-                  label="Returns & Refunds"
-                  value={formatCurrency(salesReportQuery.data.summary.returnedAmount)}
-                  tone={salesReportQuery.data.summary.returnsCount > 0 ? 'warning' : 'default'}
-                  hint={`${salesReportQuery.data.summary.returnsCount} returns (${salesReportQuery.data.summary.returnedUnits} units) · Refunded ${formatCurrency(salesReportQuery.data.summary.refundedAmount)}`}
+                  label={t('orders.information.kpi.returnsAndRefunds')}
+                  value={formatCurrency(
+                    salesReportQuery.data.summary.returnedAmount,
+                  )}
+                  tone={
+                    salesReportQuery.data.summary.returnsCount > 0
+                      ? 'warning'
+                      : 'default'
+                  }
+                  hint={t('orders.information.kpi.returnsHint', {
+                    count: salesReportQuery.data.summary.returnsCount,
+                    units: salesReportQuery.data.summary.returnedUnits,
+                    amount: formatCurrency(
+                      salesReportQuery.data.summary.refundedAmount,
+                    ),
+                  })}
                 />
                 <AnalyticsKpiCard
-                  label="Product / Service Mix"
+                  label={t('orders.information.kpi.productServiceMix')}
                   value={`${salesReportQuery.data.mix.productSharePct}% / ${salesReportQuery.data.mix.serviceSharePct}%`}
-                  hint={`Prod ${formatCurrency(salesReportQuery.data.mix.productRevenue)} · Svc ${formatCurrency(salesReportQuery.data.mix.serviceRevenue)}`}
+                  hint={t('orders.information.kpi.prodSvc', {
+                    prod: formatCurrency(
+                      salesReportQuery.data.mix.productRevenue,
+                    ),
+                    svc: formatCurrency(
+                      salesReportQuery.data.mix.serviceRevenue,
+                    ),
+                  })}
                 />
               </div>
 
               <div className="report-two-col-grid">
                 <AnalyticsSectionCard
-                  title="Revenue Trend"
-                  subtitle="Daily net revenue and returns in Europe/Kiev."
+                  title={t('orders.information.sections.revenueTrend')}
+                  subtitle={t(
+                    'orders.information.sections.revenueTrendSubtitle',
+                  )}
                 >
                   <AnalyticsTrendChart
                     points={salesReportQuery.data.trend}
@@ -1351,13 +1687,13 @@ export const OrdersInformationWorkspace: React.FC<
                     series={[
                       {
                         key: 'revenue',
-                        label: 'Net Revenue',
+                        label: t('orders.information.charts.netRevenue'),
                         color: 'var(--color-primary)',
                         getValue: (pt) => pt.revenue,
                       },
                       {
                         key: 'returns',
-                        label: 'Returns',
+                        label: t('orders.information.charts.returns'),
                         color: 'var(--color-danger)',
                         getValue: (pt) => pt.returnsAmount,
                       },
@@ -1366,8 +1702,10 @@ export const OrdersInformationWorkspace: React.FC<
                 </AnalyticsSectionCard>
 
                 <AnalyticsSectionCard
-                  title="By Order Status"
-                  subtitle="Click a status bar to filter sales orders."
+                  title={t('orders.information.sections.byOrderStatus')}
+                  subtitle={t(
+                    'orders.information.sections.byOrderStatusSubtitle',
+                  )}
                 >
                   <AnalyticsInteractiveBars
                     selectedId={salesStatus || null}
@@ -1377,7 +1715,10 @@ export const OrdersInformationWorkspace: React.FC<
                     }}
                     items={salesReportQuery.data.byStatus.map((s) => ({
                       id: s.status,
-                      label: `${s.status} (${s.count})`,
+                      label: t('orders.information.statusWithCount', {
+                        status: translateSaleStatus(t, s.status),
+                        count: s.count,
+                      }),
                       value: s.netRevenue,
                       valueText: formatCurrency(s.netRevenue),
                       tone: s.status === 'returned' ? 'danger' : 'success',
@@ -1386,7 +1727,9 @@ export const OrdersInformationWorkspace: React.FC<
                 </AnalyticsSectionCard>
               </div>
 
-              <AnalyticsSectionCard title="Top Products & Services">
+              <AnalyticsSectionCard
+                title={t('orders.information.sections.topProductsServices')}
+              >
                 <AnalyticsSortableTable
                   columns={topSaleItemColumns}
                   rows={salesReportQuery.data.topItems}
@@ -1394,7 +1737,9 @@ export const OrdersInformationWorkspace: React.FC<
                 />
               </AnalyticsSectionCard>
 
-              <AnalyticsSectionCard title="Sales Orders Drill-Down">
+              <AnalyticsSectionCard
+                title={t('orders.information.sections.salesDrillDown')}
+              >
                 <AnalyticsSortableTable
                   columns={saleDetailColumns}
                   rows={salesDetailsQuery.data?.items ?? []}
@@ -1411,7 +1756,7 @@ export const OrdersInformationWorkspace: React.FC<
                     salesDetailsQuery.isError
                       ? salesDetailsQuery.error instanceof Error
                         ? salesDetailsQuery.error.message
-                        : 'Failed to load sales records.'
+                        : t('orders.information.errors.loadSalesRecords')
                       : null
                   }
                   page={salesDetailsQuery.data?.page ?? salesPage}
@@ -1422,7 +1767,9 @@ export const OrdersInformationWorkspace: React.FC<
               </AnalyticsSectionCard>
             </>
           ) : (
-            <div className="report-state-box">Loading sales analytics...</div>
+            <div className="report-state-box">
+              {t('orders.information.loading.sales')}
+            </div>
           )
         ) : null}
 
@@ -1432,58 +1779,87 @@ export const OrdersInformationWorkspace: React.FC<
             <div className="report-state-box is-error" role="alert">
               {procReportQuery.error instanceof Error
                 ? procReportQuery.error.message
-                : 'Failed to load procurement report.'}
+                : t('orders.information.errors.loadProcurementReport')}
             </div>
           ) : procReportQuery.data ? (
             <>
               <AnalyticsCoverageBanner
-                title="Receipt History Coverage"
-                warnings={procReportQuery.data.coverage.warnings}
+                title={t('orders.information.coverage.receiptHistoryTitle')}
+                warnings={procCoverageWarnings}
               />
 
               <div className="report-kpi-grid">
                 <AnalyticsKpiCard
-                  label="Total Spend"
+                  label={t('orders.information.kpi.totalSpend')}
                   value={formatCurrency(procReportQuery.data.summary.totalSpend)}
                   deltaPct={procReportQuery.data.comparison?.totalSpendDeltaPct}
                   invertDelta
-                  hint={`Paid: ${formatCurrency(procReportQuery.data.summary.paidAmount)} · Outstanding: ${formatCurrency(procReportQuery.data.summary.outstandingAmount)}`}
+                  hint={t('orders.information.kpi.paidAndOutstanding', {
+                    paid: formatCurrency(
+                      procReportQuery.data.summary.paidAmount,
+                    ),
+                    outstanding: formatCurrency(
+                      procReportQuery.data.summary.outstandingAmount,
+                    ),
+                  })}
                 />
                 <AnalyticsKpiCard
-                  label="Ordered / Received / Pending"
+                  label={t('orders.information.kpi.orderedReceivedPending')}
                   value={`${procReportQuery.data.summary.orderedUnits} / ${procReportQuery.data.summary.receivedUnits} / ${procReportQuery.data.summary.pendingUnits}`}
-                  deltaPct={procReportQuery.data.comparison?.orderedUnitsDeltaPct}
-                  hint={`Orders: ${procReportQuery.data.summary.ordersCount} · Cancelled units: ${procReportQuery.data.summary.cancelledUnits}`}
+                  deltaPct={
+                    procReportQuery.data.comparison?.orderedUnitsDeltaPct
+                  }
+                  hint={t('orders.information.kpi.ordersAndCancelled', {
+                    orders: procReportQuery.data.summary.ordersCount,
+                    cancelled: procReportQuery.data.summary.cancelledUnits,
+                  })}
                 />
                 <AnalyticsKpiCard
-                  label="Overdue Deliveries"
+                  label={t('orders.information.kpi.overdueDeliveries')}
                   value={procReportQuery.data.summary.overdueOrdersCount}
                   tone={
                     procReportQuery.data.summary.overdueOrdersCount > 0
                       ? 'danger'
                       : 'default'
                   }
-                  hint={`${procReportQuery.data.summary.overduePendingUnits} overdue pending units`}
+                  hint={t('orders.information.kpi.overduePendingUnits', {
+                    count: procReportQuery.data.summary.overduePendingUnits,
+                  })}
                 />
                 <AnalyticsKpiCard
-                  label="Receipt Performance"
+                  label={t('orders.information.kpi.receiptPerformance')}
                   value={
-                    procReportQuery.data.receiptPerformance.onTimeRatePct !== null
-                      ? `${procReportQuery.data.receiptPerformance.onTimeRatePct}% on time`
-                      : 'Unavailable'
+                    procReportQuery.data.receiptPerformance.onTimeRatePct !==
+                    null
+                      ? t('orders.information.kpi.onTimeRate', {
+                          pct: procReportQuery.data.receiptPerformance
+                            .onTimeRatePct,
+                        })
+                      : t('orders.information.unavailable')
                   }
                   hint={
-                    procReportQuery.data.receiptPerformance.avgReceiptLeadDays !== null
-                      ? `Avg lead: ${procReportQuery.data.receiptPerformance.avgReceiptLeadDays}d (${procReportQuery.data.receiptPerformance.coveragePct}% tracked)`
-                      : `Tracked items: ${procReportQuery.data.receiptPerformance.coveragePct}%`
+                    procReportQuery.data.receiptPerformance
+                      .avgReceiptLeadDays !== null
+                      ? t('orders.information.kpi.avgLeadTracked', {
+                          days: procReportQuery.data.receiptPerformance
+                            .avgReceiptLeadDays,
+                          pct: procReportQuery.data.receiptPerformance
+                            .coveragePct,
+                        })
+                      : t('orders.information.kpi.trackedItems', {
+                          pct: procReportQuery.data.receiptPerformance
+                            .coveragePct,
+                        })
                   }
                 />
               </div>
 
               <div className="report-two-col-grid">
                 <AnalyticsSectionCard
-                  title="Procurement Spend & Payments Trend"
-                  subtitle="Daily PO spend vs paid amounts (Europe/Kiev)."
+                  title={t('orders.information.sections.spendPaymentsTrend')}
+                  subtitle={t(
+                    'orders.information.sections.spendPaymentsTrendSubtitle',
+                  )}
                 >
                   <AnalyticsTrendChart
                     points={procReportQuery.data.trend}
@@ -1491,13 +1867,13 @@ export const OrdersInformationWorkspace: React.FC<
                     series={[
                       {
                         key: 'spend',
-                        label: 'Spend',
+                        label: t('orders.information.charts.spend'),
                         color: 'var(--color-primary)',
                         getValue: (pt) => pt.spend,
                       },
                       {
                         key: 'paid',
-                        label: 'Paid',
+                        label: t('orders.information.charts.paid'),
                         color: 'var(--color-success)',
                         getValue: (pt) => pt.paid,
                       },
@@ -1506,8 +1882,10 @@ export const OrdersInformationWorkspace: React.FC<
                 </AnalyticsSectionCard>
 
                 <AnalyticsSectionCard
-                  title="Spend by Supplier"
-                  subtitle="Click any supplier bar to filter PO drill-down."
+                  title={t('orders.information.sections.spendBySupplier')}
+                  subtitle={t(
+                    'orders.information.sections.spendBySupplierSubtitle',
+                  )}
                 >
                   <AnalyticsInteractiveBars
                     selectedId={procSupplierId || null}
@@ -1515,19 +1893,26 @@ export const OrdersInformationWorkspace: React.FC<
                       setProcSupplierId((prev) => (prev === sid ? '' : sid));
                       setProcPage(1);
                     }}
-                    items={procReportQuery.data.bySupplier.slice(0, 8).map((s) => ({
-                      id: s.supplierId,
-                      label: `${s.supplierName} (${s.ordersCount} POs)`,
-                      value: s.totalSpend,
-                      valueText: formatCurrency(s.totalSpend),
-                      tone: s.overdueCount > 0 ? 'warning' : 'primary',
-                    }))}
+                    items={procReportQuery.data.bySupplier
+                      .slice(0, 8)
+                      .map((s) => ({
+                        id: s.supplierId,
+                        label: t('orders.information.supplierPoCount', {
+                          name: s.supplierName,
+                          count: s.ordersCount,
+                        }),
+                        value: s.totalSpend,
+                        valueText: formatCurrency(s.totalSpend),
+                        tone: s.overdueCount > 0 ? 'warning' : 'primary',
+                      }))}
                   />
                 </AnalyticsSectionCard>
               </div>
 
               <div className="report-two-col-grid">
-                <AnalyticsSectionCard title="Supplier Comparison">
+                <AnalyticsSectionCard
+                  title={t('orders.information.sections.supplierComparison')}
+                >
                   <AnalyticsSortableTable
                     columns={procSupplierColumns}
                     rows={procReportQuery.data.bySupplier}
@@ -1535,7 +1920,9 @@ export const OrdersInformationWorkspace: React.FC<
                   />
                 </AnalyticsSectionCard>
 
-                <AnalyticsSectionCard title="Product Purchase-Price Variation">
+                <AnalyticsSectionCard
+                  title={t('orders.information.sections.priceVariation')}
+                >
                   <AnalyticsSortableTable
                     columns={procProductColumns}
                     rows={procReportQuery.data.byProduct}
@@ -1544,7 +1931,9 @@ export const OrdersInformationWorkspace: React.FC<
                 </AnalyticsSectionCard>
               </div>
 
-              <AnalyticsSectionCard title="Supplier Orders Drill-Down">
+              <AnalyticsSectionCard
+                title={t('orders.information.sections.supplierOrdersDrillDown')}
+              >
                 <AnalyticsSortableTable
                   columns={procDetailColumns}
                   rows={procDetailsQuery.data?.items ?? []}
@@ -1561,7 +1950,7 @@ export const OrdersInformationWorkspace: React.FC<
                     procDetailsQuery.isError
                       ? procDetailsQuery.error instanceof Error
                         ? procDetailsQuery.error.message
-                        : 'Failed to load supplier orders.'
+                        : t('orders.information.errors.loadSupplierOrders')
                       : null
                   }
                   page={procDetailsQuery.data?.page ?? procPage}
@@ -1573,7 +1962,7 @@ export const OrdersInformationWorkspace: React.FC<
             </>
           ) : (
             <div className="report-state-box">
-              Loading procurement analytics...
+              {t('orders.information.loading.procurement')}
             </div>
           )
         ) : null}
