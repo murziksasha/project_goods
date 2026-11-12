@@ -647,4 +647,47 @@ describe('AccountingProfitReportsView', () => {
       updatedAt: null,
     };
   });
+
+  it('renders Ukrainian copy when the interface language is uk', async () => {
+    await i18n.changeLanguage('uk');
+    renderView(
+      <I18nextProvider i18n={i18n}>
+        <AccountingProfitReportsView
+          currentEmployee={{
+            id: 'emp-1',
+            name: 'Accountant',
+            phone: '',
+            email: '',
+            username: 'acc',
+            role: 'accountant',
+            permissions: ['finance.view', 'sales.manage'],
+            isActive: true,
+            isRegistered: true,
+            note: '',
+            createdAt: '',
+            updatedAt: '',
+          }}
+        />
+      </I18nextProvider>,
+    );
+
+    expect(screen.getByRole('heading', { name: 'Звіти' })).toBeInTheDocument();
+    expect(screen.getAllByText('Виручка').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Валовий прибуток').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Маржа').length).toBeGreaterThan(0);
+    expect(screen.getByRole('button', { name: 'Лише збиткові записи' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Лише без собівартості' })).toBeInTheDocument();
+    expect(screen.getByText('Деталізація вихідних замовлень і ремонтів')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Аудит собівартості' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Експорт Excel' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Останні 30 днів' })).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('Пошук за № замовлення або клієнтом...')).toBeInTheDocument();
+    expect(screen.getByText('Оренда')).toBeInTheDocument();
+    expect(screen.getByText('Топ позицій')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Весь час' }));
+    expect(
+      screen.getByText(/Індикатори порівняння вимкнено для періоду/),
+    ).toBeInTheDocument();
+  });
 });

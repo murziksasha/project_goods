@@ -1129,24 +1129,32 @@ export const getFinanceProfitReport = async (
   });
 
   const warnings: string[] = [];
+  const warningItems: Array<{ code: string; count?: number }> = [];
   if (coldPurged) {
     warnings.push(
       'Cold yearly archive purges exist; profitability metrics cover live persisted sales only.',
     );
+    warningItems.push({ code: 'coldArchiveProfit' });
   }
   if (serviceProfitMode === 'revenue_only') {
     warnings.push(
       'Service profit mode is set to revenue only: service costs are omitted and overall profit/margin are marked incomplete when services are present.',
     );
+    warningItems.push({ code: 'serviceModeRevenueOnly' });
   } else if (serviceProfitMode === 'exclude') {
     warnings.push(
       'Service profit mode is set to exclude: service lines are omitted from profitability while products and actual cash flow remain included.',
     );
+    warningItems.push({ code: 'serviceModeExclude' });
   }
   if (currentSummary.margin.isIncomplete) {
     warnings.push(
       `${currentSummary.margin.unknownCostCount} SKU group(s) have incomplete cost records; overall gross profit/margin is incomplete.`,
     );
+    warningItems.push({
+      code: 'incompleteCostRecords',
+      count: currentSummary.margin.unknownCostCount,
+    });
   }
 
   return {
@@ -1179,6 +1187,7 @@ export const getFinanceProfitReport = async (
       coldSalesPurgedExist: coldPurged,
       isProfitIncomplete: currentSummary.margin.isIncomplete,
       warnings,
+      warningItems,
     },
   };
 };

@@ -36,7 +36,11 @@ import { PaginationPanel } from '../../../../shared/ui/PaginationPanel';
 import { useStoredPageSize } from '../../../../shared/lib/page-size-preference';
 import { CopyableValue } from '../../../../shared/ui/CopyableValue';
 import type { AnalyticsDateRange } from '../../model/analytics-date-range';
-import { formatMoney } from '../../model/accounting';
+import { displayCurrencyCode, formatMoney } from '../../model/accounting';
+import {
+  translateProfitCoverageWarnings,
+  translateProfitKind,
+} from '../../model/accounting-analytics-i18n';
 import {
   buildProfitReportFilename,
   clearStoredProfitReportFilters,
@@ -858,7 +862,9 @@ export const AccountingProfitReportsView: React.FC<AccountingProfitReportsViewPr
               <strong>{formatMoney(report?.margin.cogs ?? 0, currency)}</strong>
               {report?.margin.costCoveragePct !== undefined ? (
                 <span className='muted-copy'>
-                  Coverage: {report.margin.costCoveragePct}%
+                  {t('accounting.profit.coveragePct', {
+                    pct: report.margin.costCoveragePct,
+                  })}
                 </span>
               ) : null}
             </article>
@@ -866,15 +872,22 @@ export const AccountingProfitReportsView: React.FC<AccountingProfitReportsViewPr
               <span className='metric-label'>{t('accounting.profit.kpis.grossProfit')}</span>
               <strong>
                 {report?.margin.isIncomplete
-                  ? 'Incomplete'
+                  ? t('accounting.profit.incomplete')
                   : formatMoney(report?.margin.grossProfit ?? 0, currency)}
               </strong>
               {report?.margin.isIncomplete &&
               report.margin.knownCostGrossProfit !== undefined ? (
                 <span className='muted-copy'>
-                  Known-cost subtotal:{' '}
-                  {formatMoney(report.margin.knownCostGrossProfit, currency)} (on{' '}
-                  {formatMoney(report.margin.knownCostRevenue ?? 0, currency)})
+                  {t('accounting.profit.knownCostSubtotal', {
+                    profit: formatMoney(
+                      report.margin.knownCostGrossProfit,
+                      currency,
+                    ),
+                    revenue: formatMoney(
+                      report.margin.knownCostRevenue ?? 0,
+                      currency,
+                    ),
+                  })}
                 </span>
               ) : null}
             </article>
@@ -882,14 +895,17 @@ export const AccountingProfitReportsView: React.FC<AccountingProfitReportsViewPr
               <span className='metric-label'>{t('accounting.profit.kpis.grossMargin')}</span>
               <strong>
                 {report?.margin.isIncomplete
-                  ? 'Incomplete'
+                  ? t('accounting.profit.incomplete')
                   : formatProfitMarginPct(report?.margin.grossMarginPct ?? null)}
               </strong>
               {report?.margin.isIncomplete &&
               report.margin.knownCostGrossMarginPct !== undefined ? (
                 <span className='muted-copy'>
-                  Known-cost margin:{' '}
-                  {formatProfitMarginPct(report.margin.knownCostGrossMarginPct)}
+                  {t('accounting.profit.knownCostMargin', {
+                    pct: formatProfitMarginPct(
+                      report.margin.knownCostGrossMarginPct,
+                    ),
+                  })}
                 </span>
               ) : null}
             </article>
@@ -933,8 +949,10 @@ export const AccountingProfitReportsView: React.FC<AccountingProfitReportsViewPr
               {report?.cash.transfersVolume !== undefined &&
               report.cash.transfersCount ? (
                 <span className='muted-copy'>
-                  Transfers excluded: {formatMoney(report.cash.transfersVolume, currency)} (
-                  {report.cash.transfersCount})
+                  {t('accounting.profit.transfersExcluded', {
+                    amount: formatMoney(report.cash.transfersVolume, currency),
+                    count: report.cash.transfersCount,
+                  })}
                 </span>
               ) : null}
             </article>
@@ -944,15 +962,18 @@ export const AccountingProfitReportsView: React.FC<AccountingProfitReportsViewPr
 
       {report?.coverage?.warnings?.length ? (
         <AnalyticsCoverageBanner
-          title='Profitability & Coverage Notes'
-          warnings={report.coverage.warnings}
+          title={t('accounting.profit.coverageTitle')}
+          warnings={translateProfitCoverageWarnings(
+            t,
+            report.coverage.warnings,
+            report.coverage.warningItems,
+          )}
         />
       ) : null}
 
       {period === 'whole' && !customRange ? (
         <div className='report-coverage-banner is-info' role='status'>
-          Comparison indicators are disabled for the All-time period. Choose Last 30 days
-          or another bounded window for equal-length prior period comparisons.
+          {t('accounting.profit.comparisonDisabledNotice')}
         </div>
       ) : null}
 
@@ -966,7 +987,7 @@ export const AccountingProfitReportsView: React.FC<AccountingProfitReportsViewPr
             setDetailsPage(1);
           }}
         >
-          Loss records only
+          {t('accounting.profit.lossRecordsOnly')}
         </button>
         <button
           type='button'
@@ -977,7 +998,7 @@ export const AccountingProfitReportsView: React.FC<AccountingProfitReportsViewPr
             setDetailsPage(1);
           }}
         >
-          Missing cost only
+          {t('accounting.profit.missingCostOnly')}
         </button>
       </div>
 
@@ -996,9 +1017,17 @@ export const AccountingProfitReportsView: React.FC<AccountingProfitReportsViewPr
                 return (
                   <AnalyticsKpiCard
                     key={curCode}
-                    label={`Cash Flow (${curCode})`}
+                    label={t('accounting.profit.cashFlow', {
+                      currency: displayCurrencyCode(curCode),
+                    })}
                     value={formatMoney(bucket.net, curCode)}
-                    hint={`In: ${formatMoney(bucket.collected, curCode)} · Out/OPEX: ${formatMoney(bucket.opex + bucket.inventoryPurchases + bucket.refunds, curCode)}`}
+                    hint={t('accounting.profit.cashFlowHint', {
+                      inAmount: formatMoney(bucket.collected, curCode),
+                      outAmount: formatMoney(
+                        bucket.opex + bucket.inventoryPurchases + bucket.refunds,
+                        curCode,
+                      ),
+                    })}
                   />
                 );
               })}
@@ -1009,8 +1038,8 @@ export const AccountingProfitReportsView: React.FC<AccountingProfitReportsViewPr
 
       {report?.trendSeries && report.trendSeries.length > 0 ? (
         <AnalyticsSectionCard
-          title='Revenue, Known Cost & Known Profit Trend'
-          subtitle='Daily accrual profitability (Europe/Kiev calendar; cash salaries stay in Cash Flow OPEX).'
+          title={t('accounting.profit.trendTitle')}
+          subtitle={t('accounting.profit.trendSubtitle')}
         >
           <AnalyticsTrendChart
             points={report.trendSeries}
@@ -1018,19 +1047,19 @@ export const AccountingProfitReportsView: React.FC<AccountingProfitReportsViewPr
             series={[
               {
                 key: 'revenue',
-                label: 'Revenue',
+                label: t('accounting.profit.kpis.revenue'),
                 color: 'var(--color-primary)',
                 getValue: (pt) => pt.revenue,
               },
               {
                 key: 'knownCost',
-                label: 'Known Cost',
+                label: t('accounting.profit.knownCost'),
                 color: 'var(--color-warning)',
                 getValue: (pt) => pt.knownCost,
               },
               {
                 key: 'knownProfit',
-                label: 'Known Profit',
+                label: t('accounting.profit.knownProfit'),
                 color: 'var(--color-success)',
                 getValue: (pt) => pt.knownProfit,
               },
@@ -1254,18 +1283,26 @@ export const AccountingProfitReportsView: React.FC<AccountingProfitReportsViewPr
       </section>
 
       <AnalyticsSectionCard
-        title='Source Orders & Repairs Drill-Down'
+        title={t('accounting.profit.drillDownTitle')}
         subtitle={
           detailsQuery.data
-            ? `Matching total across all pages: ${detailsQuery.data.total} record(s) · Revenue ${formatMoney(detailsQuery.data.totals.revenue, currency)} · Known Cost ${formatMoney(detailsQuery.data.totals.knownCost, currency)} · Incomplete Cost Records: ${detailsQuery.data.totals.missingCostRecordsCount}`
-            : 'Inspect underlying closed orders/repairs and complete missing cost records.'
+            ? t('accounting.profit.drillDownMatching', {
+                count: detailsQuery.data.total,
+                revenue: formatMoney(detailsQuery.data.totals.revenue, currency),
+                knownCost: formatMoney(
+                  detailsQuery.data.totals.knownCost,
+                  currency,
+                ),
+                missing: detailsQuery.data.totals.missingCostRecordsCount,
+              })
+            : t('accounting.profit.drillDownEmpty')
         }
         actions={
           <input
             type='search'
             value={detailSearch}
-            placeholder='Search order # or client...'
-            aria-label='Search profit source records'
+            placeholder={t('accounting.profit.drillDownSearchPlaceholder')}
+            aria-label={t('accounting.profit.drillDownSearchAria')}
             onChange={(e) => {
               setDetailSearch(e.target.value);
               setDetailsPage(1);
@@ -1277,17 +1314,17 @@ export const AccountingProfitReportsView: React.FC<AccountingProfitReportsViewPr
           columns={[
             {
               key: 'recordNumber',
-              label: 'Order / Kind',
+              label: t('accounting.profit.columns.orderKind'),
               render: (d) => (
                 <div>
                   <strong>{d.recordNumber || d.id.slice(-6)}</strong>
-                  <div className='muted-copy'>{d.kind} · {d.status}</div>
+                  <div className='muted-copy'>{translateProfitKind(t, d.kind)} · {d.status}</div>
                 </div>
               ),
             },
             {
               key: 'saleDate',
-              label: 'Date / Client',
+              label: t('accounting.profit.columns.dateClient'),
               sortable: true,
               render: (d) => (
                 <div>
@@ -1298,14 +1335,14 @@ export const AccountingProfitReportsView: React.FC<AccountingProfitReportsViewPr
             },
             {
               key: 'revenue',
-              label: 'Revenue',
+              label: t('accounting.profit.columns.revenue'),
               align: 'right',
               sortable: true,
               render: (d) => formatMoney(d.revenue, currency),
             },
             {
               key: 'knownCost',
-              label: 'Known Cost',
+              label: t('accounting.profit.columns.knownCost'),
               align: 'right',
               sortable: true,
               render: (d) => (
@@ -1313,7 +1350,9 @@ export const AccountingProfitReportsView: React.FC<AccountingProfitReportsViewPr
                   <span>{formatMoney(d.knownCost, currency)}</span>
                   {d.isIncomplete ? (
                     <div className='report-badge is-warning'>
-                      {d.missingCostCount} missing
+                      {t('accounting.profit.cells.missing', {
+                        count: d.missingCostCount,
+                      })}
                     </div>
                   ) : null}
                 </div>
@@ -1321,15 +1360,19 @@ export const AccountingProfitReportsView: React.FC<AccountingProfitReportsViewPr
             },
             {
               key: 'profit',
-              label: 'Profit / Margin',
+              label: t('accounting.profit.columns.profitMargin'),
               align: 'right',
               sortable: true,
               render: (d) =>
                 d.isIncomplete ? (
                   <div>
-                    <span className='report-badge is-warning'>Incomplete</span>
+                    <span className='report-badge is-warning'>
+                      {t('accounting.profit.incomplete')}
+                    </span>
                     <div className='muted-copy'>
-                      Known: {formatMoney(d.knownProfit, currency)}
+                      {t('accounting.profit.cells.knownAmount', {
+                        amount: formatMoney(d.knownProfit, currency),
+                      })}
                     </div>
                   </div>
                 ) : (
@@ -1351,7 +1394,7 @@ export const AccountingProfitReportsView: React.FC<AccountingProfitReportsViewPr
               ? ([
                   {
                     key: 'audit',
-                    label: 'Audit',
+                    label: t('accounting.profit.columns.audit'),
                     align: 'right',
                     render: (d) => (
                       <button
@@ -1359,7 +1402,7 @@ export const AccountingProfitReportsView: React.FC<AccountingProfitReportsViewPr
                         className='secondary-button'
                         onClick={() => setAuditSaleId(d.id)}
                       >
-                        Audit Costs
+                        {t('accounting.profit.auditCosts')}
                       </button>
                     ),
                   },
@@ -1380,7 +1423,7 @@ export const AccountingProfitReportsView: React.FC<AccountingProfitReportsViewPr
             detailsQuery.isError
               ? detailsQuery.error instanceof Error
                 ? detailsQuery.error.message
-                : 'Failed to load profit detail records.'
+                : t('accounting.profit.errors.loadDetails')
               : null
           }
           page={detailsQuery.data?.page ?? detailsPage}

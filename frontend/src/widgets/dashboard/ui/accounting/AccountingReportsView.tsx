@@ -19,7 +19,16 @@ import {
 } from '../../../../entities/scenario';
 import { formatDate, formatDateTime } from '../../../../shared/lib/format';
 import { exportReportWorkbookToDownload } from '../../../../shared/lib/report-excel';
-import { formatMoney, type FinanceOverview } from '../../model/accounting';
+import {
+  displayCurrencyCode,
+  formatMoney,
+  type FinanceOverview,
+} from '../../model/accounting';
+import {
+  translateCashboxCoverageWarnings,
+  translatePeriodLabel,
+  translateTxType,
+} from '../../model/accounting-analytics-i18n';
 import {
   AnalyticsComparisonBadge,
   AnalyticsCoverageBanner,
@@ -36,15 +45,15 @@ export interface AccountingReportsViewProps {
   financeOverview: FinanceOverview;
 }
 
-const PERIOD_OPTIONS: Array<{ key: BoundedReportPeriod; label: string }> = [
-  { key: 'last30', label: 'Last 30 days' },
-  { key: 'last7', label: 'Last 7 days' },
-  { key: 'day', label: 'Today' },
-  { key: 'week', label: 'This week' },
-  { key: 'month', label: 'This month' },
-  { key: 'year', label: 'This year' },
-  { key: 'whole', label: 'All time' },
-  { key: 'custom', label: 'Custom range' },
+const PERIOD_KEYS: BoundedReportPeriod[] = [
+  'last30',
+  'last7',
+  'day',
+  'week',
+  'month',
+  'year',
+  'whole',
+  'custom',
 ];
 
 export const AccountingReportsView: React.FC<AccountingReportsViewProps> = ({
@@ -210,7 +219,9 @@ export const AccountingReportsView: React.FC<AccountingReportsViewProps> = ({
       ...buildScenarioPayload(),
     });
     setSelectedScenarioId(created.id);
-    setScenarioNotice(`Saved private scenario "${created.name}".`);
+    setScenarioNotice(
+      t('accounting.reports.scenarios.saved', { name: created.name }),
+    );
   };
 
   const handleUpdateScenario = async () => {
@@ -219,7 +230,9 @@ export const AccountingReportsView: React.FC<AccountingReportsViewProps> = ({
       scenarioId: selectedScenarioId,
       payload: buildScenarioPayload(),
     });
-    setScenarioNotice(`Updated scenario "${updated.name}".`);
+    setScenarioNotice(
+      t('accounting.reports.scenarios.updated', { name: updated.name }),
+    );
   };
 
   const handleDeleteScenario = async () => {
@@ -227,7 +240,7 @@ export const AccountingReportsView: React.FC<AccountingReportsViewProps> = ({
     await deleteScenarioMutation.mutateAsync(selectedScenarioId);
     setSelectedScenarioId('');
     setScenarioName('');
-    setScenarioNotice('Deleted saved cashflow scenario.');
+    setScenarioNotice(t('accounting.reports.scenarios.deleted'));
   };
 
   const addPlannedEvent = () => {
@@ -281,6 +294,17 @@ export const AccountingReportsView: React.FC<AccountingReportsViewProps> = ({
     ]);
   };
 
+  const allLabel = t('accounting.reports.filters.all');
+  const currencyLabel = displayCurrencyCode(activeCurrency);
+  const exportCol = (key: string) => t(`accounting.reports.export.cols.${key}`);
+  const coverageWarnings = report
+    ? translateCashboxCoverageWarnings(
+        t,
+        report.coverage.warnings,
+        report.coverage.warningItems,
+      )
+    : [];
+
   const handleExportExcel = async () => {
     if (!report) return;
     setIsExporting(true);
@@ -298,82 +322,118 @@ export const AccountingReportsView: React.FC<AccountingReportsViewProps> = ({
         sortBy,
         sortDir,
       });
-      const warnings = [...report.coverage.warnings];
+      const warnings = [...coverageWarnings];
       if (det.total > det.items.length) {
-        warnings.push(`Showing ${det.items.length} of ${det.total} transactions.`);
+        warnings.push(
+          t('accounting.reports.export.showingOf', {
+            shown: det.items.length,
+            total: det.total,
+            count: det.total,
+          }),
+        );
       }
+      const sealedOrNa = (value: number | null) =>
+        value ?? t('accounting.reports.sealedUnavailable');
       exportReportWorkbookToDownload({
         filename: `cashboxes-information-${activeCurrency}-${report.generatedAt.slice(0, 10)}.xlsx`,
-        title: `Cashboxes Information & Cashflow (${activeCurrency})`,
+        title: t('accounting.reports.export.forecastTitle', {
+          currency: currencyLabel,
+        }),
         generatedAt: report.generatedAt,
         timeZone: report.timeZone,
         activeFilters: [
           {
-            filter: 'Period',
-            value: `${report.period.dateFrom ?? 'All'} to ${report.period.dateTo ?? 'All'}`,
+            filter: t('accounting.reports.filters.period'),
+            value: t('accounting.reports.periods.range', {
+              from: report.period.dateFrom ?? allLabel,
+              to: report.period.dateTo ?? allLabel,
+            }),
           },
-          { filter: 'Currency', value: activeCurrency },
-          { filter: 'Cashbox', value: cashboxId || 'All' },
-          { filter: 'Transaction Type', value: txTypeFilter },
-          { filter: 'Forecast Horizon', value: `${horizonDays} days` },
+          {
+            filter: t('accounting.reports.filters.currency'),
+            value: currencyLabel,
+          },
+          {
+            filter: t('accounting.reports.filters.cashbox'),
+            value: cashboxId || allLabel,
+          },
+          {
+            filter: t('accounting.reports.filters.transactionType'),
+            value:
+              txTypeFilter === 'all'
+                ? t('accounting.reports.filters.allOperations')
+                : translateTxType(t, txTypeFilter),
+          },
+          {
+            filter: t('accounting.reports.filters.forecastHorizon'),
+            value: t('accounting.reports.filters.horizonDaysValue', {
+              count: horizonDays,
+            }),
+          },
         ],
         definitions: [
           {
-            metric: 'External Inflows / Outflows',
-            definition:
-              'Non-cancelled deposits and withdrawals in selected currency; internal cashbox transfers are reported separately.',
+            metric: t('accounting.reports.export.definitions.externalFlows'),
+            definition: t(
+              'accounting.reports.export.definitions.externalFlowsDef',
+            ),
           },
           {
-            metric: 'Opening / Closing Reconciliation',
-            definition:
-              'Reverse-walk from current balance; unavailable when period overlaps sealed purge dates.',
+            metric: t('accounting.reports.export.definitions.reconciliation'),
+            definition: t(
+              'accounting.reports.export.definitions.reconciliationDef',
+            ),
           },
           {
-            metric: 'Cash Forecast',
-            definition:
-              'Estimate projecting trailing 90d avg daily inflows/outflows with user multipliers, timing shifts, and explicitly scheduled events.',
+            metric: t('accounting.reports.export.definitions.cashForecast'),
+            definition: t(
+              'accounting.reports.export.definitions.cashForecastDef',
+            ),
           },
         ],
         warnings,
         sheets: [
           {
-            name: 'Cashbox Reconciliation',
+            name: t('accounting.reports.export.sheetReconciliation'),
             rows: (currencyBucket?.reconciliation.perCashbox ?? []).map((cb) => ({
-              Cashbox: cb.name,
-              Currency: cb.currency,
-              CurrentBalance: cb.currentBalance,
-              OpeningBalance: cb.openingBalance ?? 'Sealed/Unavailable',
-              ClosingBalance: cb.closingBalance ?? 'Sealed/Unavailable',
-              Inflows: cb.inflows,
-              Outflows: cb.outflows,
-              TransfersIn: cb.transfersIn,
-              TransfersOut: cb.transfersOut,
-              Delta: cb.reconciliationDelta ?? 'N/A',
+              [exportCol('Cashbox')]: cb.name,
+              [exportCol('Currency')]: displayCurrencyCode(cb.currency),
+              [exportCol('CurrentBalance')]: cb.currentBalance,
+              [exportCol('OpeningBalance')]: sealedOrNa(cb.openingBalance),
+              [exportCol('ClosingBalance')]: sealedOrNa(cb.closingBalance),
+              [exportCol('Inflows')]: cb.inflows,
+              [exportCol('Outflows')]: cb.outflows,
+              [exportCol('TransfersIn')]: cb.transfersIn,
+              [exportCol('TransfersOut')]: cb.transfersOut,
+              [exportCol('Delta')]:
+                cb.reconciliationDelta ?? t('accounting.reports.na'),
             })),
           },
           {
-            name: 'Transactions Detail',
+            name: t('accounting.reports.export.sheetTransactions'),
             rows: det.items.map((tx) => ({
-              Date: tx.transactionDate.slice(0, 10),
-              Type: tx.type,
-              Category: tx.category,
-              Amount: tx.amount,
-              Currency: tx.currency,
-              FromCashbox: tx.fromCashboxName ?? '',
-              ToCashbox: tx.toCashboxName ?? '',
-              Note: tx.note,
+              [exportCol('Date')]: tx.transactionDate.slice(0, 10),
+              [exportCol('Type')]: translateTxType(t, tx.type),
+              [exportCol('Category')]: tx.category,
+              [exportCol('Amount')]: tx.amount,
+              [exportCol('Currency')]: displayCurrencyCode(tx.currency),
+              [exportCol('FromCashbox')]: tx.fromCashboxName ?? '',
+              [exportCol('ToCashbox')]: tx.toCashboxName ?? '',
+              [exportCol('Note')]: tx.note,
             })),
           },
           {
-            name: `${horizonDays}d Forecast`,
+            name: t('accounting.reports.export.sheetForecast', {
+              days: horizonDays,
+            }),
             rows: (currencyBucket?.forecast.series ?? []).map((pt) => ({
-              Day: pt.day,
-              Date: pt.dateKey,
-              BaselineInflow: pt.baselineInflow,
-              BaselineOutflow: pt.baselineOutflow,
-              PlannedInflow: pt.plannedInflow,
-              PlannedOutflow: pt.plannedOutflow,
-              ProjectedBalance: pt.projectedBalance,
+              [exportCol('Day')]: pt.day,
+              [exportCol('Date')]: pt.dateKey,
+              [exportCol('BaselineInflow')]: pt.baselineInflow,
+              [exportCol('BaselineOutflow')]: pt.baselineOutflow,
+              [exportCol('PlannedInflow')]: pt.plannedInflow,
+              [exportCol('PlannedOutflow')]: pt.plannedOutflow,
+              [exportCol('ProjectedBalance')]: pt.projectedBalance,
             })),
           },
         ],
@@ -386,7 +446,7 @@ export const AccountingReportsView: React.FC<AccountingReportsViewProps> = ({
   const reconColumns: SortableColumn<CashboxReconciliationRow>[] = [
     {
       key: 'name',
-      label: 'Cashbox',
+      label: t('accounting.reports.columns.cashbox'),
       render: (r) => (
         <button
           type="button"
@@ -402,24 +462,26 @@ export const AccountingReportsView: React.FC<AccountingReportsViewProps> = ({
     },
     {
       key: 'currentBalance',
-      label: 'Current Balance',
+      label: t('accounting.reports.columns.currentBalance'),
       align: 'right',
       render: (r) => <strong>{formatMoney(r.currentBalance, r.currency)}</strong>,
     },
     {
       key: 'openingBalance',
-      label: 'Opening',
+      label: t('accounting.reports.columns.opening'),
       align: 'right',
       render: (r) =>
         r.openingBalance !== null ? (
           formatMoney(r.openingBalance, r.currency)
         ) : (
-          <span className="muted-copy">Unavailable</span>
+          <span className="muted-copy">
+            {t('accounting.reports.cells.unavailable')}
+          </span>
         ),
     },
     {
       key: 'inflows',
-      label: 'Inflows / Outflows',
+      label: t('accounting.reports.columns.inflowsOutflows'),
       align: 'right',
       render: (r) => (
         <div>
@@ -434,7 +496,7 @@ export const AccountingReportsView: React.FC<AccountingReportsViewProps> = ({
     },
     {
       key: 'transfers',
-      label: 'Transfers (In / Out)',
+      label: t('accounting.reports.columns.transfersInOut'),
       align: 'right',
       render: (r) => (
         <span className="muted-copy">
@@ -444,18 +506,22 @@ export const AccountingReportsView: React.FC<AccountingReportsViewProps> = ({
     },
     {
       key: 'closingBalance',
-      label: 'Closing / Delta',
+      label: t('accounting.reports.columns.closingDelta'),
       align: 'right',
       render: (r) =>
         r.closingBalance !== null ? (
           <div>
             <strong>{formatMoney(r.closingBalance, r.currency)}</strong>
             <div className="muted-copy">
-              Delta: {formatMoney(r.reconciliationDelta ?? 0, r.currency)}
+              {t('accounting.reports.cells.delta', {
+                amount: formatMoney(r.reconciliationDelta ?? 0, r.currency),
+              })}
             </div>
           </div>
         ) : (
-          <span className="muted-copy">Sealed / All-time</span>
+          <span className="muted-copy">
+            {t('accounting.reports.cells.sealedAllTime')}
+          </span>
         ),
     },
   ];
@@ -463,13 +529,13 @@ export const AccountingReportsView: React.FC<AccountingReportsViewProps> = ({
   const txColumns: SortableColumn<CashboxesReportDetailItem>[] = [
     {
       key: 'transactionDate',
-      label: 'Date',
+      label: t('accounting.reports.columns.date'),
       sortable: true,
       render: (tx) => formatDateTime(tx.transactionDate),
     },
     {
       key: 'type',
-      label: 'Type / Category',
+      label: t('accounting.reports.columns.typeCategory'),
       sortable: true,
       render: (tx) => (
         <div>
@@ -482,7 +548,7 @@ export const AccountingReportsView: React.FC<AccountingReportsViewProps> = ({
                   : 'is-info'
             }`}
           >
-            {tx.type}
+            {translateTxType(t, tx.type)}
           </span>{' '}
           <span className="muted-copy">{tx.category || '-'}</span>
         </div>
@@ -490,20 +556,23 @@ export const AccountingReportsView: React.FC<AccountingReportsViewProps> = ({
     },
     {
       key: 'cashboxes',
-      label: 'Cashboxes',
+      label: t('accounting.reports.columns.cashboxes'),
       render: (tx) =>
         tx.type === 'transfer'
-          ? `${tx.fromCashboxName ?? ''} -> ${tx.toCashboxName ?? ''}`
+          ? t('accounting.reports.cells.transferPath', {
+              from: tx.fromCashboxName ?? '',
+              to: tx.toCashboxName ?? '',
+            })
           : tx.toCashboxName ?? tx.fromCashboxName ?? '-',
     },
     {
       key: 'note',
-      label: 'Note',
+      label: t('accounting.reports.columns.note'),
       render: (tx) => tx.note || '-',
     },
     {
       key: 'amount',
-      label: 'Amount',
+      label: t('accounting.reports.columns.amount'),
       align: 'right',
       sortable: true,
       render: (tx) => <strong>{formatMoney(tx.amount, tx.currency)}</strong>,
@@ -520,12 +589,15 @@ export const AccountingReportsView: React.FC<AccountingReportsViewProps> = ({
               {t('accounting.reports.title')}
             </h2>
             <p className="report-upgrade-header-subtitle">
-              Per-currency balances, external inflows/outflows vs internal transfers,
-              period reconciliation, and 30/60/90-day cash forecasting.
+              {t('accounting.reports.subtitle')}
             </p>
           </div>
           <div className="report-upgrade-actions">
-            <div className="report-subview-tabs" role="tablist" aria-label="Currencies">
+            <div
+              className="report-subview-tabs"
+              role="tablist"
+              aria-label={t('accounting.reports.currenciesAria')}
+            >
               {currencies.map((cur) => (
                 <button
                   key={cur}
@@ -550,14 +622,22 @@ export const AccountingReportsView: React.FC<AccountingReportsViewProps> = ({
               disabled={!report || isExporting}
               onClick={() => void handleExportExcel()}
             >
-              {isExporting ? 'Exporting...' : 'Export Excel (.xlsx)'}
+              {isExporting
+                ? t('common.exporting')
+                : t('accounting.reports.exportExcel')}
             </button>
           </div>
         </div>
 
-        <div className="report-filter-bar" role="search" aria-label="Cashbox report filters">
+        <div
+          className="report-filter-bar"
+          role="search"
+          aria-label={t('accounting.reports.filtersAria')}
+        >
           <div className="report-filter-field">
-            <label htmlFor="cb-period">Period</label>
+            <label htmlFor="cb-period">
+              {t('accounting.reports.filters.period')}
+            </label>
             <select
               id="cb-period"
               value={period}
@@ -566,9 +646,9 @@ export const AccountingReportsView: React.FC<AccountingReportsViewProps> = ({
                 setPage(1);
               }}
             >
-              {PERIOD_OPTIONS.map((opt) => (
-                <option key={opt.key} value={opt.key}>
-                  {opt.label}
+              {PERIOD_KEYS.map((key) => (
+                <option key={key} value={key}>
+                  {translatePeriodLabel(t, key)}
                 </option>
               ))}
             </select>
@@ -576,7 +656,9 @@ export const AccountingReportsView: React.FC<AccountingReportsViewProps> = ({
           {period === 'custom' ? (
             <>
               <div className="report-filter-field">
-                <label htmlFor="cb-from">From</label>
+                <label htmlFor="cb-from">
+                  {t('accounting.reports.filters.from')}
+                </label>
                 <input
                   id="cb-from"
                   type="date"
@@ -585,7 +667,7 @@ export const AccountingReportsView: React.FC<AccountingReportsViewProps> = ({
                 />
               </div>
               <div className="report-filter-field">
-                <label htmlFor="cb-to">To</label>
+                <label htmlFor="cb-to">{t('accounting.reports.filters.to')}</label>
                 <input
                   id="cb-to"
                   type="date"
@@ -596,7 +678,9 @@ export const AccountingReportsView: React.FC<AccountingReportsViewProps> = ({
             </>
           ) : null}
           <div className="report-filter-field">
-            <label htmlFor="cb-cashbox">Cashbox</label>
+            <label htmlFor="cb-cashbox">
+              {t('accounting.reports.filters.cashbox')}
+            </label>
             <select
               id="cb-cashbox"
               value={cashboxId}
@@ -605,17 +689,21 @@ export const AccountingReportsView: React.FC<AccountingReportsViewProps> = ({
                 setPage(1);
               }}
             >
-              <option value="">All cashboxes</option>
+              <option value="">
+                {t('accounting.transactions.allCashboxes')}
+              </option>
               {(report?.cashboxes ?? []).map((cb) => (
                 <option key={cb.id} value={cb.id}>
                   {cb.name}
-                  {cb.isArchived ? ' (Archived)' : ''}
+                  {cb.isArchived ? t('accounting.reports.archivedSuffix') : ''}
                 </option>
               ))}
             </select>
           </div>
           <div className="report-filter-field">
-            <label htmlFor="cb-tx-type">Operation Type</label>
+            <label htmlFor="cb-tx-type">
+              {t('accounting.reports.filters.operationType')}
+            </label>
             <select
               id="cb-tx-type"
               value={txTypeFilter}
@@ -626,19 +714,29 @@ export const AccountingReportsView: React.FC<AccountingReportsViewProps> = ({
                 setPage(1);
               }}
             >
-              <option value="all">All operations</option>
-              <option value="deposit">Deposits (inflows)</option>
-              <option value="withdraw">Withdrawals (outflows)</option>
-              <option value="transfer">Internal transfers</option>
+              <option value="all">
+                {t('accounting.reports.filters.allOperations')}
+              </option>
+              <option value="deposit">
+                {t('accounting.reports.filters.depositsInflows')}
+              </option>
+              <option value="withdraw">
+                {t('accounting.reports.filters.withdrawalsOutflows')}
+              </option>
+              <option value="transfer">
+                {t('accounting.reports.filters.internalTransfers')}
+              </option>
             </select>
           </div>
           <div className="report-filter-field">
-            <label htmlFor="cb-search">Search Notes</label>
+            <label htmlFor="cb-search">
+              {t('accounting.reports.filters.searchNotes')}
+            </label>
             <input
               id="cb-search"
               type="search"
               value={txSearch}
-              placeholder="Note, category, cashbox..."
+              placeholder={t('accounting.reports.filters.searchPlaceholder')}
               onChange={(e) => {
                 setTxSearch(e.target.value);
                 setPage(1);
@@ -651,61 +749,95 @@ export const AccountingReportsView: React.FC<AccountingReportsViewProps> = ({
           <div className="report-state-box is-error" role="alert">
             {reportQuery.error instanceof Error
               ? reportQuery.error.message
-              : 'Failed to load cashboxes report.'}
+              : t('accounting.reports.errors.loadReport')}
           </div>
         ) : null}
 
         {report && currencyBucket ? (
           <>
             <AnalyticsCoverageBanner
-              title="Archive Seal & History Coverage"
-              warnings={report.coverage.warnings}
+              title={t('accounting.reports.coverage.title')}
+              warnings={coverageWarnings}
             />
 
             <div className="report-kpi-grid">
               <AnalyticsKpiCard
-                label={`Current Balance (${activeCurrency})`}
+                label={t('accounting.reports.kpi.currentBalance', {
+                  currency: currencyLabel,
+                })}
                 value={formatMoney(currencyBucket.currentBalance, activeCurrency)}
                 hint={
                   currencyBucket.reconciliation.complete &&
                   currencyBucket.reconciliation.openingBalance !== null
-                    ? `Opening: ${formatMoney(currencyBucket.reconciliation.openingBalance, activeCurrency)} → Closing: ${formatMoney(currencyBucket.reconciliation.closingBalance ?? 0, activeCurrency)}`
+                    ? t('accounting.reports.kpi.openingClosing', {
+                        opening: formatMoney(
+                          currencyBucket.reconciliation.openingBalance,
+                          activeCurrency,
+                        ),
+                        closing: formatMoney(
+                          currencyBucket.reconciliation.closingBalance ?? 0,
+                          activeCurrency,
+                        ),
+                      })
                     : report.coverage.reconciliationUnavailableBySeal
-                      ? 'Reconciliation unavailable inside sealed purge window'
-                      : 'Select bounded period for opening/closing reconciliation'
+                      ? t('accounting.reports.kpi.reconUnavailableSeal')
+                      : t('accounting.reports.kpi.selectBoundedPeriod')
                 }
               />
               <AnalyticsKpiCard
-                label={`External Inflows (${activeCurrency})`}
+                label={t('accounting.reports.kpi.externalInflows', {
+                  currency: currencyLabel,
+                })}
                 value={formatMoney(currencyBucket.inflows, activeCurrency)}
                 deltaPct={currencyBucket.comparison?.inflowsDeltaPct}
-                hint={`${currencyBucket.inflowsCount} deposit operation(s)`}
+                hint={t('accounting.reports.kpi.depositOperations', {
+                  count: currencyBucket.inflowsCount,
+                })}
               />
               <AnalyticsKpiCard
-                label={`External Outflows (${activeCurrency})`}
+                label={t('accounting.reports.kpi.externalOutflows', {
+                  currency: currencyLabel,
+                })}
                 value={formatMoney(currencyBucket.outflows, activeCurrency)}
                 deltaPct={currencyBucket.comparison?.outflowsDeltaPct}
                 invertDelta
-                hint={`${currencyBucket.outflowsCount} withdrawal operation(s)`}
+                hint={t('accounting.reports.kpi.withdrawalOperations', {
+                  count: currencyBucket.outflowsCount,
+                })}
               />
               <AnalyticsKpiCard
-                label={`Net External Cashflow (${activeCurrency})`}
+                label={t('accounting.reports.kpi.netExternalCashflow', {
+                  currency: currencyLabel,
+                })}
                 value={formatMoney(currencyBucket.netExternalCashflow, activeCurrency)}
                 badge={
                   currencyBucket.comparison ? (
                     <span className="report-badge">
-                      Prev: {formatMoney(currencyBucket.comparison.netExternalCashflowPrev, activeCurrency)}
+                      {t('accounting.reports.kpi.prev', {
+                        amount: formatMoney(
+                          currencyBucket.comparison.netExternalCashflowPrev,
+                          activeCurrency,
+                        ),
+                      })}
                     </span>
                   ) : undefined
                 }
-                hint={`Internal transfers (shown separately): ${formatMoney(currencyBucket.transfersVolume, activeCurrency)} (${currencyBucket.transfersCount})`}
+                hint={t('accounting.reports.kpi.internalTransfersHint', {
+                  amount: formatMoney(
+                    currencyBucket.transfersVolume,
+                    activeCurrency,
+                  ),
+                  count: currencyBucket.transfersCount,
+                })}
               />
             </div>
 
             <div className="report-two-col-grid">
               <AnalyticsSectionCard
-                title={`Daily Cashflow Trend (${activeCurrency})`}
-                subtitle="External inflows vs outflows; transfers isolated separately."
+                title={t('accounting.reports.sections.dailyTrend', {
+                  currency: currencyLabel,
+                })}
+                subtitle={t('accounting.reports.sections.dailyTrendSubtitle')}
               >
                 <AnalyticsTrendChart
                   points={currencyBucket.trend}
@@ -713,19 +845,19 @@ export const AccountingReportsView: React.FC<AccountingReportsViewProps> = ({
                   series={[
                     {
                       key: 'inflows',
-                      label: 'Inflows',
+                      label: t('accounting.reports.series.inflows'),
                       color: 'var(--color-success)',
                       getValue: (pt) => pt.inflows,
                     },
                     {
                       key: 'outflows',
-                      label: 'Outflows',
+                      label: t('accounting.reports.series.outflows'),
                       color: 'var(--color-danger)',
                       getValue: (pt) => pt.outflows,
                     },
                     {
                       key: 'transfers',
-                      label: 'Transfers',
+                      label: t('accounting.reports.series.transfers'),
                       color: 'var(--color-info)',
                       getValue: (pt) => pt.transfers,
                     },
@@ -734,8 +866,10 @@ export const AccountingReportsView: React.FC<AccountingReportsViewProps> = ({
               </AnalyticsSectionCard>
 
               <AnalyticsSectionCard
-                title={`Balances by Cashbox (${activeCurrency})`}
-                subtitle="Click a cashbox to filter period transactions and reconciliation."
+                title={t('accounting.reports.sections.balancesByCashbox', {
+                  currency: currencyLabel,
+                })}
+                subtitle={t('accounting.reports.sections.balancesSubtitle')}
               >
                 <AnalyticsInteractiveBars
                   selectedId={cashboxId || null}
@@ -755,11 +889,21 @@ export const AccountingReportsView: React.FC<AccountingReportsViewProps> = ({
             </div>
 
             <AnalyticsSectionCard
-              title={`Opening / Closing Balance Reconciliation (${activeCurrency})`}
+              title={t('accounting.reports.sections.reconciliation', {
+                currency: currencyLabel,
+              })}
               subtitle={
                 currencyBucket.reconciliation.complete
-                  ? `Net Delta: ${formatMoney(currencyBucket.reconciliation.reconciliationDelta ?? 0, activeCurrency)} (${currencyBucket.reconciliation.reconciled ? 'Reconciled' : 'Variance detected'})`
-                  : 'Reconciliation unavailable (all-time or overlaps sealed snapshot purge boundary).'
+                  ? t('accounting.reports.sections.reconNetDelta', {
+                      amount: formatMoney(
+                        currencyBucket.reconciliation.reconciliationDelta ?? 0,
+                        activeCurrency,
+                      ),
+                      status: currencyBucket.reconciliation.reconciled
+                        ? t('accounting.reports.sections.reconciled')
+                        : t('accounting.reports.sections.varianceDetected'),
+                    })
+                  : t('accounting.reports.sections.reconUnavailable')
               }
             >
               <AnalyticsSortableTable
@@ -769,11 +913,31 @@ export const AccountingReportsView: React.FC<AccountingReportsViewProps> = ({
               />
             </AnalyticsSectionCard>
 
-            {/* CASHFLOW FORECASTING & SCENARIOS */}
             <AnalyticsSectionCard
-              title={`Cashflow Scenario Projection (${activeCurrency})`}
-              subtitle={`Starts from ${formatMoney(currencyBucket.forecast.startingBalance, activeCurrency)} using trailing ${report.coverage.observedHistoryDays}/${report.coverage.historyWindowDays}d external averages (${formatMoney(currencyBucket.forecast.avgDailyInflow, activeCurrency)}/d in, ${formatMoney(currencyBucket.forecast.avgDailyOutflow, activeCurrency)}/d out). Scenarios never post payments automatically.`}
-              actions={<span className="report-estimate-pill">Estimate Only</span>}
+              title={t('accounting.reports.sections.forecastTitle', {
+                currency: currencyLabel,
+              })}
+              subtitle={t('accounting.reports.sections.forecastSubtitle', {
+                balance: formatMoney(
+                  currencyBucket.forecast.startingBalance,
+                  activeCurrency,
+                ),
+                observed: report.coverage.observedHistoryDays,
+                window: report.coverage.historyWindowDays,
+                inflow: formatMoney(
+                  currencyBucket.forecast.avgDailyInflow,
+                  activeCurrency,
+                ),
+                outflow: formatMoney(
+                  currencyBucket.forecast.avgDailyOutflow,
+                  activeCurrency,
+                ),
+              })}
+              actions={
+                <span className="report-estimate-pill">
+                  {t('accounting.reports.sections.estimateOnly')}
+                </span>
+              }
             >
               <ScenarioManagerBar
                 scenarios={scenariosQuery.data ?? []}
@@ -798,7 +962,9 @@ export const AccountingReportsView: React.FC<AccountingReportsViewProps> = ({
 
               <div className="report-filter-bar">
                 <div className="report-filter-field">
-                  <label htmlFor="cf-horizon">Horizon</label>
+                  <label htmlFor="cf-horizon">
+                    {t('accounting.reports.forecast.horizon')}
+                  </label>
                   <select
                     id="cf-horizon"
                     value={String(horizonDays)}
@@ -806,13 +972,21 @@ export const AccountingReportsView: React.FC<AccountingReportsViewProps> = ({
                       setHorizonDays((Number(e.target.value) as 30 | 60 | 90) || 30)
                     }
                   >
-                    <option value="30">30 days</option>
-                    <option value="60">60 days</option>
-                    <option value="90">90 days</option>
+                    <option value="30">
+                      {t('accounting.reports.forecast.days', { count: 30 })}
+                    </option>
+                    <option value="60">
+                      {t('accounting.reports.forecast.days', { count: 60 })}
+                    </option>
+                    <option value="90">
+                      {t('accounting.reports.forecast.days', { count: 90 })}
+                    </option>
                   </select>
                 </div>
                 <div className="report-filter-field">
-                  <label htmlFor="cf-demand-mult">Demand Multiplier</label>
+                  <label htmlFor="cf-demand-mult">
+                    {t('accounting.reports.forecast.demandMultiplier')}
+                  </label>
                   <input
                     id="cf-demand-mult"
                     type="number"
@@ -828,7 +1002,9 @@ export const AccountingReportsView: React.FC<AccountingReportsViewProps> = ({
                   />
                 </div>
                 <div className="report-filter-field">
-                  <label htmlFor="cf-inflow-mult">Inflow Multiplier</label>
+                  <label htmlFor="cf-inflow-mult">
+                    {t('accounting.reports.forecast.inflowMultiplier')}
+                  </label>
                   <input
                     id="cf-inflow-mult"
                     type="number"
@@ -844,7 +1020,9 @@ export const AccountingReportsView: React.FC<AccountingReportsViewProps> = ({
                   />
                 </div>
                 <div className="report-filter-field">
-                  <label htmlFor="cf-outflow-mult">Outflow Multiplier</label>
+                  <label htmlFor="cf-outflow-mult">
+                    {t('accounting.reports.forecast.outflowMultiplier')}
+                  </label>
                   <input
                     id="cf-outflow-mult"
                     type="number"
@@ -860,7 +1038,9 @@ export const AccountingReportsView: React.FC<AccountingReportsViewProps> = ({
                   />
                 </div>
                 <div className="report-filter-field">
-                  <label htmlFor="cf-inflow-shift">Collection Shift (days)</label>
+                  <label htmlFor="cf-inflow-shift">
+                    {t('accounting.reports.forecast.collectionShift')}
+                  </label>
                   <input
                     id="cf-inflow-shift"
                     type="number"
@@ -875,7 +1055,9 @@ export const AccountingReportsView: React.FC<AccountingReportsViewProps> = ({
                   />
                 </div>
                 <div className="report-filter-field">
-                  <label htmlFor="cf-outflow-shift">Payment Shift (days)</label>
+                  <label htmlFor="cf-outflow-shift">
+                    {t('accounting.reports.forecast.paymentShift')}
+                  </label>
                   <input
                     id="cf-outflow-shift"
                     type="number"
@@ -893,7 +1075,9 @@ export const AccountingReportsView: React.FC<AccountingReportsViewProps> = ({
 
               <div className="report-kpi-grid">
                 <AnalyticsKpiCard
-                  label={`${horizonDays}d Projected Ending Balance`}
+                  label={t('accounting.reports.kpi.projectedEnding', {
+                    days: horizonDays,
+                  })}
                   value={formatMoney(currencyBucket.forecast.endingProjectedBalance, activeCurrency)}
                   tone={
                     currencyBucket.forecast.endingProjectedBalance < 0
@@ -901,17 +1085,44 @@ export const AccountingReportsView: React.FC<AccountingReportsViewProps> = ({
                       : 'default'
                   }
                   badge={<AnalyticsComparisonBadge deltaPct={null} />}
-                  hint={`Lowest projected point: ${formatMoney(currencyBucket.forecast.lowestProjectedBalance, activeCurrency)}`}
+                  hint={t('accounting.reports.kpi.lowestProjected', {
+                    amount: formatMoney(
+                      currencyBucket.forecast.lowestProjectedBalance,
+                      activeCurrency,
+                    ),
+                  })}
                 />
                 <AnalyticsKpiCard
-                  label={`Projected Baseline Flows (${horizonDays}d)`}
+                  label={t('accounting.reports.kpi.projectedBaseline', {
+                    days: horizonDays,
+                  })}
                   value={`+${formatMoney(currencyBucket.forecast.totalProjectedBaselineInflows, activeCurrency)} / -${formatMoney(currencyBucket.forecast.totalProjectedBaselineOutflows, activeCurrency)}`}
-                  hint={`Planned events: +${formatMoney(currencyBucket.forecast.totalPlannedInflows, activeCurrency)} / -${formatMoney(currencyBucket.forecast.totalPlannedOutflows, activeCurrency)}`}
+                  hint={t('accounting.reports.kpi.plannedEventsHint', {
+                    inflows: formatMoney(
+                      currencyBucket.forecast.totalPlannedInflows,
+                      activeCurrency,
+                    ),
+                    outflows: formatMoney(
+                      currencyBucket.forecast.totalPlannedOutflows,
+                      activeCurrency,
+                    ),
+                  })}
                 />
                 <AnalyticsKpiCard
-                  label="Unscheduled Open Obligations"
-                  value={`${report.obligationSummary.unscheduledCount} item(s)`}
-                  hint={`Receivables: ${formatMoney(report.obligationSummary.unscheduledReceivablesTotal, 'UAH')} · Payables: ${formatMoney(report.obligationSummary.unscheduledPayablesTotal, 'UAH')} (excluded from baseline until dated)`}
+                  label={t('accounting.reports.kpi.unscheduledObligations')}
+                  value={t('accounting.reports.kpi.unscheduledItems', {
+                    count: report.obligationSummary.unscheduledCount,
+                  })}
+                  hint={t('accounting.reports.kpi.receivablesPayablesHint', {
+                    receivables: formatMoney(
+                      report.obligationSummary.unscheduledReceivablesTotal,
+                      'UAH',
+                    ),
+                    payables: formatMoney(
+                      report.obligationSummary.unscheduledPayablesTotal,
+                      'UAH',
+                    ),
+                  })}
                 />
               </div>
 
@@ -921,32 +1132,39 @@ export const AccountingReportsView: React.FC<AccountingReportsViewProps> = ({
                 series={[
                   {
                     key: 'projectedBalance',
-                    label: `Projected Balance (${activeCurrency})`,
+                    label: t('accounting.reports.series.projectedBalance', {
+                      currency: currencyLabel,
+                    }),
                     color: 'var(--color-primary)',
                     getValue: (pt) => pt.projectedBalance,
                   },
                 ]}
               />
 
-              {/* Planned Events & Unscheduled Obligations Manager */}
               <div className="report-two-col-grid">
                 <div style={{ display: 'grid', gap: 8 }}>
                   <strong style={{ fontSize: '0.88rem' }}>
-                    Planned Cash Events ({plannedEvents.length})
+                    {t('accounting.reports.planned.title', {
+                      count: plannedEvents.length,
+                    })}
                   </strong>
                   <div className="report-filter-bar">
                     <div className="report-filter-field">
-                      <label htmlFor="cf-evt-title">Title</label>
+                      <label htmlFor="cf-evt-title">
+                        {t('accounting.reports.planned.titleLabel')}
+                      </label>
                       <input
                         id="cf-evt-title"
                         type="text"
                         value={newEventTitle}
-                        placeholder="Rent, tax, capital..."
+                        placeholder={t('accounting.reports.planned.placeholder')}
                         onChange={(e) => setNewEventTitle(e.target.value)}
                       />
                     </div>
                     <div className="report-filter-field">
-                      <label htmlFor="cf-evt-type">Type</label>
+                      <label htmlFor="cf-evt-type">
+                        {t('accounting.reports.planned.type')}
+                      </label>
                       <select
                         id="cf-evt-type"
                         value={newEventType}
@@ -956,12 +1174,20 @@ export const AccountingReportsView: React.FC<AccountingReportsViewProps> = ({
                           )
                         }
                       >
-                        <option value="outflow">Outflow</option>
-                        <option value="inflow">Inflow</option>
+                        <option value="outflow">
+                          {t('accounting.reports.planned.outflow')}
+                        </option>
+                        <option value="inflow">
+                          {t('accounting.reports.planned.inflow')}
+                        </option>
                       </select>
                     </div>
                     <div className="report-filter-field">
-                      <label htmlFor="cf-evt-amount">Amount ({activeCurrency})</label>
+                      <label htmlFor="cf-evt-amount">
+                        {t('accounting.reports.planned.amount', {
+                          currency: currencyLabel,
+                        })}
+                      </label>
                       <input
                         id="cf-evt-amount"
                         type="number"
@@ -972,7 +1198,9 @@ export const AccountingReportsView: React.FC<AccountingReportsViewProps> = ({
                       />
                     </div>
                     <div className="report-filter-field">
-                      <label htmlFor="cf-evt-date">Date</label>
+                      <label htmlFor="cf-evt-date">
+                        {t('accounting.reports.planned.date')}
+                      </label>
                       <input
                         id="cf-evt-date"
                         type="date"
@@ -985,7 +1213,7 @@ export const AccountingReportsView: React.FC<AccountingReportsViewProps> = ({
                       className="secondary-button"
                       onClick={addPlannedEvent}
                     >
-                      Add Planned Event
+                      {t('accounting.reports.planned.add')}
                     </button>
                   </div>
 
@@ -1004,8 +1232,12 @@ export const AccountingReportsView: React.FC<AccountingReportsViewProps> = ({
                       }}
                     >
                       <span>
-                        <strong>{evt.title}</strong> ({evt.type}, {evt.scheduledDate}):{' '}
-                        {formatMoney(evt.amount, evt.currency)}
+                        {t('accounting.reports.planned.eventSummary', {
+                          title: evt.title,
+                          type: t(`accounting.reports.planned.${evt.type}`),
+                          date: evt.scheduledDate,
+                          amount: formatMoney(evt.amount, evt.currency),
+                        })}
                       </span>
                       <button
                         type="button"
@@ -1016,7 +1248,7 @@ export const AccountingReportsView: React.FC<AccountingReportsViewProps> = ({
                           )
                         }
                       >
-                        Remove
+                        {t('accounting.reports.planned.remove')}
                       </button>
                     </div>
                   ))}
@@ -1024,11 +1256,11 @@ export const AccountingReportsView: React.FC<AccountingReportsViewProps> = ({
 
                 <div style={{ display: 'grid', gap: 8 }}>
                   <strong style={{ fontSize: '0.88rem' }}>
-                    Unscheduled Obligations (assign date to include without double-counting)
+                    {t('accounting.reports.obligations.title')}
                   </strong>
                   {report.unscheduledObligations.length === 0 ? (
                     <div className="report-state-box">
-                      All open supplier/client obligations are either settled or scheduled.
+                      {t('accounting.reports.obligations.empty')}
                     </div>
                   ) : (
                     report.unscheduledObligations.slice(0, 8).map((obl) => {
@@ -1059,13 +1291,20 @@ export const AccountingReportsView: React.FC<AccountingReportsViewProps> = ({
                               {formatMoney(obl.amount, obl.currency)}
                             </span>
                             {obl.dueDate ? (
-                              <span className="muted-copy"> (Due {formatDate(obl.dueDate)})</span>
+                              <span className="muted-copy">
+                                {t('accounting.reports.obligations.due', {
+                                  date: formatDate(obl.dueDate),
+                                })}
+                              </span>
                             ) : null}
                           </div>
                           <div style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}>
                             <input
                               type="date"
-                              aria-label={`Schedule date for ${obl.label}`}
+                              aria-label={t(
+                                'accounting.reports.obligations.scheduleDateAria',
+                                { label: obl.label },
+                              )}
                               value={obligationDates[key] ?? obl.dueDate ?? ''}
                               onChange={(e) =>
                                 setObligationDates((prev) => ({
@@ -1089,7 +1328,7 @@ export const AccountingReportsView: React.FC<AccountingReportsViewProps> = ({
                                 )
                               }
                             >
-                              Schedule
+                              {t('accounting.reports.obligations.schedule')}
                             </button>
                           </div>
                         </div>
@@ -1131,16 +1370,22 @@ export const AccountingReportsView: React.FC<AccountingReportsViewProps> = ({
               </article>
             </div>
             {reportQuery.isLoading ? (
-              <div className="report-state-box">Loading cashboxes report...</div>
+              <div className="report-state-box">
+                {t('accounting.reports.loading')}
+              </div>
             ) : null}
           </>
         )}
 
         <AnalyticsSectionCard
-          title={`Transactions Drill-Down (${activeCurrency})`}
+          title={t('accounting.reports.sections.drillDown', {
+            currency: currencyLabel,
+          })}
           subtitle={
             detailsQuery.data
-              ? `Matching total across all pages: ${detailsQuery.data.total} operation(s)`
+              ? t('accounting.reports.sections.matchingTotal', {
+                  count: detailsQuery.data.total,
+                })
               : undefined
           }
         >
@@ -1160,7 +1405,7 @@ export const AccountingReportsView: React.FC<AccountingReportsViewProps> = ({
               detailsQuery.isError
                 ? detailsQuery.error instanceof Error
                   ? detailsQuery.error.message
-                  : 'Failed to load cashbox transactions.'
+                  : t('accounting.reports.errors.loadDetails')
                 : null
             }
             page={detailsQuery.data?.page ?? page}

@@ -418,6 +418,7 @@ export type FinanceProfitReport = {
     coldSalesPurgedExist: boolean;
     isProfitIncomplete: boolean;
     warnings: string[];
+    warningItems?: Array<{ code: string; count?: number; date?: string }>;
   };
 };
 
@@ -624,6 +625,7 @@ export type CashboxesReportResponse = {
     observedHistoryDays: number;
     historyWindowDays: number;
     warnings: string[];
+    warningItems?: Array<{ code: string; count?: number; date?: string }>;
   };
 };
 
