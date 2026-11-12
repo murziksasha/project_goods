@@ -16,6 +16,14 @@ import type {
   WarehouseReportParams,
   WarehouseReportResponse,
 } from '../model/report-types';
+import type {
+  OrdersProcurementTableRow,
+  OrdersRepairTableRow,
+  OrdersReportKind,
+  OrdersReportTableParams,
+  OrdersReportTableResponse,
+  OrdersSaleTableRow,
+} from '../model/orders-reports-types';
 
 const cleanParams = (params: Record<string, unknown>) => {
   const out: Record<string, string | number | boolean> = {};
@@ -221,6 +229,57 @@ export const useOrdersProcurementDetailsQuery = (
   useQuery({
     queryKey: queryKeys.ordersProcurementDetails(cleanParams(params)),
     queryFn: () => getOrdersProcurementDetails(params),
+    enabled: options.enabled ?? true,
+    staleTime: 30_000,
+  });
+
+const ordersReportsPath = (kind: OrdersReportKind, exportMode = false) =>
+  `/reports/orders/table/${kind}${exportMode ? '/export' : ''}`;
+
+export const getOrdersReportsTable = async <
+  Row = OrdersRepairTableRow | OrdersSaleTableRow | OrdersProcurementTableRow,
+>(
+  kind: OrdersReportKind,
+  params: OrdersReportTableParams = {},
+): Promise<OrdersReportTableResponse<Row>> => {
+  try {
+    const response = await apiClient.get<OrdersReportTableResponse<Row>>(
+      ordersReportsPath(kind, false),
+      { params: cleanParams(params as Record<string, unknown>) },
+    );
+    return response.data;
+  } catch (error) {
+    throw new Error(getApiErrorMessage(error));
+  }
+};
+
+export const getOrdersReportsTableExport = async <
+  Row = OrdersRepairTableRow | OrdersSaleTableRow | OrdersProcurementTableRow,
+>(
+  kind: OrdersReportKind,
+  params: OrdersReportTableParams = {},
+): Promise<OrdersReportTableResponse<Row>> => {
+  try {
+    const response = await apiClient.get<OrdersReportTableResponse<Row>>(
+      ordersReportsPath(kind, true),
+      { params: cleanParams(params as Record<string, unknown>) },
+    );
+    return response.data;
+  } catch (error) {
+    throw new Error(getApiErrorMessage(error));
+  }
+};
+
+export const useOrdersReportsTableQuery = <
+  Row = OrdersRepairTableRow | OrdersSaleTableRow | OrdersProcurementTableRow,
+>(
+  kind: OrdersReportKind,
+  params: OrdersReportTableParams,
+  options: { enabled?: boolean } = {},
+) =>
+  useQuery({
+    queryKey: queryKeys.ordersReportsTable(kind, cleanParams(params as Record<string, unknown>)),
+    queryFn: () => getOrdersReportsTable<Row>(kind, params),
     enabled: options.enabled ?? true,
     staleTime: 30_000,
   });

@@ -63,6 +63,9 @@ export const queryKeys = {
     ['cashboxesReport', 'details', params] as const,
   financeProfitReportDetails: (params: Record<string, unknown> = {}) =>
     ['financeProfitReport', 'details', params] as const,
+  ordersReportsTableRoot: ['ordersReportsTable'] as const,
+  ordersReportsTable: (kind: string, params: Record<string, unknown> = {}) =>
+    ['ordersReportsTable', kind, params] as const,
   scenariosRoot: ['scenarios'] as const,
   scenarios: (domain?: string) =>
     (domain ? (['scenarios', domain] as const) : (['scenarios'] as const)),

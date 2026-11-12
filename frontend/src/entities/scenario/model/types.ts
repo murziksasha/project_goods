@@ -1,4 +1,4 @@
-export type ScenarioDomain = 'warehouse' | 'cashflow';
+export type ScenarioDomain = 'warehouse' | 'cashflow' | 'ordersReport';
 
 export type WarehouseScenarioAssumptions = {
   demandMultiplier: number;

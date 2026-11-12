@@ -80,7 +80,8 @@ export type OrdersTabPreference =
   | 'kanban'
   | 'sales'
   | 'supplierOrders'
-  | 'supplierInformation';
+  | 'supplierInformation'
+  | 'ordersReports';
 
 export type EmployeeUiPreferences = {
   hiddenOrdersTabs: OrdersTabPreference[];

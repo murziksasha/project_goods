@@ -365,6 +365,7 @@ export const OrdersWorkspace: React.FC<OrdersWorkspaceProps> = ({
     sales: 1,
     supplierOrders: 1,
     supplierInformation: 1,
+    ordersReports: 1,
   });
   const [ordersPageSize, setOrdersPageSize] = useStoredPageSize('orders');
   const [salesPageSize, setSalesPageSize] = useStoredPageSize('sales');

@@ -13,7 +13,7 @@ export const resolvePermittedOrdersTabs = ({
     if (tab === 'supplierOrders') {
       return canViewSupplierOrders;
     }
-    if (tab === 'supplierInformation') {
+    if (tab === 'supplierInformation' || tab === 'ordersReports') {
       return canViewRepairSalesOrders || canViewSupplierOrders;
     }
     if (tab === 'kanban') {
