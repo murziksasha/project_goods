@@ -7,6 +7,11 @@ import type {
   ProfitReportSource,
 } from '../../../entities/finance';
 import type { ServiceCatalogItem } from '../../../entities/service-catalog';
+import i18n from '../../../shared/i18n/config';
+import {
+  translateProfitCoverageWarnings,
+  translateProfitKind,
+} from './accounting-analytics-i18n';
 import type { AnalyticsDateRange } from './analytics-date-range';
 
 export const profitReportFiltersStorageKey =
@@ -635,7 +640,7 @@ const toExcelSheetName = (value: string) =>
   value
     .replace(/[\\/?*[\]:]/g, ' ')
     .trim()
-    .slice(0, 31) || 'Report';
+    .slice(0, 31) || i18n.t('common.reportExport.sectionReport');
 
 const downloadWorkbook = (
   workbook: XLSX.WorkBook,
@@ -724,8 +729,8 @@ export const exportProfitReportWorkbook = ({
     [labels.generated, generatedAt],
     [labels.source, report.source],
     [labels.period, periodLabel],
-    ['Service profit mode', policyMode],
-    ['Policy version', `v${policyVersion}`],
+    [i18n.t('accounting.profit.export.serviceProfitMode'), policyMode],
+    [i18n.t('accounting.profit.export.policyVersion'), `v${policyVersion}`],
     [labels.filters, `${report.source}; ${periodLabel}${extraFilters ? `; ${extraFilters}` : ''}`],
     [],
     [labels.revenue, report.margin.revenue],
@@ -733,20 +738,20 @@ export const exportProfitReportWorkbook = ({
     [
       labels.grossProfit,
       report.margin.isIncomplete
-        ? 'Incomplete'
+        ? i18n.t('accounting.profit.export.incomplete')
         : (report.margin.grossProfit ?? 0),
     ],
-    [labels.grossMargin, report.margin.grossMarginPct ?? 'Incomplete'],
+    [labels.grossMargin, report.margin.grossMarginPct ?? i18n.t('accounting.profit.export.incomplete')],
     [
-      'Known-cost revenue subtotal',
+      i18n.t('accounting.profit.export.knownCostRevenueSubtotal'),
       report.margin.knownCostRevenue ?? report.margin.revenue,
     ],
     [
-      'Known-cost gross profit',
+      i18n.t('accounting.profit.export.knownCostGrossProfit'),
       report.margin.knownCostGrossProfit ?? report.margin.grossProfit ?? 0,
     ],
     [
-      'Cost coverage %',
+      i18n.t('accounting.profit.export.costCoveragePct'),
       report.margin.costCoveragePct !== undefined
         ? `${report.margin.costCoveragePct}%`
         : '100%',
@@ -785,7 +790,7 @@ export const exportProfitReportWorkbook = ({
       report.margin.cogs,
       report.margin.revenue,
       report.margin.isIncomplete
-        ? 'Incomplete'
+        ? i18n.t('accounting.profit.export.incomplete')
         : (report.margin.grossProfit ?? 0),
       report.margin.grossMarginPct ?? '',
     ],
@@ -836,64 +841,80 @@ export const exportProfitReportWorkbook = ({
       workbook,
       XLSX.utils.json_to_sheet(
         detailRows.map((d) => ({
-          Record: d.recordNumber || d.id,
-          Kind: d.kind,
-          Status: d.status,
-          Date: d.saleDate.slice(0, 10),
-          Client: d.clientName,
-          Revenue: d.revenue,
-          KnownCostRevenue: d.knownCostRevenue,
-          KnownCost: d.knownCost,
-          KnownProfit: d.knownProfit,
-          Profit: d.isIncomplete ? 'Incomplete' : (d.profit ?? 0),
-          MissingCostLines: d.missingCostCount,
-          IsLoss: d.isLoss ? 'Yes' : 'No',
+          [i18n.t('accounting.profit.export.cols.Record')]: d.recordNumber || d.id,
+          [i18n.t('accounting.profit.export.cols.Kind')]: translateProfitKind(
+            i18n.t.bind(i18n),
+            d.kind,
+          ),
+          [i18n.t('accounting.profit.export.cols.Status')]: d.status,
+          [i18n.t('accounting.profit.export.cols.Date')]: d.saleDate.slice(0, 10),
+          [i18n.t('accounting.profit.export.cols.Client')]: d.clientName,
+          [i18n.t('accounting.profit.export.cols.Revenue')]: d.revenue,
+          [i18n.t('accounting.profit.export.cols.KnownCostRevenue')]: d.knownCostRevenue,
+          [i18n.t('accounting.profit.export.cols.KnownCost')]: d.knownCost,
+          [i18n.t('accounting.profit.export.cols.KnownProfit')]: d.knownProfit,
+          [i18n.t('accounting.profit.export.cols.Profit')]: d.isIncomplete
+            ? i18n.t('accounting.profit.export.incomplete')
+            : (d.profit ?? 0),
+          [i18n.t('accounting.profit.export.cols.MissingCostLines')]: d.missingCostCount,
+          [i18n.t('accounting.profit.export.cols.IsLoss')]: d.isLoss
+            ? i18n.t('accounting.profit.export.yes')
+            : i18n.t('accounting.profit.export.no'),
         })),
       ),
-      'Source Records',
+      toExcelSheetName(i18n.t('accounting.profit.export.sourceRecordsSheet')),
     );
   }
+  const colSection = i18n.t('common.reportExport.colSection');
+  const colKey = i18n.t('common.reportExport.colKey');
+  const colValue = i18n.t('common.reportExport.colValue');
+  const tProfit = i18n.t.bind(i18n);
+  const translatedWarnings = translateProfitCoverageWarnings(
+    tProfit,
+    report.coverage?.warnings ?? [],
+    report.coverage?.warningItems,
+  );
   const metaRows: Array<Record<string, string>> = [
-    { Section: 'Report', Key: 'Title', Value: labels.title },
-    { Section: 'Report', Key: 'Generated At', Value: generatedAt },
-    { Section: 'Report', Key: 'Business Time Zone', Value: report.period.timeZone || 'Europe/Kiev' },
-    { Section: 'Active Filter', Key: 'Source', Value: report.source },
-    { Section: 'Active Filter', Key: 'Period', Value: periodLabel },
-    { Section: 'Active Policy', Key: 'Service Profit Mode', Value: policyMode },
-    { Section: 'Active Policy', Key: 'Policy Version', Value: `v${policyVersion}` },
-    ...(extraFilters ? [{ Section: 'Active Filter', Key: 'Flags', Value: extraFilters }] : []),
+    { [colSection]: i18n.t('common.reportExport.sectionReport'), [colKey]: i18n.t('common.reportExport.keyTitle'), [colValue]: labels.title },
+    { [colSection]: i18n.t('common.reportExport.sectionReport'), [colKey]: i18n.t('accounting.profit.export.generatedAt'), [colValue]: generatedAt },
+    { [colSection]: i18n.t('common.reportExport.sectionReport'), [colKey]: i18n.t('common.reportExport.keyTimeZone'), [colValue]: report.period.timeZone || 'Europe/Kiev' },
+    { [colSection]: i18n.t('common.reportExport.sectionFilter'), [colKey]: labels.source, [colValue]: report.source },
+    { [colSection]: i18n.t('common.reportExport.sectionFilter'), [colKey]: labels.period, [colValue]: periodLabel },
+    { [colSection]: i18n.t('accounting.profit.export.activePolicy'), [colKey]: i18n.t('accounting.profit.export.serviceProfitMode'), [colValue]: policyMode },
+    { [colSection]: i18n.t('accounting.profit.export.activePolicy'), [colKey]: i18n.t('accounting.profit.export.policyVersion'), [colValue]: `v${policyVersion}` },
+    ...(extraFilters
+      ? [{ [colSection]: i18n.t('common.reportExport.sectionFilter'), [colKey]: i18n.t('accounting.profit.export.flags'), [colValue]: extraFilters }]
+      : []),
     {
-      Section: 'Metric Definition',
-      Key: 'Gross Profitability vs Cash Flow',
-      Value:
-        'Gross profitability measures committed sales/repairs revenue minus product & service cost snapshots/audits. Labor costing affects gross profit; cash salary withdrawals stay in cash-flow OPEX and are not double-deducted.',
+      [colSection]: i18n.t('common.reportExport.sectionDefinition'),
+      [colKey]: i18n.t('accounting.profit.export.defGrossTitle'),
+      [colValue]: i18n.t('accounting.profit.export.defGross'),
     },
     {
-      Section: 'Metric Definition',
-      Key: 'Incomplete Costs',
-      Value:
-        'Orders with unknown costs are included in revenue; overall profit shows as Incomplete alongside a known-cost subtotal and coverage percentage.',
+      [colSection]: i18n.t('common.reportExport.sectionDefinition'),
+      [colKey]: i18n.t('accounting.profit.export.defIncompleteTitle'),
+      [colValue]: i18n.t('accounting.profit.export.defIncomplete'),
     },
-    ...(report.coverage?.warnings.length
-      ? report.coverage.warnings.map((w, idx) => ({
-          Section: 'Coverage Warning',
-          Key: `Warning ${idx + 1}`,
-          Value: w,
+    ...(translatedWarnings.length
+      ? translatedWarnings.map((w, idx) => ({
+          [colSection]: i18n.t('common.reportExport.sectionWarning'),
+          [colKey]: i18n.t('common.reportExport.warningN', { count: idx + 1 }),
+          [colValue]: w,
         }))
       : [
           {
-            Section: 'Coverage Warning',
-            Key: 'Status',
-            Value: report.coldSalesPurgedExist
-              ? 'Cold yearly archive purges exist; profitability covers live persisted records only.'
-              : 'No coverage warnings for selection.',
+            [colSection]: i18n.t('common.reportExport.sectionWarning'),
+            [colKey]: i18n.t('common.reportExport.warningStatus'),
+            [colValue]: report.coldSalesPurgedExist
+              ? i18n.t('accounting.profit.export.coldPurgeStatus')
+              : i18n.t('accounting.profit.export.noWarnings'),
           },
         ]),
   ];
   XLSX.utils.book_append_sheet(
     workbook,
     XLSX.utils.json_to_sheet(metaRows),
-    'Metadata & Definitions',
+    toExcelSheetName(i18n.t('common.reportExport.metadataSheet')),
   );
   downloadWorkbook(workbook, filename);
 };

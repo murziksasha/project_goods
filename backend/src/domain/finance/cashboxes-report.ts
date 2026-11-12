@@ -771,19 +771,30 @@ export const getCashboxesReport = async (
   }
 
   const warnings: string[] = [];
+  const warningItems: Array<{ code: string; count?: number; date?: string }> = [];
   if (reconciliationUnavailableBySeal) {
     warnings.push(
       `Transactions on or before ${sealedDateKey} (${purgedTxCount} purged) are sealed; opening balance and full period reconciliation are unavailable inside the sealed purge window.`,
     );
+    warningItems.push({
+      code: 'sealedPurge',
+      date: sealedDateKey ?? undefined,
+      count: purgedTxCount,
+    });
   }
   if (forecastTruncatedBySeal) {
     warnings.push(
       `Trailing 90-day forecast history partially overlaps purged seal date (${sealedDateKey}).`,
     );
+    warningItems.push({
+      code: 'forecastTruncatedBySeal',
+      date: sealedDateKey ?? undefined,
+    });
   } else if (observedHistoryDays < 90) {
     warnings.push(
       `Only ${observedHistoryDays} day(s) of finance history available inside the 90-day observation window.`,
     );
+    warningItems.push({ code: 'shortFinanceHistory', count: observedHistoryDays });
   }
 
   return {
@@ -838,6 +849,7 @@ export const getCashboxesReport = async (
       observedHistoryDays,
       historyWindowDays: 90,
       warnings,
+      warningItems,
     },
   };
 };

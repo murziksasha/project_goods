@@ -231,4 +231,39 @@ describe('AccountingReportsView (Cashboxes Information)', () => {
     fireEvent.click(screen.getByRole('tab', { name: 'USD' }));
     expect(screen.getByText('Current Balance (USD)')).toBeInTheDocument();
   });
+
+  it('renders Ukrainian copy when the interface language is uk', async () => {
+    await i18n.changeLanguage('uk');
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <I18nextProvider i18n={i18n}>
+          <AccountingReportsView financeOverview={emptyOverview} />
+        </I18nextProvider>
+      </QueryClientProvider>,
+    );
+
+    expect(
+      screen.getByRole('heading', { name: 'Бухгалтерська інформація' }),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText('Період')).toBeInTheDocument();
+    expect(screen.getByText('Останні 30 днів')).toBeInTheDocument();
+    expect(screen.getByLabelText('Каса')).toBeInTheDocument();
+    expect(screen.getByText('Усі каси')).toBeInTheDocument();
+    expect(screen.getByLabelText('Тип операції')).toBeInTheDocument();
+    expect(screen.getByLabelText('Пошук приміток')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('Примітка, категорія, каса...')).toBeInTheDocument();
+    expect(screen.getByText('Поточний залишок (грн)')).toBeInTheDocument();
+    expect(screen.getByText('Зовнішні надходження (грн)')).toBeInTheDocument();
+    expect(screen.getByText('Зовнішні витрати (грн)')).toBeInTheDocument();
+    expect(screen.getByText('Чистий зовнішній грошовий потік (грн)')).toBeInTheDocument();
+    expect(screen.getByText(/Внутрішні перекази \(показано окремо\)/)).toBeInTheDocument();
+    expect(screen.getByText('Щоденна динаміка грошового потоку (грн)')).toBeInTheDocument();
+    expect(screen.getByText('Залишки за касами (грн)')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Запланувати' })).toBeInTheDocument();
+    expect(screen.getAllByText(/запечатано/).length).toBeGreaterThan(0);
+    expect(screen.getByRole('button', { name: 'Експорт Excel (.xlsx)' })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('tab', { name: 'USD' }));
+    expect(screen.getByText('Поточний залишок (USD)')).toBeInTheDocument();
+  });
 });
