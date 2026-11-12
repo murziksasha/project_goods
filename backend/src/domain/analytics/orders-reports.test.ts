@@ -219,6 +219,72 @@ describe('Orders Reports table endpoints', () => {
     expect(page2.nextCursor).toBeNull();
   });
 
+  it('still pages all register rows when /export is called in summary mode', async () => {
+    const rows = Array.from({ length: 1205 }, (_, i) =>
+      repairBase({
+        _id: oid(`r-${i}`),
+        recordNumber: `r${String(i).padStart(6, '0')}`,
+        saleDate: new Date('2026-10-15T10:00:00.000Z'),
+        master: oid('m1'),
+        masterSnapshot: { name: 'Oleh' },
+      }),
+    );
+    vi.spyOn(Sale, 'find').mockReturnValue(mockSelectLean(rows) as never);
+
+    const page1 = await getOrdersRepairsTable(
+      { period: 'last30', mode: 'summary', groupBy: 'master', cursor: '1' },
+      { now, includeCosts: false, exportMode: true },
+    );
+    expect(page1.mode).toBe('summary');
+    expect(page1.groups.length).toBeGreaterThan(0);
+    expect(page1.items).toHaveLength(1000);
+    expect(page1.pageSize).toBe(1000);
+    expect(page1.total).toBe(1205);
+    expect(page1.nextCursor).toBe('2');
+
+    const page2 = await getOrdersRepairsTable(
+      { period: 'last30', mode: 'summary', groupBy: 'master', cursor: '2' },
+      { now, includeCosts: false, exportMode: true },
+    );
+    expect(page2.items).toHaveLength(205);
+    expect(page2.nextCursor).toBeNull();
+    expect(page2.groups[0]?.count).toBe(1205);
+  });
+
+  it('filters repairs by exact lineName and ignores substring-only q matches for that filter', async () => {
+    vi.spyOn(Sale, 'find').mockReturnValue(
+      mockSelectLean([
+        repairBase({ _id: oid('r-screen'), recordNumber: 'r000010' }),
+        repairBase({
+          _id: oid('r-other'),
+          recordNumber: 'r000011',
+          lineItems: [
+            {
+              id: 'svc-2',
+              kind: 'service',
+              name: 'Battery',
+              price: 400,
+              quantity: 1,
+              costSnapshot: { status: 'known', unitCost: 100, totalCost: 100, method: 'fixed' },
+            },
+          ],
+        }),
+      ]) as never,
+    );
+
+    const exact = await getOrdersRepairsTable(
+      { period: 'last30', lineName: 'Screen', lineKind: 'service' },
+      { now, includeCosts: false },
+    );
+    expect(exact.items.map((r) => r.recordNumber)).toEqual(['r000010']);
+
+    const miss = await getOrdersRepairsTable(
+      { period: 'last30', lineName: 'Scree' },
+      { now, includeCosts: false },
+    );
+    expect(miss.items).toHaveLength(0);
+  });
+
   it('returns sales payment breakdown and applies paymentMethod / lineKind filters', async () => {
     vi.spyOn(Sale, 'find').mockReturnValue(
       mockSelectLean([
@@ -349,6 +415,13 @@ describe('Orders Reports table endpoints', () => {
     expect(summary.groups[0]?.label).toBe('Acme');
     expect(summary.groups[0]?.count).toBe(2);
     expect(summary.grandTotal.total).toBe(1500);
+
+    const withCosts = await getOrdersProcurementTable(
+      { period: 'last30' },
+      { now, includeCosts: true },
+    );
+    expect(JSON.stringify(withCosts)).not.toContain('knownCost');
+    expect(JSON.stringify(withCosts)).not.toContain('knownProfit');
   });
 });
 

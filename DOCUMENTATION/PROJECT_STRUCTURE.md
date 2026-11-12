@@ -370,6 +370,7 @@ Spec: [SALE_FLOW.md](./SALE_FLOW.md#rapid-sale-2026-06-24).
 - `backend/src/domain/finance/cashboxes-report.ts` (+ `cashboxes-report.test.ts`) — currency-separated cashbox reconciliation (`FinancePeriodSnapshot` seal aware), transfer separation, cashflow scenarios, and obligations scheduler.
 - `backend/src/domain/scenario/{model,service,controller,routes,service.test}.ts` — employee-private saved scenarios CRUD (`/api/scenarios`).
 - `backend/src/test/reports.integration.test.ts` — endpoint permission matrix, redaction, ownership, and cost update integration tests.
+- `backend/src/domain/analytics/orders-reports.ts` (+ `orders-reports-finance.ts`, `orders-reports.test.ts`) — Orders Reports register/summary/export (`GET /api/reports/orders/table/{repairs,sales,procurement}` and `/export`), Mongo-level period bounding, groupBy aggregates, and `finance.view` redaction.
 
 ### Frontend
 
@@ -378,7 +379,6 @@ Spec: [SALE_FLOW.md](./SALE_FLOW.md#rapid-sale-2026-06-24).
 - `frontend/src/shared/lib/report-excel.ts` (+ `report-excel.test.ts`) — shared `.xlsx` workbook builder appending `Metadata & Definitions` (timestamp, timezone, active filters, definitions, coverage warnings).
 - `frontend/src/widgets/dashboard/ui/common/AnalyticsPrimitives.tsx` — shared KPI cards, delta badges, coverage banners, accessible interactive bar/trend charts, sortable paginated tables, and scenario manager bar.
 - `frontend/src/widgets/dashboard/ui/orders/OrdersInformationWorkspace.tsx` (+ `OrdersInformationWorkspace.test.tsx`) — subview-isolated Repairs / Sales / Procurement analytics workspace under `ordersTab=supplierInformation`.
-- `backend/src/domain/analytics/orders-reports.ts` (+ `orders-reports-finance.ts`, `orders-reports.test.ts`) — Orders Reports register/summary/export (`GET /api/reports/orders/table/{repairs,sales,procurement}` and `/export`), Mongo-level period bounding, groupBy aggregates, and `finance.view` redaction.
 - `frontend/src/widgets/dashboard/ui/orders/OrdersReportsWorkspace.tsx` (+ `OrdersReportsColumnPicker.tsx`, `OrdersReportsWorkspace.test.tsx`, `orders-reports-i18n.test.ts`) — configurable register/summary workspace under `ordersTab=ordersReports`, with column picker, groupBy, presets (`ordersReport` domain), last-used `localStorage` settings, and unlimited batched Excel export.
 - `frontend/src/widgets/dashboard/model/orders-reports-settings.ts` and `orders-reports-export.ts` (+ unit tests) — column defaults, sanitization, persistence, and export batch looping.
 - E2E suite `frontend/e2e/orders-reports.spec.ts` covers the Reports tab switchers, column picker, and register rendering.

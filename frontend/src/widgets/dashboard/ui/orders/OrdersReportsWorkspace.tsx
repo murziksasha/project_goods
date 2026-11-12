@@ -158,6 +158,7 @@ export const OrdersReportsWorkspace: React.FC<OrdersReportsWorkspaceProps> = ({
       masterId: settings.masterId || undefined,
       managerId: settings.managerId || undefined,
       q: settings.q.trim() || undefined,
+      lineName: settings.lineName.trim() || undefined,
       clientId: settings.clientId || undefined,
       supplierId: settings.supplierId || undefined,
       lineKind: settings.lineKind && settings.lineKind !== 'all' ? settings.lineKind : undefined,
@@ -198,6 +199,7 @@ export const OrdersReportsWorkspace: React.FC<OrdersReportsWorkspaceProps> = ({
       masterId: settings.masterId,
       managerId: settings.managerId,
       q: settings.q,
+      lineName: settings.lineName,
       clientId: settings.clientId,
       supplierId: settings.supplierId,
       lineKind: settings.lineKind,
@@ -237,6 +239,7 @@ export const OrdersReportsWorkspace: React.FC<OrdersReportsWorkspaceProps> = ({
       masterId: String(filters.masterId ?? ''),
       managerId: String(filters.managerId ?? ''),
       q: String(filters.q ?? ''),
+      lineName: String(filters.lineName ?? ''),
       clientId: String(filters.clientId ?? ''),
       supplierId: String(filters.supplierId ?? ''),
       lineKind: String(filters.lineKind ?? 'all'),
@@ -406,7 +409,7 @@ export const OrdersReportsWorkspace: React.FC<OrdersReportsWorkspaceProps> = ({
       if (filters.supplierId !== undefined) next.supplierId = filters.supplierId;
       if (filters.clientId !== undefined) next.clientId = filters.clientId;
       if (filters.lineKind !== undefined) next.lineKind = filters.lineKind;
-      if (filters.lineName !== undefined) next.q = filters.lineName;
+      if (filters.lineName !== undefined) next.lineName = filters.lineName;
       return next;
     });
     setPage(1);
@@ -477,7 +480,14 @@ export const OrdersReportsWorkspace: React.FC<OrdersReportsWorkspaceProps> = ({
     setExportError(null);
     setExportProgress({ loaded: 0, total: report.total });
     try {
-      const exportParams = { ...queryParams, page: undefined, pageSize: undefined, cursor: undefined };
+      const exportParams = {
+        ...queryParams,
+        page: undefined,
+        pageSize: undefined,
+        cursor: undefined,
+        // Register sheet needs every row; Summary sheet is built from the current groups tree.
+        mode: 'register' as const,
+      };
       const items = await fetchAllExportBatches(
         (cursor) =>
           getOrdersReportsTableExport(kind, { ...exportParams, cursor }).then((res) => ({
@@ -637,6 +647,7 @@ export const OrdersReportsWorkspace: React.FC<OrdersReportsWorkspaceProps> = ({
                       sortBy: defaultSortForKind(item),
                       groupBy: [],
                       status: '',
+                      lineName: '',
                     })
                   }
                 >
@@ -825,6 +836,24 @@ export const OrdersReportsWorkspace: React.FC<OrdersReportsWorkspaceProps> = ({
               onChange={(e) => patch({ q: e.target.value })}
             />
           </label>
+          {settings.lineName ? (
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={() => patch({ lineName: '' })}
+              title={t('orders.reports.drillDown')}
+            >
+              {t(
+                settings.lineKind === 'service'
+                  ? 'orders.reports.filters.service'
+                  : settings.lineKind === 'product'
+                    ? 'orders.reports.filters.product'
+                    : 'orders.reports.columns.group',
+              )}
+              {': '}
+              {settings.lineName}
+            </button>
+          ) : null}
           <label className="finance-profit-visual-check">
             <input
               type="checkbox"
