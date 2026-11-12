@@ -842,27 +842,34 @@ const envelope = <Row,>(
   groups: GroupAggregate[],
   grandTotal: GroupAggregate,
   coverage: TableEnvelope<Row>['coverage'],
-  extra?: Partial<TableEnvelope<Row>>,
-): TableEnvelope<Row> => ({
-  generatedAt: now.toISOString(),
-  timeZone: 'Europe/Kiev',
-  period: {
-    key: period.key,
-    dateFrom: period.dateFrom,
-    dateTo: period.dateTo,
-  },
-  mode,
-  groupBy,
-  items: mode === 'summary' && !extra?.items ? [] : paged.items,
-  groups: mode === 'summary' ? groups : [],
-  grandTotal,
-  total: mode === 'summary' ? groups.reduce((s, g) => s + g.count, 0) : paged.total,
-  page: paged.page,
-  pageSize: paged.pageSize,
-  nextCursor: mode === 'summary' ? null : paged.nextCursor,
-  coverage,
-  ...extra,
-});
+  extra?: Partial<TableEnvelope<Row>> & { exportMode?: boolean },
+): TableEnvelope<Row> => {
+  const exportMode = extra?.exportMode === true;
+  const rest = { ...(extra ?? {}) };
+  delete rest.exportMode;
+  // /export must still page every register row even when the UI is in summary mode.
+  const summaryUi = mode === 'summary' && !exportMode;
+  return {
+    generatedAt: now.toISOString(),
+    timeZone: 'Europe/Kiev',
+    period: {
+      key: period.key,
+      dateFrom: period.dateFrom,
+      dateTo: period.dateTo,
+    },
+    mode,
+    groupBy,
+    items: summaryUi && rest.items === undefined ? [] : paged.items,
+    groups: mode === 'summary' ? groups : [],
+    grandTotal,
+    total: summaryUi ? groups.reduce((s, g) => s + g.count, 0) : paged.total,
+    page: paged.page,
+    pageSize: paged.pageSize,
+    nextCursor: summaryUi ? null : paged.nextCursor,
+    coverage,
+    ...rest,
+  };
+};
 
 const resolvePeriod = (query: OrdersTableQuery, now: Date) =>
   resolveBoundedPeriodWithPrevious(query, { defaultPeriod: 'last30', now }).current;
@@ -1093,6 +1100,7 @@ export const getOrdersRepairsTable = async (
     groups,
     grandTotal,
     coverageFromPurged(purged, 'repairs'),
+    { exportMode: options.exportMode === true },
   );
 };
 
@@ -1237,6 +1245,7 @@ export const getOrdersSalesTable = async (
     groups,
     grandTotal,
     coverageFromPurged(purged, 'sales'),
+    { exportMode: options.exportMode === true },
   );
 };
 
@@ -1395,6 +1404,7 @@ export const getOrdersProcurementTable = async (
     grandTotal,
     coverageFromPurged(false, 'procurement'),
     {
+      exportMode: options.exportMode === true,
       supplierOptions: suppliers
         .map((s) => ({ id: s._id.toString(), name: s.name }))
         .sort((a, b) => a.name.localeCompare(b.name)),

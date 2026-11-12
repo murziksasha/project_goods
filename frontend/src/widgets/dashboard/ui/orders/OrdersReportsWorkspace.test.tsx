@@ -74,6 +74,20 @@ const statusGroup = {
   children: [],
 };
 
+const productGroup = {
+  key: 'screen',
+  label: 'Screen',
+  field: 'product' as const,
+  level: 1 as const,
+  filters: { lineName: 'Screen', lineKind: 'product' },
+  count: 1,
+  total: 800,
+  paid: 400,
+  debt: 400,
+  avgTurnaroundHours: 24,
+  children: [],
+};
+
 const baseReport = (
   _kind: string,
   extras: Partial<OrdersReportTableResponse> = {},
@@ -84,7 +98,7 @@ const baseReport = (
   mode: 'register',
   groupBy: [],
   items: [repairRow],
-  groups: [statusGroup],
+  groups: [statusGroup, productGroup],
   grandTotal,
   total: 2,
   page: 1,
@@ -325,6 +339,24 @@ describe('OrdersReportsWorkspace', () => {
     expect(screen.getByText(/Загальний підсумок/)).toBeInTheDocument();
   });
 
+  it('drills a product group into the register with exact lineName, not the search box', () => {
+    renderWorkspace();
+    const modes = within(screen.getByLabelText('Report mode'));
+    fireEvent.click(modes.getByRole('tab', { name: 'Summary' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Screen' }));
+    expect(modes.getByRole('tab', { name: 'Register' })).toHaveAttribute('aria-selected', 'true');
+    const lastCall = tableHookSpy.mock.calls.at(-1);
+    expect(lastCall?.[1]).toEqual(
+      expect.objectContaining({
+        mode: 'register',
+        lineName: 'Screen',
+        lineKind: 'product',
+      }),
+    );
+    expect(lastCall?.[1].q).toBeUndefined();
+    expect(screen.getByRole('button', { name: /Screen/ })).toBeInTheDocument();
+  });
+
   it('loops every export batch beyond 200 rows and builds a workbook from all of them', async () => {
     const page1 = Array.from({ length: 1000 }, (_, i) => ({
       ...repairRow,
@@ -368,5 +400,32 @@ describe('OrdersReportsWorkspace', () => {
     expect(workbook.filename).toMatch(/^orders-reports-repairs-register-2026-11-11\.xlsx$/);
     expect(workbook.sheets[0]!.name).toBe('Register');
     expect(workbook.sheets[0]!.rows).toHaveLength(1205);
+  });
+
+  it('requests register-mode export batches even when the UI is in summary mode', async () => {
+    exportSpy.mockImplementation(async (_kind: string, params: OrdersReportTableParams) => {
+      expect(params.mode).toBe('register');
+      return baseReport('repairs', {
+        items: [{ ...repairRow, id: 'r-exp' }],
+        total: 1,
+        nextCursor: null,
+        mode: 'register',
+      });
+    });
+    renderWorkspace();
+    const modes = within(screen.getByLabelText('Report mode'));
+    fireEvent.click(modes.getByRole('tab', { name: 'Summary' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Export Excel' }));
+    await waitFor(() => expect(excelSpy).toHaveBeenCalled());
+    expect(exportSpy).toHaveBeenCalled();
+    const workbook = excelSpy.mock.calls[0]![0] as {
+      filename: string;
+      sheets: Array<{ name: string; rows: unknown[] }>;
+    };
+    expect(workbook.filename).toMatch(/orders-reports-repairs-summary-/);
+    expect(workbook.sheets.map((s) => s.name)).toContain('Summary');
+    expect(workbook.sheets.map((s) => s.name)).toContain('Register');
+    const register = workbook.sheets.find((s) => s.name === 'Register');
+    expect(register?.rows).toHaveLength(1);
   });
 });

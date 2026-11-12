@@ -135,6 +135,7 @@ export type StoredOrdersReportSettings = {
   masterId: string;
   managerId: string;
   q: string;
+  lineName: string;
   clientId: string;
   supplierId: string;
   lineKind: string;
@@ -160,6 +161,7 @@ export const defaultOrdersReportSettings = (
   masterId: '',
   managerId: '',
   q: '',
+  lineName: '',
   clientId: '',
   supplierId: '',
   lineKind: 'all',
@@ -203,6 +205,7 @@ export const getStoredOrdersReportSettings = (
       masterId: String(parsed.masterId ?? ''),
       managerId: String(parsed.managerId ?? ''),
       q: String(parsed.q ?? ''),
+      lineName: String(parsed.lineName ?? ''),
       clientId: String(parsed.clientId ?? ''),
       supplierId: String(parsed.supplierId ?? ''),
       lineKind: String(parsed.lineKind ?? 'all'),
