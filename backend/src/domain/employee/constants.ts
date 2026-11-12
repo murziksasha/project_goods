@@ -24,6 +24,7 @@ export const employeePermissions = [
   'finance.view',
   'finance.cashboxes.view',
   'finance.cashboxes.manage',
+  'finance.policy.manage',
   'finance.transactions.deposit',
   'finance.transactions.withdraw',
   'finance.transactions.transfer',

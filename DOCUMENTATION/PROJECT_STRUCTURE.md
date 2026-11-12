@@ -363,7 +363,7 @@ Spec: [SALE_FLOW.md](./SALE_FLOW.md#rapid-sale-2026-06-24).
 
 ### Backend
 
-- `backend/src/domain/sale/costing.ts` (+ `costing.test.ts`) — service costing (`fixed` vs `time_rate`), immutable first-commit `costSnapshot`, non-blocking `costWarnings`, `finance.view` redaction/guards, audited post-closure `updateSaleLineCosts`.
+- `backend/src/domain/sale/costing.ts` (+ `costing.test.ts`) — service costing (`fixed` vs `time_rate`), immutable first-commit `costSnapshot`, non-blocking `costWarnings`, `requiresCostAudit` tracking for products added without purchase price (with legacy fallback), `finance.view` redaction/guards, and product-only pre-payment/post-closure `updateSaleLineCosts`.
 - `backend/src/domain/analytics/period-utils.ts` — DST-safe `Europe/Kiev` calendar bounds & preceding equal-length comparison window helper.
 - `backend/src/domain/analytics/warehouse-report.ts` (+ `warehouse-report.test.ts`) — inventory valuation, reservations, aging, trailing 90d demand, reorder suggestions, and scenarios.
 - `backend/src/domain/analytics/orders-report.ts` (+ `orders-report.test.ts`) — subview-isolated Repairs, Sales, and Procurement reports & paginated drill-downs.
@@ -378,5 +378,6 @@ Spec: [SALE_FLOW.md](./SALE_FLOW.md#rapid-sale-2026-06-24).
 - `frontend/src/shared/lib/report-excel.ts` (+ `report-excel.test.ts`) — shared `.xlsx` workbook builder appending `Metadata & Definitions` (timestamp, timezone, active filters, definitions, coverage warnings).
 - `frontend/src/widgets/dashboard/ui/common/AnalyticsPrimitives.tsx` — shared KPI cards, delta badges, coverage banners, accessible interactive bar/trend charts, sortable paginated tables, and scenario manager bar.
 - `frontend/src/widgets/dashboard/ui/orders/OrdersInformationWorkspace.tsx` (+ `OrdersInformationWorkspace.test.tsx`) — subview-isolated Repairs / Sales / Procurement analytics workspace under `ordersTab=supplierInformation`.
-- `frontend/src/widgets/dashboard/ui/orders/order-detail/OrderCostAuditModal.tsx` (+ `OrderCostAuditModal.test.tsx`) — audited line-item cost completion & correction dialog.
-- Upgraded `WarehouseInformationPanel.tsx`, `AccountingReportsView.tsx`, `AccountingProfitReportsView.tsx`, and `AccountingProfitCharts.tsx` (+ `AccountingProfitCharts.test.tsx`), plus `frontend/e2e/reports-upgrade.spec.ts`.
+- `frontend/src/entities/sale/lib/sale-cost-audit.ts` — `isLineItemEligibleForCostAudit` helper for persisted `requiresCostAudit` and legacy unknown/audited product lines.
+- `frontend/src/widgets/dashboard/ui/orders/order-detail/OrderCostAuditModal.tsx` (+ `OrderCostAuditModal.test.tsx`) — full-page portal dialog (`usePortal`) for auditing products added without purchase price (sending modified rows only, EN/UK localized).
+- Upgraded `WarehouseInformationPanel.tsx`, `AccountingReportsView.tsx`, `AccountingProfitReportsView.tsx`, and `AccountingProfitCharts.tsx` (+ `AccountingProfitCharts.test.tsx`), plus E2E suites `frontend/e2e/reports-upgrade.spec.ts` and `frontend/e2e/product-cost-audit.spec.ts`.

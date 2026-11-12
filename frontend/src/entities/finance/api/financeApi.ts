@@ -1,4 +1,4 @@
-import { apiClient, getApiErrorMessage } from '../../../shared/api/http';
+import { apiClient, createApiRequestError, getApiErrorMessage } from '../../../shared/api/http';
 import axios from 'axios';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { queryClient, queryKeys } from '../../../shared/api/queryClient';
@@ -20,6 +20,11 @@ import {
   type FinanceTransaction,
   type ProfitReportDetailsResponse,
   type ProfitReportParams,
+  type FinancePolicy,
+  type FinancePolicyHistoryResponse,
+  type FinancePolicyPreviewPayload,
+  type FinancePolicyPreviewResponse,
+  type UpdateFinancePolicyPayload,
   type FinanceTransactionsListParams,
   type FinanceTransactionsPage,
   type SupplierOrderPaymentQueueItem,
@@ -325,6 +330,52 @@ export const getCashboxesReportDetails = async (
     return response.data;
   } catch (error) {
     throw new Error(getApiErrorMessage(error));
+  }
+};
+
+export const getFinancePolicy = async () => {
+  try {
+    const response = await apiClient.get<FinancePolicy>('/finance/policy');
+    return response.data;
+  } catch (error) {
+    throw createApiRequestError(error);
+  }
+};
+
+export const updateFinancePolicy = async (payload: UpdateFinancePolicyPayload) => {
+  try {
+    const response = await apiClient.patch<FinancePolicy>('/finance/policy', payload);
+    return response.data;
+  } catch (error) {
+    throw createApiRequestError(error);
+  }
+};
+
+export const previewFinancePolicy = async (
+  payload: FinancePolicyPreviewPayload,
+) => {
+  try {
+    const response = await apiClient.post<FinancePolicyPreviewResponse>(
+      '/finance/policy/preview',
+      payload,
+    );
+    return response.data;
+  } catch (error) {
+    throw createApiRequestError(error);
+  }
+};
+
+export const getFinancePolicyHistory = async (
+  params: { page?: number; pageSize?: number } = {},
+) => {
+  try {
+    const response = await apiClient.get<FinancePolicyHistoryResponse>(
+      '/finance/policy/history',
+      { params },
+    );
+    return response.data;
+  } catch (error) {
+    throw createApiRequestError(error);
   }
 };
 
@@ -673,6 +724,47 @@ export const useIssueSupplierOrderWithoutPaymentMutation = () =>
     onSuccess: () => {
       invalidateFinanceQueries();
     },
+  });
+
+export const useFinancePolicyQuery = (
+  options: { enabled?: boolean } = {},
+) =>
+  useQuery({
+    enabled: options.enabled,
+    queryFn: getFinancePolicy,
+    queryKey: queryKeys.financePolicy,
+  });
+
+export const useFinancePolicyHistoryQuery = (
+  params: { page?: number; pageSize?: number } = {},
+  options: { enabled?: boolean } = {},
+) =>
+  useQuery({
+    enabled: options.enabled,
+    queryFn: () => getFinancePolicyHistory(params),
+    queryKey: queryKeys.financePolicyHistory({
+      page: params.page ?? 1,
+      pageSize: params.pageSize ?? 20,
+    }),
+  });
+
+export const useUpdateFinancePolicyMutation = () =>
+  useMutation({
+    mutationFn: updateFinancePolicy,
+    onSuccess: (updated) => {
+      queryClient.setQueryData(queryKeys.financePolicy, updated);
+      void Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.financePolicy }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.financePolicyHistoryRoot }),
+        queryClient.invalidateQueries({ queryKey: ['financeProfitReport'] }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.sales }),
+      ]);
+    },
+  });
+
+export const usePreviewFinancePolicyMutation = () =>
+  useMutation({
+    mutationFn: previewFinancePolicy,
   });
 
 export const useUpdateFinanceTransactionMutation = () =>

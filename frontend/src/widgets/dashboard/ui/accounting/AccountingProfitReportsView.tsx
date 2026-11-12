@@ -8,6 +8,7 @@ import {
 import type { Employee } from '../../../../entities/employee';
 import {
   getFinanceProfitReportDetails,
+  useFinancePolicyQuery,
   useFinanceProfitReportDetailsQuery,
   useFinanceProfitReportQuery,
 } from '../../../../entities/finance';
@@ -38,7 +39,11 @@ import type { AnalyticsDateRange } from '../../model/analytics-date-range';
 import { formatMoney } from '../../model/accounting';
 import {
   buildProfitReportFilename,
+  clearStoredProfitReportFilters,
+  clearStoredProfitReportVisualSettings,
+  defaultProfitReportFilters,
   defaultProfitReportRowFilters,
+  defaultProfitReportVisualSettings,
   exportProfitReportWorkbook,
   filterProfitMarginRows,
   formatProfitMarginPct,
@@ -47,6 +52,8 @@ import {
   groupProfitMarginRowsByName,
   hasCustomProfitDateRange,
   hasProfitReportRowFilters,
+  hasStoredProfitReportFilters,
+  hasStoredProfitReportVisualSettings,
   isProfitLossRow,
   isProfitLossSummary,
   profitReportMarginFilterOptions,
@@ -98,10 +105,26 @@ export const AccountingProfitReportsView: React.FC<AccountingProfitReportsViewPr
   onOpenSupplierOrder,
 }) => {
   const { t } = useTranslation();
+  const policyQuery = useFinancePolicyQuery();
+  const financePolicy = policyQuery.data;
   const stored = useMemo(() => getStoredProfitReportFilters(), []);
   const storedVisual = useMemo(() => getStoredProfitReportVisualSettings(), []);
-  const [source, setSource] = useState<ProfitReportSource>(stored.source);
-  const [period, setPeriod] = useState<ProfitReportPeriod>(stored.period);
+  const [hasPersonalFilters, setHasPersonalFilters] = useState(
+    hasStoredProfitReportFilters,
+  );
+  const [hasPersonalVisual, setHasPersonalVisual] = useState(
+    hasStoredProfitReportVisualSettings,
+  );
+  const [source, setSource] = useState<ProfitReportSource>(() =>
+    hasStoredProfitReportFilters()
+      ? stored.source
+      : (financePolicy?.reportDefaults.source ?? stored.source),
+  );
+  const [period, setPeriod] = useState<ProfitReportPeriod>(() =>
+    hasStoredProfitReportFilters()
+      ? stored.period
+      : (financePolicy?.reportDefaults.period ?? stored.period),
+  );
   const [appliedRange, setAppliedRange] = useState<AnalyticsDateRange>({
     dateFrom: stored.dateFrom,
     dateTo: stored.dateTo,
@@ -109,8 +132,17 @@ export const AccountingProfitReportsView: React.FC<AccountingProfitReportsViewPr
   const [draftRange, setDraftRange] = useState<AnalyticsDateRange>(appliedRange);
   const [isDateFilterOpen, setIsDateFilterOpen] = useState(false);
   const [isVisualOpen, setIsVisualOpen] = useState(false);
-  const [visual, setVisual] =
-    useState<ProfitReportVisualSettings>(storedVisual);
+  const [visual, setVisual] = useState<ProfitReportVisualSettings>(() =>
+    hasStoredProfitReportVisualSettings()
+      ? storedVisual
+      : {
+          ...storedVisual,
+          showCharts:
+            financePolicy?.reportDefaults.showCharts ?? storedVisual.showCharts,
+          showTable:
+            financePolicy?.reportDefaults.showTable ?? storedVisual.showTable,
+        },
+  );
   const [rowFilters, setRowFilters] = useState<ProfitReportRowFilters>(
     defaultProfitReportRowFilters(),
   );
@@ -127,9 +159,14 @@ export const AccountingProfitReportsView: React.FC<AccountingProfitReportsViewPr
   const [detailsSortDir, setDetailsSortDir] = useState<'asc' | 'desc'>('desc');
   const [auditSaleId, setAuditSaleId] = useState<string | null>(null);
 
+  const isServicesExcludedByPolicy =
+    financePolicy?.serviceProfitMode === 'exclude';
+  const effectiveSource: ProfitReportSource =
+    isServicesExcludedByPolicy && source === 'services' ? 'all' : source;
+
   const customRange = hasCustomProfitDateRange(appliedRange);
   const reportFilterParams = {
-    source,
+    source: effectiveSource,
     period: customRange ? undefined : period,
     dateFrom: customRange ? appliedRange.dateFrom || undefined : undefined,
     dateTo: customRange ? appliedRange.dateTo || undefined : undefined,
@@ -149,6 +186,13 @@ export const AccountingProfitReportsView: React.FC<AccountingProfitReportsViewPr
     { enabled: true },
   );
   const report = query.data;
+  const activeServiceProfitMode =
+    report?.policy?.serviceProfitMode ??
+    financePolicy?.serviceProfitMode ??
+    'full';
+  const isServicesExcluded = activeServiceProfitMode === 'exclude';
+  const activePolicyVersion =
+    report?.policy?.version ?? financePolicy?.version ?? 1;
   const servicesQuery = useServicesQuery(true);
   const services = servicesQuery.data ?? [];
   const canWriteCatalog = hasEmployeePermission(
@@ -163,17 +207,99 @@ export const AccountingProfitReportsView: React.FC<AccountingProfitReportsViewPr
     ]);
 
   useEffect(() => {
-    storeProfitReportFilters({
-      source,
-      period,
-      dateFrom: appliedRange.dateFrom,
-      dateTo: appliedRange.dateTo,
-    });
-  }, [appliedRange.dateFrom, appliedRange.dateTo, period, source]);
+    if (hasPersonalFilters || !financePolicy?.reportDefaults) return;
+    const nextSource =
+      financePolicy.serviceProfitMode === 'exclude' &&
+      financePolicy.reportDefaults.source === 'services'
+        ? 'all'
+        : financePolicy.reportDefaults.source;
+    setSource(nextSource);
+    setPeriod(financePolicy.reportDefaults.period);
+    setAppliedRange({ dateFrom: '', dateTo: '' });
+    setDraftRange({ dateFrom: '', dateTo: '' });
+  }, [financePolicy, hasPersonalFilters]);
 
   useEffect(() => {
-    storeProfitReportVisualSettings(visual);
-  }, [visual]);
+    if (hasPersonalVisual || !financePolicy?.reportDefaults) return;
+    setVisual((current) => ({
+      ...current,
+      showCharts: financePolicy.reportDefaults.showCharts,
+      showTable: financePolicy.reportDefaults.showTable,
+    }));
+  }, [financePolicy, hasPersonalVisual]);
+
+  useEffect(() => {
+    if (isServicesExcluded && rowFilters.type === 'service') {
+      setRowFilters((current) => ({ ...current, type: 'all' }));
+    }
+  }, [isServicesExcluded, rowFilters.type]);
+
+  const updatePersonalFilters = (next: {
+    source?: ProfitReportSource;
+    period?: ProfitReportPeriod;
+    range?: AnalyticsDateRange;
+  }) => {
+    const nextSource = next.source ?? source;
+    const nextPeriod = next.period ?? period;
+    const nextRange = next.range ?? appliedRange;
+    setSource(nextSource);
+    setPeriod(nextPeriod);
+    setAppliedRange(nextRange);
+    setHasPersonalFilters(true);
+    storeProfitReportFilters({
+      source: nextSource,
+      period: nextPeriod,
+      dateFrom: nextRange.dateFrom,
+      dateTo: nextRange.dateTo,
+    });
+  };
+
+  const updatePersonalVisual = (
+    updater:
+      | ProfitReportVisualSettings
+      | ((current: ProfitReportVisualSettings) => ProfitReportVisualSettings),
+  ) => {
+    setHasPersonalVisual(true);
+    setVisual((current) => {
+      const next = typeof updater === 'function' ? updater(current) : updater;
+      storeProfitReportVisualSettings(next);
+      return next;
+    });
+  };
+
+  const resetToCompanyDefaults = () => {
+    clearStoredProfitReportFilters();
+    clearStoredProfitReportVisualSettings();
+    setHasPersonalFilters(false);
+    setHasPersonalVisual(false);
+    const fallbackFilters = defaultProfitReportFilters();
+    const fallbackVisual = defaultProfitReportVisualSettings();
+    const companyDefaults = financePolicy?.reportDefaults;
+    const nextSource =
+      companyDefaults &&
+      !(
+        financePolicy?.serviceProfitMode === 'exclude' &&
+        companyDefaults.source === 'services'
+      )
+        ? companyDefaults.source
+        : fallbackFilters.source;
+    const nextPeriod = companyDefaults?.period ?? fallbackFilters.period;
+    const emptyRange = { dateFrom: '', dateTo: '' };
+    setSource(nextSource);
+    setPeriod(nextPeriod);
+    setAppliedRange(emptyRange);
+    setDraftRange(emptyRange);
+    setVisual({
+      ...fallbackVisual,
+      showCharts: companyDefaults?.showCharts ?? fallbackVisual.showCharts,
+      showTable: companyDefaults?.showTable ?? fallbackVisual.showTable,
+    });
+    setLossOnly(false);
+    setMissingCostOnly(false);
+    setRowFilters(defaultProfitReportRowFilters());
+    setSelectedKeys([]);
+    setExpandedIds(new Set());
+  };
 
   useEffect(() => {
     setPage(1);
@@ -578,20 +704,30 @@ export const AccountingProfitReportsView: React.FC<AccountingProfitReportsViewPr
         </div>
         <div className='hero-controls'>
           <div className='period-toggle' role='tablist' aria-label={t('accounting.profit.sourcesAria')}>
-            {profitReportSourceOptions.map((option) => (
-              <button
-                key={option.value}
-                type='button'
-                className={
-                  option.value === source
-                    ? 'period-button period-button-active'
-                    : 'period-button'
-                }
-                onClick={() => setSource(option.value)}
-              >
-                {t(option.labelKey)}
-              </button>
-            ))}
+            {profitReportSourceOptions.map((option) => {
+              const disabledByPolicy =
+                isServicesExcluded && option.value === 'services';
+              return (
+                <button
+                  key={option.value}
+                  type='button'
+                  disabled={disabledByPolicy}
+                  title={
+                    disabledByPolicy
+                      ? t('accounting.profit.servicesUnavailableHint')
+                      : undefined
+                  }
+                  className={
+                    option.value === effectiveSource
+                      ? 'period-button period-button-active'
+                      : 'period-button'
+                  }
+                  onClick={() => updatePersonalFilters({ source: option.value })}
+                >
+                  {t(option.labelKey)}
+                </button>
+              );
+            })}
           </div>
           <div className='period-toggle' role='tablist' aria-label={t('accounting.profit.periodsAria')}>
             {profitReportPeriodOptions.map((option) => (
@@ -604,9 +740,9 @@ export const AccountingProfitReportsView: React.FC<AccountingProfitReportsViewPr
                     : 'period-button'
                 }
                 onClick={() => {
-                  setPeriod(option.value);
-                  setAppliedRange({ dateFrom: '', dateTo: '' });
-                  setDraftRange({ dateFrom: '', dateTo: '' });
+                  const empty = { dateFrom: '', dateTo: '' };
+                  setDraftRange(empty);
+                  updatePersonalFilters({ period: option.value, range: empty });
                 }}
               >
                 {t(option.labelKey)}
@@ -635,6 +771,13 @@ export const AccountingProfitReportsView: React.FC<AccountingProfitReportsViewPr
           </button>
           <button
             type='button'
+            className='ghost-button'
+            onClick={resetToCompanyDefaults}
+          >
+            {t('accounting.profit.resetToCompanyDefaults')}
+          </button>
+          <button
+            type='button'
             className='secondary-button'
             onClick={handleExport}
             disabled={!report || query.isLoading}
@@ -645,7 +788,10 @@ export const AccountingProfitReportsView: React.FC<AccountingProfitReportsViewPr
       </div>
 
       {isVisualOpen ? (
-        <AccountingProfitVisualSettings settings={visual} onChange={setVisual} />
+        <AccountingProfitVisualSettings
+          settings={visual}
+          onChange={updatePersonalVisual}
+        />
       ) : null}
 
       <AnalyticsDateFilterPanel
@@ -653,17 +799,26 @@ export const AccountingProfitReportsView: React.FC<AccountingProfitReportsViewPr
         isOpen={isDateFilterOpen}
         onDraftRangeChange={setDraftRange}
         onApply={() => {
-          setAppliedRange(draftRange);
+          updatePersonalFilters({ range: draftRange });
           setIsDateFilterOpen(false);
         }}
         onClear={() => {
           const empty = { dateFrom: '', dateTo: '' };
           setDraftRange(empty);
-          setAppliedRange(empty);
+          updatePersonalFilters({ range: empty });
           setIsDateFilterOpen(false);
         }}
         onClose={() => setIsDateFilterOpen(false)}
       />
+
+      {activeServiceProfitMode !== 'full' ? (
+        <div className='report-coverage-banner is-info' role='status'>
+          {t(`accounting.profit.policyBanner.${activeServiceProfitMode}`, {
+            version: activePolicyVersion,
+          })}
+          {isServicesExcluded ? ` ${t('accounting.profit.servicesUnavailableHint')}` : ''}
+        </div>
+      ) : null}
 
       {report?.coldSalesPurgedExist ? (
         <p className='muted-copy'>{t('accounting.profit.incompleteHistory')}</p>
@@ -889,7 +1044,7 @@ export const AccountingProfitReportsView: React.FC<AccountingProfitReportsViewPr
           rows={analysisRows}
           chartMetric={visual.chartMetric}
           onChartMetricChange={(nextMetric) =>
-            setVisual((current) => ({
+            updatePersonalVisual((current) => ({
               ...current,
               chartMetric: nextMetric,
             }))
@@ -905,6 +1060,7 @@ export const AccountingProfitReportsView: React.FC<AccountingProfitReportsViewPr
         />
       ) : null}
 
+      {visual.showTable ? (
       <section className='finance-info-panel finance-info-panel-wide'>
         <div className='analytics-panel-header'>
           <div>
@@ -938,7 +1094,11 @@ export const AccountingProfitReportsView: React.FC<AccountingProfitReportsViewPr
               }
             >
               {profitReportTypeFilterOptions.map((option) => (
-                <option key={option.value} value={option.value}>
+                <option
+                  key={option.value}
+                  value={option.value}
+                  disabled={isServicesExcluded && option.value === 'service'}
+                >
                   {t(option.labelKey)}
                 </option>
               ))}
@@ -1077,6 +1237,7 @@ export const AccountingProfitReportsView: React.FC<AccountingProfitReportsViewPr
           />
         ) : null}
       </section>
+      ) : null}
 
       <section className='finance-info-panel finance-info-panel-wide'>
         <div className='analytics-panel-header'>

@@ -845,7 +845,60 @@
       "itemTotal": "Item total",
       "warningTitle": "Payment warning",
       "acceptPaymentButton": "Accept payment",
-      "toggleDiscountMode": "Toggle discount mode"
+      "toggleDiscountMode": "Toggle discount mode",
+      "audit": "Audit"
+    },
+    "costAudit": {
+      "title": "Cost audit",
+      "subtitle": "Enter the purchase or service cost for items added without one (0 is accepted). Correcting a recorded cost requires a reason.",
+      "close": "Close cost audit modal",
+      "loading": "Loading order details...",
+      "empty": "No items on this order require cost audit.",
+      "groups": {
+        "products": "Products",
+        "services": "Services"
+      },
+      "costMethodLabel": "Costing method",
+      "costMethodFixed": "Fixed per unit",
+      "costMethodTimeRate": "Time rate",
+      "fixedCostLabel": "Fixed cost per unit (UAH)",
+      "hourlyCostLabel": "Hourly rate (UAH/h)",
+      "recordedMinutesLabel": "Minutes worked",
+      "reasonLabel": "Audit reason (required when correcting a recorded price)",
+      "reasonPlaceholder": "e.g., Supplier invoice verified",
+      "quantityBadge": "×{{qty}}",
+      "currentKnown": "Current: {{amount}}",
+      "currentUnknown": "Unknown price",
+      "statusLabel": "Cost status",
+      "statusKnown": "Known purchase price",
+      "statusUnknown": "Mark unknown (requires reason)",
+      "unitCostLabel": "Purchase price per unit (UAH)",
+      "directExpensesLabel": "Direct expenses (total line, UAH)",
+      "historyTitle": "Audit history",
+      "statusShortKnown": "Known",
+      "statusShortUnknown": "Unknown",
+      "na": "N/A",
+      "historyMeta": "{{author}} · {{date}} · Reason: {{reason}}",
+      "cancel": "Cancel",
+      "save": "Save",
+      "saving": "Saving...",
+      "messages": {
+        "saved": "Purchase costs updated and audit log recorded."
+      },
+      "errors": {
+        "loadFailed": "Failed to load order details.",
+        "saveFailed": "Failed to update purchase costs.",
+        "noChanges": "Change at least one product cost before saving.",
+        "invalidUnitCost": "Enter a valid non-negative purchase price for \"{{name}}\" (0 is allowed).",
+        "invalidDirectExpenses": "Enter valid non-negative direct expenses for \"{{name}}\".",
+        "reasonRequired": "Enter an audit reason (at least 2 characters) when correcting or clearing a recorded price.",
+        "permissionDenied": "Updating purchase costs requires order/sale management and finance view permissions.",
+        "onlyProductsAllowed": "Cost audit is only allowed for products added without a purchase price.",
+        "serviceAuditDisabled": "Service cost audit is currently disabled in finance settings.",
+        "invalidServiceTimeRate": "Enter valid non-negative hourly rate and minutes for \"{{name}}\".",
+        "notEligible": "This item does not require cost audit.",
+        "incompleteCost": "Enter a valid non-negative purchase price (0 is allowed)."
+      }
     },
     "serialIssueWarning": {
       "title": "Serial numbers are not bound",
@@ -2449,6 +2502,7 @@
       "cashboxes": "Cashboxes",
       "currencies": "Currencies",
       "categories": "Categories",
+      "policy": "Accounting & Audit",
       "addCategory": "Add category",
       "categoryName": "Name",
       "categoryNamePlaceholder": "For example, Advertising",
@@ -2490,6 +2544,95 @@
       "archiveCurrencyTitle": "Archive currency",
       "cannotArchiveCurrencyTitle": "Cannot archive this currency.",
       "archive": "Archive"
+    },
+    "policy": {
+      "loading": "Loading accounting policy...",
+      "readOnlyNotice": "Read-only access: finance.policy.manage permission is required to modify accounting rules.",
+      "versionBadge": "Version v{{version}}",
+      "reloadLatest": "Reload latest rules",
+      "reasonLabel": "Change reason (optional)",
+      "reasonPlaceholder": "e.g., Enable manual audit for legacy service orders",
+      "save": "Save rules",
+      "saving": "Saving...",
+      "values": {
+        "enabled": "Enabled",
+        "disabled": "Disabled",
+        "shown": "Shown",
+        "hidden": "Hidden"
+      },
+      "fields": {
+        "serviceAuditEnabled": "Service cost audit",
+        "serviceProfitMode": "Services in profitability",
+        "reportDefaults.period": "Default period",
+        "reportDefaults.source": "Default source",
+        "reportDefaults.showCharts": "Default charts visibility",
+        "reportDefaults.showTable": "Default table visibility"
+      },
+      "auditSection": {
+        "title": "Service cost audit",
+        "description": "Shared switch for repair orders and sales. Enabling this does not change profitability formulas.",
+        "toggleLabel": "Allow manual service cost audit in orders and sales",
+        "hint": "Services added without calculated cost (and legacy orders with unknown service cost) become editable via Audit. Turning this off hides service editing while preserving entered costs and audit history."
+      },
+      "modeSection": {
+        "title": "Services in profitability report",
+        "description": "Controls how service lines appear in gross profitability summaries, rows, charts, drill-downs, and Excel exports.",
+        "cashAndProductsNote": "Products always remain included. Cashbox balances, transactions, and cash flow reports always reflect actual operations."
+      },
+      "modes": {
+        "full": {
+          "label": "Full",
+          "description": "Include both service revenue and service cost in profitability."
+        },
+        "revenue_only": {
+          "label": "Revenue only",
+          "description": "Include service revenue without service cost. Overall profit and margin are marked incomplete when services are present."
+        },
+        "exclude": {
+          "label": "Exclude",
+          "description": "Exclude services from profitability calculations. The Services filter becomes unavailable."
+        }
+      },
+      "previewSection": {
+        "title": "Impact preview before saving",
+        "description": "Compare current vs proposed profitability metrics for the selected window.",
+        "pendingChangeHint": "Previewing how your selected service profitability mode changes results for the selected period.",
+        "periodLabel": "Preview period",
+        "dateFrom": "From",
+        "dateTo": "To",
+        "loading": "Calculating comparison...",
+        "error": "Failed to calculate policy impact preview.",
+        "metric": "Metric",
+        "current": "Current ({{mode}})",
+        "proposed": "Proposed ({{mode}})",
+        "currentLabel": "Current",
+        "proposedLabel": "Proposed",
+        "delta": "Delta",
+        "incompleteValue": "Incomplete (known: {{amount}})",
+        "incompleteShort": "Incomplete",
+        "unchanged": "Unchanged (actual cash)"
+      },
+      "defaultsSection": {
+        "title": "Company report defaults",
+        "description": "Applied to users without personal view overrides. Personal settings take priority until reset.",
+        "period": "Default period",
+        "source": "Default source",
+        "servicesExcludedHint": "Services source is unavailable while services are excluded from profitability.",
+        "showCharts": "Show charts by default",
+        "showTable": "Show margin table by default"
+      },
+      "historySection": {
+        "title": "Rule change history",
+        "description": "Immutable log of all company accounting and audit policy updates.",
+        "loading": "Loading policy history...",
+        "empty": "No policy changes recorded yet.",
+        "reasonPrefix": "Reason: {{reason}}"
+      },
+      "messages": {
+        "saved": "Accounting and audit policy saved.",
+        "saveError": "Failed to save accounting policy.",
+        "versionConflict": "Policy rules were updated by another employee. Reload the latest version before saving."
+      }
     },
     "orders": {
       "sectionLabel": "Supplier payments",
@@ -2549,6 +2692,12 @@
       "sourcesAria": "Report source",
       "periodsAria": "Report period",
       "date": "Date",
+      "resetToCompanyDefaults": "Reset to company defaults",
+      "servicesUnavailableHint": "Services filter is unavailable while services are excluded from profitability.",
+      "policyBanner": {
+        "revenue_only": "Policy (v{{version}}): Services are included as revenue only without cost deduction; overall profit and margin remain incomplete when services are present.",
+        "exclude": "Policy (v{{version}}): Services are excluded from profitability calculations; products and cash flow remain actual."
+      },
       "sources": {
         "all": "All",
         "services": "Services",
@@ -2580,6 +2729,7 @@
         "button": "Visual",
         "aria": "Report visual settings",
         "showCharts": "Show charts",
+        "showTable": "Show margin table",
         "chartMetric": "Chart metric",
         "highlightLosses": "Highlight losses",
         "compactTable": "Compact table",
@@ -3062,6 +3212,9 @@
         "cashboxes": {
           "view": "View cashboxes",
           "manage": "Manage cashboxes"
+        },
+        "policy": {
+          "manage": "Manage accounting & audit policy"
         },
         "transactions": {
           "deposit": "Cash deposits",

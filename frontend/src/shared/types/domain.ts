@@ -63,6 +63,7 @@ export type EmployeePermission =
   | 'finance.view'
   | 'finance.cashboxes.view'
   | 'finance.cashboxes.manage'
+  | 'finance.policy.manage'
   | 'finance.transactions.deposit'
   | 'finance.transactions.withdraw'
   | 'finance.transactions.transfer'
@@ -187,6 +188,7 @@ export type SaleLineItem = {
   directExpenses?: number | null;
   unitCostOverride?: number | null;
   isCostOverridden?: boolean | null;
+  requiresCostAudit?: boolean | null;
   costKnown?: boolean | null;
   costSnapshot?: SaleCostSnapshot | null;
   auditedCost?: SaleCostSnapshot | null;

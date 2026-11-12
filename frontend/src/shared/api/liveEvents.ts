@@ -44,7 +44,12 @@ const invalidateForPath = (path: string) => {
     void queryClient.invalidateQueries({ queryKey: queryKeys.ordersProcurementReportRoot });
     void queryClient.invalidateQueries({ queryKey: queryKeys.cashboxesReportRoot });
   }
-  if (path.includes('/finance/categories')) {
+  if (path.includes('/finance/policy')) {
+    void queryClient.invalidateQueries({ queryKey: queryKeys.financePolicy });
+    void queryClient.invalidateQueries({ queryKey: queryKeys.financePolicyHistoryRoot });
+    void queryClient.invalidateQueries({ queryKey: ['financeProfitReport'] });
+    void queryClient.invalidateQueries({ queryKey: queryKeys.sales });
+  } else if (path.includes('/finance/categories')) {
     void queryClient.invalidateQueries({ queryKey: queryKeys.financeCategories });
     void queryClient.invalidateQueries({ queryKey: queryKeys.financeTransactions });
     void queryClient.invalidateQueries({ queryKey: ['financeProfitReport'] });
@@ -54,6 +59,8 @@ const invalidateForPath = (path: string) => {
     void queryClient.invalidateQueries({ queryKey: queryKeys.financeCategories });
     void queryClient.invalidateQueries({ queryKey: queryKeys.financeTransactions });
     void queryClient.invalidateQueries({ queryKey: queryKeys.financeReport });
+    void queryClient.invalidateQueries({ queryKey: queryKeys.financePolicy });
+    void queryClient.invalidateQueries({ queryKey: queryKeys.financePolicyHistoryRoot });
     void queryClient.invalidateQueries({ queryKey: ['financeProfitReport'] });
     void queryClient.invalidateQueries({ queryKey: queryKeys.cashboxesReportRoot });
     void queryClient.invalidateQueries({ queryKey: queryKeys.ordersProcurementReportRoot });

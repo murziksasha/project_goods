@@ -9,8 +9,11 @@ import {
 import { useTranslation } from 'react-i18next';
 import { formatPhoneForDial } from '../../../../../shared/lib/phoneFormatter';
 import { hasEmployeePermission } from '../../../../../entities/employee';
-import { isRepairOrder } from '../../../../../entities/sale';
-import { getSaleProductName } from '../../../../../entities/sale';
+import {
+  getSaleProductName,
+  isLineItemEligibleForCostAudit,
+  isRepairOrder,
+} from '../../../../../entities/sale';
 import {
   formatCurrency,
   formatDateTime,
@@ -43,6 +46,7 @@ import {
   getCashboxes,
   issueSupplierOrderWithoutPayment,
   paySupplierOrder,
+  useFinancePolicyQuery,
 } from '../../../../../entities/finance';
 import type { Cashbox } from '../../../../../entities/finance';
 import {
@@ -97,6 +101,7 @@ import {
   normalizeOrderStatus,
   orderDetailRelatedTabStorageKey,
   isOrderEditableStatus,
+  isRepairDevicePlaceholderLineItem,
   patchOrderDetailSectionState,
   readOrderDetailSectionsState,
   withSupplierOrderLinkNote,
@@ -311,31 +316,37 @@ export const OrderDetailCard: React.FC<OrderDetailCardProps> = ({
     'finance.view',
   );
   const canManageFinancialCosts =
+    currentEmployee?.isActive !== false &&
     canViewFinanceCosts &&
     hasEmployeePermission(
       currentEmployee ?? null,
       isSaleCard ? 'sales.manage' : 'orders.manage',
     );
-  const costWarnings = Array.isArray(sale.costWarnings)
-    ? sale.costWarnings
-    : [];
-  const lineCostStats = useMemo(() => {
-    let knownCostTotal = 0;
-    let unknownCount = 0;
-    for (const item of lineItems) {
-      const effective = item.auditedCost ?? item.costSnapshot ?? null;
-      if (effective?.status === 'known' && effective.totalCost !== null) {
-        knownCostTotal += Number(effective.totalCost) || 0;
-      } else {
-        unknownCount += 1;
-      }
-    }
-    return {
-      knownCostTotal: Math.round(knownCostTotal * 100) / 100,
-      unknownCount,
-      isCommittedSnapshot: Boolean(sale.firstStockCommittedAt),
-    };
-  }, [lineItems, sale.firstStockCommittedAt]);
+  const financePolicyQuery = useFinancePolicyQuery({
+    enabled: canViewFinanceCosts,
+  });
+  const serviceAuditEnabled =
+    financePolicyQuery.data?.serviceAuditEnabled ?? false;
+  const hasAuditEligibleProducts = useMemo(
+    () =>
+      productItems.some((item) =>
+        isLineItemEligibleForCostAudit(item, { serviceAuditEnabled: false }),
+      ),
+    [productItems],
+  );
+  const hasAuditEligibleServices = useMemo(
+    () =>
+      serviceAuditEnabled &&
+      serviceItems.some(
+        (item) =>
+          !isRepairDevicePlaceholderLineItem(sale, item) &&
+          isLineItemEligibleForCostAudit(item, { serviceAuditEnabled }),
+      ),
+    [sale, serviceAuditEnabled, serviceItems],
+  );
+  const canShowAuditButton =
+    canManageFinancialCosts &&
+    (hasAuditEligibleProducts || hasAuditEligibleServices);
   const lastInitializedSaleIdRef = useRef<string | null>(null);
 
   useEffect(() => {
@@ -1762,96 +1773,46 @@ export const OrderDetailCard: React.FC<OrderDetailCardProps> = ({
               <dd>{formatCurrency(remainingPayment)}</dd>
             </div>
           </dl>
-          <button
-            type='button'
-            className='primary-button'
-            onClick={(event) => {
-              event.preventDefault();
-              event.stopPropagation();
-              onAcceptPayment();
-            }}
-            disabled={
-              remainingPayment <= 0 || isReadOnly || !canAcceptPayment
-            }
-          >
-            {remainingPayment <= 0
-              ? t('orders.payment.paid')
-              : t('orders.payment.acceptPayment')}
-          </button>
-          {paidAmount > 0 ? (
+          <div className='order-payment-actions'>
             <button
               type='button'
-              className='secondary-button'
-              onClick={onRefundPayment}
+              className='primary-button'
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                onAcceptPayment();
+              }}
               disabled={
-                !canRefundPayment ||
-                (isReadOnly && status !== 'issued')
+                remainingPayment <= 0 || isReadOnly || !canAcceptPayment
               }
             >
-              {t('orders.payment.refundToClient')}
+              {remainingPayment <= 0
+                ? t('orders.payment.paid')
+                : t('orders.payment.acceptPayment')}
             </button>
-          ) : null}
-          {costWarnings.length > 0 ||
-          (canViewFinanceCosts && lineCostStats.unknownCount > 0) ? (
-            <div className='report-coverage-banner' role='status'>
-              <strong>Missing cost data (non-blocking)</strong>
-              {costWarnings.length > 0 ? (
-                <ul>
-                  {costWarnings.map((warning, idx) => (
-                    <li key={`${idx}-${warning.slice(0, 20)}`}>{warning}</li>
-                  ))}
-                </ul>
-              ) : (
-                <div>
-                  {lineCostStats.unknownCount} line item(s) currently have
-                  unknown cost. Closure stays allowed; profitability will be
-                  marked incomplete until audited.
-                </div>
-              )}
-            </div>
-          ) : null}
-          {canViewFinanceCosts ? (
-            <div
-              style={{
-                display: 'grid',
-                gap: 6,
-                marginTop: 8,
-                paddingTop: 8,
-                borderTop: '1px solid var(--color-line)',
-              }}
-            >
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  gap: 8,
-                  fontSize: '0.84rem',
-                }}
+            {canShowAuditButton ? (
+              <button
+                type='button'
+                className='secondary-button order-payment-audit-button'
+                onClick={() => setIsCostAuditModalOpen(true)}
               >
-                <span>
-                  Known Cost Total:{' '}
-                  <strong>{formatCurrency(lineCostStats.knownCostTotal)}</strong>
-                </span>
-                <span
-                  className={`report-badge ${
-                    lineCostStats.unknownCount > 0 ? 'is-warning' : 'is-success'
-                  }`}
-                >
-                  {lineCostStats.isCommittedSnapshot
-                    ? 'Committed Snapshot'
-                    : 'Draft Estimate'}
-                </span>
-              </div>
-              {canManageFinancialCosts ? (
-                <button
-                  type='button'
-                  className='secondary-button'
-                  onClick={() => setIsCostAuditModalOpen(true)}
-                >
-                  Audit / Complete Costs
-                </button>
-              ) : null}
+                {t('orders.payment.audit')}
+              </button>
+            ) : null}
+          </div>
+          {paidAmount > 0 ? (
+            <div className='order-payment-secondary-actions'>
+              <button
+                type='button'
+                className='secondary-button'
+                onClick={onRefundPayment}
+                disabled={
+                  !canRefundPayment ||
+                  (isReadOnly && status !== 'issued')
+                }
+              >
+                {t('orders.payment.refundToClient')}
+              </button>
             </div>
           ) : null}
         </section>
@@ -2355,7 +2316,8 @@ export const OrderDetailCard: React.FC<OrderDetailCardProps> = ({
       {isCostAuditModalOpen ? (
         <OrderCostAuditModal
           saleId={sale.id}
-          initialSale={sale}
+          initialSale={{ ...sale, lineItems }}
+          serviceAuditEnabled={serviceAuditEnabled}
           isOpen={isCostAuditModalOpen}
           onClose={() => setIsCostAuditModalOpen(false)}
           onError={onError}

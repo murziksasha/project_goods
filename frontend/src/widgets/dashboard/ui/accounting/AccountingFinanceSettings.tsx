@@ -7,6 +7,7 @@ import type {
 } from '../../../../entities/finance';
 import { isCashboxCurrencyUncheckLocked } from '../../model/accounting';
 import { AccountingCategorySettings } from './AccountingCategorySettings';
+import { AccountingPolicySettings } from './AccountingPolicySettings';
 import type { FinanceSettingsTab } from './useAccountingPreferences';
 
 export interface AccountingFinanceSettingsProps {
@@ -45,6 +46,9 @@ export interface AccountingFinanceSettingsProps {
   onDeleteCategory: (slug: string) => void;
   onRenameCategory: (category: FinanceCategory, name: string) => void;
   onToggleCategoryActive: (category: FinanceCategory) => void;
+  canManagePolicy?: boolean;
+  onError?: (message: string) => void;
+  onSuccess?: (message: string) => void;
 };
 
 export const AccountingFinanceSettings: React.FC<AccountingFinanceSettingsProps> = ({
@@ -80,6 +84,9 @@ export const AccountingFinanceSettings: React.FC<AccountingFinanceSettingsProps>
   onDeleteCategory,
   onRenameCategory,
   onToggleCategoryActive,
+  canManagePolicy = false,
+  onError,
+  onSuccess,
 }) => {
   const { t } = useTranslation();
 
@@ -119,6 +126,17 @@ export const AccountingFinanceSettings: React.FC<AccountingFinanceSettingsProps>
         >
           {t('accounting.financeSettings.categories')}
         </button>
+        <button
+          type='button'
+          className={
+            activeTab === 'policy'
+              ? 'warehouse-settings-tab warehouse-settings-tab-active'
+              : 'warehouse-settings-tab'
+          }
+          onClick={() => onTabChange('policy')}
+        >
+          {t('accounting.financeSettings.policy')}
+        </button>
       </div>
 
       {activeTab === 'cashboxes' ? (
@@ -156,7 +174,7 @@ export const AccountingFinanceSettings: React.FC<AccountingFinanceSettingsProps>
           onToggleCard={onToggleCard}
           onToggleCurrencyActivity={onToggleCurrencyActivity}
         />
-      ) : (
+      ) : activeTab === 'categories' ? (
         <AccountingCategorySettings
           categories={categories}
           isSaving={isSaving}
@@ -164,6 +182,12 @@ export const AccountingFinanceSettings: React.FC<AccountingFinanceSettingsProps>
           onDeleteCategory={onDeleteCategory}
           onRenameCategory={onRenameCategory}
           onToggleCategoryActive={onToggleCategoryActive}
+        />
+      ) : (
+        <AccountingPolicySettings
+          canManagePolicy={canManagePolicy}
+          onError={onError}
+          onSuccess={onSuccess}
         />
       )}
     </section>

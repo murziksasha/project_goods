@@ -189,6 +189,7 @@ export const saleSchema = new mongoose.Schema(
         directExpenses: { type: Number, required: false, min: 0, default: null },
         unitCostOverride: { type: Number, required: false, min: 0, default: null },
         isCostOverridden: { type: Boolean, required: false, default: false },
+        requiresCostAudit: { type: Boolean, required: false, default: undefined },
         costSnapshot: {
           type: new mongoose.Schema(
             {

@@ -1,3 +1,4 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
   cleanup,
   fireEvent,
@@ -199,6 +200,24 @@ vi.mock('../../../../../entities/finance', async (importOriginal) => {
     paySupplierOrder: paySupplierOrderMock,
     issueSupplierOrderWithoutPayment:
       issueSupplierOrderWithoutPaymentMock,
+    useFinancePolicyQuery: () => ({
+      data: {
+        serviceAuditEnabled: false,
+        serviceProfitMode: 'full' as const,
+        reportDefaults: {
+          period: 'last30' as const,
+          source: 'all' as const,
+          showCharts: true,
+          showTable: true,
+        },
+        version: 1,
+        updatedById: null,
+        updatedByName: null,
+        updatedAt: null,
+      },
+      isLoading: false,
+      isError: false,
+    }),
   };
 });
 
@@ -365,6 +384,7 @@ const buildCardElement = ({
   paidAmount = 0,
   supplierOrders = [],
   employees = [],
+  currentEmployee,
 }: {
   products?: Product[];
   catalogProducts?: CatalogProduct[];
@@ -428,6 +448,7 @@ const buildCardElement = ({
   paidAmount?: number;
   supplierOrders?: SupplierOrder[];
   employees?: OrderDetailCardProps['employees'];
+  currentEmployee?: OrderDetailCardProps['currentEmployee'];
 } = {}) => {
   const cardSale = sale(saleOverride);
   const cardStatus = status ?? (cardSale.status as OrderStatus);
@@ -437,6 +458,7 @@ const buildCardElement = ({
       sales={salesOverride ?? [cardSale]}
       supplierOrders={supplierOrders}
       employees={employees}
+      currentEmployee={currentEmployee}
       status={cardStatus}
       statusOptions={
         statusOptions ?? [
@@ -4438,5 +4460,202 @@ describe('OrderDetailCard unbound serial issue warning', () => {
       }),
     ).toBeInTheDocument();
     expect(onSaveMainInfo).not.toHaveBeenCalled();
+  });
+});
+
+describe('OrderDetailCard product purchase cost audit', () => {
+  const saleStatusOptions = [
+    { key: 'new' as const, labelKey: 'orders.status.sale.new' },
+    { key: 'issued' as const, labelKey: 'orders.status.sale.issued' },
+  ];
+  const repairStatusOptions = [
+    { key: 'inRepair' as const, labelKey: 'orders.status.repair.inRepair' },
+    { key: 'issued' as const, labelKey: 'orders.status.repair.issued' },
+  ];
+  const repairFinanceEmployee: NonNullable<OrderDetailCardProps['currentEmployee']> = {
+    id: 'emp-rep-fin',
+    name: 'Olga Finance',
+    phone: '+380501112233',
+    email: 'olga@example.com',
+    username: 'olga',
+    role: 'manager',
+    permissions: ['orders.view', 'orders.manage', 'finance.view'],
+    isActive: true,
+    isRegistered: true,
+    note: '',
+    createdAt: '2026-01-01T00:00:00.000Z',
+    updatedAt: '2026-01-01T00:00:00.000Z',
+  };
+
+  const saleFinanceEmployee: NonNullable<OrderDetailCardProps['currentEmployee']> = {
+    ...repairFinanceEmployee,
+    id: 'emp-sale-fin',
+    role: 'sales',
+    permissions: ['orders.view', 'sales.manage', 'finance.view'],
+  };
+
+  it('shows Audit next to Accept payment in repair and sale cards, removes legacy cost banners, and stays active after payment or first audit', () => {
+    const missingCostProduct: OrderLineItem = {
+      id: 'prod-audit-1',
+      kind: 'product',
+      name: 'Custom Glass',
+      price: 500,
+      quantity: 1,
+      warrantyPeriod: 0,
+      requiresCostAudit: true,
+      costSnapshot: null,
+      auditedCost: {
+        status: 'known',
+        unitCost: 150,
+        totalCost: 150,
+        method: 'manual',
+        capturedAt: '2026-11-11T10:00:00.000Z',
+      },
+    };
+
+    const queryClient = new QueryClient();
+    const { rerender } = render(
+      <QueryClientProvider client={queryClient}>
+        {buildCardElement({
+          saleOverride: { kind: 'repair', status: 'inRepair', salePrice: 500 },
+          status: 'inRepair',
+          statusOptions: repairStatusOptions,
+          lineItems: [missingCostProduct],
+          paidAmount: 0,
+          currentEmployee: repairFinanceEmployee,
+        })}
+      </QueryClientProvider>,
+    );
+
+    const paymentPanel = document.querySelector('.order-detail-payment-panel') as HTMLElement;
+    expect(paymentPanel).toBeTruthy();
+    const acceptBtn = within(paymentPanel).getByRole('button', { name: 'Accept payment' });
+    const auditBtn = within(paymentPanel).getByRole('button', { name: 'Audit' });
+    expect(screen.getAllByRole('button', { name: 'Audit' })).toHaveLength(1);
+    expect(acceptBtn.parentElement).toBe(auditBtn.parentElement);
+    expect(auditBtn).toBeEnabled();
+    expect(screen.queryByText(/Missing cost data/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Known Cost Total/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Draft Estimate/i)).not.toBeInTheDocument();
+
+    // Opens modal showing eligible product
+    fireEvent.click(auditBtn);
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { name: 'Cost audit' }),
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+
+    // Sale card after payment & issue (isReadOnly = true) keeps Audit visible & enabled
+    rerender(
+      <QueryClientProvider client={queryClient}>
+        {buildCardElement({
+          saleOverride: {
+            kind: 'sale',
+            status: 'issued',
+            salePrice: 500,
+            paidAmount: 500,
+            lineItems: [missingCostProduct],
+          },
+          salesOverride: [],
+          status: 'issued',
+          statusOptions: saleStatusOptions,
+          lineItems: [missingCostProduct],
+          paidAmount: 500,
+          isReadOnly: true,
+          canAddComment: false,
+          canCreateOrders: false,
+          currentEmployee: saleFinanceEmployee,
+        })}
+      </QueryClientProvider>,
+    );
+
+    const paidPaymentPanel = document.querySelector('.order-detail-payment-panel') as HTMLElement;
+    const paidAuditBtn = within(paidPaymentPanel).getByRole('button', { name: 'Audit' });
+    expect(paidAuditBtn).toBeEnabled();
+    expect(
+      within(paidPaymentPanel).getByRole('button', { name: 'Paid' }).parentElement,
+    ).toBe(paidAuditBtn.parentElement);
+  });
+
+  it('hides Audit for services, priced stock products, and missing permissions', () => {
+    const pricedStockProduct: OrderLineItem = {
+      id: 'prod-stock-1',
+      kind: 'product',
+      productId: 'p1',
+      name: 'Stock Battery',
+      price: 400,
+      quantity: 1,
+      warrantyPeriod: 0,
+      requiresCostAudit: false,
+    };
+    const serviceLine: OrderLineItem = {
+      id: 'svc-1',
+      kind: 'service',
+      name: 'Diagnostics',
+      price: 200,
+      quantity: 1,
+      warrantyPeriod: 1,
+      requiresCostAudit: false,
+    };
+    const missingCostProduct: OrderLineItem = {
+      id: 'prod-missing-1',
+      kind: 'product',
+      name: 'Custom Frame',
+      price: 300,
+      quantity: 1,
+      warrantyPeriod: 0,
+      requiresCostAudit: true,
+    };
+
+    // Services & priced stock products -> no Audit button
+    const { rerender } = renderCard({
+      saleOverride: { kind: 'repair', status: 'inRepair' },
+      status: 'inRepair',
+      statusOptions: repairStatusOptions,
+      lineItems: [pricedStockProduct, serviceLine],
+      currentEmployee: repairFinanceEmployee,
+    });
+    expect(screen.queryByRole('button', { name: 'Audit' })).not.toBeInTheDocument();
+
+    // Missing finance.view -> no Audit button
+    rerender(
+      buildCardElement({
+        saleOverride: {
+          kind: 'repair',
+          status: 'inRepair',
+          lineItems: [missingCostProduct],
+        },
+        salesOverride: [],
+        status: 'inRepair',
+        statusOptions: repairStatusOptions,
+        lineItems: [missingCostProduct],
+        canCreateOrders: false,
+        currentEmployee: {
+          ...repairFinanceEmployee,
+          permissions: ['orders.view', 'orders.manage'],
+        },
+      }),
+    );
+    expect(screen.queryByRole('button', { name: 'Audit' })).not.toBeInTheDocument();
+
+    // Sale card with orders.manage instead of sales.manage -> no Audit button
+    rerender(
+      buildCardElement({
+        saleOverride: {
+          kind: 'sale',
+          status: 'new',
+          lineItems: [missingCostProduct],
+        },
+        salesOverride: [],
+        status: 'new',
+        statusOptions: saleStatusOptions,
+        lineItems: [missingCostProduct],
+        canCreateOrders: false,
+        currentEmployee: repairFinanceEmployee,
+      }),
+    );
+    expect(screen.queryByRole('button', { name: 'Audit' })).not.toBeInTheDocument();
   });
 });

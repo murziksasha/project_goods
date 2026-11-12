@@ -19,11 +19,30 @@ import {
   it,
   vi,
 } from 'vitest';
-import type { FinanceProfitReport } from '../../../../entities/finance';
+import type {
+  FinancePolicy,
+  FinanceProfitReport,
+} from '../../../../entities/finance';
 import i18n from '../../../../shared/i18n/config';
 import { AccountingProfitReportsView } from './AccountingProfitReportsView';
 
-const { report, exportMock } = vi.hoisted(() => {
+const { report, exportMock, mockPolicyState } = vi.hoisted(() => {
+  const mockPolicyState: { data: FinancePolicy } = {
+    data: {
+      serviceAuditEnabled: false,
+      serviceProfitMode: 'full',
+      reportDefaults: {
+        period: 'last30',
+        source: 'all',
+        showCharts: true,
+        showTable: true,
+      },
+      version: 1,
+      updatedById: null,
+      updatedByName: null,
+      updatedAt: null,
+    },
+  };
   const report: FinanceProfitReport = {
     period: {
       key: 'whole',
@@ -143,7 +162,7 @@ const { report, exportMock } = vi.hoisted(() => {
     coldSalesPurgedExist: false,
     saleCount: 1,
   };
-  return { report, exportMock: vi.fn() };
+  return { report, exportMock: vi.fn(), mockPolicyState };
 });
 
 vi.mock('../../model/profit-report', async (importOriginal) => {
@@ -208,6 +227,11 @@ vi.mock('../../../../entities/finance', async (importOriginal) => {
   }),
   useFinanceCategoriesQuery: () => ({
     data: [],
+    isLoading: false,
+    isError: false,
+  }),
+  useFinancePolicyQuery: () => ({
+    data: mockPolicyState.data,
     isLoading: false,
     isError: false,
   }),
@@ -544,5 +568,83 @@ describe('AccountingProfitReportsView', () => {
       screen.getByRole('button', { name: 'Report visual settings' }),
     );
     expect(screen.getByLabelText('Chart metric')).toHaveValue('revenue');
+  });
+
+  it('applies company defaults, prioritizes personal overrides, resets on button click, and disables Services in exclude mode', () => {
+    window.localStorage.clear();
+    mockPolicyState.data = {
+      serviceAuditEnabled: false,
+      serviceProfitMode: 'exclude',
+      reportDefaults: {
+        period: 'month',
+        source: 'sales',
+        showCharts: false,
+        showTable: false,
+      },
+      version: 4,
+      updatedById: null,
+      updatedByName: null,
+      updatedAt: null,
+    };
+
+    renderView(
+      <I18nextProvider i18n={i18n}>
+        <AccountingProfitReportsView />
+      </I18nextProvider>,
+    );
+
+    // Company defaults applied: period=month, source=sales, showTable=false
+    expect(screen.getByRole('button', { name: 'Month' })).toHaveClass(
+      'period-button-active',
+    );
+    expect(screen.getByRole('button', { name: 'Sales' })).toHaveClass(
+      'period-button-active',
+    );
+    expect(
+      screen.queryByRole('heading', { name: 'Margin by product or service' }),
+    ).not.toBeInTheDocument();
+
+    // Services button disabled with explanation in exclude mode
+    const servicesBtn = screen.getByRole('button', { name: 'Services' });
+    expect(servicesBtn).toBeDisabled();
+    expect(
+      screen.getByText(/Services filter is unavailable while services are excluded/i),
+    ).toBeInTheDocument();
+
+    // Personal override takes priority and persists
+    fireEvent.click(screen.getByRole('button', { name: 'Year' }));
+    expect(screen.getByRole('button', { name: 'Year' })).toHaveClass(
+      'period-button-active',
+    );
+    expect(
+      window.localStorage.getItem('project-goods.accounting-profit-filters'),
+    ).toContain('"period":"year"');
+
+    // Reset to company defaults restores period=month and clears personal storage
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Reset to company defaults' }),
+    );
+    expect(screen.getByRole('button', { name: 'Month' })).toHaveClass(
+      'period-button-active',
+    );
+    expect(
+      window.localStorage.getItem('project-goods.accounting-profit-filters'),
+    ).toBeNull();
+
+    // Restore mockPolicyState for other tests
+    mockPolicyState.data = {
+      serviceAuditEnabled: false,
+      serviceProfitMode: 'full',
+      reportDefaults: {
+        period: 'last30',
+        source: 'all',
+        showCharts: true,
+        showTable: true,
+      },
+      version: 1,
+      updatedById: null,
+      updatedByName: null,
+      updatedAt: null,
+    };
   });
 });

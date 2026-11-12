@@ -9,6 +9,10 @@ import {
   deleteFinanceCategory as deleteFinanceCategoryService,
   getFinanceReport,
   getFinanceProfitReport,
+  getFinancePolicy as getFinancePolicyService,
+  listFinancePolicyHistory as listFinancePolicyHistoryService,
+  previewFinancePolicyImpact,
+  updateFinancePolicy as updateFinancePolicyService,
   listCashboxes as listCashboxesService,
   listFinanceCategories,
   listFinanceCurrencies,
@@ -168,6 +172,52 @@ export const getProfitReportDetailsHandler = async (req: Request, res: Response)
   await requirePermission(req, 'finance.view');
   res.json(
     await getFinanceProfitReportDetails(req.query as ProfitReportQuery),
+  );
+};
+
+export const getFinancePolicyHandler = async (req: Request, res: Response): Promise<void> => {
+  await requireAnyPermission(req, ['finance.view', 'finance.policy.manage']);
+  res.json(await getFinancePolicyService());
+};
+
+export const updateFinancePolicyHandler = async (req: Request, res: Response): Promise<void> => {
+  const employee = await requirePermission(req, 'finance.policy.manage');
+  res.json(
+    await updateFinancePolicyService(
+      (req.body ?? {}) as {
+        version?: unknown;
+        serviceAuditEnabled?: unknown;
+        serviceProfitMode?: unknown;
+        reportDefaults?: unknown;
+        reason?: unknown;
+      },
+      employee,
+    ),
+  );
+};
+
+export const previewFinancePolicyHandler = async (req: Request, res: Response): Promise<void> => {
+  await requireAnyPermission(req, ['finance.view', 'finance.policy.manage']);
+  res.json(
+    await previewFinancePolicyImpact(
+      (req.body ?? {}) as {
+        serviceProfitMode?: unknown;
+        period?: string;
+        dateFrom?: string;
+        dateTo?: string;
+        source?: string;
+      },
+    ),
+  );
+};
+
+export const getFinancePolicyHistoryHandler = async (req: Request, res: Response): Promise<void> => {
+  await requireAnyPermission(req, ['finance.view', 'finance.policy.manage']);
+  res.json(
+    await listFinancePolicyHistoryService({
+      page: req.query.page,
+      pageSize: req.query.pageSize,
+    }),
   );
 };
 

@@ -216,6 +216,7 @@ export type OrderLineItem = {
   directExpenses?: number | null;
   unitCostOverride?: number | null;
   isCostOverridden?: boolean | null;
+  requiresCostAudit?: boolean | null;
   costSnapshot?: SaleCostSnapshot | null;
   auditedCost?: SaleCostSnapshot | null;
   costAuditLog?: SaleCostAuditEntry[];

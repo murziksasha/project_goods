@@ -272,6 +272,13 @@ export const formatSale = (
           };
         })
       : [];
+    const requiresCostAudit =
+      typeof rawItem.requiresCostAudit === 'boolean'
+        ? rawItem.requiresCostAudit
+        : costAuditLog.length > 0 ||
+          costSnapshot?.status === 'unknown' ||
+          auditedCost?.status === 'unknown' ||
+          (!costSnapshot?.status && !auditedCost?.status && !rawPreviewKnown);
 
     const baseLine: Record<string, unknown> = {
       id: item.id,
@@ -314,6 +321,7 @@ export const formatSale = (
         typeof rawItem.unitCostOverride === 'number'
           ? rawItem.unitCostOverride
           : null;
+      baseLine.requiresCostAudit = requiresCostAudit;
       baseLine.costSnapshot = costSnapshot;
       baseLine.auditedCost = auditedCost;
       baseLine.costAuditLog = costAuditLog;

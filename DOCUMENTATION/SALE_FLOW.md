@@ -572,10 +572,11 @@ Shown only on **Orders → Sales** (not the repair Orders tab) when `lineItems.l
     - Full-sale return with full refund returns product lines to stock and closes client payment (`paidAmount = 0`).
   - On mobile/small screens (<= 720px), all fields collapse into a single vertical column (`grid-template-columns: 1fr`); `.payment-cash-button` maintains a touch-friendly min-height of 38px.
 
-## Historical Cost Snapshots & Audited Corrections (2026-11-11)
+## Historical Cost Snapshots & Audited Product Costs (2026-11-12)
 
 - First transition into a stock-committed status (`sale`: `paid` or `issued`; `repair`: `issued` or `issuedWithoutRepair`) freezes immutable `costSnapshot` per line item and `firstStockCommittedAt` so later catalog edits do not rewrite historical margins.
-- Product costs resolve from linked stock/unit cost; service costs resolve from catalog `costMethod` (`fixed` vs `time_rate` using `recordedMinutes * hourlyCost / 60`) plus optional line `directExpenses`. Explicit `0` is marked `known`; missing cost records warn (`costWarnings`) without blocking closure.
-- Structured transitions (`statusTransitions`), `completedAt`, and `returnEvents` are captured on mutations; post-closure cost completion and reason-logged corrections go through `PATCH /sales/:saleId/costs` (`(orders.manage | sales.manage) + finance.view`).
+- Product costs resolve from linked stock/unit cost; service costs resolve from catalog `costMethod` (`fixed` vs `time_rate` using `recordedMinutes * hourlyCost / 60`) plus optional line `directExpenses`. Explicit `0` is marked `known`; missing cost records raise `costWarnings` for reporting without blocking closure.
+- Structured transitions (`statusTransitions`), `completedAt`, and `returnEvents` are captured on mutations.
+- Product lines added without a purchase price persist `requiresCostAudit: true` (legacy orders derive eligibility from saved unknown-cost markers or `costAuditLog` entries) and retain `requiresCostAudit: true` after completion. Pre-payment and post-closure audited purchase cost completion and reason-logged corrections go through `PATCH /sales/:saleId/costs` (`(orders.manage | sales.manage) + finance.view`), which restricts audit to eligible `product` lines and rejects services or already-priced products.
 
 

@@ -10,6 +10,7 @@ import { formatSale } from '../../shared/lib/formatters';
 import type { EmployeeDocument } from '../employee/model';
 import type { EmployeePermission } from '../employee/constants';
 import { employeeHasPermission } from '../auth/service';
+import { getFinancePolicy } from '../finance/policy';
 import {
   isStockCommittedRepairStatus,
   isStockCommittedSaleStatus,
@@ -95,6 +96,7 @@ export type CostableSaleLineItem = SaleLineItem & {
   directExpenses?: number | null;
   unitCostOverride?: number | null;
   isCostOverridden?: boolean | null;
+  requiresCostAudit?: boolean | null;
   costSnapshot?: CostSnapshotValue | null;
   auditedCost?: CostSnapshotValue | null;
   costAuditLog?: CostAuditEntryValue[];
@@ -537,6 +539,153 @@ const loadProductsById = async (productIds: string[]) => {
   return [] as ProductDocument[];
 };
 
+export const hasKnownProductPurchasePriceOnAdd = (
+  lineItem: Pick<CostableSaleLineItem, 'kind' | 'productId' | 'unitCostOverride'>,
+  productPriceById: Map<string, number | null> = new Map(),
+): boolean => {
+  if (lineItem.kind !== 'product') return false;
+  if (
+    lineItem.unitCostOverride !== undefined &&
+    lineItem.unitCostOverride !== null &&
+    Number.isFinite(Number(lineItem.unitCostOverride)) &&
+    Number(lineItem.unitCostOverride) >= 0
+  ) {
+    return true;
+  }
+  if (lineItem.productId) {
+    const stockPrice = productPriceById.get(String(lineItem.productId));
+    if (
+      typeof stockPrice === 'number' &&
+      Number.isFinite(stockPrice) &&
+      stockPrice >= 0
+    ) {
+      return true;
+    }
+  }
+  return false;
+};
+
+export const hasKnownServiceCostOnAdd = (
+  lineItem: Pick<
+    CostableSaleLineItem,
+    | 'kind'
+    | 'quantity'
+    | 'costMethod'
+    | 'fixedCost'
+    | 'hourlyCost'
+    | 'recordedMinutes'
+    | 'unitCostOverride'
+    | 'isCostOverridden'
+  >,
+  serviceDoc?: Pick<
+    ServiceCatalogDocument,
+    'costMethod' | 'fixedCost' | 'hourlyCost' | 'defaultDurationMinutes'
+  >,
+): boolean => {
+  if (lineItem.kind !== 'service') return false;
+  if (
+    lineItem.unitCostOverride !== undefined &&
+    lineItem.unitCostOverride !== null &&
+    Number.isFinite(Number(lineItem.unitCostOverride)) &&
+    Number(lineItem.unitCostOverride) >= 0
+  ) {
+    return true;
+  }
+
+  const qty = Math.max(Number(lineItem.quantity) || 1, 1);
+  const method: ServiceCostMethod =
+    lineItem.costMethod === 'time_rate' ||
+    (!lineItem.costMethod && serviceDoc?.costMethod === 'time_rate')
+      ? 'time_rate'
+      : 'fixed';
+
+  if (method === 'time_rate') {
+    const hourly = lineItem.isCostOverridden
+      ? (lineItem.hourlyCost ?? null)
+      : (lineItem.hourlyCost ?? serviceDoc?.hourlyCost ?? null);
+    const minutes =
+      lineItem.recordedMinutes ??
+      (serviceDoc?.defaultDurationMinutes !== undefined &&
+      serviceDoc?.defaultDurationMinutes !== null
+        ? roundMoney(serviceDoc.defaultDurationMinutes * qty)
+        : null);
+    return (
+      hourly !== null &&
+      Number.isFinite(Number(hourly)) &&
+      Number(hourly) >= 0 &&
+      minutes !== null &&
+      Number.isFinite(Number(minutes)) &&
+      Number(minutes) >= 0
+    );
+  }
+
+  const fixed = lineItem.isCostOverridden
+    ? (lineItem.fixedCost ?? null)
+    : (lineItem.fixedCost ?? serviceDoc?.fixedCost ?? null);
+  return (
+    fixed !== null &&
+    Number.isFinite(Number(fixed)) &&
+    Number(fixed) >= 0
+  );
+};
+
+export const isServiceLineItemEligibleForCostAudit = (
+  lineItem: CostableSaleLineItem,
+  serviceById?: Map<string, ServiceCatalogDocument>,
+): boolean => {
+  if (lineItem.kind !== 'service') return false;
+  if (typeof lineItem.requiresCostAudit === 'boolean') {
+    return lineItem.requiresCostAudit;
+  }
+  if (Array.isArray(lineItem.costAuditLog) && lineItem.costAuditLog.length > 0) {
+    return true;
+  }
+  if (
+    lineItem.costSnapshot?.status === 'unknown' ||
+    lineItem.auditedCost?.status === 'unknown'
+  ) {
+    return true;
+  }
+  if (
+    lineItem.costSnapshot?.status === 'known' ||
+    lineItem.auditedCost?.status === 'known'
+  ) {
+    return false;
+  }
+  const serviceDoc =
+    lineItem.serviceId && serviceById
+      ? serviceById.get(String(lineItem.serviceId))
+      : undefined;
+  return !hasKnownServiceCostOnAdd(lineItem, serviceDoc);
+};
+
+export const isProductLineItemEligibleForCostAudit = (
+  lineItem: CostableSaleLineItem,
+  productPriceById: Map<string, number | null> = new Map(),
+): boolean => {
+  if (lineItem.kind !== 'product') return false;
+  if (typeof lineItem.requiresCostAudit === 'boolean') {
+    return lineItem.requiresCostAudit;
+  }
+  // Legacy orders without persisted requiresCostAudit derive eligibility from saved unknown-cost markers or audit history.
+  if (Array.isArray(lineItem.costAuditLog) && lineItem.costAuditLog.length > 0) {
+    return true;
+  }
+  if (
+    lineItem.costSnapshot?.status === 'unknown' ||
+    lineItem.auditedCost?.status === 'unknown'
+  ) {
+    return true;
+  }
+  if (
+    lineItem.costSnapshot?.status === 'known' ||
+    lineItem.auditedCost?.status === 'known'
+  ) {
+    return false;
+  }
+  return !hasKnownProductPurchasePriceOnAdd(lineItem, productPriceById);
+};
+
 export const prepareLineItemsWithCostSnapshots = async ({
   kind,
   nextStatus,
@@ -735,6 +884,68 @@ export const prepareLineItemsWithCostSnapshots = async ({
       normalizedUnitOverride !== undefined
         ? normalizedUnitOverride
         : (existing?.unitCostOverride ?? null);
+
+    if (item.kind === 'service') {
+      if (!existing) {
+        item.requiresCostAudit = !hasKnownServiceCostOnAdd(item, serviceDoc);
+      } else if (
+        (existing.costAuditLog?.length ?? 0) > 0 ||
+        existing.auditedCost?.status ||
+        existing.costSnapshot?.capturedAt
+      ) {
+        item.requiresCostAudit = isServiceLineItemEligibleForCostAudit(
+          existing,
+          serviceById,
+        );
+      } else if (typeof existing.requiresCostAudit === 'boolean') {
+        const existingResolvedMethod: ServiceCostMethod =
+          existing.costMethod === 'time_rate' ||
+          (!existing.costMethod && serviceDoc?.costMethod === 'time_rate')
+            ? 'time_rate'
+            : 'fixed';
+        const serviceInputsChanged =
+          String(existing.serviceId ?? '') !== String(item.serviceId ?? '') ||
+          existingResolvedMethod !== item.costMethod ||
+          numbersDiffer(existing.fixedCost, item.fixedCost) ||
+          numbersDiffer(existing.hourlyCost, item.hourlyCost) ||
+          numbersDiffer(existing.recordedMinutes, item.recordedMinutes) ||
+          numbersDiffer(existing.unitCostOverride, item.unitCostOverride);
+        item.requiresCostAudit = serviceInputsChanged
+          ? !hasKnownServiceCostOnAdd(item, serviceDoc)
+          : existing.requiresCostAudit;
+      } else {
+        item.requiresCostAudit = isServiceLineItemEligibleForCostAudit(
+          existing,
+          serviceById,
+        );
+      }
+    } else if (!existing) {
+      item.requiresCostAudit = !hasKnownProductPurchasePriceOnAdd(
+        item,
+        productPriceById,
+      );
+    } else if (
+      (existing.costAuditLog?.length ?? 0) > 0 ||
+      existing.auditedCost?.status ||
+      existing.costSnapshot?.capturedAt
+    ) {
+      item.requiresCostAudit = isProductLineItemEligibleForCostAudit(
+        existing,
+        productPriceById,
+      );
+    } else if (typeof existing.requiresCostAudit === 'boolean') {
+      const productLinkOrOverrideChanged =
+        String(existing.productId ?? '') !== String(item.productId ?? '') ||
+        numbersDiffer(existing.unitCostOverride, item.unitCostOverride);
+      item.requiresCostAudit = productLinkOrOverrideChanged
+        ? !hasKnownProductPurchasePriceOnAdd(item, productPriceById)
+        : existing.requiresCostAudit;
+    } else {
+      item.requiresCostAudit = isProductLineItemEligibleForCostAudit(
+        existing,
+        productPriceById,
+      );
+    }
 
     // Preserve immutable costSnapshot once captured at first commit.
     if (existing?.costSnapshot?.capturedAt) {
@@ -1106,9 +1317,51 @@ export const updateSaleLineCosts = async (
     updatesById.set(lineItemId, entry);
   }
 
+  let hasServiceUpdates = false;
   for (const lineItemId of updatesById.keys()) {
-    if (!existingLineItems.some((item) => String(item.id) === lineItemId)) {
+    const targetItem = existingLineItems.find(
+      (item) => String(item.id) === lineItemId,
+    );
+    if (!targetItem) {
       throw new HttpError(404, `Line item "${lineItemId}" was not found on this order.`);
+    }
+    if (targetItem.kind === 'service') {
+      hasServiceUpdates = true;
+      continue;
+    }
+    if (targetItem.kind !== 'product') {
+      throw new HttpError(
+        400,
+        'Cost audit is only allowed for eligible product or service line items.',
+      );
+    }
+    if (!isProductLineItemEligibleForCostAudit(targetItem, productPriceById)) {
+      throw new HttpError(
+        400,
+        `Line item "${targetItem.name}" does not require cost audit.`,
+      );
+    }
+  }
+
+  if (hasServiceUpdates) {
+    const policy = await getFinancePolicy();
+    if (!policy.serviceAuditEnabled) {
+      throw new HttpError(
+        400,
+        'Service cost audit is currently disabled in finance policy.',
+      );
+    }
+    for (const lineItemId of updatesById.keys()) {
+      const targetItem = existingLineItems.find(
+        (item) => String(item.id) === lineItemId,
+      );
+      if (!targetItem || targetItem.kind !== 'service') continue;
+      if (!isServiceLineItemEligibleForCostAudit(targetItem, serviceById)) {
+        throw new HttpError(
+          400,
+          `Line item "${targetItem.name}" does not require cost audit.`,
+        );
+      }
     }
   }
 
@@ -1188,6 +1441,19 @@ export const updateSaleLineCosts = async (
         ? serviceById.get(String(lineItem.serviceId))
         : undefined;
 
+      const clearOverrideForExplicitMethod =
+        nextUnitCost === undefined &&
+        (update.costMethod !== undefined ||
+          update.fixedCost !== undefined ||
+          update.hourlyCost !== undefined ||
+          update.recordedMinutes !== undefined);
+      const effectiveServiceUnitOverride =
+        nextUnitCost !== undefined
+          ? nextUnitCost
+          : clearOverrideForExplicitMethod
+            ? null
+            : (lineItem.unitCostOverride ?? null);
+
       nextAuditedCost = computeServiceSnapshotValues({
         quantity,
         costMethod: resolvedMethod,
@@ -1195,8 +1461,7 @@ export const updateSaleLineCosts = async (
         hourlyCost: nextHourly ?? serviceDoc?.hourlyCost ?? null,
         recordedMinutes: nextMinutes,
         directExpenses: nextDirectExpenses,
-        unitCostOverride:
-          nextUnitCost !== undefined ? nextUnitCost : null,
+        unitCostOverride: effectiveServiceUnitOverride,
         actorId,
         actorName,
         capturedAt: now,
@@ -1206,13 +1471,16 @@ export const updateSaleLineCosts = async (
         lineItem.productId
           ? (productPriceById.get(String(lineItem.productId)) ?? null)
           : null;
+      const effectiveUnitCost =
+        nextUnitCost !== undefined
+          ? nextUnitCost
+          : (lineItem.unitCostOverride ?? null);
       nextAuditedCost = computeProductSnapshotValues({
         quantity,
         productPrice:
-          nextUnitCost !== undefined ? nextUnitCost : stockPrice,
+          effectiveUnitCost !== null ? effectiveUnitCost : stockPrice,
         directExpenses: nextDirectExpenses,
-        unitCostOverride:
-          nextUnitCost !== undefined ? nextUnitCost : null,
+        unitCostOverride: effectiveUnitCost,
         actorId,
         actorName,
         capturedAt: now,
@@ -1250,13 +1518,24 @@ export const updateSaleLineCosts = async (
 
     return {
       ...lineItem,
+      requiresCostAudit: true,
       costMethod: nextCostMethod,
       recordedMinutes: nextMinutes,
       fixedCost: nextFixed,
       hourlyCost: nextHourly,
       directExpenses: nextDirectExpenses,
       unitCostOverride:
-        nextUnitCost !== undefined ? nextUnitCost : (lineItem.unitCostOverride ?? null),
+        String(update.status ?? '').trim().toLowerCase() === 'unknown'
+          ? null
+          : nextUnitCost !== undefined
+            ? nextUnitCost
+            : lineItem.kind === 'service' &&
+                (update.costMethod !== undefined ||
+                  update.fixedCost !== undefined ||
+                  update.hourlyCost !== undefined ||
+                  update.recordedMinutes !== undefined)
+              ? null
+              : (lineItem.unitCostOverride ?? null),
       auditedCost: nextAuditedCost,
       costAuditLog: [...(lineItem.costAuditLog ?? []), auditEntry],
     };
