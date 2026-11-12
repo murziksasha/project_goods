@@ -148,6 +148,7 @@ export type WarehouseReportResponse = {
     earliestLiveSaleDate: string | null;
     unknownAgeOnHandCount: number;
     warnings: string[];
+    warningItems?: Array<{ code: string; count?: number; units?: number }>;
   };
 };
 

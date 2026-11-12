@@ -298,4 +298,48 @@ describe('WarehouseInformationPanel', () => {
       }),
     );
   });
+
+  it('renders Ukrainian copy when the interface language is uk', async () => {
+    await i18n.changeLanguage('uk');
+    renderPanel();
+
+    expect(screen.getByRole('heading', { name: 'Огляд складу' })).toBeTruthy();
+    expect(screen.getByLabelText('Склад')).toBeTruthy();
+    expect(screen.getByText('Усі склади')).toBeTruthy();
+    expect(screen.getByLabelText('Локація')).toBeTruthy();
+    expect(screen.getByText('Усі локації')).toBeTruthy();
+    expect(screen.getByLabelText('Постачальник')).toBeTruthy();
+    expect(screen.getByText('Усі постачальники')).toBeTruthy();
+    expect(screen.getByLabelText('Стан залишку')).toBeTruthy();
+    expect(screen.getByLabelText('Група давності')).toBeTruthy();
+    expect(screen.getByLabelText('Пошук')).toBeTruthy();
+    expect(screen.getByPlaceholderText('Назва, артикул, серійний...')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Скинути фільтри' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Експорт Excel (.xlsx)' })).toBeTruthy();
+    expect(screen.getByText('Загальна кількість на складі')).toBeTruthy();
+    expect(screen.getByText('Доступно / зарезервовано')).toBeTruthy();
+    expect(screen.getByText('Закупівельна вартість')).toBeTruthy();
+    expect(screen.getByText('Немає / низький / невідомий термін')).toBeTruthy();
+    expect(screen.getByText('Спостережуваний попит за 90 днів і дозамовлення')).toBeTruthy();
+    expect(screen.getByText('Групи давності запасів')).toBeTruthy();
+    expect(screen.getByText('Розподіл за постачальниками')).toBeTruthy();
+    expect(screen.getByText('Розподіл за локаціями')).toBeTruthy();
+    expect(screen.getByText('Прогноз запасів і пропозиції дозамовлення')).toBeTruthy();
+    expect(screen.getByText('Деталізація складських записів')).toBeTruthy();
+    expect(screen.getAllByText('Невідомий термін').length).toBeGreaterThan(0);
+    expect(screen.getByText('рідкісний')).toBeTruthy();
+    expect(screen.getByText('18 од.')).toBeTruthy();
+    expect(
+      screen.getByRole('button', { name: /Невідомий термін \(1 рядок\)/ }),
+    ).toBeTruthy();
+    // Mock warning has no code and does not match a known backend English string
+    expect(
+      screen.getByText(/lack purchaseDate and are grouped under unknown age/i),
+    ).toBeTruthy();
+    // Scenario bar
+    expect(screen.getByText('Сценарій оцінки')).toBeTruthy();
+    expect(screen.getByText('Лише оцінка')).toBeTruthy();
+    expect(screen.getByLabelText('Приватні збережені сценарії')).toBeTruthy();
+    expect(screen.getByText('Зберегти новий')).toBeTruthy();
+  });
 });

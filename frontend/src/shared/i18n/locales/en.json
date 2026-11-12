@@ -2430,7 +2430,56 @@
         "noRowsFound": "No rows found.",
         "productsFilename": "warehouse-products.xlsx",
         "locationsFilename": "warehouse-locations.xlsx",
-        "suppliersFilename": "warehouse-suppliers.xlsx"
+        "suppliersFilename": "warehouse-suppliers.xlsx",
+        "forecastTitle": "Warehouse Information & Forecasting",
+        "sheetStockRecords": "Stock Records",
+        "sheetForecastReorder": "Forecast & Reorder",
+        "sheetAgingBuckets": "Aging Buckets",
+        "sheetSuppliersLocations": "Suppliers & Locations",
+        "definitions": {
+          "availableUnits": "Available units",
+          "availableUnitsDef": "Current on-hand quantity minus manual reservations and uncommitted open order serial/line occupancy.",
+          "purchaseValuation": "Purchase valuation",
+          "purchaseValuationDef": "Sum of on-hand quantity multiplied by recorded purchase unit price.",
+          "agingBuckets": "Aging buckets",
+          "agingBucketsDef": "Age since recorded purchaseDate (Europe/Kiev calendar); items without purchaseDate are classified under unknown age.",
+          "reorderSuggestion": "Reorder suggestion",
+          "reorderSuggestionDef": "Estimate based on trailing 90-day observed daily demand x demandMultiplier x (leadTimeDays + safetyStockDays) minus available stock and optional pending supplier orders."
+        },
+        "cols": {
+          "name": "Name",
+          "article": "Article",
+          "serial": "Serial",
+          "supplier": "Supplier",
+          "warehouse": "Warehouse",
+          "location": "Location",
+          "onHandQty": "OnHandQty",
+          "manualReserved": "ManualReserved",
+          "orderReserved": "OrderReserved",
+          "availableQty": "AvailableQty",
+          "unitCost": "UnitCost",
+          "valuation": "Valuation",
+          "purchaseDate": "PurchaseDate",
+          "ageDays": "AgeDays",
+          "ageBucket": "AgeBucket",
+          "stockState": "StockState",
+          "product": "Product",
+          "reservedQty": "ReservedQty",
+          "pendingPoQty": "PendingPOQty",
+          "observedDemand90d": "ObservedDemand90d",
+          "demandPattern": "DemandPattern",
+          "dailyDemand": "DailyDemand",
+          "estCoverageDays": "EstCoverageDays",
+          "targetBufferUnits": "TargetBufferUnits",
+          "suggestedReorderQty": "SuggestedReorderQty",
+          "estReorderCost": "EstReorderCost",
+          "projectedEndingAvail": "ProjectedEndingAvail",
+          "bucket": "Bucket",
+          "skus": "SKUs",
+          "quantity": "Quantity",
+          "reserved": "Reserved",
+          "available": "Available"
+        }
       },
       "filters": {
         "date": "Date",
@@ -2465,7 +2514,18 @@
         "statusActive": "Status: {{value}}",
         "dateFromActive": "Date from: {{value}}",
         "dateToActive": "Date to: {{value}}",
-        "sortActive": "Sort: {{field}} {{direction}}"
+        "sortActive": "Sort: {{field}} {{direction}}",
+        "stockState": "Stock State",
+        "allStates": "All states",
+        "agingBucket": "Aging Bucket",
+        "allAges": "All ages",
+        "searchPlaceholderAnalytics": "Name, article, serial...",
+        "searchQuery": "Search Query",
+        "forecastHorizon": "Forecast Horizon",
+        "leadTimeDays": "Lead Time (days)",
+        "safetyStockDays": "Safety Stock (days)",
+        "demandMultiplier": "Demand Multiplier",
+        "horizonDaysValue": "{{count}} days"
       },
       "productsTable": {
         "columns": {
@@ -2529,6 +2589,157 @@
           "latestPurchase": "Latest purchase"
         },
         "empty": "No supplier rows found."
+      },
+      "subtitle": "Stock valuation, reservations, aging buckets, observed 90-day demand, and reorder forecasting scenarios (estimates only; no automatic POs).",
+      "resetFilters": "Reset Filters",
+      "exportExcel": "Export Excel (.xlsx)",
+      "filtersAria": "Warehouse filters",
+      "all": "All",
+      "none": "None",
+      "na": "N/A",
+      "unknown": "Unknown",
+      "unknownDate": "Unknown date",
+      "unassignedSupplier": "Unassigned supplier",
+      "unassignedWarehouse": "Unassigned warehouse",
+      "unassignedLocation": "Unassigned location",
+      "stockStates": {
+        "all": "All states",
+        "in_stock": "In stock",
+        "low_stock": "Low stock (1–2 avail)",
+        "out_of_stock": "Out of stock (0 avail)",
+        "reserved": "Has reservations"
+      },
+      "stockStateLabels": {
+        "in_stock": "In stock",
+        "low_stock": "Low stock",
+        "out_of_stock": "Out of stock",
+        "reserved": "Reserved"
+      },
+      "aging": {
+        "0-30": "0–30 days",
+        "31-60": "31–60 days",
+        "61-90": "61–90 days",
+        "90+": "90+ days",
+        "unknown": "Unknown age"
+      },
+      "coverage": {
+        "title": "Data & Forecast Coverage Notes"
+      },
+      "kpi": {
+        "totalOnHand": "Total On-Hand Qty",
+        "stockRowsAndGroups": "{{rows}} stock rows · {{groups}} SKU groups",
+        "availableReserved": "Available / Reserved",
+        "manualAndOpenOrders": "Manual: {{manual}} · Open orders: {{orders}}",
+        "purchaseValuation": "Purchase Valuation",
+        "availableValue": "Available value: {{amount}}",
+        "outLowUnknown": "Out / Low / Unknown Age",
+        "unknownAgeUnits": "Unknown age units: {{count}}",
+        "observedDemandReorder": "90d Observed Demand & Reorder",
+        "unitsCount": "{{count}} units",
+        "skusNeedUnits": "{{skus}} SKUs need {{units}} units ({{cost}})",
+        "projectedDemand": "{{days}}d Projected Demand",
+        "windowRange": "Window {{from}} to {{to}}",
+        "projectedShortfall": "{{days}}d Projected Shortfall",
+        "skusBelowZero_one": "{{count}} SKU(s) projected below 0",
+        "skusBelowZero_few": "{{count}} SKU(s) projected below 0",
+        "skusBelowZero_many": "{{count}} SKU(s) projected below 0",
+        "skusBelowZero_other": "{{count}} SKU(s) projected below 0",
+        "pendingIncomingPos": "Pending Incoming POs",
+        "pendingIncluded": "Included in coverage & reorder calculations",
+        "pendingExcluded": "Excluded by current assumption"
+      },
+      "sections": {
+        "agingBuckets": "Inventory Aging Buckets",
+        "agingBucketsSubtitle": "Click any bucket to filter stock details below (click again to clear).",
+        "supplierDistribution": "Supplier Distribution",
+        "supplierDistributionSubtitle": "Click a supplier to filter stock records and demand table.",
+        "locationDistribution": "Location Distribution",
+        "locationDistributionSubtitle": "Click a warehouse / location to filter stock records.",
+        "forecastTitle": "Inventory Forecasting & Reorder Suggestions",
+        "forecastSubtitle": "Projections based on trailing {{observed}}/{{window}} observed days. Scenarios never create POs automatically.",
+        "estimateOnly": "Estimate Only",
+        "stockDrillDown": "Stock Records Drill-Down",
+        "matchingTotal": "Matching total across all pages: {{total}} records ({{available}} available / {{onHand}} on hand · {{valuation}})",
+        "stockDrillDownEmpty": "Filter or click chart segments above to narrow down stock rows."
+      },
+      "bars": {
+        "labelRows_one": "{{label}} ({{count}} rows)",
+        "labelRows_few": "{{label}} ({{count}} rows)",
+        "labelRows_many": "{{label}} ({{count}} rows)",
+        "labelRows_other": "{{label}} ({{count}} rows)",
+        "valueUnits": "{{quantity}} u · {{value}}",
+        "valueAvailUnits": "{{available}}/{{quantity}} u · {{value}}"
+      },
+      "forecast": {
+        "horizon": "Projection Horizon",
+        "days": "{{count}} days",
+        "leadTime": "Lead Time (days)",
+        "safetyStock": "Safety Stock (days)",
+        "demandMultiplier": "Demand Multiplier",
+        "includePendingPos": "Include pending POs"
+      },
+      "columns": {
+        "productSupplier": "Product / Supplier",
+        "availReserved": "Avail / Reserved",
+        "pendingPo": "Pending PO",
+        "demand90d": "90d Demand",
+        "estCoverage": "Est. Coverage",
+        "reorderSuggestion": "Reorder Suggestion",
+        "projectedEnd": "{{days}}d Projected End",
+        "itemSku": "Item / SKU",
+        "locationSupplier": "Location / Supplier",
+        "onHand": "On Hand",
+        "reservedManOrd": "Reserved (Man / Ord)",
+        "available": "Available",
+        "valuation": "Valuation",
+        "ageBucket": "Age Bucket"
+      },
+      "cells": {
+        "onHandRes": "On hand {{onHand}} · Res {{reserved}}",
+        "overdue_one": "{{count}} overdue",
+        "overdue_few": "{{count}} overdue",
+        "overdue_many": "{{count}} overdue",
+        "overdue_other": "{{count}} overdue",
+        "eta": "ETA {{date}}",
+        "dailyDemand": "{{value}}/d",
+        "coverageDays": "{{days}}d",
+        "coverageWithPo": " ({{days}}d w/ PO)",
+        "noDemand": "No demand",
+        "reorderUnits": "+{{count}} units",
+        "estCost": "Est. {{amount}}",
+        "covered": "Covered",
+        "noArticleSerial": "No article/serial",
+        "reservedTitle": "Manual reserved + open order occupancy",
+        "unitPrice": "@{{amount}}",
+        "warehouseLocation": "{{warehouse}} / {{location}}"
+      },
+      "demandPatterns": {
+        "steady": "steady",
+        "sparse": "sparse",
+        "zero": "zero"
+      },
+      "errors": {
+        "loadAnalytics": "Failed to load warehouse analytics.",
+        "loadDetails": "Failed to load stock details."
+      },
+      "loading": "Loading warehouse analytics...",
+      "emptyDemand": "No matching SKUs for demand and reorder analysis.",
+      "warnings": {
+        "coldArchiveDemand": "Cold yearly archive purges exist; trailing demand only reflects live persisted sales.",
+        "shortSalesHistory_one": "Only {{count}} day(s) of live sales history available in the 90-day observation window.",
+        "shortSalesHistory_few": "Only {{count}} day(s) of live sales history available in the 90-day observation window.",
+        "shortSalesHistory_many": "Only {{count}} day(s) of live sales history available in the 90-day observation window.",
+        "shortSalesHistory_other": "Only {{count}} day(s) of live sales history available in the 90-day observation window.",
+        "unknownAgeOnHand_one": "{{count}} on-hand record(s) ({{units}} unit(s)) have no purchase date (Unknown age).",
+        "unknownAgeOnHand_few": "{{count}} on-hand record(s) ({{units}} unit(s)) have no purchase date (Unknown age).",
+        "unknownAgeOnHand_many": "{{count}} on-hand record(s) ({{units}} unit(s)) have no purchase date (Unknown age).",
+        "unknownAgeOnHand_other": "{{count}} on-hand record(s) ({{units}} unit(s)) have no purchase date (Unknown age).",
+        "excelCapped": "Excel detail rows capped at {{shown}} of {{total}} matching records."
+      },
+      "scenarios": {
+        "saved": "Saved private scenario \"{{name}}\".",
+        "updated": "Updated scenario \"{{name}}\".",
+        "deleted": "Deleted saved scenario."
       }
     },
     "transfer": {
@@ -4086,6 +4297,16 @@
       "prev": "Prev",
       "next": "Next",
       "pageOf": "Page {{page}} / {{totalPages}}"
+    },
+    "scenario": {
+      "estimateScenario": "Estimate Scenario",
+      "privateSaved": "Private saved scenarios",
+      "currentAdhoc": "-- Current / Ad-hoc --",
+      "namedHorizon": "{{name}} ({{days}}d)",
+      "namePlaceholder": "Scenario name...",
+      "nameAria": "Scenario name",
+      "saveNew": "Save New",
+      "updateSaved": "Update Saved"
     }
   },
   "app": {

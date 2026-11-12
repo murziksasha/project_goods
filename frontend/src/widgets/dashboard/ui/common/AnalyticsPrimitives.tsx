@@ -592,60 +592,69 @@ export const ScenarioManagerBar: React.FC<ScenarioManagerBarProps> = ({
   onUpdateSelected,
   onDeleteSelected,
   isSaving = false,
-  label = 'Private saved scenarios',
-}) => (
-  <div className="report-scenario-bar">
-    <span className="report-estimate-pill">Estimate Scenario</span>
-    <label style={{ fontSize: '0.82rem', fontWeight: 600 }}>
-      {label}:
-      <select
-        style={{ marginLeft: 8 }}
-        value={selectedScenarioId}
-        onChange={(e) => onSelectScenario(e.target.value)}
-        aria-label={label}
+  label,
+}) => {
+  const { t } = useTranslation();
+  const resolvedLabel = label ?? t('analytics.scenario.privateSaved');
+  return (
+    <div className="report-scenario-bar">
+      <span className="report-estimate-pill">
+        {t('analytics.scenario.estimateScenario')}
+      </span>
+      <label style={{ fontSize: '0.82rem', fontWeight: 600 }}>
+        {resolvedLabel}:
+        <select
+          style={{ marginLeft: 8 }}
+          value={selectedScenarioId}
+          onChange={(e) => onSelectScenario(e.target.value)}
+          aria-label={resolvedLabel}
+        >
+          <option value="">{t('analytics.scenario.currentAdhoc')}</option>
+          {scenarios.map((scenario) => (
+            <option key={scenario.id} value={scenario.id}>
+              {t('analytics.scenario.namedHorizon', {
+                name: scenario.name,
+                days: scenario.horizonDays,
+              })}
+            </option>
+          ))}
+        </select>
+      </label>
+      <input
+        type="text"
+        value={scenarioName}
+        placeholder={t('analytics.scenario.namePlaceholder')}
+        aria-label={t('analytics.scenario.nameAria')}
+        onChange={(e) => onScenarioNameChange(e.target.value)}
+      />
+      <button
+        type="button"
+        className="secondary-button"
+        disabled={isSaving || scenarioName.trim().length === 0}
+        onClick={onSaveNew}
       >
-        <option value="">-- Current / Ad-hoc --</option>
-        {scenarios.map((scenario) => (
-          <option key={scenario.id} value={scenario.id}>
-            {scenario.name} ({scenario.horizonDays}d)
-          </option>
-        ))}
-      </select>
-    </label>
-    <input
-      type="text"
-      value={scenarioName}
-      placeholder="Scenario name..."
-      aria-label="Scenario name"
-      onChange={(e) => onScenarioNameChange(e.target.value)}
-    />
-    <button
-      type="button"
-      className="secondary-button"
-      disabled={isSaving || scenarioName.trim().length === 0}
-      onClick={onSaveNew}
-    >
-      Save New
-    </button>
-    {selectedScenarioId ? (
-      <>
-        <button
-          type="button"
-          className="secondary-button"
-          disabled={isSaving || scenarioName.trim().length === 0}
-          onClick={onUpdateSelected}
-        >
-          Update Saved
-        </button>
-        <button
-          type="button"
-          className="secondary-button"
-          disabled={isSaving}
-          onClick={onDeleteSelected}
-        >
-          Delete
-        </button>
-      </>
-    ) : null}
-  </div>
-);
+        {t('analytics.scenario.saveNew')}
+      </button>
+      {selectedScenarioId ? (
+        <>
+          <button
+            type="button"
+            className="secondary-button"
+            disabled={isSaving || scenarioName.trim().length === 0}
+            onClick={onUpdateSelected}
+          >
+            {t('analytics.scenario.updateSaved')}
+          </button>
+          <button
+            type="button"
+            className="secondary-button"
+            disabled={isSaving}
+            onClick={onDeleteSelected}
+          >
+            {t('common.delete')}
+          </button>
+        </>
+      ) : null}
+    </div>
+  );
+};
