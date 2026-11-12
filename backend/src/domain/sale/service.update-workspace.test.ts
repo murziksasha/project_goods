@@ -722,3 +722,218 @@ describe('updateSaleWorkspace line items', () => {
     );
   });
 });
+
+describe('updateSaleWorkspace without finance.view', () => {
+  const capturedAt = new Date('2026-09-15T12:00:00.000Z');
+  const capturedCostSnapshot = {
+    status: 'known' as const,
+    unitCost: 200,
+    totalCost: 200,
+    method: 'fixed' as const,
+    laborCost: 200,
+    directExpenses: 0,
+    recordedMinutes: null,
+    hourlyCost: null,
+    fixedCost: 200,
+    capturedAt,
+    capturedById: '507f1f77bcf86cd799439070',
+    capturedByName: 'Olga Finance',
+  };
+  const capturedAuditedCost = {
+    ...capturedCostSnapshot,
+    unitCost: 220,
+    totalCost: 220,
+  };
+  const capturedCostAuditLog = [
+    {
+      id: 'audit-1',
+      previousStatus: 'known' as const,
+      previousUnitCost: 200,
+      previousTotalCost: 200,
+      newStatus: 'known' as const,
+      newUnitCost: 220,
+      newTotalCost: 220,
+      method: 'fixed' as const,
+      directExpenses: 0,
+      recordedMinutes: null,
+      hourlyCost: null,
+      fixedCost: 220,
+      reason: 'Price correction',
+      authorId: '507f1f77bcf86cd799439070',
+      authorName: 'Olga Finance',
+      changedAt: capturedAt,
+    },
+  ];
+  const costedServiceLine = {
+    id: 'li-svc-costed',
+    kind: 'service',
+    name: 'Diagnostics',
+    price: 500,
+    quantity: 1,
+    warrantyPeriod: 0,
+    serialNumbers: [],
+    costMethod: 'fixed',
+    fixedCost: 200,
+    costSnapshot: capturedCostSnapshot,
+    auditedCost: capturedAuditedCost,
+    costAuditLog: capturedCostAuditLog,
+  };
+  const masterWithoutFinance = {
+    _id: { toString: () => '507f1f77bcf86cd799439080' },
+    name: 'Даніїл Євгенович',
+    role: 'master',
+    permissions: [
+      'orders.view',
+      'orders.manage',
+      'orders.chat',
+      'repairs.execute',
+      'sales.manage',
+      'kanban.use',
+      'clients.manage',
+      'inventory.manage',
+      'finance.transactions.deposit',
+      'finance.orders.pay',
+    ],
+    isActive: true,
+  };
+  const assignedMaster = {
+    _id: '507f1f77bcf86cd799439099',
+    name: 'Vadim',
+    role: 'master',
+    permissions: ['repairs.execute'],
+    isActive: true,
+  };
+
+  const seedCostedRepair = () => {
+    currentSale = withFormatSaleFields({
+      ...buildExistingSale('repair'),
+      lineItems: [structuredClone(costedServiceLine)],
+      firstStockCommittedAt: capturedAt,
+    });
+  };
+
+  const stubNormalizedPayload = (overrides: Record<string, unknown> = {}) => {
+    vi.spyOn(parsers, 'normalizeSalePayload').mockReturnValue({
+      kind: 'repair',
+      status: 'new',
+      paidAmount: 0,
+      deviceName: '',
+      serialNumber: '',
+      discount: { mode: 'amount', value: 0 },
+      timeline: [],
+      paymentHistory: [],
+      lineItems: [],
+      masterId: '',
+      issuedById: '',
+      userNote: '',
+      ...overrides,
+    } as never);
+  };
+
+  const expectStoredCostFieldsUnchanged = () => {
+    expect(updateCalls).toHaveLength(1);
+    const saved = updateCalls[0].lineItems[0];
+    expect(saved.costSnapshot).toEqual(capturedCostSnapshot);
+    expect(saved.auditedCost).toEqual(capturedAuditedCost);
+    expect(saved.costAuditLog).toEqual(capturedCostAuditLog);
+  };
+
+  const expectForbidden = async (
+    promise: Promise<unknown>,
+    message: RegExp,
+  ) => {
+    await expect(promise).rejects.toMatchObject({
+      statusCode: 403,
+      message: expect.stringMatching(message),
+    });
+    expect(updateCalls).toHaveLength(0);
+  };
+
+  it('allows a master without finance.view to change only masterId', async () => {
+    seedCostedRepair();
+    vi.spyOn(Employee, 'findById').mockReturnValue(
+      leanResult(assignedMaster) as never,
+    );
+    stubNormalizedPayload({ masterId: assignedMaster._id });
+
+    await updateSaleWorkspace(
+      currentSale._id,
+      { masterId: assignedMaster._id },
+      masterWithoutFinance as never,
+    );
+
+    expect(updateCalls[0].master).toBe(assignedMaster._id);
+    expectStoredCostFieldsUnchanged();
+  });
+
+  it('allows a master without finance.view to change only userNote', async () => {
+    seedCostedRepair();
+    stubNormalizedPayload({ userNote: 'Call client before pickup' });
+
+    await updateSaleWorkspace(
+      currentSale._id,
+      { userNote: 'Call client before pickup' },
+      masterWithoutFinance as never,
+    );
+
+    expect(updateCalls[0].userNote).toBe('Call client before pickup');
+    expectStoredCostFieldsUnchanged();
+  });
+
+  it('allows a master without finance.view to append only a timeline chat message', async () => {
+    seedCostedRepair();
+    const chatEntry = {
+      id: 'tl-chat-1',
+      kind: 'manual',
+      author: 'Даніїл Євгенович',
+      message: 'Started diagnostics',
+      createdAt: new Date('2026-09-16T08:00:00.000Z'),
+    };
+    stubNormalizedPayload({ timeline: [chatEntry] });
+
+    await updateSaleWorkspace(
+      currentSale._id,
+      { timeline: [chatEntry] },
+      masterWithoutFinance as never,
+    );
+
+    expect(updateCalls[0].timeline).toEqual([chatEntry]);
+    expectStoredCostFieldsUnchanged();
+  });
+
+  it('still forbids sending lineItems with a changed costSnapshot', async () => {
+    seedCostedRepair();
+    const tampered = {
+      ...costedServiceLine,
+      costSnapshot: { ...capturedCostSnapshot, totalCost: 1 },
+    };
+    stubNormalizedPayload({ lineItems: [tampered] });
+
+    await expectForbidden(
+      updateSaleWorkspace(
+        currentSale._id,
+        { lineItems: [tampered] },
+        masterWithoutFinance as never,
+      ),
+      /Direct cost snapshot modifications require .*finance\.view/i,
+    );
+  });
+
+  it('still forbids sending lineItems with a changed unitCostOverride', async () => {
+    seedCostedRepair();
+    const tampered = {
+      ...costedServiceLine,
+      unitCostOverride: 99,
+    };
+    stubNormalizedPayload({ lineItems: [tampered] });
+
+    await expectForbidden(
+      updateSaleWorkspace(
+        currentSale._id,
+        { lineItems: [tampered] },
+        masterWithoutFinance as never,
+      ),
+      /Modifying financial cost overrides requires .*finance\.view/i,
+    );
+  });
+});

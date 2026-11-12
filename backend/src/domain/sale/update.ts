@@ -391,7 +391,8 @@ export const updateSaleWorkspace = async (
     payload.paymentHistory.length >= 0
       ? payload.paymentHistory
       : (existingSale.paymentHistory ?? []);
-  const nextLineItems = Array.isArray(payloadInput.lineItems)
+  const lineItemsProvided = Array.isArray(payloadInput.lineItems);
+  const nextLineItems = lineItemsProvided
     ? payload.lineItems
     : existingSale.lineItems?.length
       ? existingSale.lineItems
@@ -469,15 +470,17 @@ export const updateSaleWorkspace = async (
   const lineItemsWithServices = await attachServiceCatalogIds([
     ...normalizedLineItems,
   ]);
-  assertNoUnauthorizedFinancialCostOverrides({
-    kind: nextKind,
-    existingLineItems: (existingSale.lineItems ?? []) as unknown as CostableSaleLineItem[],
-    incomingLineItems: lineItemsWithServices as unknown as Array<
-      Record<string, unknown>
-    >,
-    employee: actor,
-    isCommitted: Boolean(existingWorkspaceAny.firstStockCommittedAt),
-  });
+  if (lineItemsProvided) {
+    assertNoUnauthorizedFinancialCostOverrides({
+      kind: nextKind,
+      existingLineItems: (existingSale.lineItems ?? []) as unknown as CostableSaleLineItem[],
+      incomingLineItems: lineItemsWithServices as unknown as Array<
+        Record<string, unknown>
+      >,
+      employee: actor,
+      isCommitted: Boolean(existingWorkspaceAny.firstStockCommittedAt),
+    });
+  }
   const preparedCosts = await prepareLineItemsWithCostSnapshots({
     kind: nextKind,
     nextStatus,
