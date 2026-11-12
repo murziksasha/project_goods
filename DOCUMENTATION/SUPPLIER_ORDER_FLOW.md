@@ -1,6 +1,6 @@
 # Supplier Order Flow
 
-Extracted from [ORDER_FLOW.md](./ORDER_FLOW.md) for focused maintenance. Covers `Orders -> Supplier Order`, linked sale/order card flows, and the `Information` analytics tab.
+Extracted from [ORDER_FLOW.md](./ORDER_FLOW.md) for focused maintenance. Covers `Orders -> Supplier Order`, linked sale/order card flows, and the `Information` analytics tab. The Orders `Reports` tab (`ordersTab=ordersReports`) includes a Procurement subview that uses the same supplier-order permissions; see [ORDER_FLOW.md](./ORDER_FLOW.md#orders-reports-tab-2026-11-12).
 
 ## Related docs
 
@@ -89,5 +89,6 @@ Canonical order (keys): `number`, `product`, `quantity`, `price`, `total`, `paid
 | `POST /supplier-orders/:id/cancel`             | `supplierOrders.manage` (pending only)           |
 | `POST /supplier-orders/:id/cancel-item`        | `supplierOrders.manage`                          |
 | `GET /reports/orders/procurement` & `/details` | `supplierOrders.view` or `supplierOrders.manage` |
+| `GET /reports/orders/table/procurement` & `/export` | `supplierOrders.view` or `supplierOrders.manage` |
 
 Full auth matrix: [API.md](./API.md#authentication).
