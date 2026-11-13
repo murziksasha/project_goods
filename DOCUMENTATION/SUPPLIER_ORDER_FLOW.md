@@ -1,6 +1,6 @@
 # Supplier Order Flow
 
-Extracted from [ORDER_FLOW.md](./ORDER_FLOW.md) for focused maintenance. Covers `Orders -> Supplier Order`, linked sale/order card flows, and the `Information` analytics tab.
+Extracted from [ORDER_FLOW.md](./ORDER_FLOW.md) for focused maintenance. Covers `Orders -> Supplier Order`, linked sale/order card flows, and the `Information` analytics tab. The Orders `Reports` tab (`ordersTab=ordersReports`) includes a Procurement subview that uses the same supplier-order permissions; see [ORDER_FLOW.md](./ORDER_FLOW.md#orders-reports-tab-2026-11-12).
 
 ## Related docs
 
@@ -75,18 +75,20 @@ Canonical order (keys): `number`, `product`, `quantity`, `price`, `total`, `paid
 - **Charts:** spend-over-time (hourly ≤1 day of `createdAt` span, daily ≤62 days, else monthly); status mix bar; payment mix bar (`pending` / `paid` / `without_payment` / `cancelled`).
 - **Ranked bars:** top goods tabs Quantity | Value | Frequency; top suppliers tabs Spend | Outstanding; price min/max plus spread track (min–max, avg tick).
 - **Signals:** overdue count + overdue outstanding ₴; late-risk 3 days; cancelled/unavailable %; avg lead time; top-1 supplier concentration (warning if ≥50%). Coverage is not repeated here (Paid KPI only).
-- **Lead time:** average whole days from date-only `createdAt` to `updatedAt` for `stocked` / `partially_completed` / `receiptStatus=received`. Approximation — there is no dedicated `stockedAt`.
+- **Lead time & on-time performance:** computed strictly from structured `items[].receivedAt` and `stockedAt` timestamps captured on receipt/take-on-charge (`statusTransitions` also append status changes going forward). Legacy receipts without structured timestamps remain explicitly reported as untracked rather than approximated from `updatedAt`.
 - **Open pipeline value:** sum of totals for orders that are not closed (`stocked`, `partially_completed`, `cancelled`, `unavailable`, or received).
 
 ## API touchpoints
 
-| Endpoint                                   | Permission                                       |
-| ------------------------------------------ | ------------------------------------------------ |
-| `GET /supplier-orders`                     | `supplierOrders.view` or `supplierOrders.manage` |
-| `POST /supplier-orders`                    | `supplierOrders.manage`                          |
-| `PUT /supplier-orders/:id`                 | `supplierOrders.manage`                          |
-| `POST /supplier-orders/:id/take-on-charge` | `supplierOrders.manage`                          |
-| `POST /supplier-orders/:id/cancel`         | `supplierOrders.manage` (pending only)           |
-| `POST /supplier-orders/:id/cancel-item`    | `supplierOrders.manage`                          |
+| Endpoint                                       | Permission                                       |
+| ---------------------------------------------- | ------------------------------------------------ |
+| `GET /supplier-orders`                         | `supplierOrders.view` or `supplierOrders.manage` |
+| `POST /supplier-orders`                        | `supplierOrders.manage`                          |
+| `PUT /supplier-orders/:id`                     | `supplierOrders.manage`                          |
+| `POST /supplier-orders/:id/take-on-charge`     | `supplierOrders.manage`                          |
+| `POST /supplier-orders/:id/cancel`             | `supplierOrders.manage` (pending only)           |
+| `POST /supplier-orders/:id/cancel-item`        | `supplierOrders.manage`                          |
+| `GET /reports/orders/procurement` & `/details` | `supplierOrders.view` or `supplierOrders.manage` |
+| `GET /reports/orders/table/procurement` & `/export` | `supplierOrders.view` or `supplierOrders.manage` (no finance columns) |
 
 Full auth matrix: [API.md](./API.md#authentication).

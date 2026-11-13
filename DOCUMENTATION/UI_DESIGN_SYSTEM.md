@@ -165,7 +165,16 @@ Shared control: [`frontend/src/shared/ui/CopyableValue.tsx`](../frontend/src/sha
 | Products & Services → Client devices / Products / Services | Name | `CatalogCopyableName` in `ProductCatalogTables.tsx` |
 | Products & Services → **Suppliers** | Name **and** phone (`tel:` stays on the number; icon copies; row click still opens the supplier) | `ProductCatalogTables.tsx` `SuppliersTable` |
 
-Opened-card copy controls and `tel:` links remain available in read-only mode. Client text still opens the client card. Device name and the separate Change action open the existing device editor when editing is allowed; the copy icon is outside those disabled controls. Phones retain their formatted display and use the stored canonical value for both the `tel:` link and clipboard. Missing values and placeholders (`-`, `—`, `r------`) have no copy icon or phone link. Copying never saves card drafts.
+Opened-card copy controls and `tel:` links remain available in read-only mode. Client text still opens the client card. Device name and the separate Change action open the existing device editor when editing is allowed; the copy icon is outside those disabled controls. Phones retain their formatted display and use the stored canonical value for the clipboard. Missing values and placeholders (`-`, `—`, `r------`) have no copy icon or phone link. Copying never saves card drafts.
+
+### Dial links in opened repair and sale cards
+
+- Only the phone `tel:` target in `OrderDetailCard` is formatted for dialing via `shared/lib/phoneFormatter.ts` (`formatPhoneForDial`).
+- Remove spaces, parentheses, hyphens, and other formatting separators from the dial target.
+- A complete Ukrainian number (`+380` or `380` followed by nine digits) becomes the local ten-digit number: `+38 (063) 556-70-90` → `tel:0635567090`. A local number such as `063 556 70 90` also becomes `tel:0635567090`.
+- Foreign numbers retain their country code and leading `+` when present: `+48 (123) 456-789` → `tel:+48123456789`. Incomplete Ukrainian prefixes are not shortened.
+- Display, clipboard payload, stored client/snapshot values, and native browser/OS handling of the link stay unchanged. The rule also applies in read-only cards.
+- Client-card, list, and supplier phone links keep their existing behavior.
 
 ### Out of scope
 
@@ -235,6 +244,11 @@ From [`responsive.css`](../frontend/src/shared/styles/responsive.css):
 | `html[data-ui-density=compact]` | Compact table/toolbar density (Settings → Company → Appearance) |
 | `.settings-group` | Card group on Settings tabs (appearance / identity / widget blocks) |
 | `.settings-token` | Print-form placeholder chip (`{{company}}`) next to Company fields |
+| `.print-text-format-toolbar` / `PrintTextFormatScope` | Print builder B / I / U (Ж / К / П) toolbar above authored text fields |
+| `.print-formatted-field` | Full-width print builder text field; Level / Weight / Align wrap below |
+| `.print-formatted-textarea` | Builder textarea resizable down and right (`resize: both`), capped at panel width |
+| `.print-inline-format` | Class on inline `<strong>` / `<em>` / `<u>` in print HTML (keeps label bold inline) |
+| `.settings-variable-catalog` / `.settings-variable-catalog-toggle` | Full-width collapsible **Template variables** section in Heading / Text / Barcode print block editors (`aria-expanded`, `⌃` / `⌄` indicator) |
 | `html[data-theme=light\|dark]` | Color theme (`project-goods.ui-theme` in localStorage; topbar ThemeSwitcher) |
 
 ## CSS file map
@@ -253,8 +267,16 @@ shared/styles/
     accounting.css
     employees.css
     settings.css         # Settings tabs, groups, print builder chrome, backups, db report
+    reports-upgrade.css  # Shared analytics KPIs, filters, bar/SVG trend charts, scenario bar, audit log
     adaptive-tables.css  # card-stack tables, kanban snap, create menu
 ```
+
+### Upgraded Analytics & Reports Primitives (2026-11-11)
+
+- The Orders `Reports` tab (`OrdersReportsWorkspace`) reuses `AnalyticsSortableTable`, `ScenarioManagerBar`, and `AnalyticsCoverageBanner`, plus the shared `report-excel.ts` workbook helper.
+- Component primitives in `widgets/dashboard/ui/common/AnalyticsPrimitives.tsx`: `AnalyticsKpiCard`, `AnalyticsComparisonBadge`, `AnalyticsCoverageBanner`, `AnalyticsSectionCard`, `AnalyticsInteractiveBars`, `AnalyticsTrendChart` (`padLeft = 92` with `overflow: visible` on `.report-trend-svg` and `overflow-y: visible` on `.report-trend-chart-wrap` to prevent clipping formatted currency Y-axis labels), `AnalyticsSortableTable`, and `ScenarioManagerBar`.
+- All trend charts and interactive breakdown bars use CSS custom properties (`--color-primary`, `--color-success`, `--color-warning`, `--color-danger`, `--accent-cyan`, `--color-line`, `--bg-card`) so light/dark themes adapt automatically.
+- Responsive breakpoints in `reports-upgrade.css`: `900px` collapses two-column charts/tables to single column; `720px` stacks filter grids and collapses KPI grid to 2 columns; `480px` stacks KPIs and scenario actions vertically. `.cost-audit-modal` renders in a `document.body` portal (`z-index: 130`) with pinned header/footer and internally scrollable `.cost-audit-items-list`, while `.order-payment-actions` in `orders.css` places `Audit` immediately right of `Accept payment` (`Paid`).
 
 ## Reference screenshots
 

@@ -5,7 +5,7 @@ services:
     restart: unless-stopped
     command: ["mongod", "--replSet", "rs0", "--bind_ip_all"]
     ports:
-      - "27017:27017"
+      - "127.0.0.1:27017:27017"
     volumes:
       - mongo-data:/data/db
     healthcheck:
@@ -33,13 +33,19 @@ services:
       CLIENT_ORIGIN: http://localhost:5173,http://127.0.0.1:5173,http://192.168.10.55:5173
       # Optional: idle session expiry in hours (0 = off). Example for shared shop PCs: 72
       AUTH_SESSION_IDLE_HOURS: ${AUTH_SESSION_IDLE_HOURS:-0}
+      # Failed logins per client IP per 15 min (successful logins are not counted)
+      LOGIN_MAX_FAILED_PER_IP: ${LOGIN_MAX_FAILED_PER_IP:-100}
       # OpenWeather key stays on the server only (never in settings JSON / query params)
       OPENWEATHER_API_KEY: ${OPENWEATHER_API_KEY:-}
       BACKUP_DIR: /app/backups
     ports:
-      - "5000:5000"
+      - "127.0.0.1:5000:5000"
     healthcheck:
-      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:5000/api/health"]
+      test:
+        - CMD-SHELL
+        - >-
+          curl -fsS http://127.0.0.1:5000/api/health
+          | grep -q '"mongoOk":true'
       interval: 15s
       timeout: 5s
       retries: 5

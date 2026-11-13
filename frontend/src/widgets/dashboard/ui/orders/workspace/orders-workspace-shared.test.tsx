@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Sale } from '../../../../../entities/sale';
 import type { SupplierOrder } from '../../../../../entities/supplier-order';
+import type { WarehouseSettings } from '../../../../../entities/warehouse-settings';
+import type { Product } from '../../../../../entities/product';
 import { defaultPrintForms } from '../../../../../entities/settings';
 import i18n from '../../../../../shared/i18n/config';
 import {
@@ -27,6 +29,7 @@ import {
   getOrdersColumnClassName,
   getOrdersTableMinWidth,
   getPrintTemplateData,
+  resolvePrintServiceCenter,
   getReopenedSaleStatusForLineItems,
   getProductLinesMissingWarehouseSerials,
   isIssueWithoutPaymentBlockedForSale,
@@ -120,6 +123,83 @@ const printCompanySettings = {
   companyEmail: '',
   companySite: '',
 };
+
+describe('invoice source record and service center', () => {
+  it('uses identical Ukrainian print data in English and Ukrainian interfaces', async () => {
+    const lineItems = [{ ...repairProductLineItems[0], name: 'Products', price: 950 }];
+    const sale = repairSale({ lineItems, isRapidSale: true });
+    await i18n.changeLanguage('en');
+    const englishSiteData = getPrintTemplateData(sale, lineItems, 0, 'r000003', printCompanySettings);
+    expect(i18n.language).toBe('en');
+    await i18n.changeLanguage('uk');
+    const ukrainianSiteData = getPrintTemplateData(sale, lineItems, 0, 'r000003', printCompanySettings);
+    expect(englishSiteData).toEqual(ukrainianSiteData);
+    expect(englishSiteData.total_written).toBe("дев'ятсот п'ятдесят гривень 00 копійок");
+    expect(englishSiteData.total_amount).toBe('950,00 грн');
+    expect(englishSiteData.products_table).toContain('Products');
+    expect(englishSiteData.invoice_items_table).toContain('Серійний №:');
+    expect(englishSiteData.seller_occupation).toBe('Директор');
+    expect(englishSiteData.note_label).toBe('Примітка');
+  });
+
+  it('renders VAT from the discounted order total without changing the no-VAT form or amount payable', () => {
+    const lineItems = [{ ...repairProductLineItems[0], price: 1300 }];
+    const sale = repairSale({ lineItems, discount: { mode: 'amount', value: 100 } });
+    const data = getPrintTemplateData(sale, lineItems, 0, 'r000003', printCompanySettings);
+    const forms = defaultPrintForms.filter((form) => form.id === 'invoice' || form.id === 'invoice-no-vat')
+      .map((form) => ({ ...form, content: '<p>{{net_amount}}|{{vat_amount}}|{{total_amount}}|{{total_written}}</p>', contentFormat: 'html' as const }));
+    const body = new DOMParser().parseFromString(buildOrderPrintBody(forms, data, 1, 'A4', { presetId: '40x25', widthMm: 40, heightMm: 25 }, 'portrait'), 'text/html');
+    const sections = body.querySelectorAll('.print-form');
+    expect(sections[0].textContent?.replaceAll('\u00a0', ' ')).toContain('1 000,00 грн|200,00 грн|1 200,00 грн');
+    expect(sections[1].textContent?.replaceAll('\u00a0', ' ')).toContain('1 200,00 грн|0,00 грн|1 200,00 грн');
+    expect(sections[0].textContent).toContain(data.total_written);
+    expect(sections[1].textContent).toContain(data.total_written);
+    expect(data.vat_amount).toBe('0,00 грн');
+    expect(sale.discount?.value).toBe(100);
+  });
+
+  const settings: WarehouseSettings = {
+    id: 'settings', createdAt: '', updatedAt: '', administrators: [],
+    serviceCenters: [
+      { id: 'center-a', name: 'Center A', address: '', color: '', phone: '+380501111111' },
+      { id: 'center-b', name: 'Center B', address: '', color: '', phone: '+380502222222' },
+    ],
+    warehouses: [
+      { id: 'warehouse-a', name: 'A', isActive: true, serviceCenterId: 'center-a', receiptAddress: '', receiptPhone: '', locations: [] },
+      { id: 'warehouse-b', name: 'B', isActive: true, serviceCenterId: 'center-b', receiptAddress: '', receiptPhone: '', locations: [] },
+    ],
+  };
+  const products = [
+    { id: 'product-1', warehouseId: 'warehouse-b', serialNumber: 'S000003' },
+    { id: 'product-2', warehouseId: 'warehouse-b', serialNumber: 'S000004' },
+  ] as Product[];
+
+  it.each(['repair', 'sale'] as const)('uses the current %s number, client, items and matching phone', (kind) => {
+    const record = repairSale({ kind, recordNumber: kind === 'repair' ? 'r000003' : 's000021' });
+    const data = getPrintTemplateData(record, repairProductLineItems, 0, record.recordNumber!, { ...printCompanySettings, warehouseSettings: settings, products });
+    expect(data.orderNumber).toBe(record.recordNumber);
+    expect(data.clientName).toBe('Client');
+    expect(data.service_center_phone).toBe('+380502222222');
+    expect(data.repair_order_reference).toBe(kind === 'repair' ? 'Ремонтне замовлення №r000003' : '');
+    expect(data.products_table).toContain('Wireless mouse M22');
+    expect(data.services_table).toBe('');
+  });
+
+  it('resolves serial-only bindings and leaves ambiguous centers empty', () => {
+    expect(resolvePrintServiceCenter([{ ...repairProductLineItems[0], productId: undefined }], settings, products)?.id).toBe('center-b');
+    expect(resolvePrintServiceCenter([], settings, products)).toBeUndefined();
+    expect(resolvePrintServiceCenter(repairProductLineItems, settings, [products[0], { ...products[1], warehouseId: 'warehouse-a' }])).toBeUndefined();
+    expect(resolvePrintServiceCenter([], { ...settings, serviceCenters: [settings.serviceCenters[0]] })?.id).toBe('center-a');
+  });
+
+  it('does not print snapshot rows when both current tables are empty', () => {
+    const record = repairSale({ lineItems: [] });
+    const data = getPrintTemplateData(record, [], 0, 'r000003', printCompanySettings);
+    expect(data.products_table).toBe('');
+    expect(data.services_table).toBe('');
+    expect(data.invoice_items_table).toBe('');
+  });
+});
 
 describe('repair stock status guards', () => {
   it('does not block issuing a repair order with bound stock serials', () => {
@@ -478,7 +558,7 @@ describe('order print labels', () => {
         ?.match(/<tr>/g),
     ).toHaveLength(1);
     expect(data.invoice_items_table).toContain(
-      'Serial No.: S000001, S000002, S000003',
+      'Серійний №: S000001, S000002, S000003',
     );
   });
 
@@ -517,10 +597,10 @@ describe('order print labels', () => {
       'TerraE 30E INR18650 3000mAh',
       'TerraE 30E INR18650 3000mAh',
     ]);
-    expect(data.invoice_items_table).toContain('Serial No.: S000001');
-    expect(data.invoice_items_table).toContain('Serial No.: S000002');
+    expect(data.invoice_items_table).toContain('Серійний №: S000001');
+    expect(data.invoice_items_table).toContain('Серійний №: S000002');
     expect(data.invoice_items_table).not.toContain(
-      'Serial No.: S000001, S000002',
+      'Серійний №: S000001, S000002',
     );
   });
 

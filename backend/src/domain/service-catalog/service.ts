@@ -97,6 +97,42 @@ const normalizeSalePriceOptions = (value: unknown) =>
     .filter((item) => Number.isFinite(item) && item >= 0)
     .slice(0, 2);
 
+type ServiceCatalogWritePayload = ServiceCatalogPayload & {
+  costMethod?: unknown;
+  fixedCost?: unknown;
+  hourlyCost?: unknown;
+  defaultDurationMinutes?: unknown;
+};
+
+const normalizeCostMethod = (
+  value: unknown,
+  fallback: 'fixed' | 'time_rate' = 'fixed',
+): 'fixed' | 'time_rate' => {
+  if (value === undefined) return fallback;
+  const normalized = String(value ?? '').trim().toLowerCase();
+  if (normalized === 'fixed' || normalized === 'time_rate') {
+    return normalized;
+  }
+  throw new HttpError(
+    400,
+    'Service cost method must be "fixed" or "time_rate".',
+  );
+};
+
+const normalizeOptionalNonNegativeNumber = (
+  value: unknown,
+  label: string,
+  fallback: number | null = null,
+): number | null => {
+  if (value === undefined) return fallback;
+  if (value === null || value === '') return null;
+  const parsed = toNumber(value);
+  if (!Number.isFinite(parsed) || parsed < 0) {
+    throw new HttpError(400, `${label} cannot be negative.`);
+  }
+  return Math.round(parsed * 100) / 100;
+};
+
 const formatServiceCatalogItem = (
   service: ServiceCatalogDocument,
 ) => ({
@@ -105,6 +141,22 @@ const formatServiceCatalogItem = (
   price: service.price,
   salePriceOptions: service.salePriceOptions ?? [],
   note: service.note ?? '',
+  costMethod:
+    service.costMethod === 'time_rate' ? 'time_rate' : ('fixed' as const),
+  fixedCost:
+    typeof service.fixedCost === 'number' && Number.isFinite(service.fixedCost)
+      ? service.fixedCost
+      : null,
+  hourlyCost:
+    typeof service.hourlyCost === 'number' &&
+    Number.isFinite(service.hourlyCost)
+      ? service.hourlyCost
+      : null,
+  defaultDurationMinutes:
+    typeof service.defaultDurationMinutes === 'number' &&
+    Number.isFinite(service.defaultDurationMinutes)
+      ? service.defaultDurationMinutes
+      : null,
   isActive: service.isActive ?? true,
   sortOrder: service.sortOrder ?? 0,
   createdAt: service.createdAt.toISOString(),
@@ -424,7 +476,7 @@ export const listServiceCatalogItems = async (
 };
 
 export const createServiceCatalogItem = async (
-  payload: ServiceCatalogPayload,
+  payload: ServiceCatalogWritePayload,
 ) => {
   const name = normalizeName(payload.name);
   await assertUniqueServiceName(name);
@@ -436,6 +488,22 @@ export const createServiceCatalogItem = async (
       payload.salePriceOptions,
     ),
     note: String(payload.note ?? '').trim(),
+    costMethod: normalizeCostMethod(payload.costMethod, 'fixed'),
+    fixedCost: normalizeOptionalNonNegativeNumber(
+      payload.fixedCost,
+      'Service fixed cost',
+      null,
+    ),
+    hourlyCost: normalizeOptionalNonNegativeNumber(
+      payload.hourlyCost,
+      'Service hourly cost',
+      null,
+    ),
+    defaultDurationMinutes: normalizeOptionalNonNegativeNumber(
+      payload.defaultDurationMinutes,
+      'Service default duration minutes',
+      null,
+    ),
   });
 
   await service.validate();
@@ -452,7 +520,7 @@ export const createServiceCatalogItem = async (
 
 export const updateServiceCatalogItem = async (
   serviceId: string,
-  payload: ServiceCatalogPayload,
+  payload: ServiceCatalogWritePayload,
 ) => {
   const service = await ServiceCatalog.findById(serviceId);
   if (!service) {
@@ -468,6 +536,25 @@ export const updateServiceCatalogItem = async (
     payload.salePriceOptions,
   );
   service.note = String(payload.note ?? '').trim();
+  service.costMethod = normalizeCostMethod(
+    payload.costMethod,
+    service.costMethod === 'time_rate' ? 'time_rate' : 'fixed',
+  );
+  service.fixedCost = normalizeOptionalNonNegativeNumber(
+    payload.fixedCost,
+    'Service fixed cost',
+    service.fixedCost ?? null,
+  );
+  service.hourlyCost = normalizeOptionalNonNegativeNumber(
+    payload.hourlyCost,
+    'Service hourly cost',
+    service.hourlyCost ?? null,
+  );
+  service.defaultDurationMinutes = normalizeOptionalNonNegativeNumber(
+    payload.defaultDurationMinutes,
+    'Service default duration minutes',
+    service.defaultDurationMinutes ?? null,
+  );
   if (payload.isActive !== undefined) {
     service.isActive =
       payload.isActive === true ||

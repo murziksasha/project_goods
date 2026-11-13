@@ -15,6 +15,65 @@ import {
   calculateTotalAfterDiscount,
   receiveProductToWarehouse,
 } from './internal';
+import type { EmployeeDocument } from '../employee/model';
+import { employeeHasPermission } from '../auth/service';
+import {
+  buildNextStatusTransitions,
+  resolveLineItemEffectiveCost,
+  scaleReturnedLineItemCostSnapshots,
+  type CostableSaleLineItem,
+  type ReturnEventValue,
+  type StatusTransitionValue,
+} from './costing';
+
+const buildReturnEvent = ({
+  lineItem,
+  quantity,
+  refundAmount,
+  returnedAt,
+  actor,
+}: {
+  lineItem: Record<string, unknown>;
+  quantity: number;
+  refundAmount: number;
+  returnedAt: Date;
+  actor?: EmployeeCashboxActor | null;
+}): ReturnEventValue => {
+  const effectiveCost = resolveLineItemEffectiveCost(
+    lineItem as unknown as CostableSaleLineItem,
+  );
+  const actorAny = actor as { _id?: { toString: () => string }; name?: string } | null | undefined;
+  return {
+    id: randomUUID(),
+    lineItemId: lineItem.id ? String(lineItem.id) : null,
+    name: String(lineItem.name ?? ''),
+    productId: lineItem.productId ? String(lineItem.productId) : null,
+    catalogProductId: lineItem.catalogProductId
+      ? String(lineItem.catalogProductId)
+      : null,
+    quantity,
+    grossAmount:
+      Math.round(Number(lineItem.price ?? 0) * quantity * 100) / 100,
+    refundAmount,
+    unitCost: effectiveCost.unitCost,
+    returnedAt,
+    returnedById: actorAny?._id ? actorAny._id.toString() : null,
+    returnedByName: actorAny?.name ?? null,
+  };
+};
+
+const formatReturnSaleResult = (
+  updatedSale: SaleDocument,
+  actor?: EmployeeCashboxActor | null,
+) => {
+  const actorPerm = actor as Pick<EmployeeDocument, 'role' | 'permissions'> | null | undefined;
+  return formatSale(updatedSale, {
+    includeCosts:
+      actorPerm && actorPerm.permissions !== undefined
+        ? employeeHasPermission(actorPerm, 'finance.view')
+        : true,
+  });
+};
 
 export const returnSaleLineItem = async (
   saleId: string,
@@ -115,6 +174,18 @@ export const returnSaleLineItem = async (
       sale.discount,
     );
 
+    const existingLineReturnEvents = ((sale as unknown as { returnEvents?: ReturnEventValue[] }).returnEvents ?? []);
+    const nextReturnEvents = [
+      buildReturnEvent({
+        lineItem: lineItem as unknown as Record<string, unknown>,
+        quantity: lineItem.quantity,
+        refundAmount,
+        returnedAt: createdAt,
+        actor,
+      }),
+      ...existingLineReturnEvents,
+    ];
+
     const updatedSale = await Sale.findByIdAndUpdate(
       saleId,
       {
@@ -122,6 +193,7 @@ export const returnSaleLineItem = async (
         lineItems: nextLineItems,
         paymentHistory: nextPaymentHistory,
         timeline: nextTimeline,
+        returnEvents: nextReturnEvents,
       },
       { returnDocument: 'after', runValidators: true },
     ).lean<SaleDocument | null>();
@@ -130,7 +202,7 @@ export const returnSaleLineItem = async (
       throw new HttpError(404, 'Sale not found.');
     }
 
-    return formatSale(updatedSale);
+    return formatReturnSaleResult(updatedSale, actor);
   } catch (error) {
     await Product.findByIdAndUpdate(productId, {
       $inc: { quantity: -lineItem.quantity },
@@ -243,8 +315,10 @@ export const returnSaleLineItemBySerials = async (
           index !== lineItemIndex
             ? item
             : {
-                ...item,
-                quantity: lineItem.quantity - returnQuantity,
+                ...scaleReturnedLineItemCostSnapshots(
+                  item as unknown as CostableSaleLineItem,
+                  lineItem.quantity - returnQuantity,
+                ),
                 serialNumbers: lineItemSerials.filter(
                   (serial) => !requestedSerialNumbers.includes(serial),
                 ),
@@ -298,6 +372,18 @@ export const returnSaleLineItemBySerials = async (
       sale.discount,
     );
 
+    const existingLineReturnEvents = ((sale as unknown as { returnEvents?: ReturnEventValue[] }).returnEvents ?? []);
+    const nextReturnEvents = [
+      buildReturnEvent({
+        lineItem: lineItem as unknown as Record<string, unknown>,
+        quantity: lineItem.quantity,
+        refundAmount,
+        returnedAt: createdAt,
+        actor,
+      }),
+      ...existingLineReturnEvents,
+    ];
+
     const updatedSale = await Sale.findByIdAndUpdate(
       saleId,
       {
@@ -305,6 +391,7 @@ export const returnSaleLineItemBySerials = async (
         lineItems: nextLineItems,
         paymentHistory: nextPaymentHistory,
         timeline: nextTimeline,
+        returnEvents: nextReturnEvents,
       },
       { returnDocument: 'after', runValidators: true },
     ).lean<SaleDocument | null>();
@@ -313,7 +400,7 @@ export const returnSaleLineItemBySerials = async (
       throw new HttpError(404, 'Sale not found.');
     }
 
-    return formatSale(updatedSale);
+    return formatReturnSaleResult(updatedSale, actor);
   } catch (error) {
     await Product.findByIdAndUpdate(productId, {
       $inc: { quantity: -returnQuantity },
@@ -330,6 +417,7 @@ export const returnSaleLineItemToStock = async (
     warehouse?: unknown;
     author?: unknown;
   },
+  actor?: Pick<EmployeeDocument, '_id' | 'name' | 'role' | 'permissions'> | null,
 ) => {
   isValidObjectIdOrThrow(saleId, 'saleId');
   const sale = await Sale.findById(saleId).lean<SaleDocument | null>();
@@ -394,10 +482,23 @@ export const returnSaleLineItemToStock = async (
       nextLineItems,
       sale.discount,
     );
+    const existingStockReturnEvents = ((sale as unknown as { returnEvents?: ReturnEventValue[] }).returnEvents ?? []);
+    const nextStockReturnEvents = [
+      buildReturnEvent({
+        lineItem: lineItem as unknown as Record<string, unknown>,
+        quantity: lineItem.quantity,
+        refundAmount: 0,
+        returnedAt: createdAt,
+        actor,
+      }),
+      ...existingStockReturnEvents,
+    ];
+
     const updatedSale = await Sale.findByIdAndUpdate(
       saleId,
       {
         lineItems: nextLineItems,
+        returnEvents: nextStockReturnEvents,
         timeline: [
           {
             id: randomUUID(),
@@ -412,7 +513,7 @@ export const returnSaleLineItemToStock = async (
       { returnDocument: 'after', runValidators: true },
     ).lean<SaleDocument | null>();
     if (!updatedSale) throw new HttpError(404, 'Sale not found.');
-    return formatSale(updatedSale);
+    return formatReturnSaleResult(updatedSale, actor);
   } catch (error) {
     await Product.findByIdAndUpdate(productId, {
       $inc: { quantity: -lineItem.quantity },
@@ -557,6 +658,31 @@ export const returnSale = async (
       sale.discount,
     );
 
+    const saleAnyForReturn = sale as unknown as {
+      statusTransitions?: StatusTransitionValue[];
+      returnEvents?: ReturnEventValue[];
+    };
+    const nextReturnTransitions = buildNextStatusTransitions({
+      existingTransitions: saleAnyForReturn.statusTransitions ?? [],
+      fromStatus: sale.status ?? null,
+      toStatus: 'returned',
+      employee: actor as unknown as Pick<EmployeeDocument, '_id' | 'name'> | null,
+      now: createdAt,
+    });
+    const nextFullReturnEvents = [
+      ...productLineItems.map((returnedLine, idx) =>
+        buildReturnEvent({
+          lineItem: returnedLine as unknown as Record<string, unknown>,
+          quantity: returnedLine.quantity,
+          refundAmount:
+            idx === 0 ? refundAmount : 0,
+          returnedAt: createdAt,
+          actor,
+        }),
+      ),
+      ...(saleAnyForReturn.returnEvents ?? []),
+    ];
+
     const updatedSale = await Sale.findByIdAndUpdate(
       saleId,
       {
@@ -565,6 +691,8 @@ export const returnSale = async (
         lineItems: remainingLineItems,
         paymentHistory: nextPaymentHistory,
         timeline: nextTimeline,
+        statusTransitions: nextReturnTransitions,
+        returnEvents: nextFullReturnEvents,
       },
       { returnDocument: 'after', runValidators: true },
     ).lean<SaleDocument | null>();
@@ -573,7 +701,7 @@ export const returnSale = async (
       throw new HttpError(404, 'Sale not found.');
     }
 
-    return formatSale(updatedSale);
+    return formatReturnSaleResult(updatedSale, actor);
   } catch (error) {
     for (const product of previousProducts) {
       await Product.findByIdAndUpdate(product.productId, {

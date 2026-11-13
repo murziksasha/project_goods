@@ -49,13 +49,16 @@ export const transactionLabels: Record<FinanceTransactionType, string> = {
   transfer: 'Transfer',
 };
 
+export const displayCurrencyCode = (currency: string) =>
+  currency === 'UAH' ? i18n.t('common.currency.uah') : currency;
+
 export const formatMoney = (value: number, currency: string) => {
   const language = i18n.resolvedLanguage || i18n.language || 'en';
   const locale = language.toLowerCase().startsWith('uk') ? 'uk-UA' : 'en-US';
   return `${new Intl.NumberFormat(locale, {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
-  }).format(value)} ${currency}`;
+  }).format(value)} ${displayCurrencyCode(currency)}`;
 };
 
 export const formatDateDdMmYyyy = (value: string) => {

@@ -10,8 +10,11 @@ export const resolvePermittedOrdersTabs = ({
   canViewKanban: boolean;
 }): OrdersTab[] =>
   ordersTabs.filter((tab) => {
-    if (tab === 'supplierOrders' || tab === 'supplierInformation') {
+    if (tab === 'supplierOrders') {
       return canViewSupplierOrders;
+    }
+    if (tab === 'supplierInformation' || tab === 'ordersReports') {
+      return canViewRepairSalesOrders || canViewSupplierOrders;
     }
     if (tab === 'kanban') {
       return canViewKanban;

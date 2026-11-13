@@ -34,6 +34,26 @@ export const serviceCatalogSchema = new mongoose.Schema(
       trim: true,
       default: '',
     },
+    costMethod: {
+      type: String,
+      enum: ['fixed', 'time_rate'],
+      default: 'fixed',
+    },
+    fixedCost: {
+      type: Number,
+      min: [0, 'Service fixed cost cannot be negative'],
+      default: null,
+    },
+    hourlyCost: {
+      type: Number,
+      min: [0, 'Service hourly cost cannot be negative'],
+      default: null,
+    },
+    defaultDurationMinutes: {
+      type: Number,
+      min: [0, 'Default duration minutes cannot be negative'],
+      default: null,
+    },
     isActive: {
       type: Boolean,
       default: true,

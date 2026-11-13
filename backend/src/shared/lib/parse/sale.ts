@@ -89,52 +89,95 @@ export const normalizeSalePayload = (payload: SalePayload) => ({
     : [],
   lineItems: Array.isArray(payload.lineItems)
     ? payload.lineItems
-        .map((item) => ({
-          id: toNonEmptyString((item as { id?: unknown })?.id),
-          kind: toNonEmptyString((item as { kind?: unknown })?.kind),
-          productId:
-            toNonEmptyString(
-              (item as { productId?: unknown })?.productId,
-            ) || undefined,
-          catalogProductId:
-            toNonEmptyString(
-              (item as { catalogProductId?: unknown })
-                ?.catalogProductId,
-            ) || undefined,
-          serviceId:
-            toNonEmptyString(
-              (item as { serviceId?: unknown })?.serviceId,
-            ) || undefined,
-          name: toNonEmptyString((item as { name?: unknown })?.name),
-          price: toNumber((item as { price?: unknown })?.price),
-          quantity: toNumber(
-            (item as { quantity?: unknown })?.quantity,
-          ),
-          warrantyPeriod:
-            (item as { warrantyPeriod?: unknown })?.warrantyPeriod ===
-            undefined
-              ? 0
-              : toNumber(
-                  (item as { warrantyPeriod?: unknown })
-                    ?.warrantyPeriod,
-                ),
-          serialNumbers: Array.isArray(
-            (item as { serialNumbers?: unknown })?.serialNumbers,
-          )
-            ? Array.from(
-                new Set(
-                  (
-                    (item as { serialNumbers?: unknown[] })
-                      .serialNumbers ?? []
-                  )
-                    .map((value) =>
-                      toNonEmptyString(value).toUpperCase(),
-                    )
-                    .filter(Boolean),
-                ),
-              )
-            : [],
-        }))
+        .map((raw) => {
+          const rawRecord = (raw ?? {}) as Record<string, unknown>;
+          const normalized: Record<string, unknown> = {
+            id: toNonEmptyString(rawRecord.id),
+            kind: toNonEmptyString(rawRecord.kind),
+            productId: toNonEmptyString(rawRecord.productId) || undefined,
+            catalogProductId:
+              toNonEmptyString(rawRecord.catalogProductId) || undefined,
+            serviceId: toNonEmptyString(rawRecord.serviceId) || undefined,
+            name: toNonEmptyString(rawRecord.name),
+            price: toNumber(rawRecord.price),
+            quantity: toNumber(rawRecord.quantity),
+            warrantyPeriod:
+              rawRecord.warrantyPeriod === undefined
+                ? 0
+                : toNumber(rawRecord.warrantyPeriod),
+            serialNumbers: Array.isArray(rawRecord.serialNumbers)
+              ? Array.from(
+                  new Set(
+                    (rawRecord.serialNumbers as unknown[])
+                      .map((value) => toNonEmptyString(value).toUpperCase())
+                      .filter(Boolean),
+                  ),
+                )
+              : [],
+          };
+
+          const optionalNumField = (field: string) => {
+            if (!Object.prototype.hasOwnProperty.call(rawRecord, field)) return;
+            const val = rawRecord[field];
+            if (val === undefined) return;
+            if (val === null || val === '') {
+              normalized[field] = null;
+              return;
+            }
+            const parsed = toNumber(val);
+            normalized[field] = parsed;
+          };
+
+          if (
+            Object.prototype.hasOwnProperty.call(rawRecord, 'costMethod') &&
+            rawRecord.costMethod !== undefined
+          ) {
+            const rawMethod = toNonEmptyString(rawRecord.costMethod).toLowerCase();
+            normalized.costMethod =
+              rawRecord.costMethod === null || rawRecord.costMethod === ''
+                ? null
+                : rawMethod === 'time_rate'
+                  ? 'time_rate'
+                  : 'fixed';
+          }
+          optionalNumField('recordedMinutes');
+          optionalNumField('fixedCost');
+          optionalNumField('hourlyCost');
+          optionalNumField('directExpenses');
+          optionalNumField('unitCostOverride');
+          if (Object.prototype.hasOwnProperty.call(rawRecord, 'isCostOverridden')) {
+            normalized.isCostOverridden = rawRecord.isCostOverridden === true;
+          }
+
+          if (Object.prototype.hasOwnProperty.call(rawRecord, 'costSnapshot')) {
+            normalized.costSnapshot = rawRecord.costSnapshot;
+          }
+          if (Object.prototype.hasOwnProperty.call(rawRecord, 'auditedCost')) {
+            normalized.auditedCost = rawRecord.auditedCost;
+          }
+          if (Object.prototype.hasOwnProperty.call(rawRecord, 'costAuditLog')) {
+            normalized.costAuditLog = rawRecord.costAuditLog;
+          }
+
+          return normalized as {
+            id: string;
+            kind: string;
+            productId?: string;
+            catalogProductId?: string;
+            serviceId?: string;
+            name: string;
+            price: number;
+            quantity: number;
+            warrantyPeriod: number;
+            serialNumbers: string[];
+            costMethod?: 'fixed' | 'time_rate' | null;
+            recordedMinutes?: number | null;
+            fixedCost?: number | null;
+            hourlyCost?: number | null;
+            directExpenses?: number | null;
+            unitCostOverride?: number | null;
+          };
+        })
         .filter(
           (item) =>
             item.id &&

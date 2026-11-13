@@ -79,6 +79,25 @@ describe('backup scheduler', () => {
       expect(backupService.enforceBackupRetention).toHaveBeenCalled();
     });
 
+    it('logs failed backups and maintenance errors without Mongo credentials', async () => {
+      const secretUri = 'mongodb://project_goods_app:sample-secret@mongo:27017/inventory';
+      const errorLog = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+      vi.spyOn(console, 'log').mockImplementation(() => undefined);
+      vi.spyOn(backupService, 'createScheduledBackup').mockResolvedValue(
+        makeBackup('failed', `mongodump failed for ${secretUri}`),
+      );
+      const { runScheduledYearlyArchives } = await import('../archive/yearly-dump');
+      vi.mocked(runScheduledYearlyArchives).mockRejectedValueOnce(
+        new Error(`archive failed for ${secretUri}`),
+      );
+
+      await runDailyBackupCycle();
+
+      const logged = errorLog.mock.calls.flat().map(String).join('\n');
+      expect(logged).toContain('mongodb://[REDACTED]@mongo:27017/inventory');
+      expect(logged).not.toContain('sample-secret');
+    });
+
     it('runs retention when scheduled backup succeeds', async () => {
       vi.spyOn(backupService, 'createScheduledBackup').mockResolvedValue(
         makeBackup('completed'),

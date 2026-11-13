@@ -1,0 +1,72 @@
+services:
+  mongo:
+    command:
+      - mongod
+      - --replSet
+      - rs0
+      - --bind_ip_all
+      - --keyFile
+      - /run/mongo-keyfile/keyfile
+      # Explicit cache size: with mem_limit WiredTiger must not size its cache
+      # from the Docker VM memory and run into the OOM killer.
+      - --wiredTigerCacheSizeGB
+      - "1"
+    mem_limit: 2g
+    volumes:
+      - mongo-keyfile:/run/mongo-keyfile:ro
+    healthcheck:
+      # The existing production volume already has rs0 initialized. The local
+      # Compose healthcheck is responsible for initialization on fresh dev DBs.
+      test:
+        - CMD-SHELL
+        - mongosh --quiet --eval 'if (db.hello().isWritablePrimary !== true) quit(1)'
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    image: project-goods/backend:${GIT_SHA:-dev}
+    pull_policy: never
+    environment:
+      MONGO_URI: ${MONGO_URI:?Set MONGO_URI in .env.production}
+      TRUST_PROXY_HOPS: 1
+      # Stage 1 of the CSP rollout: report-only. Set CSP_REPORT_ONLY=false in
+      # .env.production to enforce after the browser check.
+      CSP_REPORT_ONLY: ${CSP_REPORT_ONLY:-true}
+    # 6g while POST /api/backups/restore-file still buffers up to 2 GB in memory.
+    mem_limit: 6g
+    pids_limit: 200
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+
+  frontend:
+    image: project-goods/frontend:${GIT_SHA:-dev}
+    pull_policy: never
+    environment:
+      CSP_REPORT_ONLY: ${CSP_REPORT_ONLY:-true}
+    mem_limit: 128m
+    pids_limit: 200
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp
+
+  mongo-keyfile-init:
+    profiles: [setup]
+    image: mongo:7
+    user: "0:0"
+    entrypoint: ["sh"]
+    volumes:
+      - mongo-keyfile:/run/mongo-keyfile
+
+volumes:
+  mongo-data:
+    external: true
+    name: ${MONGO_DATA_VOLUME:?Set the existing mongo-data volume name in .env.production}
+  backup-data:
+    external: true
+    name: ${BACKUP_DATA_VOLUME:?Set the existing backup-data volume name in .env.production}
+  mongo-keyfile:

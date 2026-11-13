@@ -365,6 +365,7 @@ export const OrdersWorkspace: React.FC<OrdersWorkspaceProps> = ({
     sales: 1,
     supplierOrders: 1,
     supplierInformation: 1,
+    ordersReports: 1,
   });
   const [ordersPageSize, setOrdersPageSize] = useStoredPageSize('orders');
   const [salesPageSize, setSalesPageSize] = useStoredPageSize('sales');
@@ -2706,6 +2707,12 @@ export const OrdersWorkspace: React.FC<OrdersWorkspaceProps> = ({
         | 'quantity'
         | 'warrantyPeriod'
         | 'serialNumbers'
+        | 'costMethod'
+        | 'recordedMinutes'
+        | 'fixedCost'
+        | 'hourlyCost'
+        | 'directExpenses'
+        | 'unitCostOverride'
       >
     >,
   ) => {
@@ -3527,7 +3534,7 @@ export const OrdersWorkspace: React.FC<OrdersWorkspaceProps> = ({
 
       <OrdersWorkspaceModals
         printForms={printForms}
-        printCompanySettings={printCompanySettings}
+        printCompanySettings={{ ...printCompanySettings, warehouseSettings: warehouseSettingsQuery.data, products }}
         paymentSale={paymentSale}
         paymentTargetStatus={paymentTargetStatus}
         paymentCashboxes={paymentModalCashboxes}

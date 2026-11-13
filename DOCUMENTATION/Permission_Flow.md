@@ -53,6 +53,7 @@ Defaults are applied by backend when an employee is created or updated with an e
 | `finance.view` | Open Accounting workspace, read transactions, reports, and supplier payment queue. |
 | `finance.cashboxes.view` | Read active cashboxes, mainly for payment/refund forms outside Accounting. |
 | `finance.cashboxes.manage` | Create, rename, deactivate, and reactivate cashboxes. Also create/update/delete finance categories and toggle category activity (same as currencies). |
+| `finance.policy.manage` | Update company finance accounting & audit policy (`PATCH /finance/policy`). Granted to `owner` by default; `finance.view` grants read-only access to `/finance/policy`, `/finance/policy/preview`, and `/finance/policy/history`. |
 | `finance.transactions.deposit` | Create deposit transactions, including accepting client payments from Orders. |
 | `finance.transactions.withdraw` | Create withdraw transactions, including client refunds/returns. |
 | `finance.transactions.transfer` | Transfer money between cashboxes. |
@@ -165,6 +166,10 @@ All `/api/*` routes except health, login, and invitation flows require a valid B
 | `POST /finance/transactions/:transactionId/cancel` for `deposit` / `withdraw` / `transfer` | `finance.transactions.deposit` / `finance.transactions.withdraw` / `finance.transactions.transfer` respectively. |
 | `GET /finance/report` | `finance.view`. |
 | `GET /finance/profit-report` | `finance.view`. |
+| `GET /finance/policy` | `finance.view` or `finance.policy.manage`. |
+| `PATCH /finance/policy` | `finance.policy.manage`. |
+| `POST /finance/policy/preview` | `finance.view` or `finance.policy.manage`. |
+| `GET /finance/policy/history` | `finance.view` or `finance.policy.manage`. |
 | `GET /finance/supplier-orders` | `finance.view`. |
 | `POST /finance/supplier-orders/:supplierOrderId/pay` | `finance.supplierOrders.pay`. |
 | `POST /finance/supplier-orders/:supplierOrderId/issue-without-payment` | `finance.supplierOrders.issueWithoutPayment`. |
@@ -210,6 +215,17 @@ All `/api/*` routes except health, login, and invitation flows require a valid B
 
 See also: [SECURITY.md](./SECURITY.md) for auth model and LAN deployment notes.
 
+### Analytics, Orders Reports & Scenarios
+| Endpoint | Required access |
+| --- | --- |
+| `GET /reports/warehouse`, `/details` | `inventory.manage`. |
+| `GET /reports/orders/repairs`, `/details`, `/table/repairs`, `/table/repairs/export` | `orders.view`, `orders.manage`, `repairs.execute`, or `kanban.use`. |
+| `GET /reports/orders/sales`, `/details`, `/table/sales`, `/table/sales/export` | `orders.view` or `sales.manage`. |
+| `GET /reports/orders/procurement`, `/details`, `/table/procurement`, `/table/procurement/export` | `supplierOrders.view` or `supplierOrders.manage`. |
+| `GET/POST /scenarios`, `PUT/DELETE /scenarios/:id` | Authenticated owner of the scenario; domain must be in the employee's allowed set (`inventory.manage` for `warehouse`, `finance.view` for `cashflow`, Orders Reports tab permissions for `ordersReport`). Max 50 per employee per domain. |
+
+Finance fields on `GET /reports/orders/table/{repairs,sales}` and `/export` (`knownCost`, `knownProfit`, `marginPct`, `isIncomplete`, `missingCostCount`) are included only when the employee also has `finance.view`; they are omitted entirely otherwise. Procurement table/export responses never include finance fields.
+
 ## Frontend Visibility Rules
 - Sidebar shows `Employees` when employee is `owner` or has `employees.manage`.
 - Sidebar shows `Accounting` when employee is `owner` or has `finance.view`.
@@ -225,7 +241,7 @@ See also: [SECURITY.md](./SECURITY.md) for auth model and LAN deployment notes.
 - Settings UI structure: [SETTINGS_SPEC.md](./SETTINGS_SPEC.md).
 - Main `Erase all data` is visible only to Temporary Admin.
 - Main product export is visible only to `owner` or employees with `inventory.manage`.
-- Accounting cashbox settings gear, create cashbox, edit cashbox, and archive/reactivate controls require `finance.cashboxes.manage`.
+- Accounting cashbox settings gear is visible with `finance.view`, `finance.cashboxes.manage`, or `finance.policy.manage`. Create cashbox, edit cashbox, and archive/reactivate controls require `finance.cashboxes.manage`; updating accounting & audit policy requires `finance.policy.manage` (`finance.view` is read-only).
 - Accounting direct operation buttons require their matching transaction permission:
   - Deposit: `finance.transactions.deposit`
   - Withdraw: `finance.transactions.withdraw`
@@ -236,7 +252,16 @@ See also: [SECURITY.md](./SECURITY.md) for auth model and LAN deployment notes.
 - Orders payment modal requires `finance.transactions.deposit`.
 - Orders refund/return flows that return money require `finance.transactions.withdraw`.
 - Cashbox list loading in payment/refund forms requires `finance.cashboxes.view` or `finance.view`.
-- Orders `Supplier Order` and `Information` tabs require `supplierOrders.view` or `supplierOrders.manage`.
+- Orders `Supplier Order` tab requires `supplierOrders.view` or `supplierOrders.manage`.
+- Orders `Information` tab (`ordersTab=supplierInformation`) is accessible when the employee has repair/sales order read access OR supplier-order read access; subviews enforce strict isolation:
+  - **Repairs** (`GET /reports/orders/repairs*`): requires `orders.view`, `orders.manage`, `repairs.execute`, or `kanban.use`.
+  - **Sales** (`GET /reports/orders/sales*`): requires `orders.view` or `sales.manage`.
+  - **Procurement** (`GET /reports/orders/procurement*`): requires `supplierOrders.view` or `supplierOrders.manage`.
+- Orders `Reports` tab (`ordersTab=ordersReports`) uses the same tab visibility and per-subview isolation as Information. No additional permission is introduced. Table and export endpoints are `GET /reports/orders/table/{repairs,sales,procurement}` and `/export`. Finance columns (`knownCost`, `knownProfit`, `marginPct`, `isIncomplete`, `missingCostCount`) appear only with `finance.view`, and only on the Repairs and Sales subviews (Procurement has none).
+- Catalog service costing defaults (`costMethod`, `fixedCost`, `hourlyCost`, `defaultDurationMinutes`) require `inventory.manage` to write and (`inventory.manage` or `finance.view`) to read.
+- Financial order line cost overrides (`unitCostOverride`, `fixedCost`, `hourlyCost`, `directExpenses`) and pre-payment/post-closure cost audit (`PATCH /sales/:saleId/costs` for eligible `product` lines and, when `serviceAuditEnabled` is enabled, eligible `service` lines) require BOTH `orders.manage` (repairs) / `sales.manage` (sales) AND `finance.view`; line cost fields (including `requiresCostAudit`) are redacted when `finance.view` is absent.
+- Workspace updates that do not send `lineItems` (changing the master, saving notes, or posting Live feed / timeline chat) never require `finance.view`. Echoing unchanged cost fields (`costSnapshot`, `auditedCost`, `costAuditLog`) is also allowed without `finance.view`; only actual modifications of those fields require it.
+- Private forecasting scenarios (`GET/POST/PUT/DELETE /scenarios`): scoped by `employeeId` and domain permission (`inventory.manage` for `warehouse`, `finance.view` for `cashflow`, Orders Reports tab permissions for `ordersReport`). Max 50 per employee per domain.
 - Supplier-order create, edit, cancel, status change, and take-on-charge actions require `supplierOrders.manage`.
 - Starred supplier-order state is visible with supplier-order read access, but changing the star requires `supplierOrders.manage`.
 - Starred Orders/Sales state is visible with order read access; changing repair-order stars requires `orders.manage`, and changing product-sale stars requires `sales.manage`.

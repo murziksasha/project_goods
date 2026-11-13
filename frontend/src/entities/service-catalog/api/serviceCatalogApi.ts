@@ -42,13 +42,27 @@ export const getServiceCatalogItems = async (query = '') => {
   }
 };
 
+const toOptionalNullableCost = (value: string | undefined) => {
+  if (value === undefined) return undefined;
+  const trimmed = value.trim();
+  return trimmed === '' ? null : trimmed;
+};
+
+const toServicePayload = (payload: ServiceCatalogFormValues) => ({
+  ...payload,
+  costMethod: payload.costMethod ?? 'fixed',
+  fixedCost: toOptionalNullableCost(payload.fixedCost),
+  hourlyCost: toOptionalNullableCost(payload.hourlyCost),
+  defaultDurationMinutes: toOptionalNullableCost(payload.defaultDurationMinutes),
+});
+
 export const createServiceCatalogItem = async (
   payload: ServiceCatalogFormValues,
 ) => {
   try {
     const response = await apiClient.post<ServiceCatalogItem>(
       '/services',
-      payload,
+      toServicePayload(payload),
     );
 
     return response.data;
@@ -64,7 +78,7 @@ export const updateServiceCatalogItem = async (
   try {
     const response = await apiClient.put<ServiceCatalogItem>(
       `/services/${serviceId}`,
-      payload,
+      toServicePayload(payload),
     );
 
     return response.data;

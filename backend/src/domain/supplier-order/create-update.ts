@@ -14,6 +14,7 @@ import {
 import {
   autoMarkZeroTotalOrdersWithoutPayment,
   CLOSURE_ORDER_STATUSES,
+  appendSupplierOrderTransition,
   isSupplierOrderReceived,
   withSupplierName,
 } from './internal';
@@ -36,6 +37,11 @@ export const createSupplierOrder = async (payload: SupplierOrderPayload) => {
     paymentStatus: toPaymentStatus(payload.paymentStatus),
     items: normalizeItems(payload.items),
   });
+  appendSupplierOrderTransition(
+    order as unknown as Parameters<typeof appendSupplierOrderTransition>[0],
+    null,
+    null,
+  );
   if (order.items.length === 0) throw new HttpError(400, 'At least one product item is required.');
   await order.validate();
   await order.save();
@@ -50,6 +56,8 @@ export const updateSupplierOrder = async (supplierOrderId: string, payload: Supp
   if (!existing) throw new HttpError(404, 'Supplier order not found.');
 
   if (payload.status !== undefined) {
+    const prevStatus = existing.status ?? null;
+    const prevReceiptStatus = existing.receiptStatus ?? null;
     const nextStatus = toOrderStatus(payload.status);
     if (CLOSURE_ORDER_STATUSES.has(nextStatus)) {
       if (isSupplierOrderReceived(existing)) {
@@ -59,6 +67,11 @@ export const updateSupplierOrder = async (supplierOrderId: string, payload: Supp
       if (nextStatus === 'cancelled' && existing.paymentStatus === 'pending') {
         existing.paymentStatus = 'cancelled';
       }
+      appendSupplierOrderTransition(
+        existing as unknown as Parameters<typeof appendSupplierOrderTransition>[0],
+        prevStatus,
+        prevReceiptStatus,
+      );
       await existing.validate();
       await existing.save();
       return withSupplierName(existing.toObject<SupplierOrderDocument>());
@@ -88,6 +101,8 @@ export const updateSupplierOrder = async (supplierOrderId: string, payload: Supp
     existing.paymentStatus = toPaymentStatus(payload.paymentStatus);
   }
   if (payload.status !== undefined) {
+    const prevStatus = existing.status ?? null;
+    const prevReceiptStatus = existing.receiptStatus ?? null;
     const nextStatus = toOrderStatus(payload.status);
     existing.status = nextStatus;
     if (nextStatus === 'approved') {
@@ -101,6 +116,11 @@ export const updateSupplierOrder = async (supplierOrderId: string, payload: Supp
         existing.receiptStatus = 'approved';
       }
     }
+    appendSupplierOrderTransition(
+      existing as unknown as Parameters<typeof appendSupplierOrderTransition>[0],
+      prevStatus,
+      prevReceiptStatus,
+    );
   }
   await existing.validate();
   await existing.save();

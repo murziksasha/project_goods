@@ -24,6 +24,7 @@ export const employeePermissionOptions = [
   'finance.view',
   'finance.cashboxes.view',
   'finance.cashboxes.manage',
+  'finance.policy.manage',
   'finance.transactions.deposit',
   'finance.transactions.withdraw',
   'finance.transactions.transfer',
@@ -103,6 +104,7 @@ export const ordersTabPreferenceOptions = [
   'sales',
   'supplierOrders',
   'supplierInformation',
+  'ordersReports',
 ] as const;
 
 import type {

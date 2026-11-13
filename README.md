@@ -71,8 +71,10 @@ npm run dev
 ### 5. Открыть приложение
 - Frontend локально: `http://localhost:5173`
 - Frontend в локальной сети: `http://192.168.10.55:5173`
-- Backend API: `http://localhost:5000/api`
+- Backend API: `http://localhost:5000/api` (в Docker порт `5000` доступен только с этого ПК)
 - Health check: `http://localhost:5000/api/health`
+
+MongoDB в Docker слушает только `127.0.0.1:27017`; для подключения с хоста используйте `MONGO_URI` из `backend/.env.example` (`replicaSet=rs0&directConnection=true`). Сотрудники в сети работают только через frontend на `5173`.
 
 ## Браузерный режим
 
@@ -92,7 +94,43 @@ npm run db:down
 npm run docker:up
 npm run docker:down
 npm run install:all
+npm run test:deployment
 ```
 
 Docker-запуск всего стека (MongoDB + backend + frontend) и передача `GIT_SHA` в сборку frontend: см. [BUILD_VERSION_SPEC.md](./DOCUMENTATION/BUILD_VERSION_SPEC.md).
 
+Рабочий сервер запускается отдельными командами с авторизацией MongoDB и приватным незакоммиченным `.env.production` (шаблон `.env.production.example`):
+
+```bash
+npm run update:prod            # обновление одной командой: build:prod + up:prod + проверка /api/health
+npm run docker:build:prod      # сохранить rollback-образы и собрать новые, сервисы не перезапускаются
+npm run mongo:keyfile:prepare:prod
+npm run mongo:users:init:prod  # первый переход сервера на пароль: создать/обновить пользователей MongoDB, keyfile, запуск prod
+npm run docker:up:prod         # отказывает без .env.production / MONGO_URI
+npm run docker:rollback:prod   # откат на сохранённые :rollback-образы, MongoDB остаётся с паролем (keyfile + MONGO_URI)
+npm run docker:rollback:noauth -- --confirm-noauth  # ТОЛЬКО для отката самого перехода на авторизацию: MongoDB БЕЗ пароля
+npm run docker:stop:prod       # остановить prod-контейнеры (stop, не down: тома и данные сохраняются)
+npm run docker:logs:prod       # логи prod (-f, последние 200 строк); сервис: npm run docker:logs:prod -- backend
+                               # без слежения: npm run docker:logs:prod -- backend --no-follow
+```
+
+Обновление рабочего сервера на новый коммит:
+
+1. В программе создать бэкап (Настройки → Бэкапы), скачать и сохранить не на этом ПК.
+2. `git pull --ff-only` (чистый checkout, нужная ветка).
+3. `npm run update:prod` — проверяет `.env.production`, собирает образы под текущий коммит и сохраняет работающие как точку отката, пересоздаёт контейнеры на тех же томах и до ~90 с ждёт `/api/health` (`mongoOk: true`, `buildSha` = текущий коммит) на `127.0.0.1:5000` и `127.0.0.1:5173`. Сам `git pull` не делает и сам не откатывает.
+4. Проверить вход, продажи, склад, финансы.
+5. Если проверка не прошла, команда выводит последние логи backend и завершается с кодом 1; откат — `npm run docker:rollback:prod`: поднимает образы, сохранённые на шаге 3, на тех же томах; авторизация MongoDB (keyfile и пользователь `project_goods_app` из `.env.production`) остаётся включённой, а `/api/health` показывает `buildSha` версии отката. Возврат на новую версию — снова `npm run update:prod`.
+
+Первый переход сервера с существующими данными на MongoDB с паролем (пользователей в базе ещё нет, backend `unhealthy`):
+
+1. Бэкап в программе, скачать и сохранить не на этом ПК (если программа не запускается — временно переименовать `.env.production`, `npm run docker:up`, бэкап, `npm run docker:down`, вернуть имя файла).
+2. Заполнить `.env.production` для этого сервера (свой пароль приложения в `MONGO_URI`; по желанию `MONGO_ADMIN_PASSWORD`).
+3. Чистый checkout нужного коммита.
+4. `npm run mongo:users:init:prod` — останавливает prod (`stop`, не `down`), поднимает временную MongoDB без пароля на том же томе (без портов и сети), создаёт или обновляет `project_goods_admin` и `project_goods_app`, удаляет временный контейнер, при необходимости готовит keyfile, запускает prod и ждёт `/api/health` (`mongoOk: true`). Пароли не печатаются и не передаются в аргументах. Если пароля администратора нет ни в `.env.production`, ни в базе, он генерируется в `~/project_goods_secrets/mongo-admin-password.txt` — перенести в менеджер паролей и удалить файл. Повторный запуск безопасен.
+
+Если образа для текущего коммита нет, `docker:up:prod` пишет `Image project-goods/<сервис>:<sha> not found. Run npm run docker:build:prod first.`
+
+Порядок репетиции, рабочего окна и отката: [DEPLOYMENT.md](./DOCUMENTATION/DEPLOYMENT.md). Production-изменения Docker и секретов выполняются только после отдельного подтверждения (см. `AGENTS.md`).
+
+Container hardening: контейнеры backend/frontend работают от `node` (UID 1000), `docker:up:prod` / `update:prod` / откат автоматически переводят том бэкапов на `1000:1000`, frontend отдаёт CSP (сначала Report-Only, `CSP_REPORT_ONLY`) и защиту от встраивания, в prod заданы лимиты памяти и процессов. См. [DEPLOYMENT.md](./DOCUMENTATION/DEPLOYMENT.md#container-hardening-реализовано) и [CONTAINER_HARDENING_PLAN.md](./DOCUMENTATION/CONTAINER_HARDENING_PLAN.md).

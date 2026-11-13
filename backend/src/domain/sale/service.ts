@@ -7,6 +7,7 @@ export {
 export { createSale } from './create';
 export { updateSale, updateSaleWorkspace, deleteSale } from './update';
 export { acceptSalePayment, refundSalePayment } from './payment';
+export { updateSaleLineCosts } from './costing';
 export {
   returnSaleLineItem,
   returnSaleLineItemBySerials,

@@ -327,6 +327,8 @@
 }
 
 .settings-variable-catalog {
+  flex: 1 0 100%;
+  min-width: 0;
   border: 1px solid var(--color-line-panel);
   border-radius: 8px;
   background: var(--bg-surface-subtle);
@@ -334,15 +336,50 @@
 }
 
 .settings-variable-catalog h3 {
-  margin: 0 0 10px;
+  margin: 0;
   color: var(--color-text-body);
   font-size: 1rem;
+}
+
+.settings-variable-catalog-toggle {
+  width: 100%;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0;
+  text-align: left;
+  font: inherit;
+}
+
+.settings-variable-catalog-toggle:hover,
+.settings-variable-catalog-toggle:focus-visible {
+  color: var(--color-primary-strong);
+}
+
+.settings-variable-catalog-toggle-icon {
+  min-width: 18px;
+  text-align: center;
+  color: var(--text-soft);
+  font-size: 0.95rem;
+  line-height: 1;
+}
+
+.settings-variable-catalog-toggle:hover .settings-variable-catalog-toggle-icon,
+.settings-variable-catalog-toggle:focus-visible .settings-variable-catalog-toggle-icon {
+  color: var(--color-primary);
 }
 
 .settings-variable-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
+  margin-top: 10px;
 }
 
 .settings-variable-group {
@@ -464,6 +501,70 @@
 
 .print-builder-block-actions {
   margin-bottom: 12px;
+}
+
+/* Authored text fields: full width so Level / Weight / Align wrap below. */
+.print-formatted-field {
+  flex: 1 0 100%;
+  min-width: 0;
+}
+
+.print-formatted-field label span {
+  font-size: 0.92rem;
+}
+
+.print-text-format-scope {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.print-builder-table-editor-scope {
+  width: 100%;
+}
+
+.print-text-format-toolbar {
+  display: flex;
+  gap: 4px;
+}
+
+.print-text-format-button {
+  min-width: 30px;
+  height: 28px;
+  padding: 0 8px;
+  border: 1px solid var(--color-line-input);
+  border-radius: 6px;
+  background: var(--bg-card);
+  color: var(--color-text-body-strong);
+  font: inherit;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.print-text-format-button:hover,
+.print-text-format-button:focus-visible {
+  border-color: var(--color-primary);
+  color: var(--color-primary-strong);
+}
+
+.print-text-format-button-bold {
+  font-weight: 700;
+}
+
+.print-text-format-button-italic {
+  font-style: italic;
+}
+
+.print-text-format-button-underline {
+  text-decoration: underline;
+}
+
+/* Editor-only size: drag the corner down and right, capped at the panel width. */
+.field textarea.print-formatted-textarea {
+  resize: both;
+  max-width: 100%;
+  min-width: 12rem;
+  min-height: 4.5rem;
 }
 
 .print-builder-table-editor {
@@ -794,6 +895,21 @@
   white-space: nowrap;
   font-size: 12px;
   line-height: 1;
+}
+
+.settings-print-preview-page strong.print-inline-format {
+  font-weight: bolder;
+}
+
+/* Inline B / I / U inside label text must stay inline (labels style bare <strong> as a line). */
+.settings-print-preview-page .print-label strong.print-inline-format {
+  display: inline;
+  width: auto;
+  overflow: visible;
+  text-overflow: clip;
+  white-space: inherit;
+  font-size: inherit;
+  line-height: inherit;
 }
 
 .settings-print-preview-page .print-label .print-label-serial,

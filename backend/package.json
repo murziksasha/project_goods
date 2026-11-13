@@ -33,7 +33,6 @@
     "express": "^5.2.1",
     "helmet": "^8.3.0",
     "mongoose": "^9.4.1",
-    "project_goods": "file:..",
     "xlsx": "^0.18.5"
   },
   "devDependencies": {

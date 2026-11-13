@@ -56,9 +56,9 @@ All dashboard views share one path (`/` or the deployed SPA root). Section state
 | Parameter | When present | Values / notes |
 |-----------|--------------|----------------|
 | `page` | Non-home sections | `orders`, `clients`, `employees`, `settings`, `accounting`, `catalog`, `warehouse` |
-| `ordersTab` | `page=orders` | `orders`, `kanban`, `sales`, `supplierOrders`, `supplierInformation` |
+| `ordersTab` | `page=orders` | `orders`, `kanban`, `sales`, `supplierOrders`, `supplierInformation`, `ordersReports` |
 | legacy `page=kanban` | parse only | remapped to `page=orders&ordersTab=kanban` (keeps `saleId`) |
-| `createOrder` | Create-order card open | `repair`, `sale` |
+| `createOrder` | Create-order card open | `repair`, `sale`. Not offered when `ordersTab` is `supplierInformation` or `ordersReports`. |
 | `saleId` | Order/sale detail card open | Sale document id. Omitted while `createOrder` is set. |
 | `clientCard` | Client card opened from Orders | Client id. Kept only while `page=orders`. May sit beside `saleId` or `createOrder`. Dropped on every other page, including the Clients menu. Sidebar links do not include it. |
 | `accountingTab` | `page=accounting` | `cashboxes`, `transactions`, `orders`, `information`, `reports` |
@@ -72,6 +72,8 @@ Examples:
 - Client card over that repair: `/?page=orders&ordersTab=orders&saleId=<id>&clientCard=<clientId>`
 - Client card over Create sale: `/?page=orders&ordersTab=sales&createOrder=sale&clientCard=<clientId>`
 - Create sale: `/?page=orders&ordersTab=sales&createOrder=sale`
+- Orders Information: `/?page=orders&ordersTab=supplierInformation`
+- Orders Reports: `/?page=orders&ordersTab=ordersReports`
 - Accounting transactions: `/?page=accounting&accountingTab=transactions`
 - Accounting reports: `/?page=accounting&accountingTab=reports`
 - Accounting information: `/?page=accounting&accountingTab=information`
@@ -112,7 +114,7 @@ Duplicate entries are skipped: if the target URL equals the current URL, no hist
 - `project-goods.orders-tab` — last orders workspace tab
 - `project-goods.accounting-tab` — last accounting sub-tab
 
-Which orders workspace tabs are shown (gear checkboxes after Information) is **not** in localStorage. It is stored per employee in MongoDB (`uiPreferences.hiddenOrdersTabs`) and loaded with `GET /auth/me`. A hidden `ordersTab` in the URL falls back to the first still-visible permitted tab.
+Which orders workspace tabs are shown (gear checkboxes after Reports) is **not** in localStorage. It is stored per employee in MongoDB (`uiPreferences.hiddenOrdersTabs`) and loaded with `GET /auth/me`. A hidden `ordersTab` in the URL falls back to the first still-visible permitted tab.
 
 On **Back / Forward**, the URL is authoritative. `localStorage` must not override URL-derived state during `popstate`.
 

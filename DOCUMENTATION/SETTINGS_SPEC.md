@@ -4,6 +4,12 @@ Related: [Permission_Flow.md](./Permission_Flow.md) · [PRINT_FORMS_SPEC.md](./P
 
 Admin page `page=settings`. Sidebar **Settings**. Host: `SettingsPanel`.
 
+Print forms include **Invoice without VAT**, editable in the block builder.
+Printed content and demo previews always use Ukrainian independently of the UI
+language; see [Print Language](./PRINT_FORMS_SPEC.md#print-language-2026-11-07).
+Invoice data sources and shared empty-table visibility rules are specified in
+[PRINT_FORMS_SPEC.md](./PRINT_FORMS_SPEC.md#invoice-without-vat-and-empty-sections-2026-11-07).
+
 ## UI entry points
 
 | Piece        | File                                                                           |
@@ -66,6 +72,10 @@ Groups: widget visibility, exchange rates, weather. Rate chips are disabled when
 ## Print forms
 
 Template picker lives in the section toolbar. Add / Duplicate are header actions. Block layout editing is described in [PRINT_FORMS_SPEC.md](./PRINT_FORMS_SPEC.md).
+
+Manually written text in the builder supports inline **bold** / *italic* / underline through a B / I / U toolbar (uk: Ж / К / П) and Ctrl+B / I / U, stored as `**…**`, `*…*`, `__…__` markup in the template. Heading and Text fields are full width with Level / Weight / Align wrapping below; the textarea size is editor-only and not saved. Rules: [PRINT_FORMS_SPEC.md → Inline Text Formatting](./PRINT_FORMS_SPEC.md#inline-text-formatting-2026-11-10).
+
+The shared **Template variables** picker in Heading, Text, and Barcode editors defaults to expanded and can be collapsed/expanded via its heading button (local UI state only; reopening the editor resets it). Rules: [PRINT_FORMS_SPEC.md → Collapsible Template Variables](./PRINT_FORMS_SPEC.md#collapsible-template-variables-2026-11-11).
 
 Save writes template **content** to the API. Per-employee layout (margins, page/label size, orientation) is written to `project-goods.print-form-overrides.{employeeId}` only on **Save settings**.
 

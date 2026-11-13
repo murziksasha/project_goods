@@ -1,0 +1,26 @@
+# Rollback overlay: swaps backend/frontend to the images saved by docker:build:prod
+# (project-goods/*:rollback) and pins the existing external volumes.
+# npm run docker:rollback:prod layers it on docker-compose.yml + docker-compose.prod.yml,
+# so MongoDB keeps the keyfile and the backend keeps the authenticated MONGO_URI.
+# Only the emergency npm run docker:rollback:noauth uses it without the prod layer.
+# user 1000:1000: the production layer drops all capabilities, so root inside an
+# older (root) rollback image could not write the backup volume migrated to
+# 1000:1000. Older images work as UID 1000 (world-readable /app, executable tools).
+services:
+  backend:
+    image: project-goods/backend:rollback
+    pull_policy: never
+    user: "1000:1000"
+
+  frontend:
+    image: project-goods/frontend:rollback
+    pull_policy: never
+    user: "1000:1000"
+
+volumes:
+  mongo-data:
+    external: true
+    name: ${MONGO_DATA_VOLUME:?Set the existing mongo-data volume name in .env.production}
+  backup-data:
+    external: true
+    name: ${BACKUP_DATA_VOLUME:?Set the existing backup-data volume name in .env.production}

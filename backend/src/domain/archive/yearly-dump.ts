@@ -5,6 +5,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import { env } from '../../config/env';
 import { HttpError } from '../../shared/lib/errors';
+import { redactMongoCredentials } from '../../shared/lib/redact-mongo-credentials';
 import { createSafetyBackup } from '../backup/service';
 import {
   FINANCE_RAW_TX_RETENTION_MONTHS,
@@ -615,7 +616,9 @@ export const createYearlySalesDump = async (
   } catch (error) {
     record.status = 'failed';
     record.verified = false;
-    record.error = error instanceof Error ? error.message : 'Dump failed.';
+    record.error = redactMongoCredentials(
+      error instanceof Error ? error.message : 'Dump failed.',
+    );
     await record.save();
     if (error instanceof HttpError) throw error;
     throw new HttpError(500, record.error);
@@ -715,7 +718,9 @@ export const createYearlyFinanceDump = async (
   } catch (error) {
     record.status = 'failed';
     record.verified = false;
-    record.error = error instanceof Error ? error.message : 'Dump failed.';
+    record.error = redactMongoCredentials(
+      error instanceof Error ? error.message : 'Dump failed.',
+    );
     await record.save();
     if (error instanceof HttpError) throw error;
     throw new HttpError(500, record.error);
@@ -799,7 +804,9 @@ export const runScheduledYearlyArchives = async (author = 'System') => {
       results.push({
         year,
         kind: 'sales',
-        error: error instanceof Error ? error.message : String(error),
+        error: redactMongoCredentials(
+          error instanceof Error ? error.message : String(error),
+        ),
       });
     }
   }
@@ -832,7 +839,9 @@ export const runScheduledYearlyArchives = async (author = 'System') => {
       results.push({
         year,
         kind: 'finance',
-        error: error instanceof Error ? error.message : String(error),
+        error: redactMongoCredentials(
+          error instanceof Error ? error.message : String(error),
+        ),
       });
     }
   }

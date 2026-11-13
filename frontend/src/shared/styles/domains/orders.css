@@ -768,6 +768,21 @@
   cursor: pointer;
 }
 
+.order-payment-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.order-payment-secondary-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+
 .order-detail-notes-row dd {
   white-space: pre-wrap;
 }

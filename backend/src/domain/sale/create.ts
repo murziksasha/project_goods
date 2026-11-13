@@ -17,6 +17,15 @@ import {
   assertSerializedLineItemsAreAtomic,
 } from './validators';
 import { attachServiceCatalogIds } from '../service-catalog/service';
+import type { EmployeeDocument } from '../employee/model';
+import { employeeHasPermission } from '../auth/service';
+import {
+  assertNoUnauthorizedFinancialCostOverrides,
+  buildNextStatusTransitions,
+  isRepairCompletedStatus,
+  prepareLineItemsWithCostSnapshots,
+  type CostableSaleLineItem,
+} from './costing';
 import {
   applyStockDeltas,
   assertSalePayload,
@@ -45,7 +54,10 @@ const assertRapidSaleLineItems = (lineItems: SaleLineItem[]) => {
   }
 };
 
-export const createSale = async (payloadInput: SalePayload) => {
+export const createSale = async (
+  payloadInput: SalePayload,
+  actor?: Pick<EmployeeDocument, '_id' | 'name' | 'role' | 'permissions'> | null,
+) => {
   const payload = normalizeSalePayload(payloadInput);
   const isRapidSale = payload.isRapidSale === true;
   const normalizedKind = payload.kind === 'sale' ? 'sale' : 'repair';
@@ -115,10 +127,37 @@ export const createSale = async (payloadInput: SalePayload) => {
     product?._id ?? null,
   );
 
+  const initialStatus = payload.status || 'new';
+  const now = new Date();
   await assertSerialNumbersNotBoundToOtherSales('', lineItems);
   await assertSerializedLineItemsAreAtomic(lineItems);
   await assertLineItemCatalogProductIds(lineItems);
   const lineItemsWithServices = await attachServiceCatalogIds([...lineItems]);
+  assertNoUnauthorizedFinancialCostOverrides({
+    kind: normalizedKind,
+    incomingLineItems: lineItemsWithServices as unknown as Array<
+      Record<string, unknown>
+    >,
+    employee: actor,
+  });
+  const preparedCosts = await prepareLineItemsWithCostSnapshots({
+    kind: normalizedKind,
+    nextStatus: initialStatus,
+    incomingLineItems: lineItemsWithServices as unknown as CostableSaleLineItem[],
+    employee: actor,
+    now,
+  });
+  const initialTransitions = buildNextStatusTransitions({
+    existingTransitions: [],
+    fromStatus: null,
+    toStatus: initialStatus,
+    employee: actor,
+    now,
+  });
+  const initialCompletedAt =
+    normalizedKind === 'repair' && isRepairCompletedStatus(initialStatus)
+      ? now
+      : null;
 
   const result = await withOptionalMongoSession(async (session) => {
     let stockDeltasApplied = false;
@@ -141,14 +180,17 @@ export const createSale = async (payloadInput: SalePayload) => {
         quantity: payload.quantity,
         salePrice: payload.salePrice,
         kind: normalizedKind,
-        status: payload.status || 'new',
+        status: initialStatus,
         paidAmount: payload.paidAmount || 0,
         isRapidSale,
         note: payload.note,
         userNote: payload.userNote,
         timeline: payload.timeline ?? [],
         paymentHistory: payload.paymentHistory ?? [],
-        lineItems: lineItemsWithServices,
+        lineItems: preparedCosts.lineItems,
+        firstStockCommittedAt: preparedCosts.firstStockCommittedAt,
+        completedAt: initialCompletedAt,
+        statusTransitions: initialTransitions,
         discount: normalizeDiscount(payload.discount),
         productSnapshot: {
           article: product?.article || (normalizedKind === 'sale' ? 'SALE' : 'REPAIR'),
@@ -184,7 +226,11 @@ export const createSale = async (payloadInput: SalePayload) => {
       await sale.save({ session });
 
       return {
-        sale: formatSale(sale.toObject<SaleDocument>()),
+        sale: formatSale(sale.toObject<SaleDocument>(), {
+          includeCosts: actor
+            ? employeeHasPermission(actor, 'finance.view')
+            : true,
+        }),
         product: updatedProduct ? formatProduct(updatedProduct) : null,
         lineItems: sale.lineItems,
       };

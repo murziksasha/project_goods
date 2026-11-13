@@ -8,6 +8,8 @@ import type {
   PrintLayoutTableColumn,
   PrintLayoutTableRow,
 } from './types';
+import { translatePrintBlock, translatePrintSource, translatePrintText } from './print-language';
+import { renderPrintInlineMarkup } from './printInlineMarkup';
 
 export type LabelSizePreset = {
   id: string;
@@ -134,6 +136,8 @@ export const getPrintContentMarginVars = (margins: PrintContentMargins) =>
 export type PrintFormVariable =
   | 'id'
   | 'orderNumber'
+  | 'repair_order_reference'
+  | 'service_center_phone'
   | 'labelCode'
   | 'labelTitle'
   | 'labelContact'
@@ -183,6 +187,23 @@ export type PrintFormVariable =
 export type PrintTemplateData = Partial<Record<PrintFormVariable, string>> &
   Record<string, string | undefined>;
 
+export const getIncludedVatAmounts = (total: number) => {
+  const totalCents = Math.round(total * 100);
+  const vatCents = Math.round(totalCents / 6);
+  return { net: (totalCents - vatCents) / 100, vat: vatCents / 100 };
+};
+
+export const getPrintFormTemplateData = (
+  form: Pick<PrintForm, 'id'>,
+  values: PrintTemplateData,
+): PrintTemplateData => form.id === 'invoice'
+  ? {
+      ...values,
+      net_amount: values.vat_included_net_amount ?? values.net_amount,
+      vat_amount: values.vat_included_vat_amount ?? values.vat_amount,
+    }
+  : values;
+
 export const printFormVariableGroups: Array<{
   title: string;
   variables: Array<{ key: PrintFormVariable; label: string }>;
@@ -192,6 +213,7 @@ export const printFormVariableGroups: Array<{
     variables: [
       { key: 'id', label: 'Order ID' },
       { key: 'orderNumber', label: 'Order number' },
+      { key: 'repair_order_reference', label: 'Repair order reference (repairs only)' },
       { key: 'labelCode', label: 'Label code' },
       { key: 'labelTitle', label: 'Label title' },
       { key: 'labelContact', label: 'Label contact' },
@@ -247,6 +269,7 @@ export const printFormVariableGroups: Array<{
     title: 'Company and warehouse',
     variables: [
       { key: 'company', label: 'Company name' },
+      { key: 'service_center_phone', label: 'Service center phone' },
       { key: 'company_address', label: 'Company address' },
       { key: 'company_id', label: 'Company registration ID' },
       { key: 'company_iban', label: 'Company IBAN' },
@@ -337,16 +360,20 @@ export const normalizePrintLayoutBlock = (block: PrintLayoutBlock): PrintLayoutB
 };
 
 export const normalizePrintLayoutBlocks = (blocks: PrintLayoutBlock[]) =>
-  blocks.map(normalizePrintLayoutBlock);
+  blocks.map(normalizePrintLayoutBlock).map(translatePrintBlock);
 
 const codeSizeClass = (
   size: 'compact' | 'standard' | 'large' | undefined,
 ) => (size && size !== 'standard' ? ` print-code-row-${size}` : '');
 
-const renderInlineTemplate = (value: string) => escapeHtml(value).replace(
-  /\{\{([a-zA-Z0-9_]+)\}\}/g,
-  '{{$1}}',
-).replace(/\r?\n/g, '<br>');
+// Authored text: `**bold**`, `*italic*`, `__underline__` become inline tags;
+// `{{variable}}` tokens stay verbatim and are substituted (escaped) later.
+const renderInlineTemplate = (value: string) =>
+  renderPrintInlineMarkup(translatePrintText(value));
+
+// Plain authored text for attributes and machine-readable values (no markup).
+const renderPlainInlineTemplate = (value: string) =>
+  escapeHtml(translatePrintText(value)).replace(/\r?\n/g, '<br>');
 
 const renderFieldLabel = (label: string) =>
   label.trim() ? `<td>${renderInlineTemplate(label)}</td>` : '<td></td>';
@@ -403,9 +430,9 @@ const renderBarcodeBlock = (
   const barcode =
     value === '{{barcode}}'
       ? '{{barcode}}'
-      : `<svg class="print-barcode" data-barcode-value="${renderInlineTemplate(value)}"></svg>`;
+      : `<svg class="print-barcode" data-barcode-value="${renderPlainInlineTemplate(value)}"></svg>`;
   const visibleValue = block.showValue
-    ? `<strong class="print-code-value">${renderInlineTemplate(value)}</strong>`
+    ? `<strong class="print-code-value">${renderPlainInlineTemplate(value)}</strong>`
     : '';
 
   return `<div class="print-code-row${codeSizeClass(block.size)}">${block.label ? `<span>${renderInlineTemplate(block.label)}</span>` : ''}${barcode}${visibleValue}</div>`;
@@ -434,9 +461,9 @@ export const renderPrintLayoutBlocks = (blocks: PrintLayoutBlock[]): string =>
         case 'customTable':
           return renderCustomTable(block.columns, block.rows);
         case 'lineItemsTable':
-          return `${block.title ? `<h3>${renderInlineTemplate(block.title)}</h3>` : ''}${block.kind === 'services' ? '{{services_table}}' : '{{products_table}}'}`;
+          return `<section data-print-items="${block.kind}">${block.title ? `<h3>${renderInlineTemplate(block.title)}</h3>` : ''}${block.kind === 'services' ? '{{services_table}}' : '{{products_table}}'}</section>`;
         case 'invoiceItemsTable':
-          return `${block.title ? `<h3>${renderInlineTemplate(block.title)}</h3>` : ''}{{invoice_items_table}}`;
+          return `<section data-print-items="invoice">${block.title ? `<h3>${renderInlineTemplate(block.title)}</h3>` : ''}{{invoice_items_table}}</section>`;
         case 'barcode':
           return renderBarcodeBlock(block);
         case 'signatures':
@@ -585,7 +612,7 @@ export const defaultPrintForms: PrintForm[] = [
   },
   {
     id: 'invoice',
-    title: 'Invoice',
+    title: 'Invoice with VAT',
     type: 'invoice',
     content: documentShell(`
       <div class="invoice-party">
@@ -640,6 +667,17 @@ export const defaultPrintForms: PrintForm[] = [
     orientation: 'portrait',
     isActive: true,
     sortOrder: 50,
+  },
+  {
+    id: 'invoice-no-vat',
+    title: 'Invoice without VAT',
+    type: 'invoice',
+    content: '',
+    contentFormat: 'html',
+    pageSize: 'A4',
+    orientation: 'portrait',
+    isActive: true,
+    sortOrder: 55,
   },
   {
     id: 'barcode',
@@ -698,7 +736,7 @@ const legacyDefaultPrintFormTitles: Record<string, string[]> = {
   check: ['Чек', 'Р§РµРє'],
   warranty: ['Гарантійний талон', 'Р“Р°СЂР°РЅС‚С–Р№РЅРёР№ С‚Р°Р»РѕРЅ'],
   'completion-act': ['Акт виконаних робіт', 'РђРєС‚ РІРёРєРѕРЅР°РЅРёС… СЂРѕР±С–С‚'],
-  invoice: ['Рахунок', 'Р Р°С…СѓРЅРѕРє'],
+  invoice: ['Invoice', 'Рахунок', 'Р Р°С…СѓРЅРѕРє'],
   barcode: ['Штрих-код', 'РЁС‚СЂРёС…-РєРѕРґ'],
   'warehouse-barcode': [
     'Штрих-код товару',
@@ -877,42 +915,33 @@ const completionActLayoutBlocks: PrintLayoutBlock[] = [
   { id: 'act-signatures', type: 'signatures', left: 'Executor: {{masterName}}', right: 'Customer: __________________' },
 ];
 
-const invoiceLayoutBlocks: PrintLayoutBlock[] = [
+const invoiceWithoutVatLayoutBlocks: PrintLayoutBlock[] = [
   {
-    id: 'invoice-parties',
-    type: 'columns',
-    columns: [
-      {
-        id: 'invoice-seller',
-        blocks: [
-          { id: 'invoice-seller-text', type: 'paragraph', level: 3, text: 'Supplier\n{{company}}\nAddress: {{company_address}}\nID: {{company_id}}\nIBAN: {{company_iban}}' },
-        ],
-      },
-      {
-        id: 'invoice-customer',
-        blocks: [
-          { id: 'invoice-customer-text', type: 'paragraph', level: 3, text: 'Customer\n{{clientName}}\nAddress: {{customer_address}}\nID: {{customer_reg_id}}\n{{clientPhone}}\nIBAN: {{customer_iban}}' },
-        ],
-      },
-    ],
+    id: 'invoice-no-vat-supplier', type: 'paragraph', level: 3,
+    text: 'Постачальник\n{{company}}\nАдреса: {{company_address}}\nЄДРПОУ або ІПН: {{company_id}}\nIBAN: {{company_iban}}\nТелефон: {{service_center_phone}}',
   },
-  { id: 'invoice-title', type: 'heading', level: 1, text: 'Invoice #{{orderNumber}}', align: 'center' },
-  { id: 'invoice-date', type: 'paragraph', level: 3, text: 'from {{date}}', align: 'center' },
-  { id: 'invoice-items', type: 'invoiceItemsTable' },
+  { id: 'invoice-no-vat-supplier-gap', type: 'spacer', size: 'small' },
   {
-    id: 'invoice-totals',
-    type: 'fieldRow',
-    fields: [
-      { label: 'Total without VAT', value: '{{net_amount}}' },
-      { label: 'VAT', value: '{{vat_amount}}' },
-      { label: 'Total with VAT', value: '{{total_amount}}' },
-    ],
+    id: 'invoice-no-vat-recipient', type: 'paragraph', level: 3,
+    text: 'Одержувач\n{{clientName}}\nАдреса: {{customer_address}}\nЄДРПОУ або ІПН: {{customer_reg_id}}\nТелефон: {{clientPhone}}\nIBAN: {{customer_iban}}',
   },
-  { id: 'invoice-written', type: 'paragraph', level: 3, text: 'Total in words: {{total_written}}\nVAT: {{vat_amount}}' },
-  { id: 'invoice-payable', type: 'paragraph', level: 3, text: 'Amount payable: {{total_amount}}', align: 'right' },
-  { id: 'invoice-signature', type: 'signatures', left: '{{seller_occupation}}', right: '{{seller_name}}' },
-  { id: 'invoice-note', type: 'paragraph', level: 3, text: '{{note_label}}: {{note}}' },
+  { id: 'invoice-no-vat-recipient-gap', type: 'spacer', size: 'small' },
+  { id: 'invoice-no-vat-payer', type: 'fieldRow', fields: [{ label: 'Платник', value: '{{clientName}}' }, { label: 'Сплатити до', value: '{{due_date}}' }] },
+  { id: 'invoice-no-vat-title', type: 'heading', level: 1, weight: 'bold', text: 'Рахунок-фактура №{{orderNumber}}', align: 'center' },
+  { id: 'invoice-no-vat-date', type: 'paragraph', level: 3, weight: 'bold', text: 'від {{date}}', align: 'center' },
+  { id: 'invoice-no-vat-repair', type: 'paragraph', level: 3, text: '{{repair_order_reference}}' },
+  { id: 'invoice-no-vat-services', type: 'lineItemsTable', kind: 'services', title: 'Послуги' },
+  { id: 'invoice-no-vat-products', type: 'lineItemsTable', kind: 'products', title: 'Товари' },
+  { id: 'invoice-no-vat-total', type: 'paragraph', level: 3, weight: 'bold', align: 'right', text: 'Загальна сума до сплати: {{total_amount}}\nБез ПДВ' },
+  { id: 'invoice-no-vat-words', type: 'paragraph', level: 3, text: 'Усього на суму: {{total_written}}' },
 ];
+
+const invoiceLayoutBlocks: PrintLayoutBlock[] = invoiceWithoutVatLayoutBlocks.map((block) => {
+  const copied = { ...block, id: block.id.replace('invoice-no-vat-', 'invoice-') };
+  return copied.type === 'paragraph' && copied.id === 'invoice-total'
+    ? { ...copied, text: 'Разом без ПДВ: {{net_amount}}\nПДВ (20%): {{vat_amount}}\nЗагальна сума до сплати з ПДВ: {{total_amount}}' }
+    : copied;
+});
 
 const barcodeLayoutBlocks: PrintLayoutBlock[] = [
   { id: 'barcode-code', type: 'barcode', value: '{{barcode}}', showValue: false, size: 'large' },
@@ -932,6 +961,7 @@ export const defaultPrintLayouts: Record<string, PrintLayoutBlock[]> = {
   warranty: warrantyLayoutBlocks,
   'completion-act': completionActLayoutBlocks,
   invoice: invoiceLayoutBlocks,
+  'invoice-no-vat': invoiceWithoutVatLayoutBlocks,
   barcode: barcodeLayoutBlocks,
   'warehouse-barcode': warehouseBarcodeLayoutBlocks,
 };
@@ -1119,7 +1149,12 @@ export const normalizePrintFormsForView = (forms: PrintForm[]) => {
   const sourceForms = forms.length > 0 ? forms : defaultPrintForms;
   const sourceBarcodeForm = sourceForms.find((form) => form.id === 'barcode');
   const normalized = sourceForms.map(
-    (form, index) => {
+    (sourceForm, index) => {
+      const form = sourceForm.id === 'invoice' && legacyDefaultPrintFormTitles.invoice.includes(sourceForm.title)
+        ? createLayoutPrintForm({ ...sourceForm, title: 'Invoice with VAT', layoutBlocks: invoiceLayoutBlocks })
+        : (sourceForm.id === 'invoice-no-vat' || sourceForm.id === 'invoice') && sourceForm.layoutBlocks?.length
+          ? { ...sourceForm, layoutBlocks: sourceForm.layoutBlocks.map(translatePrintBlock) }
+          : sourceForm;
       const shouldUseDefaultLayout =
         isPreviousDefaultBarcode(form) ||
         (!hasLayoutBlocks(form) &&
@@ -1188,11 +1223,39 @@ export const escapeHtml = (value: string) =>
 const textToHtml = (value: string) =>
   `<div class="print-document">${escapeHtml(value).replace(/\r?\n/g, '<br />')}</div>`;
 
-const renderProductsTable = (html: string) =>
-  html || '<p class="print-muted">No products</p>';
+// Resolve visibility before interpolation, so user data is never treated as markup.
+const hideEmptyPrintSections = (source: string, values: PrintTemplateData) => {
+  const emptyTokens = ['products_table', 'services_table', 'invoice_items_table', 'repair_order_reference']
+    .filter((key) => !values[key]?.trim());
+  if (!emptyTokens.some((key) => source.includes(`{{${key}}}`))) return source;
 
-const renderServicesTable = (html: string) =>
-  html || '<p class="print-muted">No services</p>';
+  const document = new DOMParser().parseFromString(source, 'text/html');
+  for (const key of emptyTokens) {
+    const token = `{{${key}}}`;
+    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+    const nodes: Text[] = [];
+    while (walker.nextNode()) {
+      if (walker.currentNode.textContent?.includes(token)) nodes.push(walker.currentNode as Text);
+    }
+    for (const node of nodes) {
+      const parent = node.parentElement;
+      if (!parent) continue;
+      const section = parent.closest('[data-print-items]');
+      if (section) {
+        section.remove();
+        continue;
+      }
+      // Legacy HTML templates place a heading immediately before the table token.
+      let previous = node.previousSibling;
+      while (previous?.nodeType === Node.TEXT_NODE && !previous.textContent?.trim()) previous = previous.previousSibling;
+      if (!previous && parent.textContent?.trim() === token) previous = parent.previousElementSibling;
+      if (key !== 'repair_order_reference' && previous instanceof Element && /^H[1-6]$/.test(previous.tagName)) previous.remove();
+      node.textContent = node.textContent?.replaceAll(token, '') ?? '';
+      if (parent !== document.body && !parent.textContent?.trim() && !parent.querySelector('img,svg,table')) parent.remove();
+    }
+  }
+  return document.body.innerHTML;
+};
 
 const unwrapEditorTokens = (html: string) =>
   html.replace(
@@ -1205,8 +1268,19 @@ export const renderPrintTemplate = (
   values: PrintTemplateData,
   contentFormat: PrintForm['contentFormat'] = 'text',
 ) => {
-  const source =
-    contentFormat === 'html' ? unwrapEditorTokens(template) : textToHtml(template);
+  const renderTable = (html: string) => {
+    if (!html) return html;
+    const document = new DOMParser().parseFromString(html, 'text/html');
+    document.querySelectorAll('th').forEach((heading) => {
+      const label = heading.textContent?.trim() ?? '';
+      heading.textContent = translatePrintText(label);
+    });
+    return document.body.innerHTML;
+  };
+  const source = hideEmptyPrintSections(
+    translatePrintSource(contentFormat === 'html' ? unwrapEditorTokens(template) : textToHtml(template)),
+    values,
+  );
   const isLabelTemplate = source.includes('print-label');
 
   const rendered = printFormVariables.reduce((result, key) => {
@@ -1217,15 +1291,15 @@ export const renderPrintTemplate = (
       );
     }
     if (key === 'products_table') {
-      return result.replaceAll('{{products_table}}', renderProductsTable(values.products_table ?? ''));
+      return result.replaceAll('{{products_table}}', renderTable(values.products_table ?? ''));
     }
     if (key === 'services_table') {
-      return result.replaceAll('{{services_table}}', renderServicesTable(values.services_table ?? ''));
+      return result.replaceAll('{{services_table}}', renderTable(values.services_table ?? ''));
     }
     if (key === 'invoice_items_table') {
       return result.replaceAll(
         '{{invoice_items_table}}',
-        renderProductsTable(values.invoice_items_table ?? ''),
+        renderTable(values.invoice_items_table ?? ''),
       );
     }
     if (key === 'orderNumber') {
@@ -1273,6 +1347,7 @@ export const printDocumentStyles = `
   .print-block-weight-light { font-weight: 300; }
   .print-block-weight-normal { font-weight: 400; }
   .print-block-weight-bold { font-weight: 700; }
+  strong.print-inline-format { font-weight: bolder; }
   .print-document .print-block-paragraph-level-1 { font-size: 22px; }
   .print-document .print-block-paragraph-level-2 { font-size: 18px; }
   .print-document .print-block-paragraph-level-3 { font-size: 13px; }
@@ -1340,6 +1415,7 @@ export const printLabelDocumentStyles = `
   .print-label .print-block-paragraph-level-2 { font-size: 10px; }
   .print-label .print-block-paragraph-level-3 { font-size: 8.2px; }
   .print-label strong { display: block; width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; line-height: 1; }
+  .print-label strong.print-inline-format { display: inline; width: auto; overflow: visible; text-overflow: clip; white-space: inherit; font-size: inherit; line-height: inherit; font-weight: bolder; }
   .print-label .print-label-serial,
   .print-label .print-block-heading.print-label-serial { white-space: normal; overflow: visible; overflow-wrap: anywhere; word-break: break-word; text-overflow: clip; line-height: 1.15; }
   .print-label span { display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

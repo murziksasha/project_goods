@@ -249,6 +249,76 @@ export const installE2eApiMocks = async (page: Page) => {
         });
         return;
       }
+      if (path === '/finance/policy/history') {
+        await fulfillJson({ items: [], total: 0, page: 1, pageSize: 10 });
+        return;
+      }
+      if (path === '/finance/policy/preview') {
+        await fulfillJson({
+          period: { key: 'last30', dateFrom: null, dateTo: null, timeZone: 'Europe/Kiev' },
+          requestedSource: 'all',
+          current: {
+            serviceProfitMode: 'full',
+            version: 1,
+            source: 'all',
+            margin: {
+              revenue: 0,
+              cogs: 0,
+              grossProfit: 0,
+              grossMarginPct: null,
+              unknownCostCount: 0,
+              isIncomplete: false,
+              knownCostRevenue: 0,
+              knownCostCogs: 0,
+              knownCostGrossProfit: 0,
+              knownCostGrossMarginPct: null,
+              costCoveragePct: 100,
+            },
+            cash: { collected: 0, inventoryPurchases: 0, opex: 0, refunds: 0, net: 0 },
+            saleCount: 0,
+            rowCount: 0,
+          },
+          proposed: {
+            serviceProfitMode: 'full',
+            source: 'all',
+            margin: {
+              revenue: 0,
+              cogs: 0,
+              grossProfit: 0,
+              grossMarginPct: null,
+              unknownCostCount: 0,
+              isIncomplete: false,
+              knownCostRevenue: 0,
+              knownCostCogs: 0,
+              knownCostGrossProfit: 0,
+              knownCostGrossMarginPct: null,
+              costCoveragePct: 100,
+            },
+            cash: { collected: 0, inventoryPurchases: 0, opex: 0, refunds: 0, net: 0 },
+            saleCount: 0,
+            rowCount: 0,
+          },
+          delta: { revenue: 0, cogs: 0, grossProfit: 0, knownCostGrossProfit: 0, saleCount: 0 },
+        });
+        return;
+      }
+      if (path === '/finance/policy') {
+        await fulfillJson({
+          serviceAuditEnabled: false,
+          serviceProfitMode: 'full',
+          reportDefaults: {
+            period: 'last30',
+            source: 'all',
+            showCharts: true,
+            showTable: true,
+          },
+          version: 1,
+          updatedById: null,
+          updatedByName: null,
+          updatedAt: null,
+        });
+        return;
+      }
       if (path.startsWith('/finance/report')) {
         await fulfillJson({
           totals: { UAH: 121030, USD: 0 },

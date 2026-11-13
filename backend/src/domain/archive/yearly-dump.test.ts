@@ -4,6 +4,8 @@ import os from 'os';
 import path from 'path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { HttpError } from '../../shared/lib/errors';
+import { FinanceTransaction } from '../finance/model';
+import { YearlyArchive } from './model';
 import {
   buildSalesYearArchiveQuery,
   getSalesHotCutoff,
@@ -87,3 +89,43 @@ describe('HttpError shape for purge gates', () => {
 
 // silence unused vi if tree-shaken differently
 void vi;
+
+describe('yearly dump failure redaction', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('stores and throws mongodump errors without Mongo credentials', async () => {
+    const archiveDir = await fs.mkdtemp(path.join(os.tmpdir(), 'yearly-redact-'));
+    const record = {
+      status: 'running',
+      verified: false,
+      error: '',
+      save: vi.fn().mockResolvedValue(undefined),
+    };
+    vi.spyOn(FinanceTransaction, 'countDocuments').mockResolvedValue(3 as never);
+    vi.spyOn(YearlyArchive, 'findOne').mockResolvedValue(null as never);
+    vi.spyOn(YearlyArchive, 'create').mockResolvedValue(record as never);
+    const mongoUri = 'mongodb://project_goods_app:sample-secret@mongo:27017/inventory';
+
+    try {
+      const error = await createYearlyFinanceDump(2020, 'tester', {
+        archiveDir,
+        mongoUri,
+        now: () => new Date('2026-11-04T00:00:00.000Z'),
+        runCommand: async () => {
+          throw new Error(`mongodump failed for ${mongoUri}`);
+        },
+      }).catch((caught: unknown) => caught);
+
+      expect(error).toBeInstanceOf(HttpError);
+      expect((error as HttpError).message).toContain('mongodb://[REDACTED]@mongo:27017');
+      expect((error as HttpError).message).not.toContain('sample-secret');
+      expect(record.status).toBe('failed');
+      expect(record.error).not.toContain('sample-secret');
+      expect(record.save).toHaveBeenCalled();
+    } finally {
+      await fs.rm(archiveDir, { recursive: true, force: true });
+    }
+  });
+});

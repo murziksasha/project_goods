@@ -61,6 +61,10 @@ export const createApiRequestError = (error: unknown) => {
     );
   }
 
+  if (error instanceof ApiRequestError) {
+    return error;
+  }
+
   if (error instanceof Error) {
     return new ApiRequestError(error.message);
   }

@@ -24,7 +24,12 @@ export {
   listFinanceTransactions,
   getFinanceReport,
 } from './transactions';
-export { getFinanceProfitReport } from './profit-report';
+export { getFinanceProfitReport, previewFinancePolicyImpact } from './profit-report';
+export {
+  getFinancePolicy,
+  updateFinancePolicy,
+  listFinancePolicyHistory,
+} from './policy';
 export {
   sealFinancePeriodSnapshot,
   purgeFinanceTransactionsBeforeActiveSnapshot,
