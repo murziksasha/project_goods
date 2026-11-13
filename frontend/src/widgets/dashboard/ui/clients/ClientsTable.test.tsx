@@ -79,4 +79,28 @@ describe('ClientsTable', () => {
     });
     expect(onOpenClientCard).not.toHaveBeenCalled();
   });
+
+  it('shows the matched additional phone beside the primary', () => {
+    render(
+      <ClientsTable
+        filteredClientsCount={1}
+        isLoading={false}
+        clients={[
+          {
+            ...client,
+            phones: ['+380501111111', '+380631112233'],
+          },
+        ]}
+        searchQuery='+38063'
+        selectedClientId={null}
+        statsByClient={new Map()}
+        onDeleteClient={vi.fn()}
+        onOpenClientCard={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByTitle('+380501111111')).toBeInTheDocument();
+    expect(screen.getByTitle('+380631112233')).toBeInTheDocument();
+    expect(screen.getAllByRole('link')).toHaveLength(2);
+  });
 });

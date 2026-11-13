@@ -9,7 +9,8 @@ import { coldSalesPurgedExist } from '../archive/yearly-dump';
 import { getClientPhonesFromRecord } from '../../shared/lib/client-phones';
 import { formatClient, formatClientHistory } from '../../shared/lib/formatters';
 import { normalizeClientPayload } from '../../shared/lib/parsers';
-import { getSearchQuery, isValidObjectIdOrThrow } from '../../shared/lib/query';
+import { getContactListSearchQuery } from '../../shared/lib/phone-search';
+import { isValidObjectIdOrThrow } from '../../shared/lib/query';
 import { withOptionalMongoSession } from '../../shared/lib/mongo-session';
 import {
   assertNotStale,
@@ -70,8 +71,20 @@ const assertUniqueClientPhones = async (
   throw new HttpError(409, duplicatePhoneMessage);
 };
 
+const CLIENT_LIST_TEXT_FIELDS = [
+  'name',
+  'email',
+  'address',
+  'registrationId',
+  'iban',
+  'note',
+];
+
 export const listClients = async (queryValue: unknown, statusValue: unknown) => {
-  const query = getSearchQuery(queryValue) as Record<string, unknown>;
+  const query = getContactListSearchQuery(
+    queryValue,
+    CLIENT_LIST_TEXT_FIELDS,
+  ) as Record<string, unknown>;
   const status =
     typeof statusValue === 'string' && statusValue !== 'all' ? statusValue : '';
 

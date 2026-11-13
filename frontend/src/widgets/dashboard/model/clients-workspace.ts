@@ -6,10 +6,11 @@ import type {
 } from '../../../entities/client';
 import { defaultClientStats } from '../../../entities/client';
 import { getClientPhones, getPrimaryClientPhone } from '../../../entities/client';
+import { normalizeClientPhoneIdentity } from '../../../entities/client';
 import {
-  clientMatchesPhoneQuery,
-  normalizeClientPhoneIdentity,
-} from '../../../entities/client';
+  isPhoneLikeQuery,
+  phonesMatchQuery,
+} from '../../../shared/lib/phone-search';
 import type { Sale } from '../../../entities/sale';
 import {
   getSaleProductName,
@@ -393,16 +394,33 @@ export const getFilteredClients = (
   return [...clients]
     .filter((client) => {
       const stats = statsByClient.get(client.id) ?? defaultClientStats;
-      const phonesText = getClientPhones(client).join(' ') || getPrimaryClientPhone(client) || '';
-      const searchable =
-        `${client.id} ${client.name} ${phonesText} ${client.note}`.toLowerCase();
+      const phones = getClientPhones(client);
+      const phonesText = isPhoneLikeQuery(appliedFilters.query)
+        ? ''
+        : phones.join(' ') || getPrimaryClientPhone(client) || '';
+      const searchable = [
+        client.id,
+        client.name,
+        client.email,
+        client.address,
+        client.registrationId,
+        client.iban,
+        phonesText,
+        client.note,
+      ]
+        .join(' ')
+        .toLowerCase();
       const createdAt = new Date(client.createdAt).getTime();
       const effectiveStatus = getEffectiveClientStatusLogic(
         client.status || '',
         stats.visits,
       );
 
-      if (query && !searchable.includes(query) && !clientMatchesPhoneQuery(client, appliedFilters.query)) {
+      if (
+        query &&
+        !searchable.includes(query) &&
+        !phonesMatchQuery(phones, appliedFilters.query)
+      ) {
         return false;
       }
       if (

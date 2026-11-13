@@ -1,10 +1,8 @@
 import { formatSupplier } from '../../shared/lib/formatters';
 import { normalizeSupplierPayload } from '../../shared/lib/parsers';
 import { getSupplierPhonesFromRecord } from '../../shared/lib/supplier-phones';
-import {
-  getSearchQuery,
-  isValidObjectIdOrThrow,
-} from '../../shared/lib/query';
+import { getContactListSearchQuery } from '../../shared/lib/phone-search';
+import { isValidObjectIdOrThrow } from '../../shared/lib/query';
 import { Supplier, type SupplierDocument } from './model';
 import { SupplierOrder } from '../supplier-order/model';
 import type { SupplierPayload } from '../shared/types';
@@ -94,8 +92,13 @@ const mergeSupplierPhones = (
   return mergedPhones;
 };
 
+const SUPPLIER_LIST_TEXT_FIELDS = ['name', 'note', 'supplierOrder'];
+
 export const listSuppliers = async (queryValue: unknown) => {
-  const searchQuery = getSearchQuery(queryValue);
+  const searchQuery = getContactListSearchQuery(
+    queryValue,
+    SUPPLIER_LIST_TEXT_FIELDS,
+  );
   const hasQuery =
     typeof queryValue === 'string' && queryValue.trim().length > 0;
   const query = hasQuery

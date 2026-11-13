@@ -794,6 +794,7 @@ export const ClientsWorkspace: React.FC<ClientsWorkspaceProps> = ({
         isLoading={isClientsLoading}
         selectedClientId={selectedClientId}
         statsByClient={statsByClient}
+        searchQuery={appliedFilters.query}
         onDeleteClient={onDeleteClient}
         onOpenClientCard={openClientCard}
       />

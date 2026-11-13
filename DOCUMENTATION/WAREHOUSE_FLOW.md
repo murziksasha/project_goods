@@ -7,8 +7,24 @@ This document defines current warehouse requirements for stock balances, receipt
 ## Navigation
 
 - Warehouse tabs: `Stock balances`, `Receipts`, `Transfers`, `Information`, `Settings`
-- Active tab, search, current page, stock view, and receipts view are restored per browser via `localStorage` (`project-goods.warehouse-filters`). Page size leaves the filter blob and is managed in the device-level `project-goods.page-sizes` map (under key `warehouse`). On first run, if `warehouse` is absent from the device map, `pageSize` is seeded once from `project-goods.warehouse-filters.<employeeId>` or unscoped `project-goods.warehouse-filters` if valid (`10 | 30 | 50 | 100 | 200`); subsequent filter writes omit `pageSize`.
+- Active tab, search, current page, stock view, and receipts view are restored per browser via `localStorage` (`project-goods.warehouse-filters`). The stored search is the committed toolbar query, not characters still inside the 300ms wait ([Toolbar search](#toolbar-search)). Page size leaves the filter blob and is managed in the device-level `project-goods.page-sizes` map (under key `warehouse`). On first run, if `warehouse` is absent from the device map, `pageSize` is seeded once from `project-goods.warehouse-filters.<employeeId>` or unscoped `project-goods.warehouse-filters` if valid (`10 | 30 | 50 | 100 | 200`); subsequent filter writes omit `pageSize`.
 - Related: [ORDER_CARD.md](./ORDER_CARD.md) · [SALE_CARD.md](./SALE_CARD.md) · [SERIAL_NUMBER_SEQUENCE_SPEC.md](./SERIAL_NUMBER_SEQUENCE_SPEC.md) · [PRINT_FORMS_SPEC.md](./PRINT_FORMS_SPEC.md) · [ORDER_FLOW.md](./ORDER_FLOW.md) · [SALE_FLOW.md](./SALE_FLOW.md) · [ACCOUNTING.md](./ACCOUNTING.md) · [index](./README.md)
+
+### Toolbar search
+
+The warehouse toolbar search box (`WarehouseToolbar`) is shared by `Stock balances`, `Receipts`, and `Transfers`. `Information` and `Settings` do not show it.
+
+- The input keeps typed text local. Row filtering, the header summary, and pagination use only the committed query, so the caret does not wait on a full warehouse refilter.
+- The commit wait is **300ms** after the last character (`WAREHOUSE_SEARCH_COMMIT_MS`), the same pause as orders and sales search. Until that commit, the previous rows, summary, and page stay. There is no searching spinner and the table is not cleared.
+- A committed text change opens page 1. Typing back to the text already on screen does not reset the page.
+- Enter commits immediately and opens page 1, including when the text is already committed.
+- The clear control commits an empty query immediately and opens page 1.
+- Changing the search mode commits any pending text immediately, applies the new mode, and opens page 1. `Receipts` has no mode dropdown.
+- Paste uses the 300ms wait.
+- `Models` / `Units` and the receipt `Orders` / `Lines` toggle stay immediate. The Filter panel still applies only on Apply. A search change does not clear checked rows.
+- `localStorage` stores the committed query. A reload during the 300ms wait restores the text that matches the rows still on screen. Opening `Information` or `Settings` commits any pending text so it is still there on return.
+- Match rules are unchanged. Stock rules are in §4.4. Receipt search (`filterReceiptRows`) matches receipt number, product name, supplier name, and status. Transfers reuse the stock filter.
+- Commit timing is covered by `WarehouseToolbar.test.tsx`. Stock match rules stay covered by `stock-balance.test.ts`.
 
 ### Client order links (Stock balances)
 
@@ -125,7 +141,7 @@ This document defines current warehouse requirements for stock balances, receipt
 1. `Models` / `Units` view toggle (default `Models`; persisted per browser)
 2. show the number of active applied filters on the `Filter` button
 3. gear menu for column visibility (`Select` locked)
-4. search mode select + search field; placeholder matches the active search mode. `By serial #` / `By article` stay exact for single-token scans (for example `S000102`). If the same query used on Receipts/Sales is a product name (spaces or non-ASCII letters), stock search also matches name + article + serial + note so remaining units are not hidden as empty stock.
+4. search mode select + search field; placeholder matches the active search mode. `By serial #` / `By article` stay exact for single-token scans (for example `S000102`). If the same query used on Receipts/Sales is a product name (spaces or non-ASCII letters), stock search also matches name + article + serial + note so remaining units are not hidden as empty stock. Name mode matches name, article, and note only. Warehouse and supplier modes match only that field. Commit timing for this field is [Toolbar search](#toolbar-search).
 5. bulk serial print and clear-selection controls appear only when at least one row is selected
 
 - Table requirements:
@@ -419,7 +435,7 @@ Implementation references:
 - Toolbar also has `Orders` / `Lines` view toggle (default `Orders`; persisted per browser) and a star toggle for starred supplier-order receipts.
 - Status chips under the toolbar use the same options, in this order: `All`, `New`, `Approved`, `Partially stocked`, `Taken on charge`, `Cancelled`. When a single receipt status is applied, that chip is active; `All` clears the status filter.
 - Saved filters may store `partially_stocked` in `statuses`. A saved `received` selection no longer includes partially stocked orders.
-- Header summary on this tab: `{lines} lines · {orders} orders · {unpaid} unpaid`.
+- Header summary on this tab: `{lines} lines · {orders} orders · {unpaid} unpaid`. The summary moves with the shared toolbar search commit ([Toolbar search](#toolbar-search)), not on each character. Receipts has no search-mode dropdown.
 - Named saved warehouse filters persist the `statuses` array on the server (`/api/saved-filters`, scope `warehouse`); active/draft filter fields still live in this browser.
 - Legacy saved filters that still store a single `status` value are migrated to `statuses` on load.
 
@@ -599,7 +615,7 @@ Implementation references:
 
 ### 12.1) Transfer Item Selection
 
-- `Transfers` header summary: `{n} movable rows`.
+- `Transfers` header summary: `{n} movable rows`. The movable stock list uses the shared toolbar search ([Toolbar search](#toolbar-search)).
 - Workspace shows session KPI cards: movable stock count, session transfer count, and distinct destinations from session history.
 - Route strip shows `From` (current warehouse/location) → `To` (selected target) before submit.
 - Opening the Transfers tab with no active batch displays the single-product dropdown and movable stock list.
@@ -670,6 +686,7 @@ Implementation references:
 ### 13.1) Information Filters And Export
 
 - Filters: search, warehouse, location, supplier, warehouse status (`all` / `active` / `inactive`), purchase-date from/to, sort (`quantity` / `value` / `latest`) and direction.
+- This search box is not the warehouse toolbar field. It filters the report on each character and is not restored from `localStorage`. Toolbar commit timing does not apply here ([Toolbar search](#toolbar-search)).
 - Summary cards: stock units, unique positions, purchase value, active warehouses; secondary signals for inactive warehouses with stock and locations with stock.
 - Charts show top share and top-three comparison for the active view metric.
 - `Export to file` downloads the current view as `.xlsx` (SheetJS), including generated-at and active-filter metadata.
@@ -707,7 +724,7 @@ These keys stay on the current device/browser and are **not** part of the employ
 
 | Key                                        | Contents                                                                                                  |
 | ------------------------------------------ | --------------------------------------------------------------------------------------------------------- |
-| `project-goods.warehouse-filters`          | `activeTab`, `query`, `searchMode`, `settingsTab`, `currentPage`, `pageSize`, `stockView`, `receiptsView` |
+| `project-goods.warehouse-filters`          | `activeTab`, `query` (committed toolbar text only; see [Toolbar search](#toolbar-search)), `searchMode`, `settingsTab`, `currentPage`, `pageSize`, `stockView`, `receiptsView` |
 | `project-goods.warehouse-columns`          | visible stock/receipts column arrays                                                                      |
 | `project-goods.warehouse-stock-name-width` | stock `Name` column width in px                                                                           |
 

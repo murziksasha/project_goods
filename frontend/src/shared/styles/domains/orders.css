@@ -2377,6 +2377,14 @@
   font-size: calc(0.95rem + 2px);
 }
 
+.listed-phones {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
 .order-number-button,
 .order-device-button {
   border: 0;
