@@ -81,6 +81,7 @@ import {
   AccountingProfitCharts,
   AccountingProfitExpenseBars,
 } from './AccountingProfitCharts';
+import { useAnalyticsCollapsedSections } from '../../model/analytics-collapsed-sections';
 import { AccountingProfitVisualSettings } from './AccountingProfitVisualSettings';
 import { ProfitReportCatalogModalHost } from './ProfitReportCatalogModalHost';
 
@@ -109,6 +110,8 @@ export const AccountingProfitReportsView: React.FC<AccountingProfitReportsViewPr
   onOpenSupplierOrder,
 }) => {
   const { t } = useTranslation();
+  const { isSectionCollapsed, setSectionCollapsed, toggleSectionCollapse } =
+    useAnalyticsCollapsedSections(currentEmployee?.id);
   const policyQuery = useFinancePolicyQuery();
   const financePolicy = policyQuery.data;
   const stored = useMemo(() => getStoredProfitReportFilters(), []);
@@ -159,6 +162,7 @@ export const AccountingProfitReportsView: React.FC<AccountingProfitReportsViewPr
   const [missingCostOnly, setMissingCostOnly] = useState(false);
   const [detailSearch, setDetailSearch] = useState('');
   const [detailsPage, setDetailsPage] = useState(1);
+  const [detailsPageSize, setDetailsPageSize] = useStoredPageSize('accountingReportDetails');
   const [detailsSortBy, setDetailsSortBy] = useState('saleDate');
   const [detailsSortDir, setDetailsSortDir] = useState<'asc' | 'desc'>('desc');
   const [auditSaleId, setAuditSaleId] = useState<string | null>(null);
@@ -183,7 +187,7 @@ export const AccountingProfitReportsView: React.FC<AccountingProfitReportsViewPr
       ...reportFilterParams,
       q: detailSearch.trim() || undefined,
       page: detailsPage,
-      pageSize: 25,
+      pageSize: detailsPageSize,
       sortBy: detailsSortBy,
       sortDir: detailsSortDir,
     },
@@ -1038,8 +1042,14 @@ export const AccountingProfitReportsView: React.FC<AccountingProfitReportsViewPr
 
       {report?.trendSeries && report.trendSeries.length > 0 ? (
         <AnalyticsSectionCard
+          id="accounting-reports-profit-trend"
           title={t('accounting.profit.trendTitle')}
           subtitle={t('accounting.profit.trendSubtitle')}
+          collapsible={true}
+          isCollapsed={isSectionCollapsed('accounting-reports-profit-trend')}
+          onCollapsedChange={(collapsed) =>
+            setSectionCollapsed('accounting-reports-profit-trend', collapsed)
+          }
         >
           <AnalyticsTrendChart
             points={report.trendSeries}
@@ -1086,17 +1096,25 @@ export const AccountingProfitReportsView: React.FC<AccountingProfitReportsViewPr
             refunds: report?.cash.refunds ?? 0,
             net: report?.cash.net ?? 0,
           }}
+          isSectionCollapsed={isSectionCollapsed}
+          onToggleSectionCollapse={toggleSectionCollapse}
+          onSetSectionCollapsed={setSectionCollapsed}
         />
       ) : null}
 
       {visual.showTable ? (
-      <section className='finance-info-panel finance-info-panel-wide'>
-        <div className='analytics-panel-header'>
-          <div>
-            <p className='section-label'>{t('accounting.profit.tableSection')}</p>
-            <h3>{t('accounting.profit.tableTitle')}</h3>
-          </div>
-        </div>
+      <AnalyticsSectionCard
+        id="accounting-reports-margin-by-item"
+        variant="finance"
+        className="finance-info-panel-wide"
+        eyebrow={t('accounting.profit.tableSection')}
+        title={t('accounting.profit.tableTitle')}
+        collapsible={true}
+        isCollapsed={isSectionCollapsed('accounting-reports-margin-by-item')}
+        onCollapsedChange={(collapsed) =>
+          setSectionCollapsed('accounting-reports-margin-by-item', collapsed)
+        }
+      >
         <div className='finance-profit-table-tools'>
           <label className='orders-filter-field'>
             <span>{t('accounting.profit.analysis.search')}</span>
@@ -1265,24 +1283,30 @@ export const AccountingProfitReportsView: React.FC<AccountingProfitReportsViewPr
             onPageSizeChange={setPageSize}
           />
         ) : null}
-      </section>
+      </AnalyticsSectionCard>
       ) : null}
 
-      <section className='finance-info-panel finance-info-panel-wide'>
-        <div className='analytics-panel-header'>
-          <div>
-            <p className='section-label'>{t('accounting.profit.expensesSection')}</p>
-            <h3>{t('accounting.profit.expensesTitle')}</h3>
-          </div>
-        </div>
+      <AnalyticsSectionCard
+        id="accounting-reports-withdrawals-by-category"
+        variant="finance"
+        className="finance-info-panel-wide"
+        eyebrow={t('accounting.profit.expensesSection')}
+        title={t('accounting.profit.expensesTitle')}
+        collapsible={true}
+        isCollapsed={isSectionCollapsed('accounting-reports-withdrawals-by-category')}
+        onCollapsedChange={(collapsed) =>
+          setSectionCollapsed('accounting-reports-withdrawals-by-category', collapsed)
+        }
+      >
         <AccountingProfitExpenseBars
           rows={report?.cash.opexByCategory ?? []}
           refunds={report?.cash.refunds ?? 0}
           currency={currency}
         />
-      </section>
+      </AnalyticsSectionCard>
 
       <AnalyticsSectionCard
+        id="accounting-reports-source-drill-down"
         title={t('accounting.profit.drillDownTitle')}
         subtitle={
           detailsQuery.data
@@ -1296,6 +1320,11 @@ export const AccountingProfitReportsView: React.FC<AccountingProfitReportsViewPr
                 missing: detailsQuery.data.totals.missingCostRecordsCount,
               })
             : t('accounting.profit.drillDownEmpty')
+        }
+        collapsible={true}
+        isCollapsed={isSectionCollapsed('accounting-reports-source-drill-down')}
+        onCollapsedChange={(collapsed) =>
+          setSectionCollapsed('accounting-reports-source-drill-down', collapsed)
         }
         actions={
           <input
@@ -1427,9 +1456,13 @@ export const AccountingProfitReportsView: React.FC<AccountingProfitReportsViewPr
               : null
           }
           page={detailsQuery.data?.page ?? detailsPage}
-          pageSize={detailsQuery.data?.pageSize ?? 25}
+          pageSize={detailsPageSize}
           total={detailsQuery.data?.total ?? 0}
           onPageChange={setDetailsPage}
+          onPageSizeChange={(nextSize) => {
+            setDetailsPageSize(nextSize);
+            setDetailsPage(1);
+          }}
         />
       </AnalyticsSectionCard>
 

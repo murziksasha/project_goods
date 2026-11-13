@@ -923,7 +923,10 @@ export const AccountingPanel: React.FC<AccountingPanelProps> = ({
           onSelectedSupplierOrderChange={setSelectedSupplierOrder}
         />
       ) : activeTab === 'information' ? (
-        <AccountingReportsView financeOverview={financeOverview} />
+        <AccountingReportsView
+          financeOverview={financeOverview}
+          currentEmployeeId={currentEmployee?.id}
+        />
       ) : activeTab === 'reports' ? (
         <AccountingProfitReportsView
           currentEmployee={currentEmployee}

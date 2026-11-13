@@ -18,6 +18,7 @@ import {
   type CashflowScenarioAssumptions,
 } from '../../../../entities/scenario';
 import { formatDate, formatDateTime } from '../../../../shared/lib/format';
+import { useStoredPageSize } from '../../../../shared/lib/page-size-preference';
 import { exportReportWorkbookToDownload } from '../../../../shared/lib/report-excel';
 import {
   displayCurrencyCode,
@@ -40,9 +41,11 @@ import {
   ScenarioManagerBar,
   type SortableColumn,
 } from '../common/AnalyticsPrimitives';
+import { useAnalyticsCollapsedSections } from '../../model/analytics-collapsed-sections';
 
 export interface AccountingReportsViewProps {
   financeOverview: FinanceOverview;
+  currentEmployeeId?: string | null;
 }
 
 const PERIOD_KEYS: BoundedReportPeriod[] = [
@@ -58,8 +61,11 @@ const PERIOD_KEYS: BoundedReportPeriod[] = [
 
 export const AccountingReportsView: React.FC<AccountingReportsViewProps> = ({
   financeOverview,
+  currentEmployeeId,
 }) => {
   const { t } = useTranslation();
+  const { isSectionCollapsed, setSectionCollapsed } =
+    useAnalyticsCollapsedSections(currentEmployeeId);
 
   // Period & filters (initial = last30)
   const [period, setPeriod] = useState<BoundedReportPeriod>('last30');
@@ -70,6 +76,7 @@ export const AccountingReportsView: React.FC<AccountingReportsViewProps> = ({
   const [txTypeFilter, setTxTypeFilter] = useState<'all' | 'deposit' | 'withdraw' | 'transfer'>('all');
   const [txSearch, setTxSearch] = useState('');
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useStoredPageSize('accountingInformation');
   const [sortBy, setSortBy] = useState('transactionDate');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
 
@@ -153,7 +160,7 @@ export const AccountingReportsView: React.FC<AccountingReportsViewProps> = ({
     type: txTypeFilter,
     q: txSearch.trim() || undefined,
     page,
-    pageSize: 25,
+    pageSize,
     sortBy,
     sortDir,
   });
@@ -834,10 +841,16 @@ export const AccountingReportsView: React.FC<AccountingReportsViewProps> = ({
 
             <div className="report-two-col-grid">
               <AnalyticsSectionCard
+                id="accounting-information-daily-trend"
                 title={t('accounting.reports.sections.dailyTrend', {
                   currency: currencyLabel,
                 })}
                 subtitle={t('accounting.reports.sections.dailyTrendSubtitle')}
+                collapsible={true}
+                isCollapsed={isSectionCollapsed('accounting-information-daily-trend')}
+                onCollapsedChange={(collapsed) =>
+                  setSectionCollapsed('accounting-information-daily-trend', collapsed)
+                }
               >
                 <AnalyticsTrendChart
                   points={currencyBucket.trend}
@@ -866,10 +879,16 @@ export const AccountingReportsView: React.FC<AccountingReportsViewProps> = ({
               </AnalyticsSectionCard>
 
               <AnalyticsSectionCard
+                id="accounting-information-cashbox-balances"
                 title={t('accounting.reports.sections.balancesByCashbox', {
                   currency: currencyLabel,
                 })}
                 subtitle={t('accounting.reports.sections.balancesSubtitle')}
+                collapsible={true}
+                isCollapsed={isSectionCollapsed('accounting-information-cashbox-balances')}
+                onCollapsedChange={(collapsed) =>
+                  setSectionCollapsed('accounting-information-cashbox-balances', collapsed)
+                }
               >
                 <AnalyticsInteractiveBars
                   selectedId={cashboxId || null}
@@ -889,6 +908,7 @@ export const AccountingReportsView: React.FC<AccountingReportsViewProps> = ({
             </div>
 
             <AnalyticsSectionCard
+              id="accounting-information-reconciliation"
               title={t('accounting.reports.sections.reconciliation', {
                 currency: currencyLabel,
               })}
@@ -905,6 +925,11 @@ export const AccountingReportsView: React.FC<AccountingReportsViewProps> = ({
                     })
                   : t('accounting.reports.sections.reconUnavailable')
               }
+              collapsible={true}
+              isCollapsed={isSectionCollapsed('accounting-information-reconciliation')}
+              onCollapsedChange={(collapsed) =>
+                setSectionCollapsed('accounting-information-reconciliation', collapsed)
+              }
             >
               <AnalyticsSortableTable
                 columns={reconColumns}
@@ -914,6 +939,7 @@ export const AccountingReportsView: React.FC<AccountingReportsViewProps> = ({
             </AnalyticsSectionCard>
 
             <AnalyticsSectionCard
+              id="accounting-information-cashflow-projection"
               title={t('accounting.reports.sections.forecastTitle', {
                 currency: currencyLabel,
               })}
@@ -937,6 +963,11 @@ export const AccountingReportsView: React.FC<AccountingReportsViewProps> = ({
                 <span className="report-estimate-pill">
                   {t('accounting.reports.sections.estimateOnly')}
                 </span>
+              }
+              collapsible={true}
+              isCollapsed={isSectionCollapsed('accounting-information-cashflow-projection')}
+              onCollapsedChange={(collapsed) =>
+                setSectionCollapsed('accounting-information-cashflow-projection', collapsed)
               }
             >
               <ScenarioManagerBar
@@ -1378,6 +1409,7 @@ export const AccountingReportsView: React.FC<AccountingReportsViewProps> = ({
         )}
 
         <AnalyticsSectionCard
+          id="accounting-information-transactions-drill-down"
           title={t('accounting.reports.sections.drillDown', {
             currency: currencyLabel,
           })}
@@ -1387,6 +1419,11 @@ export const AccountingReportsView: React.FC<AccountingReportsViewProps> = ({
                   count: detailsQuery.data.total,
                 })
               : undefined
+          }
+          collapsible={true}
+          isCollapsed={isSectionCollapsed('accounting-information-transactions-drill-down')}
+          onCollapsedChange={(collapsed) =>
+            setSectionCollapsed('accounting-information-transactions-drill-down', collapsed)
           }
         >
           <AnalyticsSortableTable
@@ -1409,9 +1446,13 @@ export const AccountingReportsView: React.FC<AccountingReportsViewProps> = ({
                 : null
             }
             page={detailsQuery.data?.page ?? page}
-            pageSize={detailsQuery.data?.pageSize ?? 25}
+            pageSize={pageSize}
             total={detailsQuery.data?.total ?? 0}
             onPageChange={setPage}
+            onPageSizeChange={(nextSize) => {
+              setPageSize(nextSize);
+              setPage(1);
+            }}
           />
         </AnalyticsSectionCard>
       </div>

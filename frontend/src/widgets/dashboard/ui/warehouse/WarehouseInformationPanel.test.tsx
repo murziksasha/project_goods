@@ -342,4 +342,74 @@ describe('WarehouseInformationPanel', () => {
     expect(screen.getByLabelText('Приватні збережені сценарії')).toBeTruthy();
     expect(screen.getByText('Зберегти новий')).toBeTruthy();
   });
+
+  it('renders all 5 warehouse section headers as toggle buttons and supports independent collapse per employee', async () => {
+    window.localStorage.clear();
+    await i18n.changeLanguage('en');
+
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <I18nextProvider i18n={i18n}>
+          <WarehouseInformationPanel
+            products={[product()]}
+            sales={[]}
+            warehouses={warehouses}
+            supplierOrders={supplierOrders}
+            currentEmployeeId="emp-wh-test"
+          />
+        </I18nextProvider>
+      </QueryClientProvider>,
+    );
+
+    // All 5 section headers are toggle buttons
+    const agingBtn = screen.getByRole('button', {
+      name: /^Inventory Aging Buckets/i,
+    });
+    const supplierBtn = screen.getByRole('button', {
+      name: /^Supplier Distribution/i,
+    });
+    const locationBtn = screen.getByRole('button', {
+      name: /^Location Distribution/i,
+    });
+    const forecastBtn = screen.getByRole('button', {
+      name: /^Inventory Forecasting & Reorder Suggestions/i,
+    });
+    const stockBtn = screen.getByRole('button', {
+      name: /^Stock Records Drill-Down/i,
+    });
+
+    expect(agingBtn).toHaveAttribute('aria-expanded', 'true');
+    expect(supplierBtn).toHaveAttribute('aria-expanded', 'true');
+    expect(locationBtn).toHaveAttribute('aria-expanded', 'true');
+    expect(forecastBtn).toHaveAttribute('aria-expanded', 'true');
+    expect(stockBtn).toHaveAttribute('aria-expanded', 'true');
+
+    // Collapse Aging Buckets
+    fireEvent.click(agingBtn);
+    expect(agingBtn).toHaveAttribute('aria-expanded', 'false');
+    // Subtitle is hidden
+    expect(
+      screen.queryByText(/Click any bucket to filter stock details below/i),
+    ).not.toBeInTheDocument();
+
+    // Other 4 sections remain expanded
+    expect(supplierBtn).toHaveAttribute('aria-expanded', 'true');
+    expect(locationBtn).toHaveAttribute('aria-expanded', 'true');
+    expect(forecastBtn).toHaveAttribute('aria-expanded', 'true');
+    expect(stockBtn).toHaveAttribute('aria-expanded', 'true');
+
+    // Collapse Forecast
+    fireEvent.click(forecastBtn);
+    expect(forecastBtn).toHaveAttribute('aria-expanded', 'false');
+    expect(supplierBtn).toHaveAttribute('aria-expanded', 'true');
+
+    // Verify localStorage has persisted both collapsed sections for this employee
+    const rawStored = window.localStorage.getItem(
+      'project-goods.analytics-collapsed-sections.emp-wh-test',
+    );
+    expect(JSON.parse(rawStored || '[]')).toEqual([
+      'warehouse-aging-buckets',
+      'warehouse-forecast-reorder',
+    ]);
+  });
 });

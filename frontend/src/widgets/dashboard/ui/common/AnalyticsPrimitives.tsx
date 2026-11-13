@@ -1,7 +1,8 @@
-import { useMemo, useState } from 'react';
+import { useId, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { ScenarioRecord } from '../../../../entities/scenario';
+import { PaginationPanel } from '../../../../shared/ui/PaginationPanel';
 
 export interface AnalyticsComparisonBadgeProps {
   deltaPct: number | null | undefined;
@@ -102,27 +103,131 @@ export const AnalyticsCoverageBanner: React.FC<AnalyticsCoverageBannerProps> = (
 export interface AnalyticsSectionCardProps {
   title: string;
   subtitle?: string;
+  eyebrow?: ReactNode;
   actions?: ReactNode;
   children: ReactNode;
+  collapsible?: boolean;
+  isCollapsed?: boolean;
+  onCollapsedChange?: (collapsed: boolean) => void;
+  id?: string;
+  variant?: 'default' | 'finance';
+  className?: string;
 }
 
 export const AnalyticsSectionCard: React.FC<AnalyticsSectionCardProps> = ({
   title,
   subtitle,
+  eyebrow,
   actions,
   children,
-}) => (
-  <section className="report-section-card">
-    <div className="report-section-card-head">
-      <div>
-        <h3>{title}</h3>
-        {subtitle ? <p className="report-section-card-subtitle">{subtitle}</p> : null}
+  collapsible = false,
+  isCollapsed = false,
+  onCollapsedChange,
+  id,
+  variant = 'default',
+  className,
+}) => {
+  const generatedId = useId();
+  const contentId = id ? `${id}-content` : `section-content-${generatedId}`;
+  const isFinance = variant === 'finance';
+
+  const rootClass = isFinance
+    ? `finance-info-panel ${collapsible ? 'is-collapsible' : ''} ${
+        collapsible && isCollapsed ? 'is-collapsed' : ''
+      } ${className ?? ''}`.trim()
+    : `report-section-card ${collapsible ? 'is-collapsible' : ''} ${
+        collapsible && isCollapsed ? 'is-collapsed' : ''
+      } ${className ?? ''}`.trim();
+
+  const headerClass = isFinance
+    ? 'analytics-panel-header'
+    : 'report-section-card-head';
+
+  const actionsClass = isFinance
+    ? 'analytics-panel-actions'
+    : 'report-upgrade-actions';
+
+  return (
+    <section className={rootClass}>
+      <div className={headerClass}>
+        <div>
+          {eyebrow ? (
+            <p
+              className="section-label"
+              hidden={collapsible && isCollapsed ? true : undefined}
+            >
+              {eyebrow}
+            </p>
+          ) : null}
+          <h3>
+            {collapsible ? (
+              <button
+                type="button"
+                className="report-section-toggle-btn"
+                aria-expanded={!isCollapsed}
+                aria-controls={contentId}
+                onClick={() => onCollapsedChange?.(!isCollapsed)}
+              >
+                <span className="report-section-title-text">{title}</span>
+                <span
+                  className={`report-section-chevron ${
+                    isCollapsed ? 'is-collapsed' : ''
+                  }`}
+                  aria-hidden="true"
+                >
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 16 16"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path
+                      d="M4 6L8 10L12 6"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                </span>
+              </button>
+            ) : (
+              title
+            )}
+          </h3>
+          {subtitle ? (
+            <p
+              className="report-section-card-subtitle"
+              hidden={collapsible && isCollapsed ? true : undefined}
+            >
+              {subtitle}
+            </p>
+          ) : null}
+        </div>
+        {actions ? (
+          <div
+            className={actionsClass}
+            hidden={collapsible && isCollapsed ? true : undefined}
+          >
+            {actions}
+          </div>
+        ) : null}
       </div>
-      {actions ? <div className="report-upgrade-actions">{actions}</div> : null}
-    </div>
-    {children}
-  </section>
-);
+      {collapsible ? (
+        <div
+          id={contentId}
+          className="report-section-card-body"
+          hidden={isCollapsed}
+        >
+          {children}
+        </div>
+      ) : (
+        children
+      )}
+    </section>
+  );
+};
 
 export type InteractiveBarItem = {
   id: string;
@@ -406,6 +511,8 @@ export interface AnalyticsSortableTableProps<Row> {
   pageSize?: number;
   total?: number;
   onPageChange?: (nextPage: number) => void;
+  onPageSizeChange?: (nextPageSize: number) => void;
+  pageSizeOptions?: number[];
 }
 
 export const AnalyticsSortableTable = <Row,>({
@@ -422,6 +529,8 @@ export const AnalyticsSortableTable = <Row,>({
   pageSize,
   total,
   onPageChange,
+  onPageSizeChange,
+  pageSizeOptions,
 }: AnalyticsSortableTableProps<Row>) => {
   const { t } = useTranslation();
   const resolvedEmpty = emptyText ?? t('analytics.primitives.noMatchingRecords');
@@ -474,9 +583,6 @@ export const AnalyticsSortableTable = <Row,>({
   if (sortedRows.length === 0) {
     return <div className="report-state-box">{resolvedEmpty}</div>;
   }
-
-  const totalPages =
-    total !== undefined && pageSize ? Math.max(1, Math.ceil(total / pageSize)) : 1;
 
   return (
     <div style={{ display: 'grid', gap: 10 }}>
@@ -533,37 +639,19 @@ export const AnalyticsSortableTable = <Row,>({
         </table>
       </div>
 
-      {page !== undefined && pageSize !== undefined && total !== undefined && onPageChange ? (
-        <div className="report-pagination-bar">
-          <span>
-            {t('analytics.primitives.showingRange', {
-              from: (page - 1) * pageSize + 1,
-              to: Math.min(page * pageSize, total),
-              total,
-            })}
-          </span>
-          <div className="report-pagination-controls">
-            <button
-              type="button"
-              className="secondary-button"
-              disabled={page <= 1}
-              onClick={() => onPageChange(page - 1)}
-            >
-              {t('analytics.primitives.prev')}
-            </button>
-            <span>
-              {t('analytics.primitives.pageOf', { page, totalPages })}
-            </span>
-            <button
-              type="button"
-              className="secondary-button"
-              disabled={page >= totalPages}
-              onClick={() => onPageChange(page + 1)}
-            >
-              {t('analytics.primitives.next')}
-            </button>
-          </div>
-        </div>
+      {page !== undefined &&
+      pageSize !== undefined &&
+      total !== undefined &&
+      onPageChange !== undefined &&
+      onPageSizeChange !== undefined ? (
+        <PaginationPanel
+          totalItems={total}
+          page={page}
+          pageSize={pageSize}
+          onPageChange={onPageChange}
+          onPageSizeChange={onPageSizeChange}
+          pageSizeOptions={pageSizeOptions}
+        />
       ) : null}
     </div>
   );

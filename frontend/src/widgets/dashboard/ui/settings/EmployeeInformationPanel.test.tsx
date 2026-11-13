@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { I18nextProvider } from 'react-i18next';
 import { afterEach, describe, expect, it } from 'vitest';
 import type { Employee } from '../../../../entities/employee';
@@ -100,5 +100,104 @@ describe('EmployeeInformationPanel', () => {
     expect(screen.getByRole('button', { name: 'Whole' })).toHaveClass(
       'period-button-active',
     );
+  });
+
+  it('renders Top Performers and Top 3 as independent collapsible sections with persistence and isolation', () => {
+    window.localStorage.clear();
+
+    render(
+      <I18nextProvider i18n={i18n}>
+        <EmployeeInformationPanel
+          employees={[activeEmployee]}
+          sales={[]}
+          currentEmployeeId="emp-1"
+        />
+      </I18nextProvider>,
+    );
+
+    // 1. Both headers are accessible as buttons and open by default
+    const performersBtn = screen.getByRole('button', {
+      name: /Top Performers/i,
+    });
+    const topThreeBtn = screen.getByRole('button', {
+      name: /Top 3/i,
+    });
+    expect(performersBtn).toHaveAttribute('aria-expanded', 'true');
+    expect(performersBtn).toHaveAttribute(
+      'aria-controls',
+      'employees-top-performers-content',
+    );
+    expect(topThreeBtn).toHaveAttribute('aria-expanded', 'true');
+    expect(topThreeBtn).toHaveAttribute(
+      'aria-controls',
+      'employees-top-three-content',
+    );
+
+    const performersContent = document.getElementById(
+      'employees-top-performers-content',
+    );
+    const topThreeContent = document.getElementById(
+      'employees-top-three-content',
+    );
+    expect(performersContent).not.toHaveAttribute('hidden');
+    expect(topThreeContent).not.toHaveAttribute('hidden');
+
+    // 2. Mouse click collapses Top Performers independently
+    fireEvent.click(performersBtn);
+    expect(performersBtn).toHaveAttribute('aria-expanded', 'false');
+    expect(performersContent).toHaveAttribute('hidden');
+    // Sibling card remains open
+    expect(topThreeBtn).toHaveAttribute('aria-expanded', 'true');
+    expect(topThreeContent).not.toHaveAttribute('hidden');
+
+    // 3. Space key collapses Top 3
+    fireEvent.keyDown(topThreeBtn, { key: ' ', code: 'Space' });
+    fireEvent.click(topThreeBtn);
+    expect(topThreeBtn).toHaveAttribute('aria-expanded', 'false');
+    expect(topThreeContent).toHaveAttribute('hidden');
+
+    // 4. Enter key re-expands Top 3
+    fireEvent.keyDown(topThreeBtn, { key: 'Enter', code: 'Enter' });
+    fireEvent.click(topThreeBtn);
+    expect(topThreeBtn).toHaveAttribute('aria-expanded', 'true');
+    expect(topThreeContent).not.toHaveAttribute('hidden');
+
+    // 5. Switching Employee view retains collapse state
+    const salesViewBtn = screen.getByRole('button', { name: 'Sales' });
+    fireEvent.click(salesViewBtn);
+    const performersBtnInSales = screen.getByRole('button', {
+      name: /Top Performers/i,
+    });
+    expect(performersBtnInSales).toHaveAttribute('aria-expanded', 'false');
+
+    // 6. Remount preserves collapsed state for emp-1
+    cleanup();
+    render(
+      <I18nextProvider i18n={i18n}>
+        <EmployeeInformationPanel
+          employees={[activeEmployee]}
+          sales={[]}
+          currentEmployeeId="emp-1"
+        />
+      </I18nextProvider>,
+    );
+    expect(
+      screen.getByRole('button', { name: /Top Performers/i }),
+    ).toHaveAttribute('aria-expanded', 'false');
+
+    // 7. Isolation for emp-2 (defaults to expanded)
+    cleanup();
+    render(
+      <I18nextProvider i18n={i18n}>
+        <EmployeeInformationPanel
+          employees={[activeEmployee]}
+          sales={[]}
+          currentEmployeeId="emp-2"
+        />
+      </I18nextProvider>,
+    );
+    expect(
+      screen.getByRole('button', { name: /Top Performers/i }),
+    ).toHaveAttribute('aria-expanded', 'true');
   });
 });
