@@ -273,4 +273,151 @@ describe('OrdersInformationWorkspace', () => {
     expect(screen.getByText('Групи давності відкритих ремонтів')).toBeInTheDocument();
     expect(screen.getByText('Деталізація ремонтів')).toBeInTheDocument();
   });
+
+  it('renders PaginationPanel for repair detail drill-down and supports page size changing', () => {
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <I18nextProvider i18n={i18n}>
+          <OrdersInformationWorkspace
+            activeTab="supplierInformation"
+            visibleTabs={['orders', 'sales', 'supplierOrders', 'supplierInformation']}
+            onActiveTabChange={vi.fn()}
+            employees={[]}
+            canViewRepairs
+            canViewSales
+            canViewProcurement
+            onOpenSaleCard={vi.fn()}
+          />
+        </I18nextProvider>
+      </QueryClientProvider>,
+    );
+
+    const select = screen.getByRole('combobox', { name: /Rows per page/i });
+    expect(select).toBeInTheDocument();
+    expect(select).toHaveValue('30');
+    expect(screen.getByText(/1 records/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '1' })).toBeInTheDocument();
+
+    fireEvent.change(select, { target: { value: '50' } });
+    expect(select).toHaveValue('50');
+  });
+
+  it('renders all section headers as toggle buttons and supports independent collapse across subviews', () => {
+    window.localStorage.clear();
+    const queryClient = new QueryClient();
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <I18nextProvider i18n={i18n}>
+          <OrdersInformationWorkspace
+            activeTab="supplierInformation"
+            visibleTabs={['orders', 'sales', 'supplierOrders', 'supplierInformation']}
+            onActiveTabChange={vi.fn()}
+            employees={[]}
+            currentEmployeeId="emp-info-test"
+            canViewRepairs
+            canViewSales
+            canViewProcurement
+            onOpenSaleCard={vi.fn()}
+          />
+        </I18nextProvider>
+      </QueryClientProvider>,
+    );
+
+    // Repairs subview (default): 5 section headers are toggle buttons
+    const agingBtn = screen.getByRole('button', {
+      name: /Open Aging Buckets/i,
+    });
+    const statusBtn = screen.getByRole('button', {
+      name: /Workload by Status/i,
+    });
+    const techBtn = screen.getByRole('button', {
+      name: /Technician Open Load/i,
+    });
+    const trendBtn = screen.getByRole('button', {
+      name: /Structured Completion Trend/i,
+    });
+    const drillBtn = screen.getByRole('button', {
+      name: /Repairs Drill-Down/i,
+    });
+
+    expect(agingBtn).toHaveAttribute('aria-expanded', 'true');
+    expect(statusBtn).toHaveAttribute('aria-expanded', 'true');
+    expect(techBtn).toHaveAttribute('aria-expanded', 'true');
+    expect(trendBtn).toHaveAttribute('aria-expanded', 'true');
+    expect(drillBtn).toHaveAttribute('aria-expanded', 'true');
+
+    // Collapse Aging Buckets
+    fireEvent.click(agingBtn);
+    expect(agingBtn).toHaveAttribute('aria-expanded', 'false');
+    // Subtitle is hidden
+    expect(
+      screen.queryByText(/Unresolved repairs grouped by elapsed days/i),
+    ).not.toBeInTheDocument();
+    // Other sections remain expanded
+    expect(statusBtn).toHaveAttribute('aria-expanded', 'true');
+    expect(techBtn).toHaveAttribute('aria-expanded', 'true');
+
+    const subviews = within(
+      screen.getByLabelText('Orders analytics views'),
+    );
+
+    // Switch to Sales subview
+    fireEvent.click(subviews.getByRole('tab', { name: 'Sales' }));
+
+    // Sales subview: 4 section headers are toggle buttons
+    const revTrendBtn = screen.getByRole('button', {
+      name: /^Revenue Trend/i,
+    });
+    const salesStatusBtn = screen.getByRole('button', {
+      name: /^By Order Status/i,
+    });
+    const topItemsBtn = screen.getByRole('button', {
+      name: /^Top Products & Services/i,
+    });
+    const salesDrillBtn = screen.getByRole('button', {
+      name: /^Sales Orders Drill-Down/i,
+    });
+
+    expect(revTrendBtn).toHaveAttribute('aria-expanded', 'true');
+    expect(salesStatusBtn).toHaveAttribute('aria-expanded', 'true');
+    expect(topItemsBtn).toHaveAttribute('aria-expanded', 'true');
+    expect(salesDrillBtn).toHaveAttribute('aria-expanded', 'true');
+
+    // Collapse Revenue Trend
+    fireEvent.click(revTrendBtn);
+    expect(revTrendBtn).toHaveAttribute('aria-expanded', 'false');
+    expect(salesStatusBtn).toHaveAttribute('aria-expanded', 'true');
+
+    // Switch to Procurement subview
+    fireEvent.click(subviews.getByRole('tab', { name: 'Procurement' }));
+
+    // Procurement subview: 5 section headers are toggle buttons
+    const procTrendBtn = screen.getByRole('button', {
+      name: /Procurement Spend & Payments Trend/i,
+    });
+    const procSpendBtn = screen.getByRole('button', {
+      name: /^Spend by Supplier/i,
+    });
+    const procCompBtn = screen.getByRole('button', {
+      name: /^Supplier Comparison/i,
+    });
+    const procPriceBtn = screen.getByRole('button', {
+      name: /Product Purchase-Price Variation/i,
+    });
+    const procDrillBtn = screen.getByRole('button', {
+      name: /^Supplier Orders Drill-Down/i,
+    });
+
+    expect(procTrendBtn).toHaveAttribute('aria-expanded', 'true');
+    expect(procSpendBtn).toHaveAttribute('aria-expanded', 'true');
+    expect(procCompBtn).toHaveAttribute('aria-expanded', 'true');
+    expect(procPriceBtn).toHaveAttribute('aria-expanded', 'true');
+    expect(procDrillBtn).toHaveAttribute('aria-expanded', 'true');
+
+    // Collapse Spend by Supplier
+    fireEvent.click(procSpendBtn);
+    expect(procSpendBtn).toHaveAttribute('aria-expanded', 'false');
+    expect(procTrendBtn).toHaveAttribute('aria-expanded', 'true');
+  });
 });

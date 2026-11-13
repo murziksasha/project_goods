@@ -113,6 +113,7 @@ export const EmployeesPanel: React.FC<EmployeesPanelProps> = ({
           employees={employees}
           sales={sales}
           isLoading={isSalesLoading}
+          currentEmployeeId={currentEmployeeId}
         />
       )}
     </section>

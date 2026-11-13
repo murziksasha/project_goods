@@ -18,6 +18,7 @@ import {
   useUpdateScenarioMutation,
 } from '../../../../entities/scenario';
 import { formatDate } from '../../../../shared/lib/format';
+import { useStoredPageSize } from '../../../../shared/lib/page-size-preference';
 import { exportReportWorkbookToDownload } from '../../../../shared/lib/report-excel';
 import { formatMoney } from '../../model/accounting';
 import {
@@ -117,6 +118,30 @@ export const OrdersReportsWorkspace: React.FC<OrdersReportsWorkspaceProps> = ({
     ? settings.kind
     : (availableKinds[0] ?? 'repairs');
 
+  const [repairsPageSize, setRepairsPageSize] = useStoredPageSize(
+    'ordersReportsRepairs',
+  );
+  const [salesPageSize, setSalesPageSize] = useStoredPageSize(
+    'ordersReportsSales',
+  );
+  const [procPageSize, setProcPageSize] = useStoredPageSize(
+    'ordersReportsProcurement',
+  );
+
+  const pageSize =
+    kind === 'sales'
+      ? salesPageSize
+      : kind === 'procurement'
+        ? procPageSize
+        : repairsPageSize;
+
+  const setPageSize =
+    kind === 'sales'
+      ? setSalesPageSize
+      : kind === 'procurement'
+        ? setProcPageSize
+        : setRepairsPageSize;
+
   useEffect(() => {
     if (availableKinds.length > 0 && !availableKinds.includes(settings.kind)) {
       setSettings((prev) => ({
@@ -168,11 +193,11 @@ export const OrdersReportsWorkspace: React.FC<OrdersReportsWorkspaceProps> = ({
       sortBy: settings.sortBy,
       sortDir: settings.sortDir,
       page,
-      pageSize: settings.pageSize,
+      pageSize,
       mode: settings.mode,
       groupBy: settings.groupBy.length > 0 ? settings.groupBy.join(',') : undefined,
     }),
-    [settings, page],
+    [settings, page, pageSize],
   );
 
   const enabled =
@@ -978,9 +1003,13 @@ export const OrdersReportsWorkspace: React.FC<OrdersReportsWorkspaceProps> = ({
             error={tableQuery.error instanceof Error ? tableQuery.error.message : null}
             emptyText={t('orders.reports.empty')}
             page={page}
-            pageSize={settings.pageSize}
+            pageSize={pageSize}
             total={report?.total}
             onPageChange={setPage}
+            onPageSizeChange={(nextSize) => {
+              setPageSize(nextSize);
+              setPage(1);
+            }}
           />
         )}
 
