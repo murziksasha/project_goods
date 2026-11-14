@@ -23,6 +23,7 @@ Related: [ORDER_CARD.md](./ORDER_CARD.md) · [SALE_FLOW.md](./SALE_FLOW.md) · [
 - Mid-form `Create new` for a client device requires an already existing/selected client. For a brand-new client, the client device is created on save together with the order when needed.
 - Client phone is the primary unique client key and is normalized before save (for example `063...` and `+38063...` resolve to the same client phone). If uniqueness fails, order creation is rejected.
 - In right sidebar block `Client requests`, request number (`recordNumber`) is a link to the exact order/sale card.
+- Display the request or sale date (`saleDate`) immediately after the number as plain text in the application's date format.
 - Clicking request number opens a new browser tab/window (`target="_blank"`).
 - The opened URL must include `page=orders`, proper `ordersTab` (`orders` for repair, `sales` for sale), and `saleId=<id>` so the exact card opens immediately.
 
