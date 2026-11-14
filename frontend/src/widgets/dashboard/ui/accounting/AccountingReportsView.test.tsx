@@ -266,4 +266,131 @@ describe('AccountingReportsView (Cashboxes Information)', () => {
     fireEvent.click(screen.getByRole('tab', { name: 'USD' }));
     expect(screen.getByText('Поточний залишок (USD)')).toBeInTheDocument();
   });
+
+  it('renders all 5 Accounting Information sections as collapsible cards with persistence, currency retention and isolation', async () => {
+    await i18n.changeLanguage('en');
+    window.localStorage.clear();
+
+    const renderView = (employeeId?: string | null) =>
+      render(
+        <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+          <I18nextProvider i18n={i18n}>
+            <AccountingReportsView
+              financeOverview={emptyOverview}
+              currentEmployeeId={employeeId}
+            />
+          </I18nextProvider>
+        </QueryClientProvider>,
+      );
+
+    const { unmount } = renderView('emp-acc-1');
+
+    // 1. All 5 section headings are available as buttons and open by default
+    const dailyTrendBtn = screen.getByRole('button', {
+      name: /Daily Cashflow Trend/i,
+    });
+    const cashboxBalancesBtn = screen.getByRole('button', {
+      name: /Balances by Cashbox/i,
+    });
+    const reconBtn = screen.getByRole('button', {
+      name: /Reconciliation/i,
+    });
+    const projectionBtn = screen.getByRole('button', {
+      name: /Cashflow Scenario Projection/i,
+    });
+    const drillDownBtn = screen.getByRole('button', {
+      name: /Transactions Drill-Down/i,
+    });
+
+    expect(dailyTrendBtn).toHaveAttribute('aria-expanded', 'true');
+    expect(dailyTrendBtn).toHaveAttribute(
+      'aria-controls',
+      'accounting-information-daily-trend-content',
+    );
+    expect(cashboxBalancesBtn).toHaveAttribute('aria-expanded', 'true');
+    expect(cashboxBalancesBtn).toHaveAttribute(
+      'aria-controls',
+      'accounting-information-cashbox-balances-content',
+    );
+    expect(reconBtn).toHaveAttribute('aria-expanded', 'true');
+    expect(reconBtn).toHaveAttribute(
+      'aria-controls',
+      'accounting-information-reconciliation-content',
+    );
+    expect(projectionBtn).toHaveAttribute('aria-expanded', 'true');
+    expect(projectionBtn).toHaveAttribute(
+      'aria-controls',
+      'accounting-information-cashflow-projection-content',
+    );
+    expect(drillDownBtn).toHaveAttribute('aria-expanded', 'true');
+    expect(drillDownBtn).toHaveAttribute(
+      'aria-controls',
+      'accounting-information-transactions-drill-down-content',
+    );
+
+    // Contents are not hidden by default
+    const projectionContent = document.getElementById(
+      'accounting-information-cashflow-projection-content',
+    );
+    expect(projectionContent).not.toHaveAttribute('hidden');
+    expect(screen.getByText(/Projected Balance/i)).toBeInTheDocument();
+
+    // 2. Mouse click collapses Cashflow Scenario Projection
+    fireEvent.click(projectionBtn);
+    expect(projectionBtn).toHaveAttribute('aria-expanded', 'false');
+    expect(projectionContent).toHaveAttribute('hidden');
+    // Whole scenario together with Projected balance is inside the hidden container
+    expect(projectionContent).toContainElement(
+      screen.getByText(/Projected Balance/i),
+    );
+
+    // 3. Space key collapses Daily Trend
+    const dailyTrendContent = document.getElementById(
+      'accounting-information-daily-trend-content',
+    );
+    fireEvent.keyDown(dailyTrendBtn, { key: ' ', code: 'Space' });
+    fireEvent.click(dailyTrendBtn);
+    expect(dailyTrendBtn).toHaveAttribute('aria-expanded', 'false');
+    expect(dailyTrendContent).toHaveAttribute('hidden');
+
+    // 4. Enter key collapses and re-expands Reconciliation
+    const reconContent = document.getElementById(
+      'accounting-information-reconciliation-content',
+    );
+    fireEvent.keyDown(reconBtn, { key: 'Enter', code: 'Enter' });
+    fireEvent.click(reconBtn);
+    expect(reconBtn).toHaveAttribute('aria-expanded', 'false');
+    expect(reconContent).toHaveAttribute('hidden');
+
+    fireEvent.keyDown(reconBtn, { key: 'Enter', code: 'Enter' });
+    fireEvent.click(reconBtn);
+    expect(reconBtn).toHaveAttribute('aria-expanded', 'true');
+    expect(reconContent).not.toHaveAttribute('hidden');
+
+    // 5. Switching currency preserves collapse state
+    fireEvent.click(screen.getByRole('tab', { name: 'USD' }));
+    expect(
+      screen.getByRole('button', { name: /Cashflow Scenario Projection/i }),
+    ).toHaveAttribute('aria-expanded', 'false');
+    expect(
+      screen.getByRole('button', { name: /Daily Cashflow Trend/i }),
+    ).toHaveAttribute('aria-expanded', 'false');
+
+    // 6. Remount preserves state for emp-acc-1
+    unmount();
+    const { unmount: unmount2 } = renderView('emp-acc-1');
+    expect(
+      screen.getByRole('button', { name: /Cashflow Scenario Projection/i }),
+    ).toHaveAttribute('aria-expanded', 'false');
+
+    // 7. Isolation for emp-acc-2 (all open by default)
+    unmount2();
+    renderView('emp-acc-2');
+    expect(
+      screen.getByRole('button', { name: /Cashflow Scenario Projection/i }),
+    ).toHaveAttribute('aria-expanded', 'true');
+    expect(
+      screen.getByRole('button', { name: /Daily Cashflow Trend/i }),
+    ).toHaveAttribute('aria-expanded', 'true');
+  });
 });

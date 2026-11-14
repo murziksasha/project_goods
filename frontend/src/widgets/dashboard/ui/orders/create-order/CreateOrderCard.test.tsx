@@ -554,6 +554,8 @@ describe('CreateOrderCard', () => {
 
     expect(screen.getAllByText('USB-C Charger')).toHaveLength(1);
     expect(screen.getByText('S000001')).toBeInTheDocument();
+    expect(screen.getByText('01.01.2026')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'S000001' })).toHaveAttribute('target', '_blank');
     expect(
       document.querySelector('.create-side-requests-list-scrollable'),
     ).toBeNull();
@@ -619,6 +621,7 @@ describe('CreateOrderCard', () => {
         screen.getByText(sale.recordNumber!),
       ).toBeInTheDocument();
     });
+    expect(screen.getAllByText('01.01.2026')).toHaveLength(6);
     expect(
       container.querySelector(
         '.create-side-requests-list-scrollable',

@@ -15,3 +15,4 @@ export * from './ui/weather/MarketWeatherSettingsDrawer';
 export * from './model/accounting';
 export * from './model/print-form-local-overrides';
 export * from './model/stock-receipt-preferences';
+export * from './model/analytics-collapsed-sections';

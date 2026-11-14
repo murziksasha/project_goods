@@ -32,6 +32,8 @@ import {
 } from '../common/AnalyticsPrimitives';
 import { OrdersWorkspaceTabList } from './workspace/OrdersWorkspaceTabList';
 import type { OrdersTab } from './workspace/orders-workspace-shared';
+import { useStoredPageSize } from '../../../../shared/lib/page-size-preference';
+import { useAnalyticsCollapsedSections } from '../../model/analytics-collapsed-sections';
 import {
   ORDERS_INFO_PERIOD_KEYS,
   translateCoverageWarnings,
@@ -54,6 +56,7 @@ export interface OrdersInformationWorkspaceProps {
   onActiveTabChange: (tab: OrdersTab) => void;
   onToggleTabVisibility?: (tab: OrdersTab) => void;
   employees: Employee[];
+  currentEmployeeId?: string | null;
   canViewRepairs: boolean;
   canViewSales: boolean;
   canViewProcurement: boolean;
@@ -72,6 +75,7 @@ export const OrdersInformationWorkspace: React.FC<
   onActiveTabChange,
   onToggleTabVisibility,
   employees,
+  currentEmployeeId,
   canViewRepairs,
   canViewSales,
   canViewProcurement,
@@ -79,6 +83,8 @@ export const OrdersInformationWorkspace: React.FC<
   onOpenSupplierOrderTab,
 }) => {
   const { t } = useTranslation();
+  const { isSectionCollapsed, setSectionCollapsed } =
+    useAnalyticsCollapsedSections(currentEmployeeId);
 
   const availableSubviews = useMemo(() => {
     const list: OrdersInfoSubview[] = [];
@@ -113,6 +119,9 @@ export const OrdersInformationWorkspace: React.FC<
   const [repairAgeBucket, setRepairAgeBucket] = useState('');
   const [repairSearch, setRepairSearch] = useState('');
   const [repairsPage, setRepairsPage] = useState(1);
+  const [repairsPageSize, setRepairsPageSize] = useStoredPageSize(
+    'ordersInformationRepairs',
+  );
   const [repairsSortBy, setRepairsSortBy] = useState('saleDate');
   const [repairsSortDir, setRepairsSortDir] = useState<'asc' | 'desc'>('desc');
 
@@ -121,6 +130,9 @@ export const OrdersInformationWorkspace: React.FC<
   const [salesPaymentMethod, setSalesPaymentMethod] = useState('');
   const [salesSearch, setSalesSearch] = useState('');
   const [salesPage, setSalesPage] = useState(1);
+  const [salesPageSize, setSalesPageSize] = useStoredPageSize(
+    'ordersInformationSales',
+  );
   const [salesSortBy, setSalesSortBy] = useState('saleDate');
   const [salesSortDir, setSalesSortDir] = useState<'asc' | 'desc'>('desc');
 
@@ -129,6 +141,9 @@ export const OrdersInformationWorkspace: React.FC<
   const [procOverdueOnly, setProcOverdueOnly] = useState(false);
   const [procSearch, setProcSearch] = useState('');
   const [procPage, setProcPage] = useState(1);
+  const [procPageSize, setProcPageSize] = useStoredPageSize(
+    'ordersInformationProcurement',
+  );
   const [procSortBy, setProcSortBy] = useState('createdAt');
   const [procSortDir, setProcSortDir] = useState<'asc' | 'desc'>('desc');
 
@@ -170,7 +185,7 @@ export const OrdersInformationWorkspace: React.FC<
     {
       ...repairsParams,
       page: repairsPage,
-      pageSize: 25,
+      pageSize: repairsPageSize,
       sortBy: repairsSortBy,
       sortDir: repairsSortDir,
     },
@@ -195,7 +210,7 @@ export const OrdersInformationWorkspace: React.FC<
     {
       ...salesParams,
       page: salesPage,
-      pageSize: 25,
+      pageSize: salesPageSize,
       sortBy: salesSortBy,
       sortDir: salesSortDir,
     },
@@ -220,7 +235,7 @@ export const OrdersInformationWorkspace: React.FC<
     {
       ...procParams,
       page: procPage,
-      pageSize: 25,
+      pageSize: procPageSize,
       sortBy: procSortBy,
       sortDir: procSortDir,
     },
@@ -1443,6 +1458,17 @@ export const OrdersInformationWorkspace: React.FC<
 
               <div className="report-two-col-grid">
                 <AnalyticsSectionCard
+                  id="orders-repairs-open-aging-buckets"
+                  collapsible={true}
+                  isCollapsed={isSectionCollapsed(
+                    'orders-repairs-open-aging-buckets',
+                  )}
+                  onCollapsedChange={(c) =>
+                    setSectionCollapsed(
+                      'orders-repairs-open-aging-buckets',
+                      c,
+                    )
+                  }
                   title={t('orders.information.sections.openAgingBuckets')}
                   subtitle={t(
                     'orders.information.sections.openAgingBucketsSubtitle',
@@ -1474,6 +1500,17 @@ export const OrdersInformationWorkspace: React.FC<
                 </AnalyticsSectionCard>
 
                 <AnalyticsSectionCard
+                  id="orders-repairs-workload-by-status"
+                  collapsible={true}
+                  isCollapsed={isSectionCollapsed(
+                    'orders-repairs-workload-by-status',
+                  )}
+                  onCollapsedChange={(c) =>
+                    setSectionCollapsed(
+                      'orders-repairs-workload-by-status',
+                      c,
+                    )
+                  }
                   title={t('orders.information.sections.workloadByStatus')}
                   subtitle={t(
                     'orders.information.sections.workloadByStatusSubtitle',
@@ -1497,6 +1534,17 @@ export const OrdersInformationWorkspace: React.FC<
               </div>
 
               <AnalyticsSectionCard
+                id="orders-repairs-tech-load-vs-completions"
+                collapsible={true}
+                isCollapsed={isSectionCollapsed(
+                  'orders-repairs-tech-load-vs-completions',
+                )}
+                onCollapsedChange={(c) =>
+                  setSectionCollapsed(
+                    'orders-repairs-tech-load-vs-completions',
+                    c,
+                  )
+                }
                 title={t('orders.information.sections.techLoadVsCompletions')}
                 subtitle={t(
                   'orders.information.sections.techLoadVsCompletionsSubtitle',
@@ -1536,6 +1584,17 @@ export const OrdersInformationWorkspace: React.FC<
               </AnalyticsSectionCard>
 
               <AnalyticsSectionCard
+                id="orders-repairs-completion-trend"
+                collapsible={true}
+                isCollapsed={isSectionCollapsed(
+                  'orders-repairs-completion-trend',
+                )}
+                onCollapsedChange={(c) =>
+                  setSectionCollapsed(
+                    'orders-repairs-completion-trend',
+                    c,
+                  )
+                }
                 title={t('orders.information.sections.completionTrend')}
                 subtitle={t(
                   'orders.information.sections.completionTrendSubtitle',
@@ -1555,6 +1614,12 @@ export const OrdersInformationWorkspace: React.FC<
               </AnalyticsSectionCard>
 
               <AnalyticsSectionCard
+                id="orders-repairs-drill-down"
+                collapsible={true}
+                isCollapsed={isSectionCollapsed('orders-repairs-drill-down')}
+                onCollapsedChange={(c) =>
+                  setSectionCollapsed('orders-repairs-drill-down', c)
+                }
                 title={t('orders.information.sections.repairsDrillDown')}
               >
                 <AnalyticsSortableTable
@@ -1577,9 +1642,13 @@ export const OrdersInformationWorkspace: React.FC<
                       : null
                   }
                   page={repairsDetailsQuery.data?.page ?? repairsPage}
-                  pageSize={repairsDetailsQuery.data?.pageSize ?? 25}
+                  pageSize={repairsPageSize}
                   total={repairsDetailsQuery.data?.total ?? 0}
                   onPageChange={setRepairsPage}
+                  onPageSizeChange={(nextSize) => {
+                    setRepairsPageSize(nextSize);
+                    setRepairsPage(1);
+                  }}
                 />
               </AnalyticsSectionCard>
             </>
@@ -1676,6 +1745,12 @@ export const OrdersInformationWorkspace: React.FC<
 
               <div className="report-two-col-grid">
                 <AnalyticsSectionCard
+                  id="orders-sales-revenue-trend"
+                  collapsible={true}
+                  isCollapsed={isSectionCollapsed('orders-sales-revenue-trend')}
+                  onCollapsedChange={(c) =>
+                    setSectionCollapsed('orders-sales-revenue-trend', c)
+                  }
                   title={t('orders.information.sections.revenueTrend')}
                   subtitle={t(
                     'orders.information.sections.revenueTrendSubtitle',
@@ -1702,6 +1777,14 @@ export const OrdersInformationWorkspace: React.FC<
                 </AnalyticsSectionCard>
 
                 <AnalyticsSectionCard
+                  id="orders-sales-by-order-status"
+                  collapsible={true}
+                  isCollapsed={isSectionCollapsed(
+                    'orders-sales-by-order-status',
+                  )}
+                  onCollapsedChange={(c) =>
+                    setSectionCollapsed('orders-sales-by-order-status', c)
+                  }
                   title={t('orders.information.sections.byOrderStatus')}
                   subtitle={t(
                     'orders.information.sections.byOrderStatusSubtitle',
@@ -1728,6 +1811,17 @@ export const OrdersInformationWorkspace: React.FC<
               </div>
 
               <AnalyticsSectionCard
+                id="orders-sales-top-products-services"
+                collapsible={true}
+                isCollapsed={isSectionCollapsed(
+                  'orders-sales-top-products-services',
+                )}
+                onCollapsedChange={(c) =>
+                  setSectionCollapsed(
+                    'orders-sales-top-products-services',
+                    c,
+                  )
+                }
                 title={t('orders.information.sections.topProductsServices')}
               >
                 <AnalyticsSortableTable
@@ -1738,6 +1832,12 @@ export const OrdersInformationWorkspace: React.FC<
               </AnalyticsSectionCard>
 
               <AnalyticsSectionCard
+                id="orders-sales-drill-down"
+                collapsible={true}
+                isCollapsed={isSectionCollapsed('orders-sales-drill-down')}
+                onCollapsedChange={(c) =>
+                  setSectionCollapsed('orders-sales-drill-down', c)
+                }
                 title={t('orders.information.sections.salesDrillDown')}
               >
                 <AnalyticsSortableTable
@@ -1760,9 +1860,13 @@ export const OrdersInformationWorkspace: React.FC<
                       : null
                   }
                   page={salesDetailsQuery.data?.page ?? salesPage}
-                  pageSize={salesDetailsQuery.data?.pageSize ?? 25}
+                  pageSize={salesPageSize}
                   total={salesDetailsQuery.data?.total ?? 0}
                   onPageChange={setSalesPage}
+                  onPageSizeChange={(nextSize) => {
+                    setSalesPageSize(nextSize);
+                    setSalesPage(1);
+                  }}
                 />
               </AnalyticsSectionCard>
             </>
@@ -1856,6 +1960,17 @@ export const OrdersInformationWorkspace: React.FC<
 
               <div className="report-two-col-grid">
                 <AnalyticsSectionCard
+                  id="orders-procurement-spend-payments-trend"
+                  collapsible={true}
+                  isCollapsed={isSectionCollapsed(
+                    'orders-procurement-spend-payments-trend',
+                  )}
+                  onCollapsedChange={(c) =>
+                    setSectionCollapsed(
+                      'orders-procurement-spend-payments-trend',
+                      c,
+                    )
+                  }
                   title={t('orders.information.sections.spendPaymentsTrend')}
                   subtitle={t(
                     'orders.information.sections.spendPaymentsTrendSubtitle',
@@ -1882,6 +1997,17 @@ export const OrdersInformationWorkspace: React.FC<
                 </AnalyticsSectionCard>
 
                 <AnalyticsSectionCard
+                  id="orders-procurement-spend-by-supplier"
+                  collapsible={true}
+                  isCollapsed={isSectionCollapsed(
+                    'orders-procurement-spend-by-supplier',
+                  )}
+                  onCollapsedChange={(c) =>
+                    setSectionCollapsed(
+                      'orders-procurement-spend-by-supplier',
+                      c,
+                    )
+                  }
                   title={t('orders.information.sections.spendBySupplier')}
                   subtitle={t(
                     'orders.information.sections.spendBySupplierSubtitle',
@@ -1911,6 +2037,17 @@ export const OrdersInformationWorkspace: React.FC<
 
               <div className="report-two-col-grid">
                 <AnalyticsSectionCard
+                  id="orders-procurement-supplier-comparison"
+                  collapsible={true}
+                  isCollapsed={isSectionCollapsed(
+                    'orders-procurement-supplier-comparison',
+                  )}
+                  onCollapsedChange={(c) =>
+                    setSectionCollapsed(
+                      'orders-procurement-supplier-comparison',
+                      c,
+                    )
+                  }
                   title={t('orders.information.sections.supplierComparison')}
                 >
                   <AnalyticsSortableTable
@@ -1921,6 +2058,17 @@ export const OrdersInformationWorkspace: React.FC<
                 </AnalyticsSectionCard>
 
                 <AnalyticsSectionCard
+                  id="orders-procurement-price-variation"
+                  collapsible={true}
+                  isCollapsed={isSectionCollapsed(
+                    'orders-procurement-price-variation',
+                  )}
+                  onCollapsedChange={(c) =>
+                    setSectionCollapsed(
+                      'orders-procurement-price-variation',
+                      c,
+                    )
+                  }
                   title={t('orders.information.sections.priceVariation')}
                 >
                   <AnalyticsSortableTable
@@ -1932,6 +2080,17 @@ export const OrdersInformationWorkspace: React.FC<
               </div>
 
               <AnalyticsSectionCard
+                id="orders-procurement-supplier-orders-drill-down"
+                collapsible={true}
+                isCollapsed={isSectionCollapsed(
+                  'orders-procurement-supplier-orders-drill-down',
+                )}
+                onCollapsedChange={(c) =>
+                  setSectionCollapsed(
+                    'orders-procurement-supplier-orders-drill-down',
+                    c,
+                  )
+                }
                 title={t('orders.information.sections.supplierOrdersDrillDown')}
               >
                 <AnalyticsSortableTable
@@ -1954,9 +2113,13 @@ export const OrdersInformationWorkspace: React.FC<
                       : null
                   }
                   page={procDetailsQuery.data?.page ?? procPage}
-                  pageSize={procDetailsQuery.data?.pageSize ?? 25}
+                  pageSize={procPageSize}
                   total={procDetailsQuery.data?.total ?? 0}
                   onPageChange={setProcPage}
+                  onPageSizeChange={(nextSize) => {
+                    setProcPageSize(nextSize);
+                    setProcPage(1);
+                  }}
                 />
               </AnalyticsSectionCard>
             </>

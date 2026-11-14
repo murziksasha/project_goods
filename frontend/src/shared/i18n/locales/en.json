@@ -4738,11 +4738,7 @@
       "noTrend": "No trend points in the selected period.",
       "trendChartAria": "Period trend chart",
       "noMatchingRecords": "No matching records found.",
-      "loadingRecords": "Loading records...",
-      "showingRange": "Showing {{from}}–{{to}} of {{total}}",
-      "prev": "Prev",
-      "next": "Next",
-      "pageOf": "Page {{page}} / {{totalPages}}"
+      "loadingRecords": "Loading records..."
     },
     "scenario": {
       "estimateScenario": "Estimate Scenario",

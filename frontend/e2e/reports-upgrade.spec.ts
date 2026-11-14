@@ -810,4 +810,266 @@ test.describe('Upgraded Information Tabs and Cashbox Reports', () => {
     await page.setViewportSize({ width: 390, height: 844 });
     await expect(page.getByRole('heading', { name: 'Reports' })).toBeVisible();
   });
+
+  test('Orders and Warehouse Information support mouse and keyboard section collapse with reload persistence without affecting KPIs or sibling cards', async ({
+    page,
+  }) => {
+    await installReportsMocks(page);
+
+    // 1. Navigate to Orders Information
+    await page.goto('/?page=orders&ordersTab=supplierInformation');
+    await expect(
+      page.getByRole('heading', { name: 'Orders Information & Analytics' }),
+    ).toBeVisible({ timeout: 20_000 });
+
+    // Verify top KPI is visible
+    const openLoadKpi = page.getByText('Current Open Workload');
+    await expect(openLoadKpi).toBeVisible();
+
+    // Verify Open Aging Buckets and Workload by Status section buttons are expanded
+    const agingToggle = page.getByRole('button', {
+      name: 'Open Aging Buckets',
+    });
+    const workloadToggle = page.getByRole('button', {
+      name: 'Workload by Status & Technician',
+    });
+    await expect(agingToggle).toHaveAttribute('aria-expanded', 'true');
+    await expect(workloadToggle).toHaveAttribute('aria-expanded', 'true');
+
+    const agingSubtitle = page.getByText(
+      'Click a bucket to filter repairs below.',
+    );
+    await expect(agingSubtitle).toBeVisible();
+
+    // Mouse collapse: click Open Aging Buckets toggle button
+    await agingToggle.click();
+    await expect(agingToggle).toHaveAttribute('aria-expanded', 'false');
+    await expect(agingSubtitle).not.toBeVisible();
+
+    // Verify KPI and sibling section remain visible and expanded
+    await expect(openLoadKpi).toBeVisible();
+    await expect(workloadToggle).toHaveAttribute('aria-expanded', 'true');
+    await expect(
+      page.getByText('Click a status bar to filter details.'),
+    ).toBeVisible();
+
+    // Keyboard collapse: focus Workload by Status toggle and press Space
+    await workloadToggle.focus();
+    await page.keyboard.press('Space');
+    await expect(workloadToggle).toHaveAttribute('aria-expanded', 'false');
+    await expect(
+      page.getByText('Click a status bar to filter details.'),
+    ).not.toBeVisible();
+
+    // Reload page to verify persistence across page reloads
+    await page.reload();
+    await expect(
+      page.getByRole('heading', { name: 'Orders Information & Analytics' }),
+    ).toBeVisible({ timeout: 20_000 });
+
+    const agingToggleAfterReload = page.getByRole('button', {
+      name: 'Open Aging Buckets',
+    });
+    const workloadToggleAfterReload = page.getByRole('button', {
+      name: 'Workload by Status & Technician',
+    });
+    await expect(agingToggleAfterReload).toHaveAttribute('aria-expanded', 'false');
+    await expect(workloadToggleAfterReload).toHaveAttribute('aria-expanded', 'false');
+    await expect(
+      page.getByText('Click a bucket to filter repairs below.'),
+    ).not.toBeVisible();
+    await expect(openLoadKpi).toBeVisible();
+
+    // Re-expand via mouse click
+    await agingToggleAfterReload.click();
+    await expect(agingToggleAfterReload).toHaveAttribute('aria-expanded', 'true');
+    await expect(
+      page.getByText('Click a bucket to filter repairs below.'),
+    ).toBeVisible();
+
+    // 2. Navigate to Warehouse Information
+    await page.goto('/?page=warehouse');
+    await page.getByRole('button', { name: 'Information' }).click();
+
+    await expect(page.getByText('NVMe 512GB').first()).toBeVisible({
+      timeout: 20_000,
+    });
+
+    // Verify warehouse KPI is visible
+    const whKpi = page.getByText('Total On-Hand Qty');
+    await expect(whKpi).toBeVisible();
+
+    // Collapse Inventory Aging Buckets via keyboard Enter
+    const whAgingToggle = page.getByRole('button', {
+      name: 'Inventory Aging Buckets',
+    });
+    const whSupplierToggle = page.getByRole('button', {
+      name: 'Supplier Distribution',
+    });
+    await expect(whAgingToggle).toHaveAttribute('aria-expanded', 'true');
+    await expect(whSupplierToggle).toHaveAttribute('aria-expanded', 'true');
+
+    await whAgingToggle.focus();
+    await page.keyboard.press('Enter');
+    await expect(whAgingToggle).toHaveAttribute('aria-expanded', 'false');
+    await expect(
+      page.getByText('Click any bucket to filter stock details below'),
+    ).not.toBeVisible();
+
+    // Sibling card Supplier Distribution and KPI remain visible
+    await expect(whSupplierToggle).toHaveAttribute('aria-expanded', 'true');
+    await expect(whKpi).toBeVisible();
+
+    // Reload warehouse page
+    await page.reload();
+    await page.getByRole('button', { name: 'Information' }).click();
+    await expect(page.getByText('NVMe 512GB').first()).toBeVisible({
+      timeout: 20_000,
+    });
+    const whAgingToggleAfterReload = page.getByRole('button', {
+      name: 'Inventory Aging Buckets',
+    });
+    await expect(whAgingToggleAfterReload).toHaveAttribute('aria-expanded', 'false');
+    await expect(
+      page.getByText('Click any bucket to filter stock details below'),
+    ).not.toBeVisible();
+  });
+
+  test('Employees and Accounting sections support prefilled collapsed state, reload persistence, stable grid, and query execution while collapsed', async ({
+    page,
+  }) => {
+    await installReportsMocks(page);
+
+    // 1. Prefill collapsed sections in localStorage for the logged in user
+    await page.addInitScript((empId) => {
+      const key = `project-goods.analytics-collapsed-sections.${empId}`;
+      if (!window.localStorage.getItem(key)) {
+        window.localStorage.setItem(
+          key,
+          JSON.stringify([
+            'employees-top-performers',
+            'accounting-information-cashflow-projection',
+            'accounting-reports-margin-by-item',
+          ]),
+        );
+      }
+    }, e2eEmployee.id);
+
+    // 2. Navigate to Employees -> Information
+    await page.goto('/?page=employees');
+    await page.getByRole('button', { name: 'Information' }).click();
+    await expect(
+      page.getByRole('heading', { name: 'Team performance' }),
+    ).toBeVisible({ timeout: 20_000 });
+
+    // Top Performers is collapsed from prefilled localStorage; Top 3 is expanded
+    const performersToggle = page.getByRole('button', {
+      name: 'Top performers',
+    });
+    const topThreeToggle = page.getByRole('button', {
+      name: 'Top 3',
+    });
+    await expect(performersToggle).toHaveAttribute('aria-expanded', 'false');
+    await expect(topThreeToggle).toHaveAttribute('aria-expanded', 'true');
+
+    // Grid retains original columns (finance-info-panel-wide preserved)
+    const performersCard = page.locator('#employees-top-performers-content');
+    await expect(performersCard).toBeAttached();
+    await expect(performersCard).toHaveAttribute('hidden', '');
+
+    // 3. Navigate to Accounting Information
+    await page.goto('/?page=accounting&accountingTab=information');
+    await expect(
+      page.getByRole('heading', { name: 'Accounting information' }),
+    ).toBeVisible({ timeout: 20_000 });
+
+    const projectionToggle = page.getByRole('button', {
+      name: /Cashflow Scenario Projection/i,
+    });
+    const trendToggle = page.getByRole('button', {
+      name: /Daily Cashflow Trend/i,
+    });
+
+    // Cashflow projection is collapsed from prefilled state; Trend is expanded
+    await expect(projectionToggle).toHaveAttribute('aria-expanded', 'false');
+    await expect(trendToggle).toHaveAttribute('aria-expanded', 'true');
+
+    const projectionContent = page.locator(
+      '#accounting-information-cashflow-projection-content',
+    );
+    await expect(projectionContent).toBeAttached();
+    await expect(projectionContent).toHaveAttribute('hidden', '');
+
+    // Reload page to verify persistence across reload
+    await page.reload();
+    await expect(
+      page.getByRole('heading', { name: 'Accounting information' }),
+    ).toBeVisible({ timeout: 20_000 });
+    const projectionToggleAfterReload = page.getByRole('button', {
+      name: /Cashflow Scenario Projection/i,
+    });
+    await expect(projectionToggleAfterReload).toHaveAttribute('aria-expanded', 'false');
+
+    // Re-expand via click
+    await projectionToggleAfterReload.click();
+    await expect(projectionToggleAfterReload).toHaveAttribute('aria-expanded', 'true');
+    await expect(projectionContent).not.toHaveAttribute('hidden');
+
+    // 4. Navigate to Accounting Reports
+    await page.goto('/?page=accounting&accountingTab=reports');
+    await expect(
+      page.getByRole('heading', { name: 'Reports' }),
+    ).toBeVisible({ timeout: 20_000 });
+
+    // Top Reports KPI summary panels (Gross result, Cash result) DO NOT have collapse buttons
+    await expect(
+      page.getByRole('button', { name: /Gross result/i }),
+    ).toHaveCount(0);
+    await expect(
+      page.getByRole('button', { name: /Cash result/i }),
+    ).toHaveCount(0);
+
+    // Margin table is collapsed from prefilled localStorage; Profit trend is expanded
+    const marginToggle = page.getByRole('button', {
+      name: 'Margin by product or service',
+    });
+    const profitTrendToggle = page.getByRole('button', {
+      name: 'Revenue, Known Cost & Known Profit Trend',
+    });
+    await expect(marginToggle).toHaveAttribute('aria-expanded', 'false');
+    await expect(profitTrendToggle).toHaveAttribute('aria-expanded', 'true');
+
+    const marginContent = page.locator(
+      '#accounting-reports-margin-by-item-content',
+    );
+    await expect(marginContent).toBeAttached();
+    await expect(marginContent).toHaveAttribute('hidden', '');
+
+    // Report and details queries execute and populate data even while cards are collapsed
+    await expect(page.getByText('Matching total across all pages:').first()).toBeVisible();
+
+    // Collapse profit trend via click
+    await profitTrendToggle.click();
+    await expect(profitTrendToggle).toHaveAttribute('aria-expanded', 'false');
+
+    // Reload reports page
+    await page.reload();
+    await expect(
+      page.getByRole('heading', { name: 'Reports' }),
+    ).toBeVisible({ timeout: 20_000 });
+
+    const profitTrendAfterReload = page.getByRole('button', {
+      name: 'Revenue, Known Cost & Known Profit Trend',
+    });
+    const marginToggleAfterReload = page.getByRole('button', {
+      name: 'Margin by product or service',
+    });
+    await expect(profitTrendAfterReload).toHaveAttribute('aria-expanded', 'false');
+    await expect(marginToggleAfterReload).toHaveAttribute('aria-expanded', 'false');
+
+    // Expand margin table and verify contents visible
+    await marginToggleAfterReload.click();
+    await expect(marginToggleAfterReload).toHaveAttribute('aria-expanded', 'true');
+    await expect(marginContent).not.toHaveAttribute('hidden');
+  });
 });
