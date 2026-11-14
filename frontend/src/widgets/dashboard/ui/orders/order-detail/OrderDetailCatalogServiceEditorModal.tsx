@@ -95,6 +95,56 @@ export const OrderDetailCatalogServiceEditorModal: React.FC<OrderDetailCatalogSe
           onChange={(value) => onChange('price', value)}
         />
       </label>
+      <label className="field">
+        <span>Cost method (default)</span>
+        <select
+          value={form.costMethod ?? 'fixed'}
+          onChange={(event) =>
+            onChange(
+              'costMethod',
+              event.target.value === 'time_rate' ? 'time_rate' : 'fixed',
+            )
+          }
+        >
+          <option value="fixed">Fixed cost per service</option>
+          <option value="time_rate">Hourly rate x minutes</option>
+        </select>
+      </label>
+      {(form.costMethod ?? 'fixed') === 'fixed' ? (
+        <label className="field">
+          <span>Default fixed cost (UAH)</span>
+          <NumberStepper
+            min={0}
+            step={PRICE_STEPPER_STEP}
+            precision={PRICE_STEPPER_PRECISION}
+            value={form.fixedCost ?? ''}
+            onChange={(value) => onChange('fixedCost', value)}
+          />
+        </label>
+      ) : (
+        <>
+          <label className="field">
+            <span>Default hourly cost (UAH/hr)</span>
+            <NumberStepper
+              min={0}
+              step={PRICE_STEPPER_STEP}
+              precision={PRICE_STEPPER_PRECISION}
+              value={form.hourlyCost ?? ''}
+              onChange={(value) => onChange('hourlyCost', value)}
+            />
+          </label>
+          <label className="field">
+            <span>Default duration (minutes)</span>
+            <NumberStepper
+              min={0}
+              step={1}
+              precision={0}
+              value={form.defaultDurationMinutes ?? ''}
+              onChange={(value) => onChange('defaultDurationMinutes', value)}
+            />
+          </label>
+        </>
+      )}
       <label className="field field-wide">
         <span>{t('orders.detail.serviceEditor.note')}</span>
         <textarea

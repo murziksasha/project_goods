@@ -1,4 +1,4 @@
-import { apiClient, getApiErrorMessage } from '../../../shared/api/http';
+import { apiClient, createApiRequestError, getApiErrorMessage } from '../../../shared/api/http';
 import axios from 'axios';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { queryClient, queryKeys } from '../../../shared/api/queryClient';
@@ -12,10 +12,19 @@ import {
   type CreateFinanceTransactionPayload,
   type FinanceCategory,
   type FinanceCurrencyConfig,
+  type CashboxesReportDetailsResponse,
+  type CashboxesReportParams,
+  type CashboxesReportResponse,
   type FinanceProfitReport,
   type FinanceReport,
   type FinanceTransaction,
+  type ProfitReportDetailsResponse,
   type ProfitReportParams,
+  type FinancePolicy,
+  type FinancePolicyHistoryResponse,
+  type FinancePolicyPreviewPayload,
+  type FinancePolicyPreviewResponse,
+  type UpdateFinancePolicyPayload,
   type FinanceTransactionsListParams,
   type FinanceTransactionsPage,
   type SupplierOrderPaymentQueueItem,
@@ -33,6 +42,9 @@ const invalidateFinanceQueries = () => {
     queryClient.invalidateQueries({ queryKey: queryKeys.financeTransactions }),
     queryClient.invalidateQueries({ queryKey: queryKeys.financeReport }),
     queryClient.invalidateQueries({ queryKey: ['financeProfitReport'] }),
+    queryClient.invalidateQueries({ queryKey: queryKeys.cashboxesReportRoot }),
+    queryClient.invalidateQueries({ queryKey: queryKeys.ordersProcurementReportRoot }),
+    queryClient.invalidateQueries({ queryKey: queryKeys.ordersReportsTableRoot }),
     queryClient.invalidateQueries({
       queryKey: queryKeys.financeSupplierOrdersQueue,
     }),
@@ -276,6 +288,98 @@ export const getFinanceProfitReport = async (params: ProfitReportParams = {}) =>
   }
 };
 
+export const getFinanceProfitReportDetails = async (
+  params: ProfitReportParams = {},
+) => {
+  try {
+    const response = await apiClient.get<ProfitReportDetailsResponse>(
+      '/finance/profit-report/details',
+      { params },
+    );
+    return response.data;
+  } catch (error) {
+    throw new Error(getApiErrorMessage(error));
+  }
+};
+
+export const getCashboxesReport = async (params: CashboxesReportParams = {}) => {
+  try {
+    const queryParams = {
+      ...params,
+      plannedEvents: params.plannedEvents
+        ? JSON.stringify(params.plannedEvents)
+        : undefined,
+    };
+    const response = await apiClient.get<CashboxesReportResponse>(
+      '/finance/cashboxes-report',
+      { params: queryParams },
+    );
+    return response.data;
+  } catch (error) {
+    throw new Error(getApiErrorMessage(error));
+  }
+};
+
+export const getCashboxesReportDetails = async (
+  params: CashboxesReportParams = {},
+) => {
+  try {
+    const response = await apiClient.get<CashboxesReportDetailsResponse>(
+      '/finance/cashboxes-report/details',
+      { params },
+    );
+    return response.data;
+  } catch (error) {
+    throw new Error(getApiErrorMessage(error));
+  }
+};
+
+export const getFinancePolicy = async () => {
+  try {
+    const response = await apiClient.get<FinancePolicy>('/finance/policy');
+    return response.data;
+  } catch (error) {
+    throw createApiRequestError(error);
+  }
+};
+
+export const updateFinancePolicy = async (payload: UpdateFinancePolicyPayload) => {
+  try {
+    const response = await apiClient.patch<FinancePolicy>('/finance/policy', payload);
+    return response.data;
+  } catch (error) {
+    throw createApiRequestError(error);
+  }
+};
+
+export const previewFinancePolicy = async (
+  payload: FinancePolicyPreviewPayload,
+) => {
+  try {
+    const response = await apiClient.post<FinancePolicyPreviewResponse>(
+      '/finance/policy/preview',
+      payload,
+    );
+    return response.data;
+  } catch (error) {
+    throw createApiRequestError(error);
+  }
+};
+
+export const getFinancePolicyHistory = async (
+  params: { page?: number; pageSize?: number } = {},
+) => {
+  try {
+    const response = await apiClient.get<FinancePolicyHistoryResponse>(
+      '/finance/policy/history',
+      { params },
+    );
+    return response.data;
+  } catch (error) {
+    throw createApiRequestError(error);
+  }
+};
+
 export const getSupplierOrdersForPayment = async () => {
   try {
     const response = await apiClient.get<SupplierOrderPaymentQueueItem[]>('/finance/supplier-orders');
@@ -377,6 +481,77 @@ export const useFinanceProfitReportQuery = (
       dateFrom: params.dateFrom ?? '',
       dateTo: params.dateTo ?? '',
       source: params.source ?? 'all',
+      lossOnly: Boolean(params.lossOnly),
+      missingCostOnly: Boolean(params.missingCostOnly),
+      q: params.q ?? '',
+    }),
+  });
+
+export const useFinanceProfitReportDetailsQuery = (
+  params: ProfitReportParams = {},
+  options: { enabled?: boolean } = {},
+) =>
+  useQuery({
+    enabled: options.enabled,
+    queryFn: () => getFinanceProfitReportDetails(params),
+    queryKey: queryKeys.financeProfitReportDetails({
+      period: params.period ?? 'whole',
+      dateFrom: params.dateFrom ?? '',
+      dateTo: params.dateTo ?? '',
+      source: params.source ?? 'all',
+      lossOnly: Boolean(params.lossOnly),
+      missingCostOnly: Boolean(params.missingCostOnly),
+      q: params.q ?? '',
+      page: params.page ?? 1,
+      pageSize: params.pageSize ?? 25,
+      sortBy: params.sortBy ?? 'saleDate',
+      sortDir: params.sortDir ?? 'desc',
+    }),
+  });
+
+export const useCashboxesReportQuery = (
+  params: CashboxesReportParams = {},
+  options: { enabled?: boolean } = {},
+) =>
+  useQuery({
+    enabled: options.enabled,
+    queryFn: () => getCashboxesReport(params),
+    queryKey: queryKeys.cashboxesReport({
+      period: params.period ?? 'last30',
+      dateFrom: params.dateFrom ?? '',
+      dateTo: params.dateTo ?? '',
+      cashboxId: params.cashboxId ?? '',
+      currency: params.currency ?? '',
+      horizonDays: params.horizonDays ?? 30,
+      demandMultiplier: params.demandMultiplier ?? 1,
+      inflowMultiplier: params.inflowMultiplier ?? 1,
+      outflowMultiplier: params.outflowMultiplier ?? 1,
+      inflowTimingShiftDays: params.inflowTimingShiftDays ?? 0,
+      outflowTimingShiftDays: params.outflowTimingShiftDays ?? 0,
+      plannedEvents: params.plannedEvents ?? [],
+    }),
+  });
+
+export const useCashboxesReportDetailsQuery = (
+  params: CashboxesReportParams = {},
+  options: { enabled?: boolean } = {},
+) =>
+  useQuery({
+    enabled: options.enabled,
+    queryFn: () => getCashboxesReportDetails(params),
+    queryKey: queryKeys.cashboxesReportDetails({
+      period: params.period ?? 'last30',
+      dateFrom: params.dateFrom ?? '',
+      dateTo: params.dateTo ?? '',
+      cashboxId: params.cashboxId ?? '',
+      currency: params.currency ?? '',
+      type: params.type ?? 'all',
+      category: params.category ?? '',
+      q: params.q ?? '',
+      page: params.page ?? 1,
+      pageSize: params.pageSize ?? 25,
+      sortBy: params.sortBy ?? 'transactionDate',
+      sortDir: params.sortDir ?? 'desc',
     }),
   });
 
@@ -550,6 +725,47 @@ export const useIssueSupplierOrderWithoutPaymentMutation = () =>
     onSuccess: () => {
       invalidateFinanceQueries();
     },
+  });
+
+export const useFinancePolicyQuery = (
+  options: { enabled?: boolean } = {},
+) =>
+  useQuery({
+    enabled: options.enabled,
+    queryFn: getFinancePolicy,
+    queryKey: queryKeys.financePolicy,
+  });
+
+export const useFinancePolicyHistoryQuery = (
+  params: { page?: number; pageSize?: number } = {},
+  options: { enabled?: boolean } = {},
+) =>
+  useQuery({
+    enabled: options.enabled,
+    queryFn: () => getFinancePolicyHistory(params),
+    queryKey: queryKeys.financePolicyHistory({
+      page: params.page ?? 1,
+      pageSize: params.pageSize ?? 20,
+    }),
+  });
+
+export const useUpdateFinancePolicyMutation = () =>
+  useMutation({
+    mutationFn: updateFinancePolicy,
+    onSuccess: (updated) => {
+      queryClient.setQueryData(queryKeys.financePolicy, updated);
+      void Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.financePolicy }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.financePolicyHistoryRoot }),
+        queryClient.invalidateQueries({ queryKey: ['financeProfitReport'] }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.sales }),
+      ]);
+    },
+  });
+
+export const usePreviewFinancePolicyMutation = () =>
+  useMutation({
+    mutationFn: previewFinancePolicy,
   });
 
 export const useUpdateFinanceTransactionMutation = () =>

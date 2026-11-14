@@ -283,7 +283,9 @@ describe('SettingsPanel', () => {
     expect(document.body.textContent).toContain('Receipt');
     expect(document.body.textContent).toContain('Services');
     expect(document.body.textContent).toContain('Products');
-    expect(document.body.textContent).not.toContain('Р');
+    expect(document.querySelector('.settings-print-preview-page')?.textContent).toContain('Квитанція');
+    expect(document.querySelector('.settings-print-preview-page')?.textContent).toContain('Послуги');
+    expect(document.querySelector('.settings-print-preview-page')?.textContent).toContain('Товари');
 
     fireEvent.click(screen.getByRole('button', { name: 'Add' }));
     expect(screen.getByLabelText('Template name')).toHaveValue(

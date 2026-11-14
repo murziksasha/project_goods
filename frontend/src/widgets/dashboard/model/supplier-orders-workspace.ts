@@ -15,7 +15,8 @@ export type OrdersTab =
   | 'kanban'
   | 'sales'
   | 'supplierOrders'
-  | 'supplierInformation';
+  | 'supplierInformation'
+  | 'ordersReports';
 
 export const supplierOrderTabs: Array<{ key: OrdersTab; labelKey: string }> = [
   { key: 'orders', labelKey: 'orders.tabs.orders' },
@@ -23,6 +24,7 @@ export const supplierOrderTabs: Array<{ key: OrdersTab; labelKey: string }> = [
   { key: 'sales', labelKey: 'orders.tabs.sales' },
   { key: 'supplierOrders', labelKey: 'orders.tabs.supplierOrders' },
   { key: 'supplierInformation', labelKey: 'orders.tabs.supplierInformation' },
+  { key: 'ordersReports', labelKey: 'orders.tabs.ordersReports' },
 ];
 
 export const supplierOrderStatuses: Array<{

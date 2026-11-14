@@ -146,5 +146,7 @@ db.createCollection('sales_zstd', {
 - `backend/src/domain/system/db-stats.ts`
 - `backend/src/domain/archive/yearly-dump.ts`
 - `backend/src/domain/finance/period-snapshot.ts`
+- `backend/src/domain/finance/cashboxes-report.ts` & `profit-report.ts` — surface `FinancePeriodSnapshot` seal/purge coverage boundaries (`reconciliationUnavailableBySeal`, `coldSalesPurgedExist`) and explicit coverage warnings without extrapolating purged periods.
+- `backend/src/domain/analytics/warehouse-report.ts` & `orders-report.ts` — carry `coldSalesPurgedExist`, trailing 90-day observed history day counts, and untimestamped legacy completion/receipt warnings into API responses and Excel exports.
 - `backend/src/domain/sale/list-sales-query.ts` — `compact`
 - `backend/src/domain/auth/service.ts` — idle session prune

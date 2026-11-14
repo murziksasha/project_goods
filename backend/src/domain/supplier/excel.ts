@@ -1,4 +1,5 @@
 import XLSX from 'xlsx';
+import { escapeRegExp } from '../../shared/lib/query';
 import { Supplier, type SupplierDocument } from './model';
 import { formatSupplier } from '../../shared/lib/formatters';
 import {
@@ -400,7 +401,7 @@ export const importSuppliersWorkbook = async (buffer: Buffer) => {
       .select({ phone: 1, phones: 1, phoneIdentities: 1 })
       .lean<Array<{ phone: string; phones?: string[]; phoneIdentities?: string[] }>>(),
     Supplier.find({
-      name: { $in: readyNames.map((name) => new RegExp(`^${name}$`, 'i')) },
+      name: { $in: readyNames.map((name) => new RegExp(`^${escapeRegExp(name)}$`, 'i')) },
     })
       .select({ name: 1 })
       .lean<Array<{ name: string }>>(),

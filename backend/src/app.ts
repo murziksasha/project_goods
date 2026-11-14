@@ -8,6 +8,8 @@ import express, {
 import helmet from 'helmet';
 import mongoose from 'mongoose';
 import { env } from './config/env';
+import { buildHelmetOptions } from './config/security-headers';
+import { redactMongoCredentials } from './shared/lib/redact-mongo-credentials';
 import { requireAuthUnlessPublic } from './shared/middleware/auth';
 import { clientRouter } from './domain/client/routes';
 import { authRouter } from './domain/auth/routes';
@@ -30,6 +32,7 @@ import { weatherRouter } from './domain/weather/routes';
 import { analyticsRouter } from './domain/analytics/routes';
 import { archiveRouter } from './domain/archive/routes';
 import { savedFilterRouter } from './domain/saved-filter/routes';
+import { scenarioRouter } from './domain/scenario/routes';
 import { eventsRouter } from './domain/events/routes';
 import { publishDomainEvent } from './shared/lib/domain-events';
 import {
@@ -41,7 +44,8 @@ import {
 
 export const app = express();
 
-app.use(helmet());
+app.set('trust proxy', env.trustProxyHops);
+app.use(helmet(buildHelmetOptions(env.cspReportOnly)));
 
 const resolvedCorsOrigin = env.clientOrigin
   ? env.clientOrigin
@@ -114,6 +118,7 @@ app.use('/api', weatherRouter);
 app.use('/api', analyticsRouter);
 app.use('/api', archiveRouter);
 app.use('/api', savedFilterRouter);
+app.use('/api', scenarioRouter);
 app.use('/api', eventsRouter);
 
 app.use((_req, res) => {
@@ -134,10 +139,14 @@ app.use(
             isDuplicateKeyError(error)
           ? 400
           : 500;
-    const message = getErrorMessage(error);
+    const message = redactMongoCredentials(getErrorMessage(error));
 
     if (statusCode === 500) {
-      console.error(error);
+      console.error(
+        redactMongoCredentials(
+          error instanceof Error ? error.stack ?? error.message : String(error),
+        ),
+      );
     }
 
     res.status(statusCode).json({ message });

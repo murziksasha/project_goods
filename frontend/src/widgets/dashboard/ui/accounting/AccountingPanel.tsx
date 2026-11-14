@@ -155,6 +155,15 @@ export const AccountingPanel: React.FC<AccountingPanelProps> = ({
     currentEmployee,
     'finance.cashboxes.manage',
   );
+  const canManagePolicy = hasEmployeePermission(
+    currentEmployee,
+    'finance.policy.manage',
+  );
+  const canViewFinance = hasEmployeePermission(
+    currentEmployee,
+    'finance.view',
+  );
+  const canOpenSettings = canManageCashboxes || canManagePolicy || canViewFinance;
   const canCreateDeposit = hasEmployeePermission(
     currentEmployee,
     'finance.transactions.deposit',
@@ -810,6 +819,7 @@ export const AccountingPanel: React.FC<AccountingPanelProps> = ({
       <AccountingTabs
         activeTab={activeTab}
         canManageCashboxes={canManageCashboxes}
+        canOpenSettings={canOpenSettings}
         isFinanceSettingsOpen={isFinanceSettingsOpen}
         onOpenSettings={handleSettingsToggle}
         onTabChange={handleAccountingTabChange}
@@ -857,6 +867,9 @@ export const AccountingPanel: React.FC<AccountingPanelProps> = ({
           onDeleteCategory={handleDeleteCategory}
           onRenameCategory={handleRenameCategory}
           onToggleCategoryActive={handleToggleCategoryActive}
+          canManagePolicy={canManagePolicy}
+          onError={onError}
+          onSuccess={onSuccess}
         />
       ) : activeTab === 'transactions' ? (
         <AccountingTransactionsView

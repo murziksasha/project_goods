@@ -24,6 +24,7 @@ export const employeePermissions = [
   'finance.view',
   'finance.cashboxes.view',
   'finance.cashboxes.manage',
+  'finance.policy.manage',
   'finance.transactions.deposit',
   'finance.transactions.withdraw',
   'finance.transactions.transfer',
@@ -44,6 +45,7 @@ export const ordersTabPreferenceKeys = [
   'sales',
   'supplierOrders',
   'supplierInformation',
+  'ordersReports',
 ] as const;
 
 export type OrdersTabPreferenceKey = (typeof ordersTabPreferenceKeys)[number];

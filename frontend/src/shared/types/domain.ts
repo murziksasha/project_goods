@@ -63,6 +63,7 @@ export type EmployeePermission =
   | 'finance.view'
   | 'finance.cashboxes.view'
   | 'finance.cashboxes.manage'
+  | 'finance.policy.manage'
   | 'finance.transactions.deposit'
   | 'finance.transactions.withdraw'
   | 'finance.transactions.transfer'
@@ -79,7 +80,8 @@ export type OrdersTabPreference =
   | 'kanban'
   | 'sales'
   | 'supplierOrders'
-  | 'supplierInformation';
+  | 'supplierInformation'
+  | 'ordersReports';
 
 export type EmployeeUiPreferences = {
   hiddenOrdersTabs: OrdersTabPreference[];
@@ -107,6 +109,91 @@ export type SaleProductSnapshot = {
   article: string;
   name: string;
   serialNumber: string;
+};
+
+export type ServiceCostMethod = 'fixed' | 'time_rate';
+
+export type SaleCostSnapshot = {
+  status: 'known' | 'unknown';
+  unitCost: number | null;
+  totalCost: number | null;
+  method: 'stock' | 'fixed' | 'time_rate' | 'manual' | 'zero' | 'unknown' | string;
+  laborCost?: number | null;
+  directExpenses?: number | null;
+  recordedMinutes?: number | null;
+  hourlyCost?: number | null;
+  fixedCost?: number | null;
+  capturedAt: string | null;
+  capturedById?: string | null;
+  capturedByName?: string | null;
+};
+
+export type SaleCostAuditEntry = {
+  id: string;
+  previousStatus: 'known' | 'unknown';
+  previousUnitCost: number | null;
+  previousTotalCost: number | null;
+  newStatus: 'known' | 'unknown';
+  newUnitCost: number | null;
+  newTotalCost: number | null;
+  method: string;
+  directExpenses?: number | null;
+  recordedMinutes?: number | null;
+  hourlyCost?: number | null;
+  fixedCost?: number | null;
+  reason: string;
+  authorId?: string | null;
+  authorName: string;
+  changedAt: string;
+};
+
+export type SaleStatusTransition = {
+  id: string;
+  fromStatus: string | null;
+  toStatus: string;
+  changedById?: string | null;
+  changedByName?: string | null;
+  changedAt: string;
+};
+
+export type SaleReturnEvent = {
+  id: string;
+  lineItemId: string | null;
+  name: string;
+  productId?: string | null;
+  catalogProductId?: string | null;
+  quantity: number;
+  grossAmount: number;
+  refundAmount: number;
+  unitCost?: number | null;
+  returnedAt: string;
+  returnedById?: string | null;
+  returnedByName?: string | null;
+};
+
+export type SaleLineItem = {
+  id: string;
+  kind: 'product' | 'service';
+  productId?: string;
+  catalogProductId?: string;
+  serviceId?: string;
+  name: string;
+  price: number;
+  quantity: number;
+  warrantyPeriod: number;
+  serialNumbers?: string[];
+  costMethod?: ServiceCostMethod | null;
+  recordedMinutes?: number | null;
+  fixedCost?: number | null;
+  hourlyCost?: number | null;
+  directExpenses?: number | null;
+  unitCostOverride?: number | null;
+  isCostOverridden?: boolean | null;
+  requiresCostAudit?: boolean | null;
+  costKnown?: boolean | null;
+  costSnapshot?: SaleCostSnapshot | null;
+  auditedCost?: SaleCostSnapshot | null;
+  costAuditLog?: SaleCostAuditEntry[];
 };
 
 export type Sale = {
@@ -139,18 +226,16 @@ export type Sale = {
     author: string;
     createdAt: string;
   }>;
-  lineItems: Array<{
-    id: string;
-    kind: 'product' | 'service';
-    productId?: string;
-    catalogProductId?: string;
-    serviceId?: string;
-    name: string;
-    price: number;
-    quantity: number;
-    warrantyPeriod: number;
-    serialNumbers?: string[];
-  }>;
+  lineItems: SaleLineItem[];
+  firstStockCommittedAt?: string | null;
+  completedAt?: string | null;
+  statusTransitions?: SaleStatusTransition[];
+  returnEvents?: SaleReturnEvent[];
+  costWarnings?: {
+    hasMissingCosts: boolean;
+    missingCostCount: number;
+    missingCostLineItemIds: string[];
+  };
   discount?: {
     mode: 'percent' | 'amount';
     value: number;

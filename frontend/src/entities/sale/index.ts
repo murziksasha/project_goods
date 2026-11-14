@@ -2,6 +2,7 @@ export * from './api/saleApi';
 export * from './api/shipmentApi';
 export * from './api/useSaleDetail';
 export * from './lib/sale-client-display';
+export * from './lib/sale-cost-audit';
 export * from './lib/sale-kind';
 export * from './lib/sale-list-items';
 export * from './lib/patch-sale-client';

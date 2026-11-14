@@ -17,17 +17,32 @@ import {
   requirePermission,
   routeParam,
 } from '../../shared/lib/http';
+import { employeeHasAnyPermission } from '../auth/service';
 
 export const serviceReadPermissions = [
   'inventory.manage',
   'orders.view',
   'orders.manage',
+  'sales.manage',
   'finance.view',
 ] as const;
 
 export const list = async (req: Request, res: Response): Promise<void> => {
-  await requireAnyPermission(req, serviceReadPermissions);
-  res.json(await listServiceCatalogItems(req.query.query));
+  const employee = await requireAnyPermission(req, serviceReadPermissions);
+  const canViewServiceCosts = employeeHasAnyPermission(employee, [
+    'inventory.manage',
+    'finance.view',
+  ]);
+  const items = await listServiceCatalogItems(req.query.query);
+  res.json(
+    canViewServiceCosts
+      ? items
+      : items.map((item) => ({
+          ...item,
+          fixedCost: null,
+          hourlyCost: null,
+        })),
+  );
 };
 
 export const create = async (req: Request, res: Response): Promise<void> => {

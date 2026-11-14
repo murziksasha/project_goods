@@ -21,6 +21,7 @@ import {
   storeProfitReportFilters,
   storeProfitReportVisualSettings,
   summarizeProfitMarginRows,
+  summarizeProfitMixUncostedRevenue,
 } from './profit-report';
 
 const report = (patch: Partial<FinanceProfitReport> = {}): FinanceProfitReport => ({
@@ -62,6 +63,7 @@ describe('profit report filters', () => {
   });
 
   it('returns defaults when storage is empty or invalid', () => {
+    expect(defaultProfitReportFilters().period).toBe('last30');
     expect(getStoredProfitReportFilters()).toEqual(defaultProfitReportFilters());
     window.localStorage.setItem(profitReportFiltersStorageKey, '{bad');
     expect(getStoredProfitReportFilters()).toEqual(defaultProfitReportFilters());
@@ -130,12 +132,14 @@ describe('profit report visual settings', () => {
   it('persists and restores valid visual settings', () => {
     storeProfitReportVisualSettings({
       showCharts: false,
+      showTable: false,
       chartMetric: 'quantity',
       highlightLosses: false,
       compactTable: true,
     });
     expect(getStoredProfitReportVisualSettings()).toEqual({
       showCharts: false,
+      showTable: false,
       chartMetric: 'quantity',
       highlightLosses: false,
       compactTable: true,
@@ -249,6 +253,45 @@ describe('profit report row analysis', () => {
     expect(chartRows[0]?.sharePercent).toBeGreaterThan(
       chartRows[1]?.sharePercent ?? 0,
     );
+  });
+
+  it('tracks missing-cost revenue split between products and services for the mix chart', () => {
+    const summary = summarizeProfitMixUncostedRevenue([
+      marginRow({
+        key: 'product:known',
+        type: 'product',
+        revenue: 500,
+        knownCostRevenue: 500,
+        costKnown: true,
+      }),
+      marginRow({
+        key: 'service:uncosted',
+        type: 'service',
+        revenue: 400,
+        knownCostRevenue: 0,
+        profit: 0,
+        costKnown: false,
+      }),
+      marginRow({
+        key: 'service:partial',
+        type: 'service',
+        revenue: 300,
+        knownCostRevenue: 100,
+        profit: 80,
+        costKnown: false,
+      }),
+      marginRow({
+        key: 'product:legacy-unknown',
+        type: 'product',
+        revenue: 50,
+        costKnown: false,
+      }),
+    ]);
+    expect(summary).toEqual({
+      product: 50,
+      service: 600,
+      total: 650,
+    });
   });
 
   it('ranks up to 10 leaders and can sort by quantity', () => {

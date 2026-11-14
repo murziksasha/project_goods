@@ -111,6 +111,7 @@ frontend/
 - `src/entities/` - доменные сущности, API-модули, типы и UI-компоненты
 - `src/shared/` - переиспользуемая инфраструктура: стили, утилиты, HTTP-слой
 - `src/shared/lib/buildInfo.ts` - метка версии frontend-сборки (`getBuildSha`, `getBuildLabel`); см. [BUILD_VERSION_SPEC.md](./BUILD_VERSION_SPEC.md)
+- `src/entities/settings/model/printInlineMarkup.ts` - разметка `**жирный**` / `*курсив*` / `__подчёркнутый__` в печатных формах; `src/shared/lib/inlineTextFormat.ts` - логика кнопок Ж / К / П и Ctrl+B / I / U; `src/widgets/dashboard/ui/settings/PrintTextFormatting.tsx` - панель и поля конструктора. Spec: [PRINT_FORMS_SPEC.md](./PRINT_FORMS_SPEC.md#inline-text-formatting-2026-11-10)
 - `src/shared/ui/CopyableValue.tsx` — hover copy icon for table values; `src/shared/lib/clipboard.ts` — clipboard helper. Spec: [UI_DESIGN_SYSTEM.md — Hover copy icon](./UI_DESIGN_SYSTEM.md#hover-copy-icon)
 
 ## Структурные соглашения
@@ -142,6 +143,18 @@ frontend/
 - размещения бизнес-специфичной логики в `shared`
 - разрастания page-компонентов из-за прямого встраивания всей логики в JSX
 - дублирования HTTP-логики по нескольким frontend-модулям
+
+## Structure Update: Release 1 hardening (2026-11-04)
+
+- `docker-compose.yml` — local stack; MongoDB `27017` and backend `5000` bound to `127.0.0.1`, frontend `5173` on LAN
+- `docker-compose.prod.yml` — production layer: Mongo keyfile auth, external existing volumes, `MONGO_URI` from `.env.production`, `TRUST_PROXY_HOPS=1`
+- `docker-compose.rollback.yml` — rollback overlay: saved `:rollback` images on the same external volumes; `docker:rollback:prod` layers it over `docker-compose.prod.yml` (MongoDB auth kept), only the emergency `docker:rollback:noauth` uses it without auth
+- `.env.production.example` — template for the private, uncommitted `.env.production`
+- `scripts/docker-up.mjs` (`docker:up`, `docker:up:prod`), `scripts/docker-local.mjs` (`db:up`, `db:down`, `docker:down`), `scripts/docker-build-prod.mjs`, `scripts/docker-rollback-prod.mjs` (`docker:rollback:prod` with auth, emergency `docker:rollback:noauth`), `scripts/prepare-mongo-keyfile.mjs`
+- `scripts/production-env.mjs`, `scripts/production-docker-state.mjs`, `scripts/production-git-state.mjs` — preflight checks; tests via `npm run test:deployment`
+- `frontend/scripts/proxy-security.mjs` — proxy forwarding headers and static directory boundary; tests via `npm run test:proxy --prefix frontend`
+- `backend/src/shared/lib/redact-mongo-credentials.ts` — masks Mongo URI credentials in logs, backup metadata, and API errors
+- `backend/src/scripts/admin-password.ts` — admin scripts require `PROJECT_GOODS_ADMIN_PASSWORD`
 
 ## Structure Update: Build Version Label (2026-07-06)
 
@@ -345,3 +358,30 @@ Spec: [SALE_FLOW.md](./SALE_FLOW.md#rapid-sale-2026-06-24).
 
 - `backend/src/domain/sale/service.ts` - syncs names into `catalog-products`.
 - `frontend/src/widgets/dashboard/ui/product-catalog/ProductCatalogPanel.tsx` - adds `Products` tab.
+
+## Structure Update: Upgraded Information Tabs, Costing & Forecasting (2026-11-11)
+
+### Backend
+
+- `backend/src/domain/sale/costing.ts` (+ `costing.test.ts`) — service costing (`fixed` vs `time_rate`), immutable first-commit `costSnapshot`, non-blocking `costWarnings`, `requiresCostAudit` tracking for products added without purchase price (with legacy fallback), `finance.view` redaction/guards, and product-only pre-payment/post-closure `updateSaleLineCosts`.
+- `backend/src/domain/analytics/period-utils.ts` — DST-safe `Europe/Kiev` calendar bounds & preceding equal-length comparison window helper.
+- `backend/src/domain/analytics/warehouse-report.ts` (+ `warehouse-report.test.ts`) — inventory valuation, reservations, aging, trailing 90d demand, reorder suggestions, and scenarios.
+- `backend/src/domain/analytics/orders-report.ts` (+ `orders-report.test.ts`) — subview-isolated Repairs, Sales, and Procurement reports & paginated drill-downs.
+- `backend/src/domain/finance/cashboxes-report.ts` (+ `cashboxes-report.test.ts`) — currency-separated cashbox reconciliation (`FinancePeriodSnapshot` seal aware), transfer separation, cashflow scenarios, and obligations scheduler.
+- `backend/src/domain/scenario/{model,service,controller,routes,service.test}.ts` — employee-private saved scenarios CRUD (`/api/scenarios`).
+- `backend/src/test/reports.integration.test.ts` — endpoint permission matrix, redaction, ownership, and cost update integration tests.
+- `backend/src/domain/analytics/orders-reports.ts` (+ `orders-reports-finance.ts`, `orders-reports.test.ts`) — Orders Reports register/summary/export (`GET /api/reports/orders/table/{repairs,sales,procurement}` and `/export`), Mongo-level period bounding, groupBy aggregates, and `finance.view` redaction.
+
+### Frontend
+
+- `frontend/src/entities/analytics/{api/reportsApi,model/report-types,index}.ts` — typed API clients and TanStack Query hooks for Warehouse and Orders reports/details.
+- `frontend/src/entities/scenario/{api/scenarioApi,model/types,index}.ts` — private scenarios CRUD hooks.
+- `frontend/src/shared/lib/report-excel.ts` (+ `report-excel.test.ts`) — shared `.xlsx` workbook builder appending `Metadata & Definitions` (timestamp, timezone, active filters, definitions, coverage warnings).
+- `frontend/src/widgets/dashboard/ui/common/AnalyticsPrimitives.tsx` — shared KPI cards, delta badges, coverage banners, accessible interactive bar/trend charts, sortable paginated tables, and scenario manager bar.
+- `frontend/src/widgets/dashboard/ui/orders/OrdersInformationWorkspace.tsx` (+ `OrdersInformationWorkspace.test.tsx`) — subview-isolated Repairs / Sales / Procurement analytics workspace under `ordersTab=supplierInformation`.
+- `frontend/src/widgets/dashboard/ui/orders/OrdersReportsWorkspace.tsx` (+ `OrdersReportsColumnPicker.tsx`, `OrdersReportsWorkspace.test.tsx`, `orders-reports-i18n.test.ts`) — configurable register/summary workspace under `ordersTab=ordersReports`, with column picker, groupBy, presets (`ordersReport` domain), last-used `localStorage` settings, and unlimited batched Excel export.
+- `frontend/src/widgets/dashboard/model/orders-reports-settings.ts` and `orders-reports-export.ts` (+ unit tests) — column defaults, sanitization, persistence, and export batch looping.
+- E2E suite `frontend/e2e/orders-reports.spec.ts` covers the Reports tab switchers, column picker, and register rendering.
+- `frontend/src/entities/sale/lib/sale-cost-audit.ts` — `isLineItemEligibleForCostAudit` helper for persisted `requiresCostAudit` and legacy unknown/audited product lines.
+- `frontend/src/widgets/dashboard/ui/orders/order-detail/OrderCostAuditModal.tsx` (+ `OrderCostAuditModal.test.tsx`) — full-page portal dialog (`usePortal`) for auditing products added without purchase price (sending modified rows only, EN/UK localized).
+- Upgraded `WarehouseInformationPanel.tsx`, `AccountingReportsView.tsx`, `AccountingProfitReportsView.tsx`, and `AccountingProfitCharts.tsx` (+ `AccountingProfitCharts.test.tsx`), plus E2E suites `frontend/e2e/reports-upgrade.spec.ts` and `frontend/e2e/product-cost-audit.spec.ts`.

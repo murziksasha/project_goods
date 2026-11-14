@@ -8,6 +8,10 @@ export const initialServiceCatalogForm: ServiceCatalogFormValues = {
   price: '',
   salePriceOptions: '',
   note: '',
+  costMethod: 'fixed',
+  fixedCost: '',
+  hourlyCost: '',
+  defaultDurationMinutes: '',
 };
 
 export const toServiceCatalogForm = (
@@ -17,4 +21,18 @@ export const toServiceCatalogForm = (
   price: String(service.price),
   salePriceOptions: (service.salePriceOptions ?? []).join(', '),
   note: service.note,
+  costMethod: service.costMethod === 'time_rate' ? 'time_rate' : 'fixed',
+  fixedCost:
+    service.fixedCost !== undefined && service.fixedCost !== null
+      ? String(service.fixedCost)
+      : '',
+  hourlyCost:
+    service.hourlyCost !== undefined && service.hourlyCost !== null
+      ? String(service.hourlyCost)
+      : '',
+  defaultDurationMinutes:
+    service.defaultDurationMinutes !== undefined &&
+    service.defaultDurationMinutes !== null
+      ? String(service.defaultDurationMinutes)
+      : '',
 });

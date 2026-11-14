@@ -1,14 +1,34 @@
 import type React from 'react';
 import { Fragment, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { hasEmployeePermission } from '../../../../entities/employee';
+import {
+  hasAnyEmployeePermission,
+  hasEmployeePermission,
+} from '../../../../entities/employee';
 import type { Employee } from '../../../../entities/employee';
-import { useFinanceProfitReportQuery } from '../../../../entities/finance';
+import {
+  getFinanceProfitReportDetails,
+  useFinancePolicyQuery,
+  useFinanceProfitReportDetailsQuery,
+  useFinanceProfitReportQuery,
+} from '../../../../entities/finance';
 import type {
   ProfitMarginRow,
+  ProfitReportDetailItem,
   ProfitReportPeriod,
   ProfitReportSource,
 } from '../../../../entities/finance';
+import { formatDate } from '../../../../shared/lib/format';
+import {
+  AnalyticsComparisonBadge,
+  AnalyticsCoverageBanner,
+  AnalyticsKpiCard,
+  AnalyticsSectionCard,
+  AnalyticsSortableTable,
+  AnalyticsTrendChart,
+  type SortableColumn,
+} from '../common/AnalyticsPrimitives';
+import { OrderCostAuditModal } from '../orders/order-detail/OrderCostAuditModal';
 import type { Sale } from '../../../../entities/sale';
 import { useServicesQuery } from '../../../../entities/service-catalog';
 import type { SupplierOrder } from '../../../../entities/supplier-order';
@@ -16,10 +36,18 @@ import { PaginationPanel } from '../../../../shared/ui/PaginationPanel';
 import { useStoredPageSize } from '../../../../shared/lib/page-size-preference';
 import { CopyableValue } from '../../../../shared/ui/CopyableValue';
 import type { AnalyticsDateRange } from '../../model/analytics-date-range';
-import { formatMoney } from '../../model/accounting';
+import { displayCurrencyCode, formatMoney } from '../../model/accounting';
+import {
+  translateProfitCoverageWarnings,
+  translateProfitKind,
+} from '../../model/accounting-analytics-i18n';
 import {
   buildProfitReportFilename,
+  clearStoredProfitReportFilters,
+  clearStoredProfitReportVisualSettings,
+  defaultProfitReportFilters,
   defaultProfitReportRowFilters,
+  defaultProfitReportVisualSettings,
   exportProfitReportWorkbook,
   filterProfitMarginRows,
   formatProfitMarginPct,
@@ -28,6 +56,8 @@ import {
   groupProfitMarginRowsByName,
   hasCustomProfitDateRange,
   hasProfitReportRowFilters,
+  hasStoredProfitReportFilters,
+  hasStoredProfitReportVisualSettings,
   isProfitLossRow,
   isProfitLossSummary,
   profitReportMarginFilterOptions,
@@ -79,10 +109,26 @@ export const AccountingProfitReportsView: React.FC<AccountingProfitReportsViewPr
   onOpenSupplierOrder,
 }) => {
   const { t } = useTranslation();
+  const policyQuery = useFinancePolicyQuery();
+  const financePolicy = policyQuery.data;
   const stored = useMemo(() => getStoredProfitReportFilters(), []);
   const storedVisual = useMemo(() => getStoredProfitReportVisualSettings(), []);
-  const [source, setSource] = useState<ProfitReportSource>(stored.source);
-  const [period, setPeriod] = useState<ProfitReportPeriod>(stored.period);
+  const [hasPersonalFilters, setHasPersonalFilters] = useState(
+    hasStoredProfitReportFilters,
+  );
+  const [hasPersonalVisual, setHasPersonalVisual] = useState(
+    hasStoredProfitReportVisualSettings,
+  );
+  const [source, setSource] = useState<ProfitReportSource>(() =>
+    hasStoredProfitReportFilters()
+      ? stored.source
+      : (financePolicy?.reportDefaults.source ?? stored.source),
+  );
+  const [period, setPeriod] = useState<ProfitReportPeriod>(() =>
+    hasStoredProfitReportFilters()
+      ? stored.period
+      : (financePolicy?.reportDefaults.period ?? stored.period),
+  );
   const [appliedRange, setAppliedRange] = useState<AnalyticsDateRange>({
     dateFrom: stored.dateFrom,
     dateTo: stored.dateTo,
@@ -90,8 +136,17 @@ export const AccountingProfitReportsView: React.FC<AccountingProfitReportsViewPr
   const [draftRange, setDraftRange] = useState<AnalyticsDateRange>(appliedRange);
   const [isDateFilterOpen, setIsDateFilterOpen] = useState(false);
   const [isVisualOpen, setIsVisualOpen] = useState(false);
-  const [visual, setVisual] =
-    useState<ProfitReportVisualSettings>(storedVisual);
+  const [visual, setVisual] = useState<ProfitReportVisualSettings>(() =>
+    hasStoredProfitReportVisualSettings()
+      ? storedVisual
+      : {
+          ...storedVisual,
+          showCharts:
+            financePolicy?.reportDefaults.showCharts ?? storedVisual.showCharts,
+          showTable:
+            financePolicy?.reportDefaults.showTable ?? storedVisual.showTable,
+        },
+  );
   const [rowFilters, setRowFilters] = useState<ProfitReportRowFilters>(
     defaultProfitReportRowFilters(),
   );
@@ -100,37 +155,155 @@ export const AccountingProfitReportsView: React.FC<AccountingProfitReportsViewPr
   const [catalogRow, setCatalogRow] = useState<ProfitMarginRow | null>(null);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useStoredPageSize('accountingReports');
+  const [lossOnly, setLossOnly] = useState(false);
+  const [missingCostOnly, setMissingCostOnly] = useState(false);
+  const [detailSearch, setDetailSearch] = useState('');
+  const [detailsPage, setDetailsPage] = useState(1);
+  const [detailsSortBy, setDetailsSortBy] = useState('saleDate');
+  const [detailsSortDir, setDetailsSortDir] = useState<'asc' | 'desc'>('desc');
+  const [auditSaleId, setAuditSaleId] = useState<string | null>(null);
+
+  const isServicesExcludedByPolicy =
+    financePolicy?.serviceProfitMode === 'exclude';
+  const effectiveSource: ProfitReportSource =
+    isServicesExcludedByPolicy && source === 'services' ? 'all' : source;
 
   const customRange = hasCustomProfitDateRange(appliedRange);
-  const query = useFinanceProfitReportQuery(
+  const reportFilterParams = {
+    source: effectiveSource,
+    period: customRange ? undefined : period,
+    dateFrom: customRange ? appliedRange.dateFrom || undefined : undefined,
+    dateTo: customRange ? appliedRange.dateTo || undefined : undefined,
+    lossOnly: lossOnly || undefined,
+    missingCostOnly: missingCostOnly || undefined,
+  };
+  const query = useFinanceProfitReportQuery(reportFilterParams, { enabled: true });
+  const detailsQuery = useFinanceProfitReportDetailsQuery(
     {
-      source,
-      period: customRange ? undefined : period,
-      dateFrom: customRange ? appliedRange.dateFrom || undefined : undefined,
-      dateTo: customRange ? appliedRange.dateTo || undefined : undefined,
+      ...reportFilterParams,
+      q: detailSearch.trim() || undefined,
+      page: detailsPage,
+      pageSize: 25,
+      sortBy: detailsSortBy,
+      sortDir: detailsSortDir,
     },
     { enabled: true },
   );
   const report = query.data;
+  const activeServiceProfitMode =
+    report?.policy?.serviceProfitMode ??
+    financePolicy?.serviceProfitMode ??
+    'full';
+  const isServicesExcluded = activeServiceProfitMode === 'exclude';
+  const activePolicyVersion =
+    report?.policy?.version ?? financePolicy?.version ?? 1;
   const servicesQuery = useServicesQuery(true);
   const services = servicesQuery.data ?? [];
   const canWriteCatalog = hasEmployeePermission(
     currentEmployee,
     'inventory.manage',
   );
+  const canAuditCosts =
+    hasEmployeePermission(currentEmployee ?? null, 'finance.view') &&
+    hasAnyEmployeePermission(currentEmployee ?? null, [
+      'orders.manage',
+      'sales.manage',
+    ]);
 
   useEffect(() => {
+    if (hasPersonalFilters || !financePolicy?.reportDefaults) return;
+    const nextSource =
+      financePolicy.serviceProfitMode === 'exclude' &&
+      financePolicy.reportDefaults.source === 'services'
+        ? 'all'
+        : financePolicy.reportDefaults.source;
+    setSource(nextSource);
+    setPeriod(financePolicy.reportDefaults.period);
+    setAppliedRange({ dateFrom: '', dateTo: '' });
+    setDraftRange({ dateFrom: '', dateTo: '' });
+  }, [financePolicy, hasPersonalFilters]);
+
+  useEffect(() => {
+    if (hasPersonalVisual || !financePolicy?.reportDefaults) return;
+    setVisual((current) => ({
+      ...current,
+      showCharts: financePolicy.reportDefaults.showCharts,
+      showTable: financePolicy.reportDefaults.showTable,
+    }));
+  }, [financePolicy, hasPersonalVisual]);
+
+  useEffect(() => {
+    if (isServicesExcluded && rowFilters.type === 'service') {
+      setRowFilters((current) => ({ ...current, type: 'all' }));
+    }
+  }, [isServicesExcluded, rowFilters.type]);
+
+  const updatePersonalFilters = (next: {
+    source?: ProfitReportSource;
+    period?: ProfitReportPeriod;
+    range?: AnalyticsDateRange;
+  }) => {
+    const nextSource = next.source ?? source;
+    const nextPeriod = next.period ?? period;
+    const nextRange = next.range ?? appliedRange;
+    setSource(nextSource);
+    setPeriod(nextPeriod);
+    setAppliedRange(nextRange);
+    setHasPersonalFilters(true);
     storeProfitReportFilters({
-      source,
-      period,
-      dateFrom: appliedRange.dateFrom,
-      dateTo: appliedRange.dateTo,
+      source: nextSource,
+      period: nextPeriod,
+      dateFrom: nextRange.dateFrom,
+      dateTo: nextRange.dateTo,
     });
-  }, [appliedRange.dateFrom, appliedRange.dateTo, period, source]);
+  };
 
-  useEffect(() => {
-    storeProfitReportVisualSettings(visual);
-  }, [visual]);
+  const updatePersonalVisual = (
+    updater:
+      | ProfitReportVisualSettings
+      | ((current: ProfitReportVisualSettings) => ProfitReportVisualSettings),
+  ) => {
+    setHasPersonalVisual(true);
+    setVisual((current) => {
+      const next = typeof updater === 'function' ? updater(current) : updater;
+      storeProfitReportVisualSettings(next);
+      return next;
+    });
+  };
+
+  const resetToCompanyDefaults = () => {
+    clearStoredProfitReportFilters();
+    clearStoredProfitReportVisualSettings();
+    setHasPersonalFilters(false);
+    setHasPersonalVisual(false);
+    const fallbackFilters = defaultProfitReportFilters();
+    const fallbackVisual = defaultProfitReportVisualSettings();
+    const companyDefaults = financePolicy?.reportDefaults;
+    const nextSource =
+      companyDefaults &&
+      !(
+        financePolicy?.serviceProfitMode === 'exclude' &&
+        companyDefaults.source === 'services'
+      )
+        ? companyDefaults.source
+        : fallbackFilters.source;
+    const nextPeriod = companyDefaults?.period ?? fallbackFilters.period;
+    const emptyRange = { dateFrom: '', dateTo: '' };
+    setSource(nextSource);
+    setPeriod(nextPeriod);
+    setAppliedRange(emptyRange);
+    setDraftRange(emptyRange);
+    setVisual({
+      ...fallbackVisual,
+      showCharts: companyDefaults?.showCharts ?? fallbackVisual.showCharts,
+      showTable: companyDefaults?.showTable ?? fallbackVisual.showTable,
+    });
+    setLossOnly(false);
+    setMissingCostOnly(false);
+    setRowFilters(defaultProfitReportRowFilters());
+    setSelectedKeys([]);
+    setExpandedIds(new Set());
+  };
 
   useEffect(() => {
     setPage(1);
@@ -194,45 +367,90 @@ export const AccountingProfitReportsView: React.FC<AccountingProfitReportsViewPr
     (report?.cash.operations.length ?? 0) === 0;
   const hasRowFilters = hasProfitReportRowFilters(rowFilters);
 
+  const buildExportLabels = () => ({
+    title: t('accounting.profit.export.title'),
+    generated: t('accounting.profit.export.generated'),
+    source: t('accounting.profit.export.source'),
+    period: t('accounting.profit.export.period'),
+    filters: t('accounting.profit.export.filters'),
+    summarySheet: t('accounting.profit.export.summarySheet'),
+    marginSheet: t('accounting.profit.export.marginSheet'),
+    cashSheet: t('accounting.profit.export.cashSheet'),
+    revenue: t('accounting.profit.kpis.revenue'),
+    cogs: t('accounting.profit.kpis.cogs'),
+    grossProfit: t('accounting.profit.kpis.grossProfit'),
+    grossMargin: t('accounting.profit.kpis.grossMargin'),
+    collected: t('accounting.profit.kpis.collected'),
+    purchases: t('accounting.profit.kpis.purchases'),
+    opex: t('accounting.profit.kpis.opex'),
+    refunds: t('accounting.profit.kpis.refunds'),
+    netCash: t('accounting.profit.kpis.netCash'),
+    name: t('accounting.profit.table.name'),
+    type: t('accounting.profit.table.type'),
+    quantity: t('accounting.profit.table.quantity'),
+    cost: t('accounting.profit.table.cost'),
+    profit: t('accounting.profit.table.profit'),
+    marginPct: t('accounting.profit.table.marginPct'),
+    category: t('accounting.profit.table.category'),
+    amount: t('accounting.profit.table.amount'),
+    count: t('accounting.profit.table.count'),
+    note: t('accounting.profit.table.note'),
+    date: t('accounting.profit.table.date'),
+    currency: t('accounting.profit.table.currency'),
+    product: t('accounting.profit.types.product'),
+    service: t('accounting.profit.types.service'),
+    unknownCost: t('accounting.profit.kpis.unknownCost'),
+  });
+
   const handleExport = () => {
     if (!report) return;
+    const flagList = [
+      lossOnly ? 'lossOnly=true' : '',
+      missingCostOnly ? 'missingCostOnly=true' : '',
+      detailSearch.trim() ? `q=${detailSearch.trim()}` : '',
+    ]
+      .filter(Boolean)
+      .join(', ');
+    const currentDetails = detailsQuery.data;
+    if (
+      currentDetails &&
+      currentDetails.total > currentDetails.items.length
+    ) {
+      void getFinanceProfitReportDetails({
+        ...reportFilterParams,
+        q: detailSearch.trim() || undefined,
+        page: 1,
+        pageSize: 1000,
+        sortBy: detailsSortBy,
+        sortDir: detailsSortDir,
+      })
+        .then((fullDetails) => {
+          exportProfitReportWorkbook({
+            report,
+            filename: buildProfitReportFilename(report),
+            detailRows: fullDetails.items,
+            extraFilters: flagList,
+            labels: buildExportLabels(),
+          });
+        })
+        .catch(() => {
+          exportProfitReportWorkbook({
+            report,
+            filename: buildProfitReportFilename(report),
+            detailRows: currentDetails.items,
+            extraFilters: flagList,
+            labels: buildExportLabels(),
+          });
+        });
+      return;
+    }
+
     exportProfitReportWorkbook({
       report,
       filename: buildProfitReportFilename(report),
-      labels: {
-        title: t('accounting.profit.export.title'),
-        generated: t('accounting.profit.export.generated'),
-        source: t('accounting.profit.export.source'),
-        period: t('accounting.profit.export.period'),
-        filters: t('accounting.profit.export.filters'),
-        summarySheet: t('accounting.profit.export.summarySheet'),
-        marginSheet: t('accounting.profit.export.marginSheet'),
-        cashSheet: t('accounting.profit.export.cashSheet'),
-        revenue: t('accounting.profit.kpis.revenue'),
-        cogs: t('accounting.profit.kpis.cogs'),
-        grossProfit: t('accounting.profit.kpis.grossProfit'),
-        grossMargin: t('accounting.profit.kpis.grossMargin'),
-        collected: t('accounting.profit.kpis.collected'),
-        purchases: t('accounting.profit.kpis.purchases'),
-        opex: t('accounting.profit.kpis.opex'),
-        refunds: t('accounting.profit.kpis.refunds'),
-        netCash: t('accounting.profit.kpis.netCash'),
-        name: t('accounting.profit.table.name'),
-        type: t('accounting.profit.table.type'),
-        quantity: t('accounting.profit.table.quantity'),
-        cost: t('accounting.profit.table.cost'),
-        profit: t('accounting.profit.table.profit'),
-        marginPct: t('accounting.profit.table.marginPct'),
-        category: t('accounting.profit.table.category'),
-        amount: t('accounting.profit.table.amount'),
-        count: t('accounting.profit.table.count'),
-        note: t('accounting.profit.table.note'),
-        date: t('accounting.profit.table.date'),
-        currency: t('accounting.profit.table.currency'),
-        product: t('accounting.profit.types.product'),
-        service: t('accounting.profit.types.service'),
-        unknownCost: t('accounting.profit.kpis.unknownCost'),
-      },
+      detailRows: currentDetails?.items ?? [],
+      extraFilters: flagList,
+      labels: buildExportLabels(),
     });
   };
 
@@ -490,20 +708,30 @@ export const AccountingProfitReportsView: React.FC<AccountingProfitReportsViewPr
         </div>
         <div className='hero-controls'>
           <div className='period-toggle' role='tablist' aria-label={t('accounting.profit.sourcesAria')}>
-            {profitReportSourceOptions.map((option) => (
-              <button
-                key={option.value}
-                type='button'
-                className={
-                  option.value === source
-                    ? 'period-button period-button-active'
-                    : 'period-button'
-                }
-                onClick={() => setSource(option.value)}
-              >
-                {t(option.labelKey)}
-              </button>
-            ))}
+            {profitReportSourceOptions.map((option) => {
+              const disabledByPolicy =
+                isServicesExcluded && option.value === 'services';
+              return (
+                <button
+                  key={option.value}
+                  type='button'
+                  disabled={disabledByPolicy}
+                  title={
+                    disabledByPolicy
+                      ? t('accounting.profit.servicesUnavailableHint')
+                      : undefined
+                  }
+                  className={
+                    option.value === effectiveSource
+                      ? 'period-button period-button-active'
+                      : 'period-button'
+                  }
+                  onClick={() => updatePersonalFilters({ source: option.value })}
+                >
+                  {t(option.labelKey)}
+                </button>
+              );
+            })}
           </div>
           <div className='period-toggle' role='tablist' aria-label={t('accounting.profit.periodsAria')}>
             {profitReportPeriodOptions.map((option) => (
@@ -516,9 +744,9 @@ export const AccountingProfitReportsView: React.FC<AccountingProfitReportsViewPr
                     : 'period-button'
                 }
                 onClick={() => {
-                  setPeriod(option.value);
-                  setAppliedRange({ dateFrom: '', dateTo: '' });
-                  setDraftRange({ dateFrom: '', dateTo: '' });
+                  const empty = { dateFrom: '', dateTo: '' };
+                  setDraftRange(empty);
+                  updatePersonalFilters({ period: option.value, range: empty });
                 }}
               >
                 {t(option.labelKey)}
@@ -547,6 +775,13 @@ export const AccountingProfitReportsView: React.FC<AccountingProfitReportsViewPr
           </button>
           <button
             type='button'
+            className='ghost-button'
+            onClick={resetToCompanyDefaults}
+          >
+            {t('accounting.profit.resetToCompanyDefaults')}
+          </button>
+          <button
+            type='button'
             className='secondary-button'
             onClick={handleExport}
             disabled={!report || query.isLoading}
@@ -557,7 +792,10 @@ export const AccountingProfitReportsView: React.FC<AccountingProfitReportsViewPr
       </div>
 
       {isVisualOpen ? (
-        <AccountingProfitVisualSettings settings={visual} onChange={setVisual} />
+        <AccountingProfitVisualSettings
+          settings={visual}
+          onChange={updatePersonalVisual}
+        />
       ) : null}
 
       <AnalyticsDateFilterPanel
@@ -565,17 +803,26 @@ export const AccountingProfitReportsView: React.FC<AccountingProfitReportsViewPr
         isOpen={isDateFilterOpen}
         onDraftRangeChange={setDraftRange}
         onApply={() => {
-          setAppliedRange(draftRange);
+          updatePersonalFilters({ range: draftRange });
           setIsDateFilterOpen(false);
         }}
         onClear={() => {
           const empty = { dateFrom: '', dateTo: '' };
           setDraftRange(empty);
-          setAppliedRange(empty);
+          updatePersonalFilters({ range: empty });
           setIsDateFilterOpen(false);
         }}
         onClose={() => setIsDateFilterOpen(false)}
       />
+
+      {activeServiceProfitMode !== 'full' ? (
+        <div className='report-coverage-banner is-info' role='status'>
+          {t(`accounting.profit.policyBanner.${activeServiceProfitMode}`, {
+            version: activePolicyVersion,
+          })}
+          {isServicesExcluded ? ` ${t('accounting.profit.servicesUnavailableHint')}` : ''}
+        </div>
+      ) : null}
 
       {report?.coldSalesPurgedExist ? (
         <p className='muted-copy'>{t('accounting.profit.incompleteHistory')}</p>
@@ -597,18 +844,70 @@ export const AccountingProfitReportsView: React.FC<AccountingProfitReportsViewPr
             <article className={kpiClass('revenue')}>
               <span className='metric-label'>{t('accounting.profit.kpis.revenue')}</span>
               <strong>{formatMoney(report?.margin.revenue ?? 0, currency)}</strong>
+              {report?.previousComparison ? (
+                <AnalyticsComparisonBadge
+                  deltaPct={
+                    report.previousComparison.margin.revenue > 0
+                      ? ((report.margin.revenue -
+                          report.previousComparison.margin.revenue) /
+                          report.previousComparison.margin.revenue) *
+                        100
+                      : null
+                  }
+                />
+              ) : null}
             </article>
             <article className={kpiClass('cogs')}>
               <span className='metric-label'>{t('accounting.profit.kpis.cogs')}</span>
               <strong>{formatMoney(report?.margin.cogs ?? 0, currency)}</strong>
+              {report?.margin.costCoveragePct !== undefined ? (
+                <span className='muted-copy'>
+                  {t('accounting.profit.coveragePct', {
+                    pct: report.margin.costCoveragePct,
+                  })}
+                </span>
+              ) : null}
             </article>
             <article className={kpiClass('profit', report?.margin.grossProfit)}>
               <span className='metric-label'>{t('accounting.profit.kpis.grossProfit')}</span>
-              <strong>{formatMoney(report?.margin.grossProfit ?? 0, currency)}</strong>
+              <strong>
+                {report?.margin.isIncomplete
+                  ? t('accounting.profit.incomplete')
+                  : formatMoney(report?.margin.grossProfit ?? 0, currency)}
+              </strong>
+              {report?.margin.isIncomplete &&
+              report.margin.knownCostGrossProfit !== undefined ? (
+                <span className='muted-copy'>
+                  {t('accounting.profit.knownCostSubtotal', {
+                    profit: formatMoney(
+                      report.margin.knownCostGrossProfit,
+                      currency,
+                    ),
+                    revenue: formatMoney(
+                      report.margin.knownCostRevenue ?? 0,
+                      currency,
+                    ),
+                  })}
+                </span>
+              ) : null}
             </article>
             <article className={kpiClass('margin', report?.margin.grossMarginPct)}>
               <span className='metric-label'>{t('accounting.profit.kpis.grossMargin')}</span>
-              <strong>{formatProfitMarginPct(report?.margin.grossMarginPct ?? null)}</strong>
+              <strong>
+                {report?.margin.isIncomplete
+                  ? t('accounting.profit.incomplete')
+                  : formatProfitMarginPct(report?.margin.grossMarginPct ?? null)}
+              </strong>
+              {report?.margin.isIncomplete &&
+              report.margin.knownCostGrossMarginPct !== undefined ? (
+                <span className='muted-copy'>
+                  {t('accounting.profit.knownCostMargin', {
+                    pct: formatProfitMarginPct(
+                      report.margin.knownCostGrossMarginPct,
+                    ),
+                  })}
+                </span>
+              ) : null}
             </article>
           </div>
         </section>
@@ -623,6 +922,18 @@ export const AccountingProfitReportsView: React.FC<AccountingProfitReportsViewPr
             <article className={kpiClass('collected')}>
               <span className='metric-label'>{t('accounting.profit.kpis.collected')}</span>
               <strong>{formatMoney(report?.cash.collected ?? 0, currency)}</strong>
+              {report?.previousComparison ? (
+                <AnalyticsComparisonBadge
+                  deltaPct={
+                    report.previousComparison.cash.collected > 0
+                      ? ((report.cash.collected -
+                          report.previousComparison.cash.collected) /
+                          report.previousComparison.cash.collected) *
+                        100
+                      : null
+                  }
+                />
+              ) : null}
             </article>
             <article className={kpiClass('purchases')}>
               <span className='metric-label'>{t('accounting.profit.kpis.purchases')}</span>
@@ -635,23 +946,138 @@ export const AccountingProfitReportsView: React.FC<AccountingProfitReportsViewPr
             <article className={kpiClass('net', report?.cash.net)}>
               <span className='metric-label'>{t('accounting.profit.kpis.netCash')}</span>
               <strong>{formatMoney(report?.cash.net ?? 0, currency)}</strong>
+              {report?.cash.transfersVolume !== undefined &&
+              report.cash.transfersCount ? (
+                <span className='muted-copy'>
+                  {t('accounting.profit.transfersExcluded', {
+                    amount: formatMoney(report.cash.transfersVolume, currency),
+                    count: report.cash.transfersCount,
+                  })}
+                </span>
+              ) : null}
             </article>
           </div>
         </section>
       </div>
 
+      {report?.coverage?.warnings?.length ? (
+        <AnalyticsCoverageBanner
+          title={t('accounting.profit.coverageTitle')}
+          warnings={translateProfitCoverageWarnings(
+            t,
+            report.coverage.warnings,
+            report.coverage.warningItems,
+          )}
+        />
+      ) : null}
+
+      {period === 'whole' && !customRange ? (
+        <div className='report-coverage-banner is-info' role='status'>
+          {t('accounting.profit.comparisonDisabledNotice')}
+        </div>
+      ) : null}
+
+      <div className='report-filter-toggles' style={{ marginBottom: 12 }}>
+        <button
+          type='button'
+          className={`report-toggle-chip ${lossOnly ? 'is-active' : ''}`}
+          aria-pressed={lossOnly}
+          onClick={() => {
+            setLossOnly((v) => !v);
+            setDetailsPage(1);
+          }}
+        >
+          {t('accounting.profit.lossRecordsOnly')}
+        </button>
+        <button
+          type='button'
+          className={`report-toggle-chip ${missingCostOnly ? 'is-active' : ''}`}
+          aria-pressed={missingCostOnly}
+          onClick={() => {
+            setMissingCostOnly((v) => !v);
+            setDetailsPage(1);
+          }}
+        >
+          {t('accounting.profit.missingCostOnly')}
+        </button>
+      </div>
+
       {report?.otherCurrencies.length ? (
-        <p className='muted-copy'>
-          {t('accounting.profit.otherCurrencies', {
-            currencies: report.otherCurrencies.join(', '),
-          })}
-        </p>
+        <div style={{ display: 'grid', gap: 6 }}>
+          <p className='muted-copy'>
+            {t('accounting.profit.otherCurrencies', {
+              currencies: report.otherCurrencies.join(', '),
+            })}
+          </p>
+          {report.cash.byCurrency ? (
+            <div className='report-kpi-grid'>
+              {report.otherCurrencies.map((curCode) => {
+                const bucket = report.cash.byCurrency?.[curCode];
+                if (!bucket) return null;
+                return (
+                  <AnalyticsKpiCard
+                    key={curCode}
+                    label={t('accounting.profit.cashFlow', {
+                      currency: displayCurrencyCode(curCode),
+                    })}
+                    value={formatMoney(bucket.net, curCode)}
+                    hint={t('accounting.profit.cashFlowHint', {
+                      inAmount: formatMoney(bucket.collected, curCode),
+                      outAmount: formatMoney(
+                        bucket.opex + bucket.inventoryPurchases + bucket.refunds,
+                        curCode,
+                      ),
+                    })}
+                  />
+                );
+              })}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+
+      {report?.trendSeries && report.trendSeries.length > 0 ? (
+        <AnalyticsSectionCard
+          title={t('accounting.profit.trendTitle')}
+          subtitle={t('accounting.profit.trendSubtitle')}
+        >
+          <AnalyticsTrendChart
+            points={report.trendSeries}
+            formatYValue={(v) => formatMoney(v, currency)}
+            series={[
+              {
+                key: 'revenue',
+                label: t('accounting.profit.kpis.revenue'),
+                color: 'var(--color-primary)',
+                getValue: (pt) => pt.revenue,
+              },
+              {
+                key: 'knownCost',
+                label: t('accounting.profit.knownCost'),
+                color: 'var(--color-warning)',
+                getValue: (pt) => pt.knownCost,
+              },
+              {
+                key: 'knownProfit',
+                label: t('accounting.profit.knownProfit'),
+                color: 'var(--color-success)',
+                getValue: (pt) => pt.knownProfit,
+              },
+            ]}
+          />
+        </AnalyticsSectionCard>
       ) : null}
 
       {visual.showCharts ? (
         <AccountingProfitCharts
           rows={analysisRows}
           chartMetric={visual.chartMetric}
+          onChartMetricChange={(nextMetric) =>
+            updatePersonalVisual((current) => ({
+              ...current,
+              chartMetric: nextMetric,
+            }))
+          }
           currency={currency}
           cash={{
             collected: report?.cash.collected ?? 0,
@@ -663,6 +1089,7 @@ export const AccountingProfitReportsView: React.FC<AccountingProfitReportsViewPr
         />
       ) : null}
 
+      {visual.showTable ? (
       <section className='finance-info-panel finance-info-panel-wide'>
         <div className='analytics-panel-header'>
           <div>
@@ -696,7 +1123,11 @@ export const AccountingProfitReportsView: React.FC<AccountingProfitReportsViewPr
               }
             >
               {profitReportTypeFilterOptions.map((option) => (
-                <option key={option.value} value={option.value}>
+                <option
+                  key={option.value}
+                  value={option.value}
+                  disabled={isServicesExcluded && option.value === 'service'}
+                >
                   {t(option.labelKey)}
                 </option>
               ))}
@@ -835,6 +1266,7 @@ export const AccountingProfitReportsView: React.FC<AccountingProfitReportsViewPr
           />
         ) : null}
       </section>
+      ) : null}
 
       <section className='finance-info-panel finance-info-panel-wide'>
         <div className='analytics-panel-header'>
@@ -849,6 +1281,169 @@ export const AccountingProfitReportsView: React.FC<AccountingProfitReportsViewPr
           currency={currency}
         />
       </section>
+
+      <AnalyticsSectionCard
+        title={t('accounting.profit.drillDownTitle')}
+        subtitle={
+          detailsQuery.data
+            ? t('accounting.profit.drillDownMatching', {
+                count: detailsQuery.data.total,
+                revenue: formatMoney(detailsQuery.data.totals.revenue, currency),
+                knownCost: formatMoney(
+                  detailsQuery.data.totals.knownCost,
+                  currency,
+                ),
+                missing: detailsQuery.data.totals.missingCostRecordsCount,
+              })
+            : t('accounting.profit.drillDownEmpty')
+        }
+        actions={
+          <input
+            type='search'
+            value={detailSearch}
+            placeholder={t('accounting.profit.drillDownSearchPlaceholder')}
+            aria-label={t('accounting.profit.drillDownSearchAria')}
+            onChange={(e) => {
+              setDetailSearch(e.target.value);
+              setDetailsPage(1);
+            }}
+          />
+        }
+      >
+        <AnalyticsSortableTable<ProfitReportDetailItem>
+          columns={[
+            {
+              key: 'recordNumber',
+              label: t('accounting.profit.columns.orderKind'),
+              render: (d) => (
+                <div>
+                  <strong>{d.recordNumber || d.id.slice(-6)}</strong>
+                  <div className='muted-copy'>{translateProfitKind(t, d.kind)} · {d.status}</div>
+                </div>
+              ),
+            },
+            {
+              key: 'saleDate',
+              label: t('accounting.profit.columns.dateClient'),
+              sortable: true,
+              render: (d) => (
+                <div>
+                  <span>{d.clientName || '-'}</span>
+                  <div className='muted-copy'>{formatDate(d.saleDate)}</div>
+                </div>
+              ),
+            },
+            {
+              key: 'revenue',
+              label: t('accounting.profit.columns.revenue'),
+              align: 'right',
+              sortable: true,
+              render: (d) => formatMoney(d.revenue, currency),
+            },
+            {
+              key: 'knownCost',
+              label: t('accounting.profit.columns.knownCost'),
+              align: 'right',
+              sortable: true,
+              render: (d) => (
+                <div>
+                  <span>{formatMoney(d.knownCost, currency)}</span>
+                  {d.isIncomplete ? (
+                    <div className='report-badge is-warning'>
+                      {t('accounting.profit.cells.missing', {
+                        count: d.missingCostCount,
+                      })}
+                    </div>
+                  ) : null}
+                </div>
+              ),
+            },
+            {
+              key: 'profit',
+              label: t('accounting.profit.columns.profitMargin'),
+              align: 'right',
+              sortable: true,
+              render: (d) =>
+                d.isIncomplete ? (
+                  <div>
+                    <span className='report-badge is-warning'>
+                      {t('accounting.profit.incomplete')}
+                    </span>
+                    <div className='muted-copy'>
+                      {t('accounting.profit.cells.knownAmount', {
+                        amount: formatMoney(d.knownProfit, currency),
+                      })}
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    <span
+                      className={`report-badge ${
+                        d.isLoss ? 'is-danger' : 'is-success'
+                      }`}
+                    >
+                      {formatMoney(d.profit ?? 0, currency)}
+                    </span>
+                    <div className='muted-copy'>
+                      {d.marginPct !== null ? `${d.marginPct}%` : '-'}
+                    </div>
+                  </div>
+                ),
+            },
+            ...(canAuditCosts
+              ? ([
+                  {
+                    key: 'audit',
+                    label: t('accounting.profit.columns.audit'),
+                    align: 'right',
+                    render: (d) => (
+                      <button
+                        type='button'
+                        className='secondary-button'
+                        onClick={() => setAuditSaleId(d.id)}
+                      >
+                        {t('accounting.profit.auditCosts')}
+                      </button>
+                    ),
+                  },
+                ] as SortableColumn<ProfitReportDetailItem>[])
+              : []),
+          ]}
+          rows={detailsQuery.data?.items ?? []}
+          getRowKey={(d) => d.id}
+          sortBy={detailsSortBy}
+          sortDir={detailsSortDir}
+          onSortChange={(k, d) => {
+            setDetailsSortBy(k);
+            setDetailsSortDir(d);
+            setDetailsPage(1);
+          }}
+          loading={detailsQuery.isLoading}
+          error={
+            detailsQuery.isError
+              ? detailsQuery.error instanceof Error
+                ? detailsQuery.error.message
+                : t('accounting.profit.errors.loadDetails')
+              : null
+          }
+          page={detailsQuery.data?.page ?? detailsPage}
+          pageSize={detailsQuery.data?.pageSize ?? 25}
+          total={detailsQuery.data?.total ?? 0}
+          onPageChange={setDetailsPage}
+        />
+      </AnalyticsSectionCard>
+
+      <OrderCostAuditModal
+        saleId={auditSaleId}
+        isOpen={Boolean(auditSaleId)}
+        onClose={() => setAuditSaleId(null)}
+        onError={onError}
+        onSuccess={(msg) => {
+          onSuccess?.(msg);
+          void query.refetch();
+          void detailsQuery.refetch();
+        }}
+      />
 
       {catalogRow ? (
         <ProfitReportCatalogModalHost

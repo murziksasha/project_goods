@@ -44,13 +44,27 @@ Full permission matrix: [Permission_Flow.md](./Permission_Flow.md).
 
 ## HTTP Hardening
 
-- `helmet()` — security headers
+- Helmet — shared config for API and frontend proxy (see «Container hardening» below)
 - `express.json({ limit: '1mb' })` — default body size limit
 - CORS — restricted by `CLIENT_ORIGIN` env var (comma-separated origins). In **production**, missing `CLIENT_ORIGIN` blocks browser cross-origin requests (dev still allow-all when unset).
 - Listen host — `HOST` (default `0.0.0.0`) for LAN binding
 - Weather — OpenWeather API key via `OPENWEATHER_API_KEY` only (not query params, not Mongo settings)
-- Login rate limit — soft in-memory throttle on `POST /api/auth/login` only (~40/15m per IP, ~15/15m per username) → `429`
+- Login rate limit — soft in-memory throttle on `POST /api/auth/login` only (per IP: only **failed** logins count, default 100/15m via `LOGIN_MAX_FAILED_PER_IP`; per username: every attempt counts, 15/15m) → `429`
 - Print HTML — frontend sanitizes print templates with DOMPurify before `dangerouslySetInnerHTML` / print window
+- Print inline markup (`**`, `*`, `__`) — authored text is HTML-escaped before markup is applied; only `<strong>`, `<em>`, `<u>` are emitted. `{{variable}}` values are substituted afterwards, escaped, and never parsed as markup. See [PRINT_FORMS_SPEC.md](./PRINT_FORMS_SPEC.md#inline-text-formatting-2026-11-10)
+
+### Container hardening (реализовано)
+
+Подробности: [CONTAINER_HARDENING_PLAN.md](./CONTAINER_HARDENING_PLAN.md), развёртывание: [DEPLOYMENT.md](./DEPLOYMENT.md#container-hardening-реализовано).
+
+- Общая конфигурация Helmet для API (`backend/src/config/security-headers.ts`) и прокси frontend (`frontend/scripts/security-headers.mjs`): HTML, `/assets/*`, файлы `public/`, SPA fallback и ошибки 500/502 получают CSP, `X-Frame-Options: SAMEORIGIN`, `nosniff`, `Referrer-Policy: no-referrer` и остальные заголовки Helmet. Для `/api` через прокси приоритет у заголовков backend.
+- CSP: `script-src 'self'`, `script-src-attr 'none'`, `style-src 'self' 'unsafe-inline'` (React `style={…}` и `<style>` окна печати), `img-src 'self' data:`, `connect-src 'self'`, `object-src 'none'`, `frame-ancestors 'self'`. HSTS и `upgrade-insecure-requests` выключены: доступ только по HTTP в LAN, HTTPS не планируется.
+- `CSP_REPORT_ONLY` (по умолчанию `true`) отправляет `Content-Security-Policy-Report-Only`; `false` включает блокирующий режим. `frame-ancestors` в Report-Only браузер игнорирует, встраивание всё равно запрещает `X-Frame-Options`.
+- Встроенных скриптов в `index.html` нет: тема ставится из `/theme-init.js` (`no-cache`).
+- Окно печати (`window.open('')` + `document.write`) наследует CSP страницы. Шаблоны проходят DOMPurify, скриптов в окне печати нет. Внешние `<img src="https://…">` в пользовательских шаблонах CSP заблокирует — проверить шаблоны до блокирующего режима.
+- Контейнеры backend и frontend работают от `node` (UID 1000) с `cap_drop: [ALL]`, `no-new-privileges`, `pids_limit: 200`, `mem_limit`; frontend `read_only` с `tmpfs: /tmp`. MongoDB: `mem_limit: 2g` и `--wiredTigerCacheSizeGB 1`.
+- Принятое ограничение: backend по-прежнему может писать в том бэкапов. `USER node` не защищает бэкапы от кода, выполненного внутри backend, но лишает его root-прав в контейнере.
+- Известная особенность: `POST /api/backups/restore-file` читает архив до 2 ГБ целиком в память. Планируется потоковая запись во временный файл.
 
 ## Transactions
 
@@ -60,6 +74,8 @@ Full permission matrix: [Permission_Flow.md](./Permission_Flow.md).
 
 ## LAN Assumptions
 
+- The default local Compose file publishes MongoDB and backend only on `127.0.0.1`; employees connect through frontend port `5173`. Production adds MongoDB keyfile authentication and an inventory-scoped application user through the separate Compose layer in [DEPLOYMENT.md](./DEPLOYMENT.md).
+- Only the production frontend proxy is a trusted forwarding hop (`TRUST_PROXY_HOPS=1`) for backend IP attribution. The proxy replaces client-supplied forwarding headers with the actual socket address; direct backend port `5000` is loopback-only. On Windows Docker Desktop all LAN clients reach the backend from one gateway address (observed `172.18.0.1`), so the per-IP bucket is effectively shop-wide. That is why it counts only failed logins: normal successful sign-ins never consume it, and the per-username limiter (15/15m) still stops guessing against one account.
 - Soft login rate limit only (see above); no global API rate limit.
 - Session tokens: client holds raw bearer; DB stores `h1:` + SHA-256 only. **Plaintext legacy sessions are rejected** (re-login required).
 - Settings API never returns or persists `openWeatherApiKey`; response includes `dashboardPreferences.hasOpenWeatherApiKey` when server env is set.

@@ -734,3 +734,10 @@ Named saved filters are server-backed (`GET/POST/DELETE /api/saved-filters`, sco
 
 - This document is normative for warehouse UI/UX and data mapping.
 - Any warehouse behavior changes must update this file in the same task.
+
+## Warehouse Information & Forecasting Upgrade (2026-11-11)
+
+- `Warehouse Information` (`GET /reports/warehouse` & `/details`, permission `inventory.manage`) aggregates full filtered stock KPIs: on-hand quantity, manual reservations + uncommitted open-order occupancy (`reservedQuantity`), available quantity, purchase/available valuation, and supplier/location distributions.
+- Stock aging classifies items using `purchaseDate` in `Europe/Kiev` into `0-30`, `31-60`, `61-90`, `90+` days, and explicitly surfaces items lacking `purchaseDate` under `unknown` age with coverage warnings.
+- Observed trailing 90-day demand (`steady | sparse | zero` pattern), estimated coverage days, reorder suggestions (editable `leadTimeDays` default `14`, `safetyStockDays` default `7`, toggleable pending POs), and 30/60/90-day scenarios are persisted only as private per-employee scenarios (`GET/POST/PUT/DELETE /scenarios`, domain `warehouse`) and never create POs, payments, or reservations automatically.
+- Filtered `.xlsx` exports include stock rows, aging/supplier/forecast sheets, and a `Metadata & Definitions` sheet.

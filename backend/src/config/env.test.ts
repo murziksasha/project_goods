@@ -6,10 +6,12 @@ describe('parseEnv', () => {
     expect(parseEnv({})).toEqual({
       port: 5000,
       host: '0.0.0.0',
-      mongoUri: 'mongodb://127.0.0.1:27017/inventory?replicaSet=rs0',
+      mongoUri: 'mongodb://127.0.0.1:27017/inventory?replicaSet=rs0&directConnection=true',
       clientOrigin: undefined,
+      trustProxyHops: 0,
       requireMongoTransactions: false,
       authSessionIdleHours: 0,
+      loginMaxFailedPerIp: 100,
       openWeatherApiKey: undefined,
       backupDir: './backups',
       backupCreateCommand: undefined,
@@ -25,6 +27,7 @@ describe('parseEnv', () => {
       archiveAutoPurgeSales: false,
       archivePurgeRequireSafetyBackup: true,
       financePurgeRequireSafetyBackup: true,
+      cspReportOnly: true,
     });
   });
 
@@ -35,8 +38,10 @@ describe('parseEnv', () => {
         HOST: '127.0.0.1',
         MONGO_URI: 'mongodb://db:27017/app',
         CLIENT_ORIGIN: 'http://localhost:5173',
+        TRUST_PROXY_HOPS: '1',
         MONGO_REQUIRE_TRANSACTIONS: 'true',
         AUTH_SESSION_IDLE_HOURS: '72',
+        LOGIN_MAX_FAILED_PER_IP: '250',
         OPENWEATHER_API_KEY: ' weather-key ',
         BACKUP_DIR: '/app/backups',
         BACKUP_CREATE_COMMAND: 'custom-create',
@@ -52,14 +57,17 @@ describe('parseEnv', () => {
         ARCHIVE_AUTO_PURGE_SALES: 'true',
         ARCHIVE_PURGE_REQUIRE_SAFETY_BACKUP: 'false',
         FINANCE_PURGE_REQUIRE_SAFETY_BACKUP: 'false',
+        CSP_REPORT_ONLY: 'off',
       }),
     ).toEqual({
       port: 7000,
       host: '127.0.0.1',
       mongoUri: 'mongodb://db:27017/app',
       clientOrigin: 'http://localhost:5173',
+      trustProxyHops: 1,
       requireMongoTransactions: true,
       authSessionIdleHours: 72,
+      loginMaxFailedPerIp: 250,
       openWeatherApiKey: 'weather-key',
       backupDir: '/app/backups',
       backupCreateCommand: 'custom-create',
@@ -75,6 +83,7 @@ describe('parseEnv', () => {
       archiveAutoPurgeSales: true,
       archivePurgeRequireSafetyBackup: false,
       financePurgeRequireSafetyBackup: false,
+      cspReportOnly: false,
     });
   });
 
@@ -91,5 +100,10 @@ describe('parseEnv', () => {
   it('falls back to the default port when PORT is invalid', () => {
     expect(parseEnv({ PORT: 'abc' }).port).toBe(5000);
     expect(parseEnv({ PORT: '0' }).port).toBe(5000);
+  });
+
+  it('limits trusted proxy hops to one', () => {
+    expect(parseEnv({ TRUST_PROXY_HOPS: '3' }).trustProxyHops).toBe(1);
+    expect(parseEnv({ TRUST_PROXY_HOPS: 'invalid' }).trustProxyHops).toBe(0);
   });
 });

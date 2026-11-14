@@ -7,6 +7,8 @@ import {
   defaultLabelContentMargins,
   defaultPrintForms,
   getWarehouseLabelTemplateData,
+  getIncludedVatAmounts,
+  getPrintFormTemplateData,
   normalizeContentMargins,
   normalizePrintFormsForView,
   normalizePrintLayoutBlocks,
@@ -32,6 +34,106 @@ const templateData = {
 };
 
 describe('renderPrintTemplate', () => {
+  it('prints Ukrainian captions in every built-in document while retaining template-list names', () => {
+    const forms = normalizePrintFormsForView(defaultPrintForms);
+    expect(forms.find((form) => form.id === 'receipt')?.content).toContain('Квитанція');
+    expect(forms.find((form) => form.id === 'check')?.content).toContain('Товарний чек');
+    expect(forms.find((form) => form.id === 'warranty')?.content).toContain('Гарантійний талон');
+    expect(forms.find((form) => form.id === 'completion-act')?.content).toContain('Акт виконаних робіт');
+    expect(forms.find((form) => form.id === 'invoice')?.title).toBe('Invoice with VAT');
+    const html = renderPrintTemplate('<h3>Services</h3>{{services_table}}<p>{{clientName}}</p>', { services_table: '<table><thead><tr><th>Name</th></tr></thead><tbody><tr><td>Services</td></tr></tbody></table>', clientName: 'Client' }, 'html');
+    expect(html).toContain('<h3>Послуги</h3>');
+    expect(html).toContain('<th>Найменування</th>');
+    expect(html).toContain('<td>Services</td>');
+    expect(html).toContain('<p>Client</p>');
+  });
+
+  it.each([
+    [1200, 1000, 200], [100, 83.33, 16.67], [0, 0, 0],
+    [0.01, 0.01, 0], [0.03, 0.02, 0.01], [100.01, 83.34, 16.67],
+  ])('extracts VAT from %s while reconciling rounded amounts', (gross, net, vat) => {
+    expect(getIncludedVatAmounts(gross)).toEqual({ net, vat });
+    expect(Math.round((net + vat) * 100)).toBe(Math.round(gross * 100));
+  });
+
+  it('selects included VAT values only for Invoice with VAT and keeps the source data intact', () => {
+    const values = { net_amount: '1200.00 UAH', vat_amount: '0.00 UAH', total_amount: '1200.00 UAH', total_written: 'Gross amount in words', vat_included_net_amount: '1000.00 UAH', vat_included_vat_amount: '200.00 UAH' };
+    expect(getPrintFormTemplateData({ id: 'invoice' }, values)).toEqual({ ...values, net_amount: '1000.00 UAH', vat_amount: '200.00 UAH' });
+    expect(getPrintFormTemplateData({ id: 'invoice-no-vat' }, values)).toBe(values);
+    expect(getPrintFormTemplateData({ id: 'check' }, values)).toBe(values);
+    expect(values.vat_amount).toBe('0.00 UAH');
+  });
+
+  it('migrates the previous invoice and translates saved invoice text without changing layout settings or tokens', () => {
+    const original = createLayoutPrintForm(defaultPrintForms.find((form) => form.id === 'invoice-no-vat')!);
+    const saved = { ...original, orientation: 'landscape' as const, layoutBlocks: [
+      { id: 'custom-heading', type: 'heading' as const, level: 2 as const, weight: 'light' as const, align: 'right' as const, text: 'Invoice #{{orderNumber}}' },
+      { id: 'custom-text', type: 'paragraph' as const, level: 3 as const, text: 'Custom footer {{note}}' },
+    ] };
+    const oldInvoice = { ...defaultPrintForms.find((form) => form.id === 'invoice')!, title: 'Invoice', layoutVersion: 1 as const, layoutBlocks: [{ id: 'old', type: 'invoiceItemsTable' as const }] };
+    const forms = normalizePrintFormsForView([saved, oldInvoice]);
+    const translated = forms.find((form) => form.id === 'invoice-no-vat')!;
+    expect(translated.orientation).toBe('landscape');
+    expect(translated.layoutBlocks?.[0]).toEqual({ ...saved.layoutBlocks[0], text: 'Рахунок-фактура №{{orderNumber}}' });
+    expect(translated.layoutBlocks?.[1]).toEqual(saved.layoutBlocks[1]);
+    const invoice = forms.find((form) => form.id === 'invoice')!;
+    expect(invoice.title).toBe('Invoice with VAT');
+    expect(invoice.content).toContain('{{service_center_phone}}');
+    expect(invoice.content).toContain('{{vat_amount}}');
+    expect(invoice.layoutBlocks?.filter((block) => block.type === 'lineItemsTable')).toHaveLength(2);
+    const normalizedAgain = normalizePrintFormsForView(forms);
+    expect(normalizedAgain.find((form) => form.id === 'invoice')).toEqual(invoice);
+    expect(normalizedAgain.find((form) => form.id === 'invoice-no-vat')).toEqual(translated);
+  });
+
+  it('translates invoice column titles without translating item names or placeholders', () => {
+    const html = renderPrintTemplate('{{products_table}}', { products_table: '<table><thead><tr><th>Name</th><th>Qty</th><th>Price</th><th>Sum</th></tr></thead><tbody><tr><td>Products</td></tr></tbody></table>' }, 'html');
+    expect(html).toContain('<th>Найменування</th>');
+    expect(html).toContain('<th>К-сть</th>');
+    expect(html).toContain('<th>Ціна</th>');
+    expect(html).toContain('<th>Сума</th>');
+    expect(html).toContain('<td>Products</td>');
+  });
+
+  it.each(['products', 'services'] as const)('hides only the empty %s builder section, including its custom heading', (emptyKind) => {
+    const blocks: PrintLayoutBlock[] = [
+      { id: 'services', type: 'lineItemsTable', kind: 'services', title: 'Work performed' },
+      { id: 'products', type: 'lineItemsTable', kind: 'products', title: 'Supplied items' },
+    ];
+    const values = {
+      services_table: emptyKind === 'services' ? '' : '<table><tbody><tr><td>Diagnostics</td></tr></tbody></table>',
+      products_table: emptyKind === 'products' ? '' : '<table><tbody><tr><td>Adapter</td></tr></tbody></table>',
+    };
+    const rendered = renderPrintTemplate(renderPrintLayout(blocks), values, 'html');
+    expect(rendered).not.toContain(emptyKind === 'services' ? 'Work performed' : 'Supplied items');
+    expect(rendered).toContain(emptyKind === 'services' ? 'Supplied items' : 'Work performed');
+    expect(new DOMParser().parseFromString(rendered, 'text/html').querySelectorAll('table')).toHaveLength(1);
+  });
+
+  it('hides legacy headings for empty tables and preserves surrounding content', () => {
+    const rendered = renderPrintTemplate('<div><h1>Receipt</h1><h3>Custom services</h3>{{services_table}}<h3>Custom products</h3><p>{{products_table}}</p><p>Total: {{total}}</p></div>', { total: '0 UAH' }, 'html');
+    expect(rendered).toContain('Квитанція');
+    expect(rendered).toContain('Разом: 0 UAH');
+    expect(rendered).not.toContain('Custom services');
+    expect(rendered).not.toContain('Custom products');
+  });
+
+  it('adds an editable invoice without VAT without overwriting saved forms', () => {
+    const saved = { ...defaultPrintForms.find((form) => form.id === 'invoice')!, title: 'My invoice', content: '<p>My saved invoice</p>' };
+    const forms = normalizePrintFormsForView([saved]);
+    expect(forms.find((form) => form.id === 'invoice')?.content).toBe(saved.content);
+    const invoice = forms.find((form) => form.id === 'invoice-no-vat')!;
+    expect(invoice.layoutVersion).toBe(1);
+    expect(invoice.content).toContain('{{service_center_phone}}');
+    expect(invoice.content).toContain('{{repair_order_reference}}');
+    const rendered = renderPrintTemplate(invoice.content, { ...templateData, total_amount: '100 UAH', total_written: 'one hundred hryvnias', products_table: '<table><tbody><tr><td>Adapter</td></tr></tbody></table>' }, 'html');
+    expect(rendered).toContain('Рахунок-фактура №r000124');
+    expect(rendered).toContain('Без ПДВ');
+    expect(rendered).not.toContain('Services');
+    expect(rendered).not.toContain('Repair order');
+    expect(rendered).not.toContain('{{');
+  });
+
   it('renders supported print variables', () => {
     expect(
       renderPrintTemplate(
@@ -45,15 +147,14 @@ describe('renderPrintTemplate', () => {
     ).toContain('r000124 Ivan iPhone 100 UAH Master Kyiv, Main street 1 UA123456789123456789123456789');
   });
 
-  it('renders English empty table fallbacks', () => {
+  it('hides empty tables without placeholder messages', () => {
     const rendered = renderPrintTemplate(
       '{{products_table}} {{services_table}}',
       templateData,
       'html',
     );
 
-    expect(rendered).toContain('No products');
-    expect(rendered).toContain('No services');
+    expect(rendered.trim()).toBe('');
     expect(rendered).not.toContain('Р');
   });
 
@@ -153,8 +254,8 @@ describe('renderPrintLayout', () => {
     ]);
 
     expect(rendered).toContain('<div class="print-document">');
-    expect(rendered).toContain('<h1 class="print-block-heading">Order {{orderNumber}}</h1>');
-    expect(rendered).toContain('<p class="print-block-paragraph print-block-paragraph-level-3">Client {{clientName}}</p>');
+    expect(rendered).toContain('<h1 class="print-block-heading">Замовлення {{orderNumber}}</h1>');
+    expect(rendered).toContain('<p class="print-block-paragraph print-block-paragraph-level-3">Клієнт {{clientName}}</p>');
     expect(rendered).toContain('{{products_table}}');
     expect(rendered).toContain('{{services_table}}');
     expect(rendered).toContain('{{invoice_items_table}}');
@@ -338,7 +439,7 @@ describe('normalizePrintFormsForView', () => {
     });
     const normalized = normalizePrintFormsForView([form]);
 
-    expect(normalized.find((item) => item.id === 'custom-layout')?.content).toContain('New heading');
+    expect(normalized.find((item) => item.id === 'custom-layout')?.content).toContain('Новий заголовок');
     expect(normalized.find((item) => item.id === 'custom-layout')?.content).not.toBe('old html');
   });
 
@@ -610,7 +711,8 @@ describe('normalizePrintFormsForView', () => {
       'Check',
       'Warranty card',
       'Completion act',
-      'Invoice',
+      'Invoice with VAT',
+      'Invoice without VAT',
       'Barcode',
       'Product barcode',
     ]);

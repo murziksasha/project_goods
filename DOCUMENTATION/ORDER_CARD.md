@@ -22,6 +22,7 @@ Related: [ORDER_FLOW.md](./ORDER_FLOW.md) · [SALE_CARD.md](./SALE_CARD.md) · [
 
 ## Main Information
 
+- Phone dial-target formatting is defined in [UI_DESIGN_SYSTEM.md — Dial links in opened repair and sale cards](./UI_DESIGN_SYSTEM.md#dial-links-in-opened-repair-and-sale-cards).
 - Hover copy is available on the header order number and Client, Device, Phone, S/N, Manager, and Issued values. Phone text is a native `tel:` link. A click on the client name opens the client card over this order. The page stays `orders`, `saleId` stays, and `clientCard` is added. The copy icon still only copies. Saving that client updates the name, phone, and status shown here and does not reset an unsaved Device, S/N, or master. Shared interaction, clipboard payloads, draft/read-only behavior, and placeholders: [UI_DESIGN_SYSTEM.md — Hover copy icon](./UI_DESIGN_SYSTEM.md#hover-copy-icon). Overlay rules: [CLIENTS_RULES.md](./CLIENTS_RULES.md#client-card-tabs).
 - Accepted device is stored and displayed only in `Main information` (`Device` + `S/N`).
 - Accepted device must not be auto-added to `Products`.
@@ -208,3 +209,12 @@ Related: [ORDER_FLOW.md](./ORDER_FLOW.md) · [SALE_CARD.md](./SALE_CARD.md) · [
 - Collapse section buttons: `aria-expanded`; icon marked `aria-hidden`.
 - Tier toggle (`ProductSalePriceTierToggle`): `aria-pressed`; Arrow Left/Right switches R/W inside the group.
 - Design tokens and component catalog: [`UI_DESIGN_SYSTEM.md`](./UI_DESIGN_SYSTEM.md).
+
+### Line-item costing & product purchase cost audit (2026-11-12)
+
+- Service items with `costMethod = time_rate` expose an inline `Minutes` (`recordedMinutes`) input inside the line item name cell (operational input allowed without `finance.view`, locked after cost snapshot commit unless authorized). Service costing remains active in financial reports and is not edited via the card `Audit` modal.
+- In the `Payment` panel, an `Audit` button renders immediately to the right of `Accept payment` (`Paid`) when the repair order contains at least one `Products` line item added without a purchase price (`requiresCostAudit: true`, or legacy unknown-cost / previously audited product lines) AND the employee has BOTH `orders.manage` AND `finance.view`.
+- `Audit` is available both before payment/closure and after payment/issue (even when the rest of the card is read-only). `requiresCostAudit` remains `true` after cost completion so recorded prices can still be corrected with a reason.
+- The yellow missing-cost warning banner, `Known Cost Total`, and `Draft Estimate` / `Committed Snapshot` badges are not shown inside the order card; incomplete-cost tracking remains active in financial reports.
+- `OrderCostAuditModal` opens in a full-page portal above the sidebar/topbar with pinned header and footer and internal scroll for the product list; it displays only audit-eligible products, sends only modified rows via `PATCH /api/sales/:saleId/costs`, accepts explicit `0` as a known zero cost, and requires an audit reason (`>= 2` chars) when correcting or clearing an already recorded price.
+- Catalog service costing defaults (`costMethod`, `fixedCost`, `hourlyCost`, `defaultDurationMinutes`) are configurable in `ServiceCatalogForm`, `CatalogServiceModal`, and `OrderDetailCatalogServiceEditorModal`.

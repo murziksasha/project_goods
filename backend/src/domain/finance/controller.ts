@@ -9,6 +9,10 @@ import {
   deleteFinanceCategory as deleteFinanceCategoryService,
   getFinanceReport,
   getFinanceProfitReport,
+  getFinancePolicy as getFinancePolicyService,
+  listFinancePolicyHistory as listFinancePolicyHistoryService,
+  previewFinancePolicyImpact,
+  updateFinancePolicy as updateFinancePolicyService,
   listCashboxes as listCashboxesService,
   listFinanceCategories,
   listFinanceCurrencies,
@@ -19,6 +23,15 @@ import {
   updateFinanceCurrency,
   updateFinanceTransactionNote,
 } from './service';
+import {
+  getFinanceProfitReportDetails,
+  type ProfitReportQuery,
+} from './profit-report';
+import {
+  getCashboxesReport,
+  getCashboxesReportDetails,
+  type CashboxesReportQuery,
+} from './cashboxes-report';
 import {
   issueSupplierOrderWithoutPayment as issueSupplierOrderWithoutPaymentService,
   listSupplierOrdersForAccounting,
@@ -138,14 +151,72 @@ export const getReport = async (req: Request, res: Response): Promise<void> => {
   res.json(await getFinanceReport());
 };
 
+export const getCashboxesReportHandler = async (req: Request, res: Response): Promise<void> => {
+  await requirePermission(req, 'finance.view');
+  res.json(await getCashboxesReport(req.query as CashboxesReportQuery));
+};
+
+export const getCashboxesReportDetailsHandler = async (req: Request, res: Response): Promise<void> => {
+  await requirePermission(req, 'finance.view');
+  res.json(await getCashboxesReportDetails(req.query as CashboxesReportQuery));
+};
+
 export const getProfitReport = async (req: Request, res: Response): Promise<void> => {
   await requirePermission(req, 'finance.view');
   res.json(
-    await getFinanceProfitReport(req.query as {
-      period?: string;
-      dateFrom?: string;
-      dateTo?: string;
-      source?: string;
+    await getFinanceProfitReport(req.query as ProfitReportQuery),
+  );
+};
+
+export const getProfitReportDetailsHandler = async (req: Request, res: Response): Promise<void> => {
+  await requirePermission(req, 'finance.view');
+  res.json(
+    await getFinanceProfitReportDetails(req.query as ProfitReportQuery),
+  );
+};
+
+export const getFinancePolicyHandler = async (req: Request, res: Response): Promise<void> => {
+  await requireAnyPermission(req, ['finance.view', 'finance.policy.manage']);
+  res.json(await getFinancePolicyService());
+};
+
+export const updateFinancePolicyHandler = async (req: Request, res: Response): Promise<void> => {
+  const employee = await requirePermission(req, 'finance.policy.manage');
+  res.json(
+    await updateFinancePolicyService(
+      (req.body ?? {}) as {
+        version?: unknown;
+        serviceAuditEnabled?: unknown;
+        serviceProfitMode?: unknown;
+        reportDefaults?: unknown;
+        reason?: unknown;
+      },
+      employee,
+    ),
+  );
+};
+
+export const previewFinancePolicyHandler = async (req: Request, res: Response): Promise<void> => {
+  await requireAnyPermission(req, ['finance.view', 'finance.policy.manage']);
+  res.json(
+    await previewFinancePolicyImpact(
+      (req.body ?? {}) as {
+        serviceProfitMode?: unknown;
+        period?: string;
+        dateFrom?: string;
+        dateTo?: string;
+        source?: string;
+      },
+    ),
+  );
+};
+
+export const getFinancePolicyHistoryHandler = async (req: Request, res: Response): Promise<void> => {
+  await requireAnyPermission(req, ['finance.view', 'finance.policy.manage']);
+  res.json(
+    await listFinancePolicyHistoryService({
+      page: req.query.page,
+      pageSize: req.query.pageSize,
     }),
   );
 };

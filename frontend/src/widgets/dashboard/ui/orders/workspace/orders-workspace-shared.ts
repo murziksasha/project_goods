@@ -1,7 +1,12 @@
 import type { MouseEvent as ReactMouseEvent } from 'react';
 import JsBarcode from 'jsbarcode';
 import type { Employee } from '../../../../../entities/employee';
-import type { Sale } from '../../../../../entities/sale';
+import type {
+  Sale,
+  SaleCostAuditEntry,
+  SaleCostSnapshot,
+  ServiceCostMethod,
+} from '../../../../../entities/sale';
 import { isRepairOrder } from '../../../../../entities/sale';
 import {
   getSaleListItemSerial,
@@ -18,9 +23,11 @@ import {
 } from '../../../../../shared/lib/format';
 import { sanitizePrintHtml } from '../../../../../shared/lib/sanitizeHtml';
 import i18n from '../../../../../shared/i18n/config';
+import { formatAmountInWords, formatPrintAmount, printT } from '../../../../../shared/lib/printFormatting';
 import { getSaleClientDisplayName } from '../../../model/sale-client-display';
 import { groupPrintProductLineItems } from '../../../model/order-line-item-groups';
 import type { SupplierOrder } from '../../../../../entities/supplier-order';
+import type { WarehouseSettings } from '../../../../../entities/warehouse-settings';
 import type {
   Product,
   ProductModelUpdatePayload,
@@ -33,6 +40,8 @@ import type {
 import type { PrintForm } from '../../../../../entities/settings';
 import {
   getOrientedLabelSize,
+  getIncludedVatAmounts,
+  getPrintFormTemplateData,
   getPrintContentMarginVars,
   getWarehouseBarcodePrintForm,
   getWarehouseLabelTemplateData,
@@ -88,6 +97,8 @@ export type OrdersWorkspaceProps = {
 };
 
 export type PrintCompanySettings = {
+  warehouseSettings?: WarehouseSettings;
+  products?: Product[];
   serviceName: string;
   company: string;
   companyAddress: string;
@@ -109,7 +120,8 @@ export type OrdersTab =
   | 'kanban'
   | 'sales'
   | 'supplierOrders'
-  | 'supplierInformation';
+  | 'supplierInformation'
+  | 'ordersReports';
 export type OrdersColumnKey =
   | 'orderNumber'
   | 'client'
@@ -198,6 +210,17 @@ export type OrderLineItem = {
   quantity: number;
   warrantyPeriod: number;
   serialNumbers?: string[];
+  costMethod?: ServiceCostMethod | null;
+  recordedMinutes?: number | null;
+  fixedCost?: number | null;
+  hourlyCost?: number | null;
+  directExpenses?: number | null;
+  unitCostOverride?: number | null;
+  isCostOverridden?: boolean | null;
+  requiresCostAudit?: boolean | null;
+  costSnapshot?: SaleCostSnapshot | null;
+  auditedCost?: SaleCostSnapshot | null;
+  costAuditLog?: SaleCostAuditEntry[];
 };
 export type RepairTypeFilter = 'all' | 'paid' | 'warranty';
 export type SaleTypeFilter = 'all' | 'rapid' | 'regular';
@@ -241,6 +264,10 @@ export const orderTabs: OrderTabDefinition[] = [
   {
     key: 'supplierInformation',
     labelKey: 'orders.tabs.supplierInformation',
+  },
+  {
+    key: 'ordersReports',
+    labelKey: 'orders.tabs.ordersReports',
   },
 ];
 
@@ -385,7 +412,8 @@ export const getStoredOrderDetailRelatedTab = (): OrdersTab => {
       storedTab === 'kanban' ||
       storedTab === 'sales' ||
       storedTab === 'supplierOrders' ||
-      storedTab === 'supplierInformation'
+      storedTab === 'supplierInformation' ||
+      storedTab === 'ordersReports'
       ? storedTab
       : 'orders';
   } catch {
@@ -496,6 +524,7 @@ export const defaultVisibleColumns: OrdersColumnVisibility = {
   ],
   supplierOrders: allOrdersColumnKeys,
   supplierInformation: allOrdersColumnKeys,
+  ordersReports: allOrdersColumnKeys,
 };
 export const availableColumnsByTab: Record<
   OrdersTab,
@@ -506,6 +535,7 @@ export const availableColumnsByTab: Record<
   sales: [...defaultVisibleColumns.sales, 'received'],
   supplierOrders: allOrdersColumnKeys,
   supplierInformation: allOrdersColumnKeys,
+  ordersReports: allOrdersColumnKeys,
 };
 export const lockedColumnsByTab: Record<
   OrdersTab,
@@ -516,6 +546,7 @@ export const lockedColumnsByTab: Record<
   sales: ['orderNumber'],
   supplierOrders: ['orderNumber'],
   supplierInformation: ['orderNumber'],
+  ordersReports: ['orderNumber'],
 };
 
 export const repairStatuses: Array<{
@@ -689,6 +720,7 @@ export const readActiveOrderFilters = () => {
       sales: normalizeOne(raw.sales),
       supplierOrders: normalizeOne(raw.supplierOrders),
       supplierInformation: normalizeOne(raw.supplierInformation),
+      ordersReports: normalizeOne(raw.ordersReports),
     } as Record<OrdersTab, OrdersFilters>;
   } catch {
     return {
@@ -697,6 +729,7 @@ export const readActiveOrderFilters = () => {
       sales: emptyOrdersFilters,
       supplierOrders: emptyOrdersFilters,
       supplierInformation: emptyOrdersFilters,
+      ordersReports: emptyOrdersFilters,
     } as Record<OrdersTab, OrdersFilters>;
   }
 };
@@ -1317,10 +1350,9 @@ export const escapeHtml = (value: string) =>
 
 export const renderLineItemsTable = (
   items: OrderLineItem[],
-  emptyLabel: string,
 ) => {
   if (items.length === 0) {
-    return `<p class="print-muted">${emptyLabel}</p>`;
+    return '';
   }
 
   const rows = groupPrintProductLineItems(items)
@@ -1340,10 +1372,10 @@ export const renderLineItemsTable = (
     <table class="print-line-table">
       <thead>
         <tr>
-          <th>${i18n.t('orders.print.table.name')}</th>
-          <th>${i18n.t('orders.print.table.quantityShort')}</th>
-          <th>${i18n.t('orders.print.table.price')}</th>
-          <th>${i18n.t('orders.print.table.sum')}</th>
+          <th>${printT('orders.print.table.name')}</th>
+          <th>${printT('orders.print.table.quantityShort')}</th>
+          <th>${printT('orders.print.table.price')}</th>
+          <th>${printT('orders.print.table.sum')}</th>
         </tr>
       </thead>
       <tbody>${rows}</tbody>
@@ -1351,136 +1383,13 @@ export const renderLineItemsTable = (
   `;
 };
 
-export const formatInvoiceAmount = (value: number) =>
-  new Intl.NumberFormat(
-    i18n.language.startsWith('uk') ? 'uk-UA' : 'en-US',
-    {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    },
-  ).format(value);
+export const formatInvoiceAmount = formatPrintAmount;
 
-type AmountPluralForms = {
-  one: string;
-  few: string;
-  many: string;
-};
-
-const getAmountWordArrays = () => ({
-  zero: i18n.t('orders.print.amountInWords.zero'),
-  units: i18n.t('orders.print.amountInWords.units', {
-    returnObjects: true,
-  }) as string[],
-  femaleUnits: i18n.t('orders.print.amountInWords.femaleUnits', {
-    returnObjects: true,
-  }) as string[],
-  teens: i18n.t('orders.print.amountInWords.teens', {
-    returnObjects: true,
-  }) as string[],
-  tens: i18n.t('orders.print.amountInWords.tens', {
-    returnObjects: true,
-  }) as string[],
-  hundreds: i18n.t('orders.print.amountInWords.hundreds', {
-    returnObjects: true,
-  }) as string[],
-  thousand: i18n.t('orders.print.amountInWords.thousand', {
-    returnObjects: true,
-  }) as AmountPluralForms,
-  hryvnia: i18n.t('orders.print.amountInWords.hryvnia', {
-    returnObjects: true,
-  }) as AmountPluralForms,
-  kopiyka: i18n.t('orders.print.amountInWords.kopiyka', {
-    returnObjects: true,
-  }) as AmountPluralForms,
-});
-
-export const pluralizeUk = (
-  value: number,
-  one: string,
-  few: string,
-  many: string,
-) => {
-  const lastTwo = value % 100;
-  const last = value % 10;
-  if (lastTwo >= 11 && lastTwo <= 14) return many;
-  if (last === 1) return one;
-  if (last >= 2 && last <= 4) return few;
-  return many;
-};
-
-const pluralizeAmountWord = (
-  value: number,
-  forms: AmountPluralForms,
-) => {
-  if (i18n.language.startsWith('uk')) {
-    return pluralizeUk(value, forms.one, forms.few, forms.many);
-  }
-  return value === 1 ? forms.one : forms.many;
-};
-
-export const numberToUkrainianWords = (value: number) => {
-  const {
-    zero,
-    units,
-    femaleUnits,
-    teens,
-    tens,
-    hundreds,
-    thousand,
-  } = getAmountWordArrays();
-  if (value === 0) return zero;
-
-  const chunkToWords = (chunk: number, female = false) => {
-    const parts: string[] = [];
-    const unitWords = female ? femaleUnits : units;
-    const hundred = Math.floor(chunk / 100);
-    const ten = Math.floor((chunk % 100) / 10);
-    const unit = chunk % 10;
-
-    if (hundred) parts.push(hundreds[hundred]);
-    if (ten === 1) {
-      parts.push(teens[unit]);
-    } else {
-      if (ten > 1) parts.push(tens[ten]);
-      if (unit) parts.push(unitWords[unit]);
-    }
-
-    return parts.filter(Boolean).join(' ');
-  };
-
-  const thousands = Math.floor(value / 1000);
-  const rest = value % 1000;
-  const words: string[] = [];
-  if (thousands > 0) {
-    words.push(
-      chunkToWords(thousands, i18n.language.startsWith('uk')),
-      pluralizeAmountWord(thousands, thousand),
-    );
-  }
-  if (rest > 0) words.push(chunkToWords(rest));
-
-  return words.filter(Boolean).join(' ');
-};
-
-export const formatAmountInWords = (value: number) => {
-  const { hryvnia, kopiyka } = getAmountWordArrays();
-  const hryvnias = Math.floor(value);
-  const kopiyky = Math.round((value - hryvnias) * 100);
-  return `${numberToUkrainianWords(hryvnias)} ${pluralizeAmountWord(
-    hryvnias,
-    hryvnia,
-  )} ${String(kopiyky).padStart(2, '0')} ${pluralizeAmountWord(
-    kopiyky,
-    kopiyka,
-  )}`;
-};
+export { formatAmountInWords, numberToUkrainianWords, pluralizeUk } from '../../../../../shared/lib/printFormatting';
 
 export const renderInvoiceItemsTable = (sale: Sale) => {
-  const sourceItems = (
-    sale.lineItems?.length
-      ? sale.lineItems
-      : getDefaultLineItems(sale)
-  ).filter((item) => item.quantity > 0);
+  const sourceItems = (sale.lineItems ?? []).filter((item) => item.quantity > 0);
+  if (sourceItems.length === 0) return '';
   const items = groupPrintProductLineItems(sourceItems).map(
     (group, index) => {
       const amount = group.price * group.totalQuantity;
@@ -1492,12 +1401,12 @@ export const renderInvoiceItemsTable = (sale: Sale) => {
             <strong>${escapeHtml(group.name)}</strong>
             <span class="invoice-item-description">${escapeHtml(
               group.serialNumbers.length
-                ? i18n.t('orders.print.invoice.serialNumber', {
+                ? printT('orders.print.invoice.serialNumber', {
                     serials: group.serialNumbers.join(', '),
                   })
                 : kind === 'service'
-                  ? i18n.t('orders.print.invoice.itemTypeService')
-                  : i18n.t('orders.print.invoice.itemTypeProduct'),
+                  ? printT('orders.print.invoice.itemTypeService')
+                  : printT('orders.print.invoice.itemTypeProduct'),
             )}</span>
           </td>
           <td>${formatInvoiceAmount(group.totalQuantity)}</td>
@@ -1528,13 +1437,13 @@ export const renderInvoiceItemsTable = (sale: Sale) => {
     <table class="invoice-items-table">
       <thead>
         <tr>
-          <th style="width: 34px;">${i18n.t('orders.print.table.number')}</th>
-          <th>${i18n.t('orders.print.table.name')}</th>
-          <th style="width: 74px;">${i18n.t('orders.print.table.quantity')}</th>
-          <th style="width: 72px;">${i18n.t('orders.print.table.priceWithoutVat')}</th>
-          <th style="width: 64px;">${i18n.t('orders.print.table.vatRate')}</th>
-          <th style="width: 82px;">${i18n.t('orders.print.table.sumWithoutVat')}</th>
-          <th style="width: 82px;">${i18n.t('orders.print.table.sumWithVat')}</th>
+          <th style="width: 34px;">${printT('orders.print.table.number')}</th>
+          <th>${printT('orders.print.table.name')}</th>
+          <th style="width: 74px;">${printT('orders.print.table.quantity')}</th>
+          <th style="width: 72px;">${printT('orders.print.table.priceWithoutVat')}</th>
+          <th style="width: 64px;">${printT('orders.print.table.vatRate')}</th>
+          <th style="width: 82px;">${printT('orders.print.table.sumWithoutVat')}</th>
+          <th style="width: 82px;">${printT('orders.print.table.sumWithVat')}</th>
         </tr>
       </thead>
       <tbody>${items.join('')}</tbody>
@@ -1564,6 +1473,25 @@ const getLabelProductData = (
   };
 };
 
+export const resolvePrintServiceCenter = (
+  lineItems: OrderLineItem[],
+  settings?: WarehouseSettings,
+  products: Product[] = [],
+) => {
+  if (!settings) return undefined;
+  const productItems = lineItems.filter((item) => item.kind === 'product');
+  const relatedProducts = products.filter((product) => productItems.some((item) =>
+    item.productId === product.id || (product.serialNumber && item.serialNumbers?.includes(product.serialNumber)),
+  ));
+  const warehouseIds = new Set(relatedProducts.map((product) => product.warehouseId).filter(Boolean));
+  const centerIds = new Set(settings.warehouses
+    .filter((warehouse) => warehouseIds.has(warehouse.id))
+    .map((warehouse) => warehouse.serviceCenterId).filter(Boolean));
+  if (centerIds.size === 1) return settings.serviceCenters.find((center) => centerIds.has(center.id));
+  if (centerIds.size === 0 && settings.serviceCenters.length === 1) return settings.serviceCenters[0];
+  return undefined;
+};
+
 export const getPrintTemplateData = (
   sale: Sale,
   lineItems: OrderLineItem[],
@@ -1573,6 +1501,7 @@ export const getPrintTemplateData = (
 ): PrintTemplateData => {
   const total = getOrderTotal(sale, lineItems);
   const totalAmount = Math.round(total * 100) / 100;
+  const includedVat = getIncludedVatAmounts(totalAmount);
   const productItems = lineItems.filter(
     (item) => item.kind === 'product',
   );
@@ -1590,12 +1519,16 @@ export const getPrintTemplateData = (
   };
   const saleLabelData = getLabelProductData(lineItems, orderNumber);
   const labelData = isRepairLabel ? repairLabelData : saleLabelData;
+  const serviceCenter = resolvePrintServiceCenter(lineItems, companySettings.warehouseSettings, companySettings.products);
+  const statusOption = getStatusOptionsForSale(sale).find((option) => option.key === normalizeOrderStatus(sale.status));
   return {
     id: sale.id,
     orderNumber,
+    repair_order_reference: isRepair ? `Ремонтне замовлення №${orderNumber}` : '',
+    service_center_phone: serviceCenter?.phone ?? '',
     date: createdAt.split(',')[0] ?? createdAt,
-    status: getStatusLabel(sale, normalizeOrderStatus(sale.status)),
-    clientName: getSaleClientDisplayName(sale, i18n.t.bind(i18n)),
+    status: statusOption ? printT(statusOption.labelKey) : sale.status,
+    clientName: getSaleClientDisplayName(sale, printT),
     clientPhone: sale.isRapidSale ? '' : sale.client.phone,
     deviceName: isRepair ? getSaleProductName(sale) : '',
     serialNumber: isRepair ? getSaleProductSerialNumber(sale) : '',
@@ -1607,11 +1540,11 @@ export const getPrintTemplateData = (
     toPay: formatCurrency(
       getRemainingPayment(sale, paidAmount, lineItems),
     ),
-    currency: 'UAH',
+    currency: printT('orders.print.currency.short'),
     discount:
       getDiscount(sale).value > 0
-        ? `${getDiscount(sale).value}${getDiscount(sale).mode === 'percent' ? '%' : ' UAH'}`
-        : '0 UAH',
+        ? `${getDiscount(sale).value}${getDiscount(sale).mode === 'percent' ? '%' : ' грн'}`
+        : '0 грн',
     note: sale.note || '-',
     managerName: sale.manager?.name ?? '-',
     masterName: sale.master?.name ?? '-',
@@ -1626,24 +1559,20 @@ export const getPrintTemplateData = (
     customer_address: sale.client.address || '',
     customer_iban: sale.client.iban || '',
     due_date: createdAt.split(',')[0] ?? createdAt,
-    warehouse: getWarehouseLabel(sale),
+    warehouse: printT('orders.columns.serviceCenter'),
     warehouse_address: '-',
     warehouse_phone: '-',
-    net_amount: `${formatInvoiceAmount(totalAmount)} ${i18n.t('orders.print.currency.short')}`,
-    vat_amount: i18n.t('orders.print.currency.zeroVat'),
-    total_amount: `${formatInvoiceAmount(totalAmount)} ${i18n.t('orders.print.currency.short')}`,
+    net_amount: `${formatInvoiceAmount(totalAmount)} ${printT('orders.print.currency.short')}`,
+    vat_amount: printT('orders.print.currency.zeroVat'),
+    vat_included_net_amount: `${formatInvoiceAmount(includedVat.net)} ${printT('orders.print.currency.short')}`,
+    vat_included_vat_amount: `${formatInvoiceAmount(includedVat.vat)} ${printT('orders.print.currency.short')}`,
+    total_amount: `${formatInvoiceAmount(totalAmount)} ${printT('orders.print.currency.short')}`,
     total_written: formatAmountInWords(totalAmount),
-    seller_occupation: i18n.t('orders.print.invoice.director'),
+    seller_occupation: printT('orders.print.invoice.director'),
     seller_name: sale.manager?.name ?? '-',
-    note_label: i18n.t('orders.print.invoice.noteLabel'),
-    products_table: renderLineItemsTable(
-      productItems,
-      i18n.t('orders.print.invoice.noProducts'),
-    ),
-    services_table: renderLineItemsTable(
-      serviceItems,
-      i18n.t('orders.print.invoice.noServices'),
-    ),
+    note_label: printT('orders.print.invoice.noteLabel'),
+    products_table: renderLineItemsTable(productItems),
+    services_table: renderLineItemsTable(serviceItems),
     invoice_items_table: renderInvoiceItemsTable({
       ...sale,
       lineItems,
@@ -1732,7 +1661,7 @@ export type SerialPrintItem = WarehouseSerialPrintItem;
 export const printSerialNumbers = (
   items: SerialPrintItem[],
   printForms: PrintForm[],
-  title = i18n.t('warehouse.print.serialNumbersTitle'),
+  title = printT('warehouse.print.serialNumbersTitle'),
 ) => {
   void printWarehouseSerialLabels(items, printForms, title);
 };
@@ -1798,7 +1727,7 @@ export const buildOrderPrintBody = (
 
       return `
         <section class="print-form ${isLabel ? 'print-form-label' : ''}"${labelStyle}>
-          ${renderSettingsPrintTemplate(form.content, templateData, form.contentFormat)}
+          ${renderSettingsPrintTemplate(form.content, getPrintFormTemplateData(form, templateData), form.contentFormat)}
         </section>
       `;
     })
@@ -1851,7 +1780,7 @@ export const buildOrderPrintHtml = ({
 
   return `
     <!doctype html>
-    <html${htmlClass}${labelStyle}>
+    <html lang="uk"${htmlClass}${labelStyle}>
       <head>
         <title>${title}</title>
         <style>
@@ -2233,6 +2162,7 @@ export const readVisibleColumns = (): OrdersColumnVisibility => {
       sales: sanitizeColumns(saved.sales, 'sales'),
       supplierOrders: defaultVisibleColumns.orders,
       supplierInformation: defaultVisibleColumns.orders,
+      ordersReports: defaultVisibleColumns.orders,
     };
   } catch {
     return defaultVisibleColumns;

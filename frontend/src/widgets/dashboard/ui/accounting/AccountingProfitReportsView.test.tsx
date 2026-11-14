@@ -3,6 +3,7 @@ import {
   fireEvent,
   render,
   screen,
+  within,
 } from '@testing-library/react';
 import {
   QueryClient,
@@ -18,11 +19,30 @@ import {
   it,
   vi,
 } from 'vitest';
-import type { FinanceProfitReport } from '../../../../entities/finance';
+import type {
+  FinancePolicy,
+  FinanceProfitReport,
+} from '../../../../entities/finance';
 import i18n from '../../../../shared/i18n/config';
 import { AccountingProfitReportsView } from './AccountingProfitReportsView';
 
-const { report, exportMock } = vi.hoisted(() => {
+const { report, exportMock, mockPolicyState } = vi.hoisted(() => {
+  const mockPolicyState: { data: FinancePolicy } = {
+    data: {
+      serviceAuditEnabled: false,
+      serviceProfitMode: 'full',
+      reportDefaults: {
+        period: 'last30',
+        source: 'all',
+        showCharts: true,
+        showTable: true,
+      },
+      version: 1,
+      updatedById: null,
+      updatedByName: null,
+      updatedAt: null,
+    },
+  };
   const report: FinanceProfitReport = {
     period: {
       key: 'whole',
@@ -142,7 +162,7 @@ const { report, exportMock } = vi.hoisted(() => {
     coldSalesPurgedExist: false,
     saleCount: 1,
   };
-  return { report, exportMock: vi.fn() };
+  return { report, exportMock: vi.fn(), mockPolicyState };
 });
 
 vi.mock('../../model/profit-report', async (importOriginal) => {
@@ -165,9 +185,53 @@ vi.mock('../../../../entities/finance', async (importOriginal) => {
     data: report,
     isLoading: false,
     isError: false,
+    refetch: vi.fn(),
+  }),
+  useFinanceProfitReportDetailsQuery: () => ({
+    data: {
+      items: [
+        {
+          id: 'sale-1',
+          recordNumber: 'S000101',
+          kind: 'sale',
+          status: 'paid',
+          saleDate: '2026-09-15T10:00:00.000Z',
+          clientName: 'Alice',
+          revenue: 500,
+          knownCostRevenue: 500,
+          knownCost: 300,
+          knownProfit: 200,
+          profit: 200,
+          marginPct: 40,
+          isIncomplete: false,
+          missingCostCount: 0,
+          knownCostCount: 1,
+          isLoss: false,
+          matchingLineCount: 1,
+        },
+      ],
+      total: 1,
+      page: 1,
+      pageSize: 25,
+      totals: {
+        revenue: 500,
+        knownCost: 300,
+        knownProfit: 200,
+        missingCostRecordsCount: 0,
+        lossRecordsCount: 0,
+      },
+    },
+    isLoading: false,
+    isError: false,
+    refetch: vi.fn(),
   }),
   useFinanceCategoriesQuery: () => ({
     data: [],
+    isLoading: false,
+    isError: false,
+  }),
+  useFinancePolicyQuery: () => ({
+    data: mockPolicyState.data,
     isLoading: false,
     isError: false,
   }),
@@ -443,5 +507,187 @@ describe('AccountingProfitReportsView', () => {
     expect(screen.getAllByText('250.00 UAH').length).toBeGreaterThan(
       0,
     );
+  });
+
+  it('supports lossOnly / missingCostOnly toggles, comparison notice for all-time, and Audit Costs trigger', () => {
+    renderView(
+      <I18nextProvider i18n={i18n}>
+        <AccountingProfitReportsView
+          currentEmployee={{
+            id: 'emp-1',
+            name: 'Accountant',
+            phone: '',
+            email: '',
+            username: 'acc',
+            role: 'accountant',
+            permissions: ['finance.view', 'sales.manage'],
+            isActive: true,
+            isRegistered: true,
+            note: '',
+            createdAt: '',
+            updatedAt: '',
+          }}
+        />
+      </I18nextProvider>,
+    );
+
+    const lossChip = screen.getByRole('button', { name: 'Loss records only' });
+    const missingChip = screen.getByRole('button', { name: 'Missing cost only' });
+    fireEvent.click(lossChip);
+    fireEvent.click(missingChip);
+    expect(lossChip).toHaveAttribute('aria-pressed', 'true');
+    expect(missingChip).toHaveAttribute('aria-pressed', 'true');
+
+    fireEvent.click(screen.getByRole('button', { name: 'All time' }));
+    expect(
+      screen.getByText(/Comparison indicators are disabled for the All-time period/),
+    ).toBeInTheDocument();
+
+    expect(screen.getByText('Source Orders & Repairs Drill-Down')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Audit Costs' })).toBeInTheDocument();
+  });
+
+  it('switches the Mix chart metric inline and persists it to visual settings', () => {
+    renderView(
+      <I18nextProvider i18n={i18n}>
+        <AccountingProfitReportsView />
+      </I18nextProvider>,
+    );
+
+    const mixMetricGroup = screen.getByRole('tablist', {
+      name: 'Mix chart metric',
+    });
+    const revenueBtn = within(mixMetricGroup).getByRole('button', {
+      name: 'Revenue',
+    });
+    fireEvent.click(revenueBtn);
+    expect(revenueBtn).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByText(/Service: 16% · 200\.00 UAH/)).toBeInTheDocument();
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Report visual settings' }),
+    );
+    expect(screen.getByLabelText('Chart metric')).toHaveValue('revenue');
+  });
+
+  it('applies company defaults, prioritizes personal overrides, resets on button click, and disables Services in exclude mode', () => {
+    window.localStorage.clear();
+    mockPolicyState.data = {
+      serviceAuditEnabled: false,
+      serviceProfitMode: 'exclude',
+      reportDefaults: {
+        period: 'month',
+        source: 'sales',
+        showCharts: false,
+        showTable: false,
+      },
+      version: 4,
+      updatedById: null,
+      updatedByName: null,
+      updatedAt: null,
+    };
+
+    renderView(
+      <I18nextProvider i18n={i18n}>
+        <AccountingProfitReportsView />
+      </I18nextProvider>,
+    );
+
+    // Company defaults applied: period=month, source=sales, showTable=false
+    expect(screen.getByRole('button', { name: 'Month' })).toHaveClass(
+      'period-button-active',
+    );
+    expect(screen.getByRole('button', { name: 'Sales' })).toHaveClass(
+      'period-button-active',
+    );
+    expect(
+      screen.queryByRole('heading', { name: 'Margin by product or service' }),
+    ).not.toBeInTheDocument();
+
+    // Services button disabled with explanation in exclude mode
+    const servicesBtn = screen.getByRole('button', { name: 'Services' });
+    expect(servicesBtn).toBeDisabled();
+    expect(
+      screen.getByText(/Services filter is unavailable while services are excluded/i),
+    ).toBeInTheDocument();
+
+    // Personal override takes priority and persists
+    fireEvent.click(screen.getByRole('button', { name: 'Year' }));
+    expect(screen.getByRole('button', { name: 'Year' })).toHaveClass(
+      'period-button-active',
+    );
+    expect(
+      window.localStorage.getItem('project-goods.accounting-profit-filters'),
+    ).toContain('"period":"year"');
+
+    // Reset to company defaults restores period=month and clears personal storage
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Reset to company defaults' }),
+    );
+    expect(screen.getByRole('button', { name: 'Month' })).toHaveClass(
+      'period-button-active',
+    );
+    expect(
+      window.localStorage.getItem('project-goods.accounting-profit-filters'),
+    ).toBeNull();
+
+    // Restore mockPolicyState for other tests
+    mockPolicyState.data = {
+      serviceAuditEnabled: false,
+      serviceProfitMode: 'full',
+      reportDefaults: {
+        period: 'last30',
+        source: 'all',
+        showCharts: true,
+        showTable: true,
+      },
+      version: 1,
+      updatedById: null,
+      updatedByName: null,
+      updatedAt: null,
+    };
+  });
+
+  it('renders Ukrainian copy when the interface language is uk', async () => {
+    await i18n.changeLanguage('uk');
+    renderView(
+      <I18nextProvider i18n={i18n}>
+        <AccountingProfitReportsView
+          currentEmployee={{
+            id: 'emp-1',
+            name: 'Accountant',
+            phone: '',
+            email: '',
+            username: 'acc',
+            role: 'accountant',
+            permissions: ['finance.view', 'sales.manage'],
+            isActive: true,
+            isRegistered: true,
+            note: '',
+            createdAt: '',
+            updatedAt: '',
+          }}
+        />
+      </I18nextProvider>,
+    );
+
+    expect(screen.getByRole('heading', { name: 'Звіти' })).toBeInTheDocument();
+    expect(screen.getAllByText('Виручка').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Валовий прибуток').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Маржа').length).toBeGreaterThan(0);
+    expect(screen.getByRole('button', { name: 'Лише збиткові записи' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Лише без собівартості' })).toBeInTheDocument();
+    expect(screen.getByText('Деталізація вихідних замовлень і ремонтів')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Аудит собівартості' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Експорт Excel' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Останні 30 днів' })).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('Пошук за № замовлення або клієнтом...')).toBeInTheDocument();
+    expect(screen.getByText('Оренда')).toBeInTheDocument();
+    expect(screen.getByText('Топ позицій')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Весь час' }));
+    expect(
+      screen.getByText(/Індикатори порівняння вимкнено для періоду/),
+    ).toBeInTheDocument();
   });
 });

@@ -19,6 +19,7 @@ saleRouter.post('/sales', asyncHandler(controller.create));
 saleRouter.put('/sales/:saleId', asyncHandler(controller.update));
 saleRouter.patch('/sales/:saleId/favorite', asyncHandler(controller.updateFavorite));
 saleRouter.patch('/sales/:saleId/workspace', asyncHandler(controller.updateWorkspace));
+saleRouter.patch('/sales/:saleId/costs', asyncHandler(controller.updateCosts));
 saleRouter.patch('/sales/:saleId/payment', asyncHandler(controller.acceptPayment));
 saleRouter.patch('/sales/:saleId/refund', asyncHandler(controller.refundPayment));
 saleRouter.patch('/sales/:saleId/return-line-item', asyncHandler(controller.returnLineItem));

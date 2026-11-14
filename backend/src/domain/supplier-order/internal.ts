@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { Supplier } from '../supplier/model';
 import {
   SupplierOrder,
@@ -34,10 +35,67 @@ export const isSupplierOrderReceived = (order: {
   order.status === 'stocked' ||
   order.receiptStatus === 'received';
 
+export const appendSupplierOrderTransition = (
+  order: {
+    status: string;
+    receiptStatus: string;
+    stockedAt?: Date | null;
+    cancelledAt?: Date | null;
+    statusTransitions?: Array<{
+      id: string;
+      fromStatus: string | null;
+      toStatus: string;
+      fromReceiptStatus: string | null;
+      toReceiptStatus: string;
+      changedById?: string | null;
+      changedByName?: string | null;
+      changedAt: Date;
+    }>;
+  },
+  prevStatus: string | null,
+  prevReceiptStatus: string | null,
+  now: Date = new Date(),
+  actor?: { id?: string | null; name?: string | null } | null,
+) => {
+  if (
+    prevStatus === order.status &&
+    prevReceiptStatus === order.receiptStatus
+  ) {
+    return;
+  }
+
+  const nextTransitions = [
+    ...(Array.isArray(order.statusTransitions) ? order.statusTransitions : []),
+    {
+      id: randomUUID(),
+      fromStatus: prevStatus,
+      toStatus: order.status,
+      fromReceiptStatus: prevReceiptStatus,
+      toReceiptStatus: order.receiptStatus,
+      changedById: actor?.id ?? null,
+      changedByName: actor?.name ?? null,
+      changedAt: now,
+    },
+  ];
+  order.statusTransitions = nextTransitions;
+
+  if (
+    (order.status === 'stocked' || order.receiptStatus === 'received') &&
+    !order.stockedAt
+  ) {
+    order.stockedAt = now;
+  }
+  if (order.status === 'cancelled' && !order.cancelledAt) {
+    order.cancelledAt = now;
+  }
+};
+
 export const applyResolvedStatusFromItems = (
   order: SupplierOrderDocument,
   options?: { preserveManualStatus?: boolean },
 ) => {
+  const prevStatus = order.status ?? null;
+  const prevReceiptStatus = order.receiptStatus ?? null;
   const resolved = resolveSupplierOrderStatusFromItems(order.items ?? []);
   if (resolved.status) {
     order.status = resolved.status;
@@ -45,11 +103,21 @@ export const applyResolvedStatusFromItems = (
     if (resolved.status === 'cancelled' && order.paymentStatus === 'pending') {
       order.paymentStatus = 'cancelled';
     }
+    appendSupplierOrderTransition(
+      order as unknown as Parameters<typeof appendSupplierOrderTransition>[0],
+      prevStatus,
+      prevReceiptStatus,
+    );
     return;
   }
 
   if (!options?.preserveManualStatus) {
     order.receiptStatus = resolved.receiptStatus;
+    appendSupplierOrderTransition(
+      order as unknown as Parameters<typeof appendSupplierOrderTransition>[0],
+      prevStatus,
+      prevReceiptStatus,
+    );
   }
 };
 

@@ -12,6 +12,7 @@ const permitted: OrdersTab[] = [
   'sales',
   'supplierOrders',
   'supplierInformation',
+  'ordersReports',
 ];
 
 describe('resolveDisplayedOrdersTabs', () => {
@@ -24,6 +25,7 @@ describe('resolveDisplayedOrdersTabs', () => {
       'orders',
       'supplierOrders',
       'supplierInformation',
+      'ordersReports',
     ]);
   });
 
@@ -48,7 +50,7 @@ describe('resolvePermittedOrdersTabs', () => {
         canViewSupplierOrders: false,
         canViewKanban: true,
       }),
-    ).toEqual(['orders', 'kanban', 'sales']);
+    ).toEqual(['orders', 'kanban', 'sales', 'supplierInformation', 'ordersReports']);
   });
 
   it('shows only kanban when the employee has kanban.use and no order rights', () => {
@@ -68,7 +70,7 @@ describe('resolvePermittedOrdersTabs', () => {
         canViewSupplierOrders: true,
         canViewKanban: true,
       }),
-    ).toEqual(['kanban', 'supplierOrders', 'supplierInformation']);
+    ).toEqual(['kanban', 'supplierOrders', 'supplierInformation', 'ordersReports']);
   });
 });
 

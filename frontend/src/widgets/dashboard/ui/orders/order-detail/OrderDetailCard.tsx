@@ -7,9 +7,13 @@ import {
   useState,
 } from 'react';
 import { useTranslation } from 'react-i18next';
+import { formatPhoneForDial } from '../../../../../shared/lib/phoneFormatter';
 import { hasEmployeePermission } from '../../../../../entities/employee';
-import { isRepairOrder } from '../../../../../entities/sale';
-import { getSaleProductName } from '../../../../../entities/sale';
+import {
+  getSaleProductName,
+  isLineItemEligibleForCostAudit,
+  isRepairOrder,
+} from '../../../../../entities/sale';
 import {
   formatCurrency,
   formatDateTime,
@@ -37,10 +41,12 @@ import {
   unbindClientDevice,
 } from '../../../../../entities/client-device';
 import { OrderPaymentDiscountControl } from './OrderPaymentDiscountControl';
+import { OrderCostAuditModal } from './OrderCostAuditModal';
 import {
   getCashboxes,
   issueSupplierOrderWithoutPayment,
   paySupplierOrder,
+  useFinancePolicyQuery,
 } from '../../../../../entities/finance';
 import type { Cashbox } from '../../../../../entities/finance';
 import {
@@ -95,6 +101,7 @@ import {
   normalizeOrderStatus,
   orderDetailRelatedTabStorageKey,
   isOrderEditableStatus,
+  isRepairDevicePlaceholderLineItem,
   patchOrderDetailSectionState,
   readOrderDetailSectionsState,
   withSupplierOrderLinkNote,
@@ -303,6 +310,43 @@ export const OrderDetailCard: React.FC<OrderDetailCardProps> = ({
   const isContentLocked =
     isReadOnly ||
     !isOrderEditableStatus(sale, normalizeOrderStatus(sale.status));
+  const [isCostAuditModalOpen, setIsCostAuditModalOpen] = useState(false);
+  const canViewFinanceCosts = hasEmployeePermission(
+    currentEmployee ?? null,
+    'finance.view',
+  );
+  const canManageFinancialCosts =
+    currentEmployee?.isActive !== false &&
+    canViewFinanceCosts &&
+    hasEmployeePermission(
+      currentEmployee ?? null,
+      isSaleCard ? 'sales.manage' : 'orders.manage',
+    );
+  const financePolicyQuery = useFinancePolicyQuery({
+    enabled: canViewFinanceCosts,
+  });
+  const serviceAuditEnabled =
+    financePolicyQuery.data?.serviceAuditEnabled ?? false;
+  const hasAuditEligibleProducts = useMemo(
+    () =>
+      productItems.some((item) =>
+        isLineItemEligibleForCostAudit(item, { serviceAuditEnabled: false }),
+      ),
+    [productItems],
+  );
+  const hasAuditEligibleServices = useMemo(
+    () =>
+      serviceAuditEnabled &&
+      serviceItems.some(
+        (item) =>
+          !isRepairDevicePlaceholderLineItem(sale, item) &&
+          isLineItemEligibleForCostAudit(item, { serviceAuditEnabled }),
+      ),
+    [sale, serviceAuditEnabled, serviceItems],
+  );
+  const canShowAuditButton =
+    canManageFinancialCosts &&
+    (hasAuditEligibleProducts || hasAuditEligibleServices);
   const lastInitializedSaleIdRef = useRef<string | null>(null);
 
   useEffect(() => {
@@ -1327,7 +1371,7 @@ export const OrderDetailCard: React.FC<OrderDetailCardProps> = ({
                 <dd>
                   <CopyableValue value={clientPhone} className='order-detail-copy-value'>
                     {clientPhone ? (
-                      <a className='order-detail-phone-link' href={`tel:${clientPhone}`}>
+                      <a className='order-detail-phone-link' href={`tel:${formatPhoneForDial(clientPhone)}`}>
                         {formatPhoneNumber(clientPhone)}
                       </a>
                     ) : '-'}
@@ -1630,6 +1674,7 @@ export const OrderDetailCard: React.FC<OrderDetailCardProps> = ({
               onSuccess={onSuccess}
               onSupplierOrderCreated={onSupplierOrderCreated}
               canManageOrders={canManageOrders}
+              canManageFinancialCosts={canManageFinancialCosts}
               isReadOnly={isContentLocked}
             />
           ) : null}
@@ -1700,6 +1745,7 @@ export const OrderDetailCard: React.FC<OrderDetailCardProps> = ({
               onSuccess={onSuccess}
               onSupplierOrderCreated={onSupplierOrderCreated}
               canManageOrders={canManageOrders}
+              canManageFinancialCosts={canManageFinancialCosts}
               isReadOnly={isContentLocked}
             />
           ) : null}
@@ -1727,34 +1773,47 @@ export const OrderDetailCard: React.FC<OrderDetailCardProps> = ({
               <dd>{formatCurrency(remainingPayment)}</dd>
             </div>
           </dl>
-          <button
-            type='button'
-            className='primary-button'
-            onClick={(event) => {
-              event.preventDefault();
-              event.stopPropagation();
-              onAcceptPayment();
-            }}
-            disabled={
-              remainingPayment <= 0 || isReadOnly || !canAcceptPayment
-            }
-          >
-            {remainingPayment <= 0
-              ? t('orders.payment.paid')
-              : t('orders.payment.acceptPayment')}
-          </button>
-          {paidAmount > 0 ? (
+          <div className='order-payment-actions'>
             <button
               type='button'
-              className='secondary-button'
-              onClick={onRefundPayment}
+              className='primary-button'
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                onAcceptPayment();
+              }}
               disabled={
-                !canRefundPayment ||
-                (isReadOnly && status !== 'issued')
+                remainingPayment <= 0 || isReadOnly || !canAcceptPayment
               }
             >
-              {t('orders.payment.refundToClient')}
+              {remainingPayment <= 0
+                ? t('orders.payment.paid')
+                : t('orders.payment.acceptPayment')}
             </button>
+            {canShowAuditButton ? (
+              <button
+                type='button'
+                className='secondary-button order-payment-audit-button'
+                onClick={() => setIsCostAuditModalOpen(true)}
+              >
+                {t('orders.payment.audit')}
+              </button>
+            ) : null}
+          </div>
+          {paidAmount > 0 ? (
+            <div className='order-payment-secondary-actions'>
+              <button
+                type='button'
+                className='secondary-button'
+                onClick={onRefundPayment}
+                disabled={
+                  !canRefundPayment ||
+                  (isReadOnly && status !== 'issued')
+                }
+              >
+                {t('orders.payment.refundToClient')}
+              </button>
+            </div>
           ) : null}
         </section>
 
@@ -2252,6 +2311,17 @@ export const OrderDetailCard: React.FC<OrderDetailCardProps> = ({
             setIsUnboundSerialIssueOpen(false);
             void persistMainInfo();
           }}
+        />
+      ) : null}
+      {isCostAuditModalOpen ? (
+        <OrderCostAuditModal
+          saleId={sale.id}
+          initialSale={{ ...sale, lineItems }}
+          serviceAuditEnabled={serviceAuditEnabled}
+          isOpen={isCostAuditModalOpen}
+          onClose={() => setIsCostAuditModalOpen(false)}
+          onError={onError}
+          onSuccess={onSuccess}
         />
       ) : null}
     </article>
