@@ -42,6 +42,8 @@ export interface ProductModelModalProps {
   warehouses: WarehouseItem[];
   printForms?: PrintForm[];
   printProduct?: Product | null;
+  selectedSerial?: { serialNumber: string; product: Product | null };
+  usePortal?: boolean;
   isSaving?: boolean;
   readOnly?: boolean;
   onClose: () => void;
@@ -73,6 +75,8 @@ export const ProductModelModal: React.FC<ProductModelModalProps> = ({
   warehouses,
   printForms = defaultPrintForms,
   printProduct = null,
+  selectedSerial,
+  usePortal = false,
   isSaving = false,
   readOnly = false,
   onClose,
@@ -80,6 +84,15 @@ export const ProductModelModal: React.FC<ProductModelModalProps> = ({
   onOpenSupplierOrder,
 }) => {
   const { t } = useTranslation();
+  const selectedSerialPurchase = useMemo(() => {
+    const product = selectedSerial?.product;
+    if (!product) return null;
+    return buildProductModelSerialPurchases(
+      [product],
+      new Set(),
+      buildSupplierOrdersByProductId({ products: [product], supplierOrders }),
+    )[0];
+  }, [selectedSerial?.product, supplierOrders]);
   const matchingProducts = useMemo(
     () => getActiveStockProductsByExactModelName(products, sales, name),
     [name, products, sales],
@@ -324,6 +337,7 @@ export const ProductModelModal: React.FC<ProductModelModalProps> = ({
   return (
     <Modal
       isOpen
+      usePortal={usePortal}
       title={name}
       subtitle={t('catalog.productModel.title')}
       onClose={onClose}
@@ -388,6 +402,47 @@ export const ProductModelModal: React.FC<ProductModelModalProps> = ({
         </footer>
       }
     >
+          {selectedSerial ? (
+            <section
+              className="product-model-selected-serial"
+              aria-label={t('catalog.productModel.selectedSerialTitle')}
+            >
+              <h3>{t('catalog.productModel.selectedSerialTitle')}</h3>
+              <dl className="product-model-selected-serial-info">
+                <div>
+                  <dt>{t('catalog.productModel.serialNumber')}</dt>
+                  <dd>
+                    <CopyableValue value={selectedSerial.serialNumber}>
+                      {selectedSerial.serialNumber}
+                    </CopyableValue>
+                  </dd>
+                </div>
+                {selectedSerialPurchase ? (
+                  <>
+                    <div>
+                      <dt>{t('catalog.productModel.purchasePrice')}</dt>
+                      <dd>{formatCurrency(selectedSerialPurchase.price)}</dd>
+                    </div>
+                    <div>
+                      <dt>{t('catalog.productModel.purchaseDate')}</dt>
+                      <dd>{formatDate(selectedSerialPurchase.purchaseDate)}</dd>
+                    </div>
+                    <div>
+                      <dt>{t('catalog.productModel.supplierOrder')}</dt>
+                      <dd>
+                        <CopyableValue value={selectedSerialPurchase.supplierOrderNumber}>
+                          {selectedSerialPurchase.supplierOrderNumber || EMPTY_VALUE}
+                        </CopyableValue>
+                      </dd>
+                    </div>
+                  </>
+                ) : null}
+              </dl>
+              {!selectedSerialPurchase ? (
+                <p>{t('catalog.productModel.selectedSerialUnavailable')}</p>
+              ) : null}
+            </section>
+          ) : null}
           {!hasStockRows ? (
             <p className='empty-state'>
               {t('catalog.productModel.noStockRows')}

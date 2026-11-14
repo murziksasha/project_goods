@@ -334,6 +334,15 @@ Canonical UI for `Serials x/y` → `SerialBindModal` on **opened sale and repair
 - Saving does not update `CatalogProduct` and does not create stock rows.
 - If no matching stock rows exist, balances are shown as zero and stock-backed fields cannot be saved.
 
+#### Selected serial from create-order history (2026-11-14)
+
+- Create-order history reuses `ProductModelModal` read-only, passing an optional `selectedSerial` context (`serialNumber`, resolved `Product` or `null`). Existing callers can omit it. The modal also accepts optional `usePortal` for display above the create form.
+- The separate `Selected serial purchase` section shows the exact selected serial, its own purchase price, receipt date (`purchaseDate`, fallback `createdAt`), and supplier-order provenance using the existing unit-level resolver. The unit is resolved by normalized serial across all product records, including sold/zero-quantity units.
+- This section remains visible when no active stock rows exist. A missing product record shows an explicit purchase-information-unavailable message. Missing supplier provenance displays `—`; supplier-order loading retains existing permissions.
+- Selected historical units never enter the active-stock purchase table, latest-batch calculation, reservation badges, printable selections, or stock totals merely because they were selected. Existing stock filtering remains the source of truth.
+- Closing the modal (including Escape) returns to the expanded history and preserves the new-order draft. No product, order, or stock data is modified by this read-only history path.
+- At mobile widths, the product-model header stacks its subtitle above the title and limits the visible name to three lines, leaving the purchase details scrollable. The existing copy-name action retains the complete name.
+
 ### 4.5) Serial Label Printing (Stock Balances)
 
 Warehouse serial labels use the dedicated print form **`Product barcode`** (`formId: warehouse-barcode`). It is separate from the order label form **`Barcode`** (`formId: barcode`). Template rules: [PRINT_FORMS_SPEC.md](./PRINT_FORMS_SPEC.md#product-barcode-warehouse-stock-label).

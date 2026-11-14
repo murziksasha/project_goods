@@ -44,6 +44,7 @@ Specs:
   currency and the preserved website language across all built-in documents.
 
 - `e2e/login-page.spec.ts` — logged-out Login / Sign in.
+- `e2e/create-order-history.spec.ts` — repair/sale creation history, independent inline expansion, client/tab reset, keyboard and touch controls, sold serial purchase details, draft preservation, missing serial records, permission-gated supplier queries, retry, and long names/serials in the mobile dark theme.
 - `e2e/orders-hover-copy.spec.ts` — Orders/Kanban copy controls, Sales current product/service name plus each S/N, and opened repair/sale card fields: independent hover targets, clipboard payloads, navigation, keyboard phone copy and `tel:` links, long-name containment, narrow viewport, and touch visibility.
 - `e2e/sales-current-items.spec.ts` — Regular/Rapid sale card edits update the Sales Product label, serial, raw-row count and menu without a page reload; empty sales remain clickable and removed snapshot items do not match item search.
 - `e2e/list-phone-search.spec.ts` — Orders, Sales, Clients, and Suppliers list search: Ukrainian and punctuated phones, additional numbers beside the primary, bare `+380`, serials, notes, manager names, the client filter, and the single-result count.
@@ -82,6 +83,7 @@ Specs:
 - Warehouse stock table: `WarehouseTables.test.tsx` (name/serial/client-order/supplier-order hover copy; badge click still opens).
 - Supplier Order table: `SupplierOrdersWorkspaceSections.test.tsx` (number + product + supplier hover copy; parent `N items` / child `—` have no product/supplier icon; click still opens).
 - Client card history: `ClientCardModal.test.tsx` (Orders/Sales number + serial hover copy; empty serial has no icon; number click still opens).
+- Create-order history: `CreateOrderSidePanel.test.tsx` (saved repair device vs parts, missing device, sale summary, full/empty contents, independent expansion, duplicate rows and serial callback); `ProductModelModal.test.tsx` (selected sold-unit purchase details without changing active stock/latest batch, zero stock, date fallback, missing record, read-only actions).
 - Split workspace shells: `OrdersWorkspaceListHeader`, `OrdersWorkspaceTableSection`, `OrdersWorkspaceModals`.
 - Query migration regression: `useDashboardPage.invalidation.test.ts` asserts `queryKeys` invalidation contract.
 

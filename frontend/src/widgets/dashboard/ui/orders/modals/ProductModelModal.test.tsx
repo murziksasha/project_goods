@@ -7,6 +7,7 @@ import { getOccupiedSerialNumbers } from '../../../../../entities/sale';
 import { defaultPrintForms } from '../../../../../entities/settings';
 import i18n from '../../../../../shared/i18n/config';
 import * as clipboard from '../../../../../shared/lib/clipboard';
+import { formatCurrency, formatDate } from '../../../../../shared/lib/format';
 import * as ordersWorkspaceShared from '../workspace/orders-workspace-shared';
 import { ProductModelModal } from './ProductModelModal';
 
@@ -130,6 +131,121 @@ afterEach(async () => {
   vi.clearAllMocks();
   getOccupiedSerialNumbersMock.mockResolvedValue({ occupied: [] });
   await i18n.changeLanguage('en');
+});
+
+describe('ProductModelModal selected historical serial', () => {
+  it('shows sold-unit purchase provenance without adding it to active stock or latest batch', () => {
+    const sold = createProduct({
+      id: 'sold-unit',
+      serialNumber: 'S-SOLD',
+      quantity: 0,
+      freeQuantity: 0,
+      isInStock: false,
+      price: 175,
+      purchaseDate: '2026-11-12',
+      supplierOrderId: 'so-1',
+      supplierOrderItemIndex: 0,
+    });
+    const active = createProduct({
+      id: 'active-unit',
+      serialNumber: 'S-ACTIVE',
+      price: 220,
+      purchaseDate: '2026-10-01',
+    });
+
+    render(
+      <ProductModelModal
+        name={sold.name}
+        products={[sold, active]}
+        sales={[saleBindingProduct('issued-sale', sold, 'issued')]}
+        supplierOrders={[createSupplierOrder()]}
+        warehouses={[]}
+        selectedSerial={{ serialNumber: sold.serialNumber, product: sold }}
+        readOnly
+        onClose={vi.fn()}
+        onSave={vi.fn(async () => true)}
+      />,
+    );
+
+    const selected = screen.getByRole('region', {
+      name: i18n.t('catalog.productModel.selectedSerialTitle'),
+    });
+    expect(within(selected).getByText(sold.serialNumber)).toBeVisible();
+    expect(within(selected).getByText(formatCurrency(sold.price), { normalizer: (text) => text })).toBeVisible();
+    expect(within(selected).getByText(formatDate(sold.purchaseDate))).toBeVisible();
+    expect(within(selected).getByText('SO-1')).toBeVisible();
+    const purchases = document.querySelector('.product-model-serial-purchases-table') as HTMLElement;
+    expect(purchases).not.toBeNull();
+    expect(within(purchases).queryByText(sold.serialNumber)).toBeNull();
+    expect(within(purchases).getByText(active.serialNumber)).toBeVisible();
+    expect(within(purchases).getByText(i18n.t('catalog.productModel.latestBatchBadge'))).toBeVisible();
+    expect(screen.getByText(i18n.t('catalog.productModel.latestBatchSummary', {
+      price: formatCurrency(active.price),
+      date: formatDate(active.purchaseDate),
+    }), { normalizer: (text) => text })).toBeVisible();
+    expect(screen.queryByRole('button', { name: i18n.t('catalog.productModel.saveModel') })).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: i18n.t('catalog.productModel.sections.stock') }));
+    const summary = document.querySelector('.product-model-summary') as HTMLElement;
+    expect(within(summary).getByText(i18n.t('catalog.productModel.total')).parentElement).toHaveTextContent('1');
+    expect(within(summary).getByText(i18n.t('catalog.productModel.free')).parentElement).toHaveTextContent('1');
+    expect(within(summary).getByText(i18n.t('catalog.productModel.reserved')).parentElement).toHaveTextContent('0');
+  });
+
+  it('keeps purchase details available when all units are sold and falls back to receipt creation date', () => {
+    const sold = createProduct({
+      id: 'last-sold-unit',
+      serialNumber: 'S-LAST',
+      quantity: 0,
+      freeQuantity: 0,
+      isInStock: false,
+      purchaseDate: null,
+      createdAt: '2026-01-18T11:30:00.000Z',
+    });
+    render(
+      <ProductModelModal
+        name={sold.name}
+        products={[sold]}
+        sales={[saleBindingProduct('issued-sale', sold, 'issued')]}
+        warehouses={[]}
+        selectedSerial={{ serialNumber: sold.serialNumber, product: sold }}
+        readOnly
+        onClose={vi.fn()}
+        onSave={vi.fn(async () => true)}
+      />,
+    );
+
+    const selected = screen.getByRole('region', {
+      name: i18n.t('catalog.productModel.selectedSerialTitle'),
+    });
+    expect(within(selected).getByText(sold.serialNumber)).toBeVisible();
+    expect(within(selected).getByText(formatCurrency(sold.price), { normalizer: (text) => text })).toBeVisible();
+    expect(within(selected).getByText(formatDate(sold.createdAt))).toBeVisible();
+    expect(screen.getByText(i18n.t('catalog.productModel.noStockRows'))).toBeVisible();
+    expect(document.querySelector('.product-model-serial-purchases-table')).toBeNull();
+    expect(screen.queryByText(i18n.t('catalog.productModel.latestBatchBadge'))).toBeNull();
+  });
+
+  it('preserves an unknown serial and explicitly reports unavailable purchase information', () => {
+    render(
+      <ProductModelModal
+        name='Historical product'
+        products={[]}
+        warehouses={[]}
+        selectedSerial={{ serialNumber: 'S-MISSING', product: null }}
+        readOnly
+        onClose={vi.fn()}
+        onSave={vi.fn(async () => true)}
+      />,
+    );
+
+    const selected = screen.getByRole('region', {
+      name: i18n.t('catalog.productModel.selectedSerialTitle'),
+    });
+    expect(within(selected).getByText('S-MISSING')).toBeVisible();
+    expect(within(selected).getByText('Purchase information is unavailable for this serial number.')).toBeVisible();
+    expect(screen.queryByRole('button', { name: i18n.t('catalog.productModel.saveModel') })).toBeNull();
+  });
 });
 
 describe('ProductModelModal serial printing', () => {

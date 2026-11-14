@@ -1,8 +1,9 @@
 import type React from 'react';
+import { useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { ClientDevice } from '../../../../../entities/client-device';
-import type { Sale } from '../../../../../entities/sale';
-import { formatDate } from '../../../../../shared/lib/format';
+import type { Sale, SaleLineItem } from '../../../../../entities/sale';
+import { formatCurrency, formatDate } from '../../../../../shared/lib/format';
 import {
   getSaleProductName,
 } from '../../../../../entities/sale';
@@ -23,6 +24,70 @@ export interface CreateOrderSidePanelProps {
   onApplyDevice: (device: ClientDevice) => void;
   onUnbindDevice: (device: ClientDevice) => void;
   onClientRequestTabChange: (tab: ClientRequestTab) => void;
+  onOpenSerial?: (sale: Sale, item: SaleLineItem, serialNumber: string) => void;
+};
+
+interface CreateOrderRequestContentsProps {
+  sale: Sale;
+  onOpenSerial: CreateOrderSidePanelProps['onOpenSerial'];
+}
+
+const CreateOrderRequestContents: React.FC<CreateOrderRequestContentsProps> = ({
+  sale,
+  onOpenSerial,
+}) => {
+  const { t } = useTranslation();
+  if (!sale.lineItems?.length) {
+    return <p>{t('orders.create.sidePanel.noItems')}</p>;
+  }
+
+  return (['product', 'service'] as const).map((kind) => {
+    const items = sale.lineItems.filter((item) => item.kind === kind);
+    if (!items.length) return null;
+
+    return (
+      <section key={kind} className="create-side-request-group">
+        <h5>{t(kind === 'product' ? 'orders.detail.products' : 'orders.detail.services')}</h5>
+        <ul className="create-side-request-items">
+          {items.map((item) => (
+            <li key={item.id} className="create-side-request-item">
+              <strong>{item.name}</strong>
+              <dl className="create-side-request-amounts">
+                <div>
+                  <dt>{t('orders.create.sidePanel.quantity')}</dt>
+                  <dd>{item.quantity}</dd>
+                </div>
+                <div>
+                  <dt>{t('orders.create.sidePanel.unitPrice')}</dt>
+                  <dd>{formatCurrency(item.price)}</dd>
+                </div>
+                <div>
+                  <dt>{t('orders.create.sidePanel.lineTotal')}</dt>
+                  <dd>{formatCurrency(item.price * item.quantity)}</dd>
+                </div>
+              </dl>
+              {kind === 'product' ? (
+                <div className="create-side-request-serials">
+                  {(item.serialNumbers ?? [])
+                    .filter((serial) => serial.trim())
+                    .map((serial, index) => (
+                      <button
+                        key={`${serial}-${index}`}
+                        type="button"
+                        className="create-side-request-serial"
+                        onClick={() => onOpenSerial?.(sale, item, serial)}
+                      >
+                        {serial}
+                      </button>
+                    ))}
+                </div>
+              ) : null}
+            </li>
+          ))}
+        </ul>
+      </section>
+    );
+  });
 };
 
 export const CreateOrderSidePanel: React.FC<CreateOrderSidePanelProps> = ({
@@ -35,8 +100,21 @@ export const CreateOrderSidePanel: React.FC<CreateOrderSidePanelProps> = ({
   onApplyDevice,
   onUnbindDevice,
   onClientRequestTabChange,
+  onOpenSerial,
 }) => {
   const { t } = useTranslation();
+  const contentsId = useId();
+  const [expandedRequests, setExpandedRequests] = useState<Set<string>>(
+    () => new Set(),
+  );
+  const toggleRequest = (id: string) => {
+    setExpandedRequests((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
   const shouldScrollClientRequests =
     activeClientRequests.length >= CLIENT_REQUESTS_SCROLL_THRESHOLD;
 
@@ -124,23 +202,52 @@ export const CreateOrderSidePanel: React.FC<CreateOrderSidePanelProps> = ({
               const deviceItem = sale.lineItems?.find(
                 (item) => item.kind === 'product',
               );
-              const deviceNameValue =
-                deviceItem?.name?.trim() ||
-                getSaleProductName(sale, t('orders.create.deviceFallback'));
+              const savedDeviceName = sale.product?.name?.trim() ?? '';
+              const hasDeviceName = savedDeviceName &&
+                !['REPAIR', 'REPAIR PLACEHOLDER'].includes(
+                  savedDeviceName.toUpperCase(),
+                );
+              const deviceNameValue = sale.kind === 'repair'
+                ? hasDeviceName
+                  ? savedDeviceName
+                  : t('orders.create.sidePanel.deviceNotSpecified')
+                : deviceItem?.name?.trim() ||
+                  getSaleProductName(sale, t('orders.create.deviceFallback'));
+              const isExpanded = expandedRequests.has(sale.id);
+              const requestContentsId = `${contentsId}-${sale.id}`;
               return (
                 <div key={sale.id} className="create-side-list-item">
                   <div className="create-side-request-heading">
-                    <a
-                      className="create-side-list-link"
-                      href={getOrderLink(sale.id, sale.kind)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      {sale.recordNumber ?? 'r------'}
-                    </a>
+                    <span className="create-side-request-number">
+                      <a
+                        className="create-side-list-link"
+                        href={getOrderLink(sale.id, sale.kind)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        {sale.recordNumber ?? 'r------'}
+                      </a>
+                      <button
+                        type="button"
+                        className="create-side-request-toggle"
+                        onClick={() => toggleRequest(sale.id)}
+                        aria-expanded={isExpanded}
+                        aria-controls={requestContentsId}
+                        aria-label={t('orders.create.sidePanel.toggleContents', {
+                          number: sale.recordNumber ?? 'r------',
+                        })}
+                      >
+                        <span aria-hidden="true">{isExpanded ? '\u2303' : '\u2304'}</span>
+                      </button>
+                    </span>
                     <span>{formatDate(sale.saleDate)}</span>
                   </div>
                   <span>{deviceNameValue}</span>
+                  <div id={requestContentsId} hidden={!isExpanded} className="create-side-request-contents">
+                    {isExpanded ? (
+                      <CreateOrderRequestContents sale={sale} onOpenSerial={onOpenSerial} />
+                    ) : null}
+                  </div>
                 </div>
               );
             })}

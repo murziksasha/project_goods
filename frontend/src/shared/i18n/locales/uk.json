@@ -653,7 +653,15 @@
         "noRepairOrders": "Ремонтних замовлень для цього клієнта ще немає.",
         "noSalesOrders": "Продажних замовлень для цього клієнта ще немає.",
         "selectedFlags": "Обрані позначки",
-        "noFlagsSelected": "Позначки не обрано."
+        "noFlagsSelected": "Позначки не обрано.",
+        "deviceNotSpecified": "Пристрій не вказано",
+        "toggleContents": "Розгорнути або згорнути склад {{number}}",
+        "quantity": "К-сть",
+        "unitPrice": "Ціна за од.",
+        "lineTotal": "Сума",
+        "noItems": "У цьому замовленні немає товарів або послуг.",
+        "serialLoadError": "Не вдалося завантажити інформацію про закупівлю за цим серійним номером.",
+        "retry": "Повторити"
       },
       "errors": {
         "productCannotBeSelected": "Товар не можна обрати: {{reason}}.",
@@ -4117,7 +4125,9 @@
       "noStockRowsTable": "Немає складських рядків.",
       "cancel": "Скасувати",
       "saving": "Збереження...",
-      "saveModel": "Зберегти модель"
+      "saveModel": "Зберегти модель",
+      "selectedSerialTitle": "Закупівля вибраного серійного номера",
+      "selectedSerialUnavailable": "Інформація про закупівлю за цим серійним номером недоступна."
     },
     "serviceForm": {
       "editService": "Редагувати послугу",

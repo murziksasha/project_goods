@@ -7,6 +7,7 @@ Related: [SALE_CARD.md](./SALE_CARD.md) · [ORDER_FLOW.md](./ORDER_FLOW.md) · [
 - Tab `Sales order` is used to create sale requests.
 - Sale detail card header also exposes `Create order` (same permission and navigation rules as the toolbar button; responsive layout is documented in `ORDER_CARD.md` -> `Header`).
 - Client lookup is performed by `Client phone` + `Client name`.
+- The shared `Client requests` history keeps the current sales summary and supports inline contents and clickable serial purchase information. Source of truth: [ORDER_FLOW.md — Expandable request contents](./ORDER_FLOW.md#expandable-request-contents-2026-11-14).
 - Soft phone-length hint for **new** client drafts matches repair create-order (red border + hint; length alone does not block Save).
 - **Hard Save validation** for sales order:
   - **Client required:** non-empty phone + name ≥ 2 characters.
