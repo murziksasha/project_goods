@@ -1,6 +1,8 @@
 import type React from 'react';
 import {
+  Fragment,
   useEffect,
+  useId,
   useMemo,
   useState,
   type Dispatch,
@@ -21,7 +23,9 @@ import type {
   Client,
   ClientStatus,
 } from '../../../../entities/client';
+import type { Employee } from '../../../../entities/employee';
 import type { Sale } from '../../../../entities/sale';
+import { getSaleProductName } from '../../../../entities/sale';
 import {
   clientStatusOptions,
   getClientStatusLabelKey,
@@ -59,6 +63,14 @@ import { PhonesField } from '../../../../shared/ui/PhonesField';
 import { Modal } from '../../../../shared/ui/Modal';
 import { CompactPaginationPanel } from '../../../../shared/ui/PaginationPanel';
 import { getOrderLink } from '../../../../pages/dashboard/model/dashboard-navigation';
+import {
+  RequestContentsToggle,
+  RequestLineItemsContents,
+} from '../shared/RequestLineItemsContents';
+import {
+  HistorySerialModal,
+  type HistorySerialContext,
+} from '../shared/HistorySerialModal';
 
 const isPlainLeftClick = (event: ReactMouseEvent<HTMLAnchorElement>) =>
   event.button === 0 &&
@@ -93,6 +105,9 @@ export interface ClientCardModalProps {
   usePortal?: boolean;
   saleLinkMode?: 'in-app' | 'new-tab';
   clientDevices: ClientDevice[];
+  currentEmployee?: Employee | null;
+  /** Dashboard sales list used for occupied-serial calculation. */
+  sales?: Sale[];
   onUpdateClientDevice: (
     deviceId: string,
     payload: ClientDeviceFormValues,
@@ -133,6 +148,8 @@ export const ClientCardModal: React.FC<ClientCardModalProps> = ({
   usePortal = false,
   saleLinkMode = 'in-app',
   clientDevices,
+  currentEmployee = null,
+  sales = [],
   onUpdateClientDevice,
   onDeleteClientDevice,
 }) => {
@@ -155,6 +172,11 @@ export const ClientCardModal: React.FC<ClientCardModalProps> = ({
       query: '',
       activity: 'all',
     });
+  const [expandedHistoryIds, setExpandedHistoryIds] = useState<Set<string>>(
+    () => new Set(),
+  );
+  const [historySerialContext, setHistorySerialContext] =
+    useState<HistorySerialContext | null>(null);
 
   useEffect(() => {
     setListPage(1);
@@ -167,6 +189,8 @@ export const ClientCardModal: React.FC<ClientCardModalProps> = ({
       dateTo: '',
     });
     setDeviceFilters({ query: '', activity: 'all' });
+    setExpandedHistoryIds(new Set());
+    setHistorySerialContext(null);
   }, [clientCardTab, selectedClientId]);
 
   const clientDeviceRows = useMemo(
@@ -377,6 +401,7 @@ export const ClientCardModal: React.FC<ClientCardModalProps> = ({
     isOptionalIbanValid(mainTabForm.iban);
 
   return (
+    <>
     <Modal
       isOpen
       title={clientTitle}
@@ -552,6 +577,16 @@ export const ClientCardModal: React.FC<ClientCardModalProps> = ({
             <ClientHistoryTable
               rows={paginatedHistory.pageItems}
               tab={clientCardTab}
+              expandedIds={expandedHistoryIds}
+              onToggleExpanded={(saleId) => {
+                setExpandedHistoryIds((current) => {
+                  const next = new Set(current);
+                  if (next.has(saleId)) next.delete(saleId);
+                  else next.add(saleId);
+                  return next;
+                });
+              }}
+              onOpenSerial={setHistorySerialContext}
               onOpenSaleCard={onOpenSaleCard}
               saleLinkMode={saleLinkMode}
             />
@@ -559,6 +594,15 @@ export const ClientCardModal: React.FC<ClientCardModalProps> = ({
         </div>
       )}
     </Modal>
+    {historySerialContext ? (
+      <HistorySerialModal
+        context={historySerialContext}
+        currentEmployee={currentEmployee}
+        sales={sales}
+        onClose={() => setHistorySerialContext(null)}
+      />
+    ) : null}
+    </>
   );
 };
 
@@ -982,23 +1026,92 @@ const ClientDevicesTable = ({
   );
 };
 
+const productLinesForSale = (sale: Sale) =>
+  (sale.lineItems ?? []).filter((item) => item.kind === 'product');
+
+const saleSerialContext = (
+  sale: Sale,
+  tab: ClientCardTab,
+  serial: string,
+): HistorySerialContext => {
+  if (tab === 'orders') {
+    return {
+      name: formatItemList(sale, 'orders'),
+      serialNumber: serial,
+      saleId: sale.id,
+    };
+  }
+
+  const line = productLinesForSale(sale).find((item) =>
+    (item.serialNumbers ?? []).some((value) => value.trim() === serial),
+  );
+  return {
+    name: line?.name.trim() || getSaleProductName(sale),
+    serialNumber: serial,
+    saleId: sale.id,
+  };
+};
+
+const ClientHistorySaleItems = ({ sale }: { sale: Sale }) => {
+  const productLines = productLinesForSale(sale);
+  if (productLines.length === 0) {
+    const name = formatItemList(sale, 'sales');
+    return (
+      <CopyableValue value={name.trim()}>
+        <span>{name}</span>
+      </CopyableValue>
+    );
+  }
+
+  return (
+    <span className='clients-history-sale-line'>
+      {productLines.map((item, index) => (
+        <span key={item.id} className='clients-history-sale-item'>
+          {index > 0 ? ', ' : null}
+          <CopyableValue value={item.name.trim()}>
+            <span>{`${item.name} x${item.quantity}`}</span>
+          </CopyableValue>
+        </span>
+      ))}
+    </span>
+  );
+};
+
 const ClientHistoryItemCell = ({
   sale,
   tab,
+  onOpenSerial,
 }: {
   sale: Sale;
   tab: ClientCardTab;
+  onOpenSerial: (context: HistorySerialContext) => void;
 }) => {
   const { t } = useTranslation();
   const serials = collectClientHistorySerials(sale, tab);
+  const deviceName = formatItemList(sale, 'orders');
 
   return (
     <div className='clients-history-items'>
-      <span>{formatItemList(sale, tab)}</span>
+      {tab === 'orders' ? (
+        <CopyableValue value={deviceName.trim()}>
+          <span>{deviceName}</span>
+        </CopyableValue>
+      ) : (
+        <ClientHistorySaleItems sale={sale} />
+      )}
       {serials.map((serial) => (
         <span key={serial} className='clients-history-item-serial'>
           <CopyableValue value={serial}>
-            {t('orders.toolbar.serialPrefix', { serial })}
+            <button
+              type='button'
+              className='clients-history-serial-button'
+              onClick={(event) => {
+                event.stopPropagation();
+                onOpenSerial(saleSerialContext(sale, tab, serial));
+              }}
+            >
+              {t('orders.toolbar.serialPrefix', { serial })}
+            </button>
           </CopyableValue>
         </span>
       ))}
@@ -1017,15 +1130,22 @@ const openSaleInNewTab = (sale: Sale) => {
 const ClientHistoryTable = ({
   rows,
   tab,
+  expandedIds,
+  onToggleExpanded,
+  onOpenSerial,
   onOpenSaleCard,
   saleLinkMode,
 }: {
   rows: Sale[];
   tab: ClientCardTab;
+  expandedIds: Set<string>;
+  onToggleExpanded: (saleId: string) => void;
+  onOpenSerial: (context: HistorySerialContext) => void;
   onOpenSaleCard: (sale: Sale) => void;
   saleLinkMode: 'in-app' | 'new-tab';
 }) => {
   const { t } = useTranslation();
+  const contentsId = useId();
   const itemColumnLabel =
     tab === 'orders'
       ? t('clients.card.history.columns.device')
@@ -1044,54 +1164,94 @@ const ClientHistoryTable = ({
           </tr>
         </thead>
         <tbody>
-          {rows.map((sale) => (
-            <tr
-              key={sale.id}
-              className='clients-history-row'
-              onClick={() => {
-                if (saleLinkMode === 'new-tab') {
-                  openSaleInNewTab(sale);
-                  return;
-                }
-                onOpenSaleCard(sale);
-              }}
-            >
-              <td data-label={t('clients.card.history.columns.number')}>
-                <CopyableValue
-                  value={sale.recordNumber ?? sale.id.slice(-6)}
+          {rows.map((sale) => {
+            const isExpanded = expandedIds.has(sale.id);
+            const requestContentsId = `${contentsId}-${sale.id}`;
+            const recordNumber = sale.recordNumber ?? sale.id.slice(-6);
+            return (
+              <Fragment key={sale.id}>
+                <tr
+                  className={
+                    isExpanded
+                      ? 'clients-history-row clients-history-row-open'
+                      : 'clients-history-row'
+                  }
                 >
-                  <a
-                    className='order-number-button'
-                    href={getOrderLink(sale.id, sale.kind)}
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      if (!isPlainLeftClick(event)) return;
-                      event.preventDefault();
-                      if (saleLinkMode === 'new-tab') {
-                        openSaleInNewTab(sale);
-                        return;
-                      }
-                      onOpenSaleCard(sale);
-                    }}
-                  >
-                    {sale.recordNumber ?? sale.id.slice(-6)}
-                  </a>
-                </CopyableValue>
-              </td>
-              <td data-label={t('clients.card.history.columns.date')}>
-                {formatDateTime(sale.saleDate)}
-              </td>
-              <td data-label={itemColumnLabel}>
-                <ClientHistoryItemCell sale={sale} tab={tab} />
-              </td>
-              <td data-label={t('clients.card.history.columns.status')}>
-                {sale.status}
-              </td>
-              <td data-label={t('clients.card.history.columns.amount')}>
-                {formatClientIncome(getClientSaleIncome(sale))}
-              </td>
-            </tr>
-          ))}
+                  <td data-label={t('clients.card.history.columns.number')}>
+                    <span className='clients-history-number'>
+                      <CopyableValue value={recordNumber}>
+                        <a
+                          className='order-number-button'
+                          href={getOrderLink(sale.id, sale.kind)}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            if (!isPlainLeftClick(event)) return;
+                            event.preventDefault();
+                            if (saleLinkMode === 'new-tab') {
+                              openSaleInNewTab(sale);
+                              return;
+                            }
+                            onOpenSaleCard(sale);
+                          }}
+                        >
+                          {recordNumber}
+                        </a>
+                      </CopyableValue>
+                      <RequestContentsToggle
+                        expanded={isExpanded}
+                        controlsId={requestContentsId}
+                        label={t('orders.create.sidePanel.toggleContents', {
+                          number: recordNumber,
+                        })}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          onToggleExpanded(sale.id);
+                        }}
+                      />
+                    </span>
+                  </td>
+                  <td data-label={t('clients.card.history.columns.date')}>
+                    {formatDateTime(sale.saleDate)}
+                  </td>
+                  <td data-label={itemColumnLabel}>
+                    <ClientHistoryItemCell
+                      sale={sale}
+                      tab={tab}
+                      onOpenSerial={onOpenSerial}
+                    />
+                  </td>
+                  <td data-label={t('clients.card.history.columns.status')}>
+                    {sale.status}
+                  </td>
+                  <td data-label={t('clients.card.history.columns.amount')}>
+                    {formatClientIncome(getClientSaleIncome(sale))}
+                  </td>
+                </tr>
+                <tr
+                  id={requestContentsId}
+                  className='clients-history-details'
+                  hidden={!isExpanded}
+                >
+                  <td colSpan={5} data-label=''>
+                    {isExpanded ? (
+                      <div className='create-side-request-contents'>
+                        <RequestLineItemsContents
+                          sale={sale}
+                          onOpenSerial={(item, serialNumber) =>
+                            onOpenSerial({
+                              name: item.name,
+                              serialNumber,
+                              saleId: sale.id,
+                            })
+                          }
+                        />
+                      </div>
+                    ) : null}
+                  </td>
+                </tr>
+              </Fragment>
+            );
+          })}
         </tbody>
       </table>
     </div>

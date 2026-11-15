@@ -58,7 +58,9 @@ import {
   filterStockProducts,
   groupStockProductsByModel,
   getStockModelGroupId,
+  mergeSalesWithStockOrderLinks,
 } from '../../model/stock-balance';
+import { useStockOrderLinksQuery } from '../../../../entities/sale';
 import {
   classifyTransferProducts,
   getActiveBatchProducts,
@@ -768,9 +770,33 @@ export const WarehousePanel: React.FC<WarehousePanelProps> = ({
       filters: appliedFilters,
     });
   }, [appliedFilters, query, receiptHistory]);
+  const stockLinkRequest = useMemo(() => {
+    const productIds: string[] = [];
+    const serials: string[] = [];
+    products.forEach((product) => {
+      if (product.quantity <= 0) return;
+      productIds.push(product.id);
+      const serial = product.serialNumber.trim();
+      if (serial) serials.push(serial);
+    });
+    return { productIds, serials };
+  }, [products]);
+  const stockOrderLinksQuery = useStockOrderLinksQuery(
+    stockLinkRequest.productIds,
+    stockLinkRequest.serials,
+    activeTab === 'stock',
+  );
+  const salesForStock = useMemo(
+    () =>
+      mergeSalesWithStockOrderLinks(
+        sales,
+        stockOrderLinksQuery.data?.links ?? [],
+      ),
+    [sales, stockOrderLinksQuery.data?.links],
+  );
   const salesByProductId = useMemo(
-    () => buildSalesByProductId(products, sales),
-    [products, sales],
+    () => buildSalesByProductId(products, salesForStock),
+    [products, salesForStock],
   );
   const supplierOrdersByProductId = useMemo(() => {
     return buildSupplierOrdersByProductId({
@@ -782,7 +808,7 @@ export const WarehousePanel: React.FC<WarehousePanelProps> = ({
     () =>
       filterStockProducts({
         products,
-        sales,
+        sales: salesForStock,
         query,
         searchMode,
         filters: appliedFilters,
@@ -796,7 +822,7 @@ export const WarehousePanel: React.FC<WarehousePanelProps> = ({
       productWarehouseMetaById,
       products,
       query,
-      sales,
+      salesForStock,
       searchMode,
       supplierOrdersByProductId,
     ],
@@ -2547,7 +2573,8 @@ export const WarehousePanel: React.FC<WarehousePanelProps> = ({
             <ProductModelModal
               name={selectedProductModelContext.name}
               products={products}
-              sales={sales}
+              sales={salesForStock}
+              onOpenSaleCard={onOpenSaleCard}
               supplierOrders={supplierOrders}
               warehouses={warehouses}
               printForms={printForms}

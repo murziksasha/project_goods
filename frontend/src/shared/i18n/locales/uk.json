@@ -4107,6 +4107,7 @@
       "serialNumber": "Серійний №",
       "purchaseDate": "Дата прийому",
       "supplierOrder": "Замовлення постачальника",
+      "clientOrder": "Замовлення клієнта",
       "serialMissing": "Без серійного №",
       "latestBatchBadge": "Остання",
       "reservedBadge": "Резерв",

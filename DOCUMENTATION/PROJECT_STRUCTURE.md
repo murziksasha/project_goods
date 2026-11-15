@@ -303,7 +303,7 @@ Migration script (reference): `frontend/scripts/reorganize-dashboard-ui.mjs`
 - `frontend/src/widgets/dashboard/model/warehouse-serial-filter.ts` — warehouse default, product filter, and oldest-serial selection helpers
 - `frontend/src/widgets/dashboard/model/rapid-sale-line-items.ts` — `buildRapidSaleStockSuggestions`, `getRapidSaleOccupiedSerialNumbers`, `validateRapidSaleDraft`, line-item builder
 - `frontend/src/widgets/dashboard/model/order-line-serials.ts` — `buildInMemorySerialUsageSale`, `collectOccupiedSerialNumbers`, `filterBindableSerialProducts` (bind-modal occupancy; keep current-line serials)
-- `frontend/src/entities/sale/api/saleApi.ts` — `getOccupiedSerialNumbers` → `GET /sales/occupied-serials`
+- `frontend/src/entities/sale/api/saleApi.ts` — `getOccupiedSerialNumbers` → `GET /sales/occupied-serials`; `getStockOrderLinks` → `POST /sales/stock-links`
 - `frontend/src/shared/lib/price-stepper.ts` — shared price stepper constants (`PRICE_STEPPER_STEP = 1`, `PRICE_STEPPER_PRECISION = 0`)
 - `frontend/src/shared/ui/ProductSalePriceField.tsx` — shared price stepper + retail/wholesale toggle (`tierTogglePlacement: inline | label`)
 - `frontend/src/shared/ui/ServiceSalePriceField.tsx` — service price stepper + R/W1/W2 toggle
@@ -324,6 +324,7 @@ Migration script (reference): `frontend/scripts/reorganize-dashboard-ui.mjs`
 - `backend/src/domain/sale/service.ts` — `assertRapidSaleLineItems`, rapid branch in `createSale`
 - `backend/src/domain/sale/validators.ts` — `findOccupiedSerialNumbers`, `assertSerialNumbersNotBoundToOtherSales`
 - `backend/src/domain/sale/list.ts` — `listOccupiedSerialNumbers` (`GET /sales/occupied-serials`)
+- `backend/src/domain/sale/stock-links.ts` — `listStockOrderLinks` (`POST /sales/stock-links`)
 - `backend/src/shared/lib/parsers.ts` / `formatters.ts` — normalize and expose `isRapidSale`
 
 ### Tests

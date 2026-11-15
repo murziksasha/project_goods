@@ -130,6 +130,13 @@ for (const kind of ['repair', 'sale'] as const) {
     const link = requests.getByRole('link', { name: 'r001405', exact: true });
     await expect(link).toHaveAttribute('target', '_blank');
     await expect(link).toHaveAttribute('href', /saleId=history-repair/);
+    const linkBox = await link.boundingBox();
+    const toggleBox = await firstToggle.boundingBox();
+    expect(linkBox).not.toBeNull();
+    expect(toggleBox).not.toBeNull();
+    expect(Math.abs(
+      (linkBox!.y + linkBox!.height / 2) - (toggleBox!.y + toggleBox!.height / 2),
+    )).toBeLessThan(2);
 
     await firstToggle.focus();
     await page.keyboard.press('Enter');

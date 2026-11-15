@@ -439,7 +439,7 @@ test.describe('Finance Accounting & Audit Policy Tab', () => {
     await expect(page.getByRole('button', { name: 'Month' })).toHaveClass(
       /period-button-active/,
     );
-    await expect(page.getByRole('button', { name: 'Services' })).toBeDisabled();
+    await expect(page.getByRole('button', { name: 'Services', exact: true })).toBeDisabled();
     await expect(
       page.getByText(/Services filter is unavailable/i),
     ).toBeVisible();

@@ -3,7 +3,9 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Product } from '../../../../../entities/product';
 import type { Sale } from '../../../../../entities/sale';
 import type { SupplierOrder } from '../../../../../entities/supplier-order';
-import { getOccupiedSerialNumbers } from '../../../../../entities/sale';
+import { getStockOrderLinks } from '../../../../../entities/sale';
+import type { StockOrderLink } from '../../../../../entities/sale';
+import { getOrderLink } from '../../../../../shared/config/routing';
 import { defaultPrintForms } from '../../../../../entities/settings';
 import i18n from '../../../../../shared/i18n/config';
 import * as clipboard from '../../../../../shared/lib/clipboard';
@@ -15,11 +17,11 @@ vi.mock('../../../../../entities/sale', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../../../../entities/sale')>();
   return {
     ...actual,
-  getOccupiedSerialNumbers: vi.fn(async () => ({ occupied: [] as string[] })),
+  getStockOrderLinks: vi.fn(async () => ({ links: [] as StockOrderLink[] })),
   };
 });
 
-const getOccupiedSerialNumbersMock = vi.mocked(getOccupiedSerialNumbers);
+const getStockOrderLinksMock = vi.mocked(getStockOrderLinks);
 
 const createProduct = (patch: Partial<Product>): Product => ({
   id: 'product-1',
@@ -129,7 +131,7 @@ const saleBindingProduct = (
 
 afterEach(async () => {
   vi.clearAllMocks();
-  getOccupiedSerialNumbersMock.mockResolvedValue({ occupied: [] });
+  getStockOrderLinksMock.mockResolvedValue({ links: [] });
   await i18n.changeLanguage('en');
 });
 
@@ -526,6 +528,9 @@ describe('ProductModelModal serial printing', () => {
       screen.getByText(i18n.t('catalog.productModel.supplierOrder')),
     ).toBeInTheDocument();
     expect(
+      screen.getByText(i18n.t('catalog.productModel.clientOrder')),
+    ).toBeInTheDocument();
+    expect(
       screen.getByText(
         i18n.t('catalog.productModel.latestBatchSummary', {
           price: '250,00 ₴',
@@ -625,10 +630,19 @@ describe('ProductModelModal serial printing', () => {
     ).toBeNull();
   });
 
-  it('marks occupied serials from the occupancy api as reserved', async () => {
+  it('marks a non-issued binding from stock-links as reserved', async () => {
     const { clickedProduct, products } = serialPurchaseProducts();
-    getOccupiedSerialNumbersMock.mockResolvedValue({
-      occupied: ['R0000001'],
+    getStockOrderLinksMock.mockResolvedValue({
+      links: [
+        {
+          productId: 'old-batch',
+          serialNumber: 'R0000001',
+          saleId: 'sale-outside-list',
+          recordNumber: 'r000088',
+          kind: 'sale',
+          status: 'reserved',
+        },
+      ],
     });
 
     render(
@@ -651,8 +665,9 @@ describe('ProductModelModal serial printing', () => {
     expect(
       document.querySelector('.product-model-serial-row-reserved'),
     ).toHaveTextContent('R0000001');
-    expect(getOccupiedSerialNumbersMock).toHaveBeenCalledWith({
-      excludeSaleId: undefined,
+    expect(screen.getByRole('link', { name: 'r000088' })).toBeInTheDocument();
+    expect(getStockOrderLinksMock).toHaveBeenCalledWith({
+      productIds: expect.arrayContaining(['old-batch', 'new-batch']),
       serials: expect.arrayContaining(['R0000001', 'R0000002']),
     });
   });
@@ -785,5 +800,182 @@ describe('ProductModelModal serial printing', () => {
     });
 
     copySpy.mockRestore();
+  });
+
+  it('keeps the purchase-by-serial header sticky inside the table scroller', () => {
+    const products = Array.from({ length: 8 }, (_, index) =>
+      createProduct({
+        id: `serial-${index}`,
+        serialNumber: `S00010${index}`,
+        purchaseDate: `2026-01-${String(index + 1).padStart(2, '0')}`,
+        createdAt: `2026-01-${String(index + 1).padStart(2, '0')}T00:00:00.000Z`,
+      }),
+    );
+
+    render(
+      <ProductModelModal
+        name='БЖ Meanwell 9V 1.66A'
+        products={products}
+        warehouses={[]}
+        printForms={defaultPrintForms}
+        onClose={vi.fn()}
+        onSave={vi.fn(async () => true)}
+      />,
+    );
+
+    const wrap = document.querySelector(
+      '.product-model-serial-purchases-table-wrap',
+    );
+    const head = wrap?.querySelector('thead');
+    expect(head).not.toBeNull();
+    expect(head?.querySelectorAll('.product-model-serial-purchases-sticky-head')).toHaveLength(6);
+    expect(wrap?.contains(head ?? null)).toBe(true);
+    if (wrap instanceof HTMLElement) {
+      wrap.scrollTop = 48;
+      expect(wrap.querySelector('thead th')).toHaveClass(
+        'product-model-serial-purchases-sticky-head',
+      );
+    }
+  });
+
+  it('shows every bound order, opens it, and copies the visible number', async () => {
+    const onOpenSaleCard = vi.fn();
+    const copySpy = vi
+      .spyOn(clipboard, 'copyTextToClipboard')
+      .mockResolvedValue(true);
+    const { products } = serialPurchaseProducts();
+    getStockOrderLinksMock.mockResolvedValue({
+      links: [
+        {
+          productId: 'old-batch',
+          serialNumber: 'R0000001',
+          saleId: 'sale-current',
+          recordNumber: 'r000010',
+          kind: 'repair',
+          status: 'new',
+        },
+        {
+          productId: 'old-batch',
+          serialNumber: 'R0000001',
+          saleId: 'sale-other',
+          recordNumber: 'r000088',
+          kind: 'sale',
+          status: 'reserved',
+        },
+        {
+          productId: 'new-batch',
+          serialNumber: 'R0000002',
+          saleId: 'sale-second',
+          recordNumber: 'r000099',
+          kind: 'sale',
+          status: 'paid',
+        },
+      ],
+    });
+
+    render(
+      <ProductModelModal
+        name='БЖ Meanwell 9V 1.66A'
+        products={products}
+        currentSaleId='sale-current'
+        warehouses={[]}
+        printForms={defaultPrintForms}
+        onClose={vi.fn()}
+        onSave={vi.fn(async () => true)}
+        onOpenSaleCard={onOpenSaleCard}
+      />,
+    );
+
+    const currentLink = await screen.findByRole('link', { name: 'r000010' });
+    const otherLink = screen.getByRole('link', { name: 'r000088' });
+    expect(currentLink).toHaveAttribute(
+      'href',
+      getOrderLink('sale-current', 'repair'),
+    );
+    expect(otherLink).toHaveAttribute('href', getOrderLink('sale-other', 'sale'));
+    expect(screen.getByRole('link', { name: 'r000099' })).toBeInTheDocument();
+    const reservedRow = currentLink.closest('tr');
+    expect(reservedRow).toHaveClass('product-model-serial-row-reserved');
+    expect(reservedRow).toHaveTextContent('R0000001');
+    expect(reservedRow).toHaveTextContent('r000010');
+    expect(reservedRow).toHaveTextContent('r000088');
+
+    fireEvent.click(currentLink);
+    expect(onOpenSaleCard).toHaveBeenCalledWith({
+      id: 'sale-current',
+      kind: 'repair',
+    });
+    fireEvent.click(otherLink, { ctrlKey: true });
+    expect(onOpenSaleCard).toHaveBeenCalledTimes(1);
+
+    const copyButton = currentLink
+      .closest('.copyable-value')
+      ?.querySelector('button');
+    expect(copyButton).not.toBeNull();
+    fireEvent.click(copyButton as HTMLButtonElement);
+    await waitFor(() => {
+      expect(copySpy).toHaveBeenCalledWith('r000010');
+    });
+    expect(onOpenSaleCard).toHaveBeenCalledTimes(1);
+    copySpy.mockRestore();
+  });
+
+  it('drops an issued serial from outside the loaded sales and keeps a returned serial', async () => {
+    const issued = createProduct({
+      id: 'issued-unit',
+      serialNumber: 'S000113',
+      quantity: 1,
+      purchaseDate: '2026-01-02',
+      createdAt: '2026-01-02T00:00:00.000Z',
+    });
+    const returned = createProduct({
+      id: 'returned-unit',
+      serialNumber: 'S000114',
+      quantity: 1,
+      purchaseDate: '2026-02-02',
+      createdAt: '2026-02-02T00:00:00.000Z',
+    });
+    getStockOrderLinksMock.mockResolvedValue({
+      links: [
+        {
+          productId: issued.id,
+          serialNumber: 'S000113',
+          saleId: 'sale-issued',
+          recordNumber: 'r000255',
+          kind: 'sale',
+          status: 'issued',
+        },
+        {
+          productId: returned.id,
+          serialNumber: 'S000114',
+          saleId: 'sale-returned',
+          recordNumber: 'r000256',
+          kind: 'sale',
+          status: 'returned',
+        },
+      ],
+    });
+
+    render(
+      <ProductModelModal
+        name='БЖ Meanwell 9V 1.66A'
+        products={[issued, returned]}
+        sales={[]}
+        warehouses={[]}
+        printForms={defaultPrintForms}
+        onClose={vi.fn()}
+        onSave={vi.fn(async () => true)}
+      />,
+    );
+
+    expect(await screen.findByRole('link', { name: 'r000256' })).toBeInTheDocument();
+    expect(screen.getByText('S000114')).toBeInTheDocument();
+    expect(screen.queryByText('S000113')).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'r000255' })).not.toBeInTheDocument();
+    expect(issued.quantity).toBe(1);
+    expect(returned.quantity).toBe(1);
+    expect(
+      document.querySelector('.product-model-serial-row-reserved'),
+    ).toHaveTextContent('S000114');
   });
 });

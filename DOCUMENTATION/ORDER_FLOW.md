@@ -60,6 +60,9 @@ Related: [ORDER_CARD.md](./ORDER_CARD.md) · [SALE_FLOW.md](./SALE_FLOW.md) · [
 - Clicking a product serial opens the shared read-only product model modal above Create order. Closing it preserves the draft and expanded history. Selected-unit purchase details, including sold units, follow [WAREHOUSE_FLOW.md §4.4](./WAREHOUSE_FLOW.md#44-product-model-detail-modal).
 - Serial lookups use the existing product/warehouse/supplier-order queries. Supplier orders are loaded only with their existing view/manage permission; missing product records have an explicit unavailable message, and load failures offer Retry.
 - History keeps its existing vertical scroll at four or more requests. Headings, names, serials, and numeric details wrap within the sidebar/mobile width; buttons support touch, Enter/Space, visible focus, `aria-expanded`, and `aria-controls` in both themes.
+- The Products/Services block is the shared `RequestLineItemsContents` component (`frontend/src/widgets/dashboard/ui/shared/RequestLineItemsContents.tsx`). The client card `Orders` and `Sales` tabs reuse it. Card rules: [CLIENTS_RULES.md](./CLIENTS_RULES.md#client-card-tabs).
+- The chevron is the existing button immediately beside the number. It stays 32px on desktop and 40px for touch and coarse pointers. The glyph is centered on the number's vertical middle, and the button keeps `aria-expanded` and `aria-controls`.
+- Each product serial in the expanded block has a hover-copy icon. The icon copies the trimmed serial only, without an `S/N:` prefix. The serial text still opens the shared read-only product model modal (`HistorySerialModal`, context `{ name, serialNumber, saleId }`). Service rows have no serials. Hover-copy matrix: [UI_DESIGN_SYSTEM.md](./UI_DESIGN_SYSTEM.md#hover-copy-icon).
 
 ## Repair Order Device Behavior
 

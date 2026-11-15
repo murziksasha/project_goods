@@ -11,6 +11,7 @@ One topic → one source of truth. Other files **link**, they do not copy the ru
 | Sales / Rapid sale | [SALE_FLOW.md](./SALE_FLOW.md) | [SALE_CARD.md](./SALE_CARD.md) |
 | Warehouse / serials | [WAREHOUSE_FLOW.md](./WAREHOUSE_FLOW.md) | [SERIAL_NUMBER_SEQUENCE_SPEC.md](./SERIAL_NUMBER_SEQUENCE_SPEC.md) |
 | Bind serial occupancy | [WAREHOUSE_FLOW.md §4.3.0](./WAREHOUSE_FLOW.md#430-bind-modal-occupancy-opened-repair-and-sale-cards) | API: `GET /sales/occupied-serials` in [API.md](./API.md) |
+| Product model client order / issued stock outside the loaded sales list (2026-11-15) | [WAREHOUSE_FLOW.md](./WAREHOUSE_FLOW.md#client-order-and-issued-stock-2026-11-15) | API: `POST /sales/stock-links` in [API.md](./API.md); query: [STATE_MANAGEMENT.md](./STATE_MANAGEMENT.md#stock-order-links-2026-11-15) |
 | Bind serial candidate row | [WAREHOUSE_FLOW.md §4.3.2](./WAREHOUSE_FLOW.md#432-bind-modal-candidate-row-purchase-price--supplier-order) | Purchase price + supplier-order number (copy/click) |
 | Lookup / autocomplete | [SPEC_SUGGESTIONS_BEHAVIOR.md](./SPEC_SUGGESTIONS_BEHAVIOR.md) | select, dismiss-without-select, create-order / cards / Rapid Sale / supplier / merge |
 | Print | [PRINT_FORMS_SPEC.md](./PRINT_FORMS_SPEC.md) | warehouse serial labels in WAREHOUSE_FLOW §4.5; builder inline B / I / U formatting in [§ Inline Text Formatting](./PRINT_FORMS_SPEC.md#inline-text-formatting-2026-11-10); collapsible picker in [§ Collapsible Template Variables](./PRINT_FORMS_SPEC.md#collapsible-template-variables-2026-11-11) |
@@ -55,7 +56,7 @@ One topic → one source of truth. Other files **link**, they do not copy the ru
 
 ## 4. Warehouse, serials, print
 
-- [WAREHOUSE_FLOW.md](./WAREHOUSE_FLOW.md) — stock models/units, receipts, transfers, information, occupancy, bind-modal candidate row, labels, [toolbar search commit](./WAREHOUSE_FLOW.md#toolbar-search)
+- [WAREHOUSE_FLOW.md](./WAREHOUSE_FLOW.md) — stock models/units, receipts, transfers, information, occupancy, bind-modal candidate row, labels, [toolbar search commit](./WAREHOUSE_FLOW.md#toolbar-search), [client order and issued stock](./WAREHOUSE_FLOW.md#client-order-and-issued-stock-2026-11-15)
 - [SERIAL_NUMBER_SEQUENCE_SPEC.md](./SERIAL_NUMBER_SEQUENCE_SPEC.md) — `S000001` assignment on receipt
 - [PRINT_FORMS_SPEC.md](./PRINT_FORMS_SPEC.md) — print templates, block builder, inline B / I / U (Ж / К / П) text formatting, collapsible Template variables
 - [CATALOG_PRODUCT_CREATE_MODAL_SPEC.md](./CATALOG_PRODUCT_CREATE_MODAL_SPEC.md) — Product List modal (not stock); catalog list hover-copy (Suppliers phone)

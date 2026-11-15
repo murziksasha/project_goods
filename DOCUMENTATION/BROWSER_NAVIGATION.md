@@ -151,6 +151,7 @@ On **Back / Forward**, the URL is authoritative. `localStorage` must not overrid
 
 - `Client order` links in `Stock balances` expose a valid `href` for new-tab opens.
 - Left click calls `onOpenSaleCard` → `navigateTo()` (SPA navigation, no full reload).
+- Product model `Purchase by serial` uses the same `href`. Left click calls `onOpenSaleCard` when the modal received it (Stock balances). Otherwise it pushes the same order URL and syncs the dashboard from `popstate`.
 - Hover copy icon on `Client order` / `Supplier order` copies the visible number and does not navigate. Spec: [UI_DESIGN_SYSTEM.md — Hover copy icon](./UI_DESIGN_SYSTEM.md#hover-copy-icon).
 
 ## Deployment / backend

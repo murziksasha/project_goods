@@ -4,6 +4,7 @@ export {
   listSales,
   updateSaleFavorite,
 } from './list';
+export { listStockOrderLinks } from './stock-links';
 export { createSale } from './create';
 export { updateSale, updateSaleWorkspace, deleteSale } from './update';
 export { acceptSalePayment, refundSalePayment } from './payment';

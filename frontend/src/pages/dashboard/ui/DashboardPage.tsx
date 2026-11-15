@@ -2039,6 +2039,7 @@ export const DashboardPage: React.FC = () => {
             <ClientCardOverlay
               key={clientCardId}
               clientId={clientCardId}
+              currentEmployee={currentEmployee}
               client={
                 state.allClients.find(
                   (client) => client.id === clientCardId,

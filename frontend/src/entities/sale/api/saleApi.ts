@@ -141,6 +141,129 @@ export type OccupiedSerialNumbersResponse = {
   occupied: string[];
 };
 
+export type StockOrderLink = {
+  productId: string;
+  serialNumber: string;
+  saleId: string;
+  recordNumber: string;
+  kind: 'repair' | 'sale';
+  status: string;
+};
+
+export type StockOrderLinksResponse = {
+  links: StockOrderLink[];
+};
+
+const STOCK_ORDER_LINK_BATCH = 2000;
+
+const uniqueTrimmed = (values: string[]) =>
+  Array.from(
+    new Set(values.map((value) => String(value ?? '').trim()).filter(Boolean)),
+  );
+
+const isStockOrderLink = (value: unknown): value is StockOrderLink =>
+  isObjectRecord(value) &&
+  typeof value.productId === 'string' &&
+  typeof value.serialNumber === 'string' &&
+  typeof value.saleId === 'string' &&
+  typeof value.recordNumber === 'string' &&
+  (value.kind === 'repair' || value.kind === 'sale') &&
+  typeof value.status === 'string';
+
+const readStockOrderLinks = (value: unknown): StockOrderLink[] => {
+  if (!isObjectRecord(value) || !Array.isArray(value.links)) return [];
+  return value.links.filter(isStockOrderLink);
+};
+
+const requestStockOrderLinks = async (
+  productIds: string[],
+  serials: string[],
+) => {
+  const response = await apiClient.post<StockOrderLinksResponse>(
+    '/sales/stock-links',
+    { productIds, serials },
+  );
+  return readStockOrderLinks(response.data);
+};
+
+export const getStockOrderLinks = async ({
+  productIds,
+  serials,
+}: {
+  productIds: string[];
+  serials: string[];
+}): Promise<StockOrderLinksResponse> => {
+  const ids = uniqueTrimmed(productIds);
+  const normalizedSerials = uniqueTrimmed(serials);
+  if (ids.length === 0 && normalizedSerials.length === 0) {
+    return { links: [] };
+  }
+
+  const chunks: Array<{ productIds: string[]; serials: string[] }> = [];
+  if (
+    ids.length <= STOCK_ORDER_LINK_BATCH &&
+    normalizedSerials.length <= STOCK_ORDER_LINK_BATCH
+  ) {
+    chunks.push({ productIds: ids, serials: normalizedSerials });
+  } else {
+    for (let index = 0; index < ids.length; index += STOCK_ORDER_LINK_BATCH) {
+      chunks.push({
+        productIds: ids.slice(index, index + STOCK_ORDER_LINK_BATCH),
+        serials: index === 0 ? normalizedSerials.slice(0, STOCK_ORDER_LINK_BATCH) : [],
+      });
+    }
+    for (
+      let index = STOCK_ORDER_LINK_BATCH;
+      index < normalizedSerials.length;
+      index += STOCK_ORDER_LINK_BATCH
+    ) {
+      chunks.push({
+        productIds: [],
+        serials: normalizedSerials.slice(index, index + STOCK_ORDER_LINK_BATCH),
+      });
+    }
+    if (chunks.length === 0) {
+      chunks.push({ productIds: ids, serials: normalizedSerials });
+    }
+  }
+
+  try {
+    const batches = await Promise.all(
+      chunks.map((chunk) => requestStockOrderLinks(chunk.productIds, chunk.serials)),
+    );
+    const seen = new Set<string>();
+    const links = batches.flat().filter((link) => {
+      const key = `${link.productId}\u0000${link.saleId}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+    return { links };
+  } catch (error) {
+    throw new Error(getApiErrorMessage(error));
+  }
+};
+
+export const useStockOrderLinksQuery = (
+  productIds: readonly string[],
+  serials: readonly string[],
+  enabled = true,
+) => {
+  const ids = uniqueTrimmed([...productIds]).sort();
+  const normalizedSerials = uniqueTrimmed([...serials]).sort();
+
+  return useQuery({
+    queryKey: queryKeys.stockOrderLinks(ids, normalizedSerials),
+    queryFn: () =>
+      getStockOrderLinks({
+        productIds: ids,
+        serials: normalizedSerials,
+      }),
+    enabled: enabled && (ids.length > 0 || normalizedSerials.length > 0),
+    staleTime: 15_000,
+  });
+};
+
 export const getOccupiedSerialNumbers = async ({
   excludeSaleId,
   serials,

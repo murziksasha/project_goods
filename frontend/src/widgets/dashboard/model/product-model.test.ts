@@ -198,6 +198,7 @@ describe('product model aggregation', () => {
         isLatestBatch: true,
         isReserved: false,
         supplierOrderNumber: '',
+        clientOrders: [],
       },
       {
         productId: 'p-new-2',
@@ -207,6 +208,7 @@ describe('product model aggregation', () => {
         isLatestBatch: true,
         isReserved: false,
         supplierOrderNumber: '',
+        clientOrders: [],
       },
       {
         productId: 'p-old-1',
@@ -216,6 +218,7 @@ describe('product model aggregation', () => {
         isLatestBatch: false,
         isReserved: false,
         supplierOrderNumber: '',
+        clientOrders: [],
       },
       {
         productId: 'p-old-2',
@@ -225,6 +228,7 @@ describe('product model aggregation', () => {
         isLatestBatch: false,
         isReserved: false,
         supplierOrderNumber: '',
+        clientOrders: [],
       },
     ]);
   });
@@ -420,6 +424,71 @@ describe('product model aggregation', () => {
       productId: 'p-missing',
       supplierOrderNumber: '',
     });
+  });
+
+  it('lists every bound client order, including the opened card', () => {
+    const products = [
+      { ...baseProduct, id: 'p-bound', serialNumber: 'S000113' },
+    ];
+    const emptyProduct = {
+      id: '',
+      article: '',
+      name: '',
+      serialNumber: '',
+    };
+    const sales: ProductModelSaleLink[] = [
+      {
+        id: 'sale-current',
+        recordNumber: 'r000010',
+        kind: 'repair',
+        status: 'new',
+        product: emptyProduct,
+        lineItems: [
+          {
+            id: 'line-current',
+            kind: 'product',
+            productId: 'p-bound',
+            name: baseProduct.name,
+            price: 100,
+            quantity: 1,
+            warrantyPeriod: 0,
+            serialNumbers: ['S000113'],
+          },
+        ],
+      },
+      {
+        id: 'sale-other',
+        recordNumber: 'r000255',
+        kind: 'sale',
+        status: 'reserved',
+        product: emptyProduct,
+        lineItems: [
+          {
+            id: 'line-other',
+            kind: 'product',
+            productId: 'p-bound',
+            name: baseProduct.name,
+            price: 100,
+            quantity: 1,
+            warrantyPeriod: 0,
+            serialNumbers: ['S000113'],
+          },
+        ],
+      },
+    ];
+
+    const row = buildProductModelSerialPurchases(
+      products,
+      getReservedProductIdsOnOtherSales(products, sales, 'sale-current'),
+      {},
+      sales,
+    )[0];
+
+    expect(row.clientOrders.map((order) => order.recordNumber)).toEqual([
+      'r000010',
+      'r000255',
+    ]);
+    expect(row.isReserved).toBe(true);
   });
 
   it('maps occupied serials onto matching product ids', () => {

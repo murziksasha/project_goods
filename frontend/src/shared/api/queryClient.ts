@@ -6,6 +6,8 @@ export const queryKeys = {
   salesList: (params: Record<string, unknown> = {}) =>
     ['sales', params] as const,
   saleDetail: (saleId: string) => ['saleDetail', saleId] as const,
+  stockOrderLinks: (productIds: readonly string[], serials: readonly string[]) =>
+    ['stockOrderLinks', productIds, serials] as const,
   clientDevices: ['clientDevices'] as const,
   services: ['services'] as const,
   clients: ['clients'] as const,

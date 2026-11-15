@@ -178,6 +178,17 @@ describe('CreateOrderSidePanel request contents', () => {
     const contents = getContents(repair);
     expect(within(contents).getAllByText(product.name)).toHaveLength(2);
     expect(within(contents).getAllByRole('listitem')).toHaveLength(3);
-    expect(within(contents).getAllByRole('button')).toHaveLength(3);
+    expect(within(contents).getAllByRole('button', { name: /^S00000/ })).toHaveLength(3);
+  });
+
+  it('centers the contents chevron beside the number and exposes its ARIA state', () => {
+    const repair = createSale();
+    renderPanel([repair]);
+    const toggle = getToggle(repair);
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    expect(toggle.getAttribute('aria-controls')).toBeTruthy();
+    expect(toggle.querySelector('.create-side-request-chevron')).not.toBeNull();
+    expect(toggle.parentElement).toHaveClass('create-side-request-number');
+    expect(toggle).toHaveClass('create-side-request-toggle');
   });
 });

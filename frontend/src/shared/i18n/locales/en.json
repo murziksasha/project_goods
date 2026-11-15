@@ -4107,6 +4107,7 @@
       "serialNumber": "Serial #",
       "purchaseDate": "Receipt date",
       "supplierOrder": "Supplier order",
+      "clientOrder": "Client order",
       "serialMissing": "No serial",
       "latestBatchBadge": "Latest",
       "reservedBadge": "Reserved",

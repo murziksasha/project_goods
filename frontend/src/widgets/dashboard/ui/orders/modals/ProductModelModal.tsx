@@ -1,15 +1,16 @@
 import type React from 'react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Product, ProductModelUpdatePayload } from '../../../../../entities/product';
-import type { Sale } from '../../../../../entities/sale';
+import type { Sale, StockOrderLink } from '../../../../../entities/sale';
+import { getStockOrderLinks } from '../../../../../entities/sale';
 import type { PrintForm } from '../../../../../entities/settings';
 import { defaultPrintForms } from '../../../../../entities/settings';
 import type { SupplierOrder } from '../../../../../entities/supplier-order';
 import type { WarehouseItem } from '../../../../../entities/warehouse-settings';
 import { formatCurrency, formatDate } from '../../../../../shared/lib/format';
 import { normalizeDecimalInput } from '../../../../../shared/lib/decimal';
-import { getOccupiedSerialNumbers } from '../../../../../entities/sale';
+import { getOrderLink, navigateDashboard } from '../../../../../shared/config/routing';
 import { printWarehouseSerialLabels } from '../workspace/orders-workspace-shared';
 import { Modal } from '../../../../../shared/ui/Modal';
 import { Button } from '../../../../../shared/ui/Button';
@@ -22,10 +23,14 @@ import {
   getLatestBatchProduct,
   getActiveStockProductsByExactModelName,
   getProductModelInitialForm,
-  getReservedProductIdsFromOccupiedSerials,
+  getProductsByExactModelName,
   getReservedProductIdsOnOtherSales,
+  type ProductModelClientOrder,
 } from '../../../model/product-model';
-import { buildSupplierOrdersByProductId } from '../../../model/stock-balance';
+import {
+  buildSupplierOrdersByProductId,
+  mergeSalesWithStockOrderLinks,
+} from '../../../model/stock-balance';
 
 type ProductModelSection = 'main' | 'prices' | 'stock';
 
@@ -49,6 +54,7 @@ export interface ProductModelModalProps {
   onClose: () => void;
   onSave: (payload: ProductModelUpdatePayload) => Promise<boolean>;
   onOpenSupplierOrder?: (supplierOrderId: string, itemIndex: number) => void;
+  onOpenSaleCard?: (sale: { id: string; kind: 'repair' | 'sale' }) => void;
 };
 
 const getInitialSelectedPrintIds = (
@@ -82,6 +88,7 @@ export const ProductModelModal: React.FC<ProductModelModalProps> = ({
   onClose,
   onSave,
   onOpenSupplierOrder,
+  onOpenSaleCard,
 }) => {
   const { t } = useTranslation();
   const selectedSerialPurchase = useMemo(() => {
@@ -93,9 +100,24 @@ export const ProductModelModal: React.FC<ProductModelModalProps> = ({
       buildSupplierOrdersByProductId({ products: [product], supplierOrders }),
     )[0];
   }, [selectedSerial?.product, supplierOrders]);
+  const stockLinkCandidates = useMemo(
+    () =>
+      getProductsByExactModelName(products, name).filter(
+        (product) => product.quantity > 0,
+      ),
+    [name, products],
+  );
+  const [stockLinks, setStockLinks] = useState<StockOrderLink[]>([]);
+  const stockLinkKey = stockLinkCandidates
+    .map((product) => `${product.id}\u0000${product.serialNumber}`)
+    .join('\u0001');
+  const salesForModel = useMemo(
+    () => mergeSalesWithStockOrderLinks(sales, stockLinks),
+    [sales, stockLinks],
+  );
   const matchingProducts = useMemo(
-    () => getActiveStockProductsByExactModelName(products, sales, name),
-    [name, products, sales],
+    () => getActiveStockProductsByExactModelName(products, salesForModel, name),
+    [name, products, salesForModel],
   );
   const [form, setForm] = useState(() =>
     getProductModelInitialForm(matchingProducts),
@@ -108,20 +130,15 @@ export const ProductModelModal: React.FC<ProductModelModalProps> = ({
     () => aggregateProductModelStock(matchingProducts, warehouses),
     [matchingProducts, warehouses],
   );
-  const [occupiedProductIds, setOccupiedProductIds] = useState(
-    () => new Set<string>(),
-  );
-  const reservedProductIds = useMemo(() => {
-    const merged = new Set(
+  const reservedProductIds = useMemo(
+    () =>
       getReservedProductIdsOnOtherSales(
         matchingProducts,
-        sales,
+        salesForModel,
         currentSaleId,
       ),
-    );
-    occupiedProductIds.forEach((productId) => merged.add(productId));
-    return merged;
-  }, [currentSaleId, matchingProducts, occupiedProductIds, sales]);
+    [currentSaleId, matchingProducts, salesForModel],
+  );
   const supplierOrdersByProductId = useMemo(
     () =>
       buildSupplierOrdersByProductId({
@@ -136,42 +153,57 @@ export const ProductModelModal: React.FC<ProductModelModalProps> = ({
         matchingProducts,
         reservedProductIds,
         supplierOrdersByProductId,
+        salesForModel,
       ),
-    [matchingProducts, reservedProductIds, supplierOrdersByProductId],
+    [
+      matchingProducts,
+      reservedProductIds,
+      salesForModel,
+      supplierOrdersByProductId,
+    ],
   );
 
   useEffect(() => {
-    const serials = matchingProducts
-      .map((product) => product.serialNumber)
-      .filter((serial) => serial.trim());
-    if (serials.length === 0) {
-      setOccupiedProductIds(new Set());
+    const productIds = stockLinkCandidates.map((product) => product.id);
+    const serials = stockLinkCandidates
+      .map((product) => product.serialNumber.trim())
+      .filter(Boolean);
+    if (productIds.length === 0 && serials.length === 0) {
+      setStockLinks([]);
       return;
     }
 
     let isActive = true;
-    void getOccupiedSerialNumbers({
-      excludeSaleId: currentSaleId,
-      serials,
-    })
+    void getStockOrderLinks({ productIds, serials })
       .then((response) => {
         if (!isActive) return;
-        setOccupiedProductIds(
-          getReservedProductIdsFromOccupiedSerials(
-            matchingProducts,
-            response.occupied,
-          ),
-        );
+        setStockLinks(response.links);
       })
       .catch(() => {
         if (!isActive) return;
-        setOccupiedProductIds(new Set());
+        setStockLinks([]);
       });
 
     return () => {
       isActive = false;
     };
-  }, [currentSaleId, matchingProducts]);
+  }, [stockLinkCandidates, stockLinkKey]);
+
+  const openClientOrder = (order: ProductModelClientOrder) => {
+    if (onOpenSaleCard) {
+      onOpenSaleCard({ id: order.saleId, kind: order.kind });
+      return;
+    }
+
+    navigateDashboard({
+      page: 'orders',
+      ordersTab: order.kind === 'sale' ? 'sales' : 'orders',
+      createOrder: null,
+      saleId: order.saleId,
+      accountingTab: null,
+    });
+    window.dispatchEvent(new PopStateEvent('popstate'));
+  };
   const printableSerialRows = useMemo(
     () => serialPurchases.filter((row) => row.serialNumber.trim()),
     [serialPurchases],
@@ -537,7 +569,7 @@ export const ProductModelModal: React.FC<ProductModelModalProps> = ({
                     <table className='catalog-table product-model-serial-purchases-table'>
                       <thead>
                         <tr>
-                          <th className='product-model-serial-select-col'>
+                          <th className='product-model-serial-select-col product-model-serial-purchases-sticky-head'>
                             <input
                               ref={selectAllCheckboxRef}
                               type='checkbox'
@@ -549,10 +581,21 @@ export const ProductModelModal: React.FC<ProductModelModalProps> = ({
                               )}
                             />
                           </th>
-                          <th>{t('catalog.productModel.serialNumber')}</th>
-                          <th>{t('catalog.productModel.purchasePrice')}</th>
-                          <th>{t('catalog.productModel.purchaseDate')}</th>
-                          <th>{t('catalog.productModel.supplierOrder')}</th>
+                          <th className='product-model-serial-purchases-sticky-head'>
+                            {t('catalog.productModel.serialNumber')}
+                          </th>
+                          <th className='product-model-serial-purchases-sticky-head'>
+                            {t('catalog.productModel.purchasePrice')}
+                          </th>
+                          <th className='product-model-serial-purchases-sticky-head'>
+                            {t('catalog.productModel.purchaseDate')}
+                          </th>
+                          <th className='product-model-serial-purchases-sticky-head'>
+                            {t('catalog.productModel.supplierOrder')}
+                          </th>
+                          <th className='product-model-serial-purchases-sticky-head'>
+                            {t('catalog.productModel.clientOrder')}
+                          </th>
                         </tr>
                       </thead>
                       <tbody>
@@ -657,6 +700,50 @@ export const ProductModelModal: React.FC<ProductModelModalProps> = ({
                                 ) : (
                                   <span className='product-model-serial-empty'>
                                     {EMPTY_VALUE}
+                                  </span>
+                                )}
+                              </td>
+                              <td>
+                                {row.clientOrders.length === 0 ? (
+                                  <span className='product-model-serial-empty'>
+                                    {EMPTY_VALUE}
+                                  </span>
+                                ) : (
+                                  <span className='product-model-client-orders'>
+                                    {row.clientOrders.map((order, index) => {
+                                      const label =
+                                        order.recordNumber.trim() ||
+                                        order.saleId.slice(0, 8);
+                                      return (
+                                        <Fragment key={order.saleId}>
+                                          {index > 0 ? ', ' : null}
+                                          <CopyableValue value={label}>
+                                            <a
+                                              className='warehouse-link-badge'
+                                              href={getOrderLink(
+                                                order.saleId,
+                                                order.kind,
+                                              )}
+                                              onClick={(event) => {
+                                                if (
+                                                  event.button !== 0 ||
+                                                  event.metaKey ||
+                                                  event.ctrlKey ||
+                                                  event.shiftKey ||
+                                                  event.altKey
+                                                ) {
+                                                  return;
+                                                }
+                                                event.preventDefault();
+                                                openClientOrder(order);
+                                              }}
+                                            >
+                                              {label}
+                                            </a>
+                                          </CopyableValue>
+                                        </Fragment>
+                                      );
+                                    })}
                                   </span>
                                 )}
                               </td>

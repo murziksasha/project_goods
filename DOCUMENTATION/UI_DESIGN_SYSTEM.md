@@ -94,11 +94,12 @@ Product model serial table (`ProductModelModal`, `layout.css`):
 
 | Class | Role |
 |-------|------|
-| `.product-model-serial-purchases-table` | Compact `Purchase by serial` table: Serial #, Purchase, Receipt date, Supplier order |
+| `.product-model-serial-purchases-table` | Compact `Purchase by serial` table: checkbox, Serial #, Purchase, Receipt date, Supplier order, Client order. Header cells (`.product-model-serial-purchases-sticky-head`) stay pinned with `position: sticky; top: 0` on `border-collapse: separate`. Below 720px the table `min-width` is 36rem and `.product-model-serial-purchases-table-wrap` scrolls. Spec: [WAREHOUSE_FLOW.md](./WAREHOUSE_FLOW.md#client-order-and-issued-stock-2026-11-15) |
 | `.product-model-latest-batch-badge` | Newest receipt batch (`--bg-soft-primary-strong`) |
 | `.product-model-reserved-badge` | Bound on another order (`--bg-soft-danger`, `--color-danger-soft`) |
 | `.product-model-serial-row-reserved` | Reserved row wash; wins over latest/selected row background |
-| `.product-model-serial-empty` | `—` for missing supplier-order provenance |
+| `.product-model-serial-empty` | `—` for a missing supplier-order or client-order cell |
+| `.product-model-client-orders` | Wrapped row of client-order badges inside one cell |
 
 ## Tables
 
@@ -145,6 +146,8 @@ Shared control: [`frontend/src/shared/ui/CopyableValue.tsx`](../frontend/src/sha
 | Opened card employee fields | Displayed employee name (Manager / Created order and Issued / Issued order) |
 | Sales Product name | Full current product/service name, trimmed, including text hidden by ellipsis |
 | Sales Product serial | Each icon copies its own trimmed current serial without `S/N:` or adjacent serials |
+| Client card Sale item | That product's name only, without the visible `xN` |
+| Client card serial | Trimmed serial without `S/N:` |
 
 ### Surfaces
 
@@ -157,11 +160,11 @@ Shared control: [`frontend/src/shared/ui/CopyableValue.tsx`](../frontend/src/sha
 | `Supplier Order` table | Order number (parent and child), Product, Supplier (not collapsed `N items` / child `—`) | `SupplierOrdersWorkspaceSections.tsx` |
 | Warehouse `Receipts` | Order number (lines + grouped parent) | `WarehouseTables.tsx` |
 | Warehouse `Stock balances` | Name, Serial #, Client order, Supplier order (**not** Article / Note) | `WarehouseTables.tsx` |
-| Product model modal `Purchase by serial` | Serial #, Supplier order number (order click still opens `SupplierOrderModal`; Latest/Reserved stay outside the serial copy target) | `ProductModelModal.tsx` |
+| Product model modal `Purchase by serial` | Serial #, Supplier order number (order click still opens `SupplierOrderModal`; Latest/Reserved stay outside the serial copy target), Client order number (order click still opens the sale/repair card; the icon copies the visible number) | `ProductModelModal.tsx` |
 | Serial bind modal candidate rows | Supplier order number (order click still opens `SupplierOrderModal`; bind modal stays open; serial toggle is separate). Spec: [WAREHOUSE_FLOW.md §4.3.2](./WAREHOUSE_FLOW.md#432-bind-modal-candidate-row-purchase-price--supplier-order) | `SerialBindModal.tsx` |
 | `Clients & suppliers` → Clients / Suppliers | Name, primary phone, and a matched additional phone when shown; each phone keeps an independent copy icon and `tel:` link | `ClientsTable.tsx`, `ClientsSuppliersWorkspace.tsx` |
 | Client card header | Blue `tel:` phone | `ClientCardModal.tsx` |
-| Client card `Orders` / `Sales` | Order/sale number, device / product serial (`S/N:` line; icon copies the serial). Number click still opens the card | `ClientCardModal.tsx` |
+| Client card `Orders` / `Sales` | Order/sale number; Device name on Orders; each Sale product name without `xN`; each `S/N` in the row and in expanded details (trimmed serial, no `S/N:`). Number click opens the card. Serial text opens the read-only product model. The chevron only expands the row | `ClientCardModal.tsx`, `RequestLineItemsContents.tsx` |
 | Products & Services → Client devices / Products / Services | Name | `CatalogCopyableName` in `ProductCatalogTables.tsx` |
 | Products & Services → **Suppliers** | Name **and** phone (`tel:` stays on the number; icon copies; row click still opens the supplier) | `ProductCatalogTables.tsx` `SuppliersTable` |
 

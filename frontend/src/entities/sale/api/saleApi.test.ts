@@ -24,6 +24,7 @@ let updateSaleWorkspace: typeof import('./saleApi').updateSaleWorkspace;
 let getSales: typeof import('./saleApi').getSales;
 let getSaleById: typeof import('./saleApi').getSaleById;
 let getOccupiedSerialNumbers: typeof import('./saleApi').getOccupiedSerialNumbers;
+let getStockOrderLinks: typeof import('./saleApi').getStockOrderLinks;
 let buildSalesListQuery: typeof import('./saleApi').buildSalesListQuery;
 
 beforeEach(async () => {
@@ -38,6 +39,7 @@ beforeEach(async () => {
     getSales,
     getSaleById,
     getOccupiedSerialNumbers,
+    getStockOrderLinks,
     buildSalesListQuery,
   } = await import('./saleApi'));
 });
@@ -151,6 +153,52 @@ describe('saleApi list params', () => {
         serials: 'S000031,S000040',
         excludeSaleId: 'sale-1',
       },
+    });
+  });
+
+  it('skips stock-links when no products or serials were requested', async () => {
+    await expect(
+      getStockOrderLinks({ productIds: ['  '], serials: [] }),
+    ).resolves.toEqual({ links: [] });
+    expect(postMock).not.toHaveBeenCalled();
+  });
+
+  it('posts product ids and serials to stock-links', async () => {
+    postMock.mockResolvedValueOnce({
+      data: {
+        links: [
+          {
+            productId: '507f1f77bcf86cd799439011',
+            serialNumber: 'S000113',
+            saleId: '507f191e810c19729de860ea',
+            recordNumber: 'r000255',
+            kind: 'sale',
+            status: 'issued',
+          },
+        ],
+      },
+    });
+
+    await expect(
+      getStockOrderLinks({
+        productIds: ['507f1f77bcf86cd799439011'],
+        serials: ['S000113', 'S000113'],
+      }),
+    ).resolves.toEqual({
+      links: [
+        {
+          productId: '507f1f77bcf86cd799439011',
+          serialNumber: 'S000113',
+          saleId: '507f191e810c19729de860ea',
+          recordNumber: 'r000255',
+          kind: 'sale',
+          status: 'issued',
+        },
+      ],
+    });
+    expect(postMock).toHaveBeenCalledWith('/sales/stock-links', {
+      productIds: ['507f1f77bcf86cd799439011'],
+      serials: ['S000113'],
     });
   });
 });
