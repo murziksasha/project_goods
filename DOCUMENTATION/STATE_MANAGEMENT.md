@@ -57,6 +57,12 @@ For any mutation that can affect shared screens (orders, sales, stock, client de
   - `orders`: Repair orders table
   - `sales`: Sales table
   - `supplierOrders`: Supplier orders table
+  - `ordersInformationRepairs`: Orders Information, repairs detail
+  - `ordersInformationSales`: Orders Information, sales detail
+  - `ordersInformationProcurement`: Orders Information, procurement detail
+  - `ordersReportsRepairs`: Orders Reports, repairs register
+  - `ordersReportsSales`: Orders Reports, sales register
+  - `ordersReportsProcurement`: Orders Reports, procurement register
   - `warehouse`: Warehouse stock and receipts
   - `warehouseInformationProducts`: Warehouse information, products
   - `warehouseInformationLocations`: Warehouse information, locations
@@ -68,10 +74,13 @@ For any mutation that can affect shared screens (orders, sales, stock, client de
   - `catalogServices`: Catalog services tab
   - `catalogSuppliers`: Catalog suppliers tab
   - `accountingTransactions`: Accounting transactions
-  - `accountingReports`: Accounting profit reports
+  - `accountingInformation`: Accounting information, transactions detail
+  - `accountingReports`: Accounting profit reports (margin table)
+  - `accountingReportDetails`: Accounting profit reports (source-record detail)
   - `settingsBackups`: Settings backups
 - Changing the page-size dropdown resets the list to page 1. Current page number is never stored in `project-goods.page-sizes`.
 - Warehouse filter blob migration: page size leaves `project-goods.warehouse-filters` and is copied once to `project-goods.page-sizes` if absent (seeded from `project-goods.warehouse-filters.<employeeId>` then unscoped `project-goods.warehouse-filters`). Subsequent warehouse filter writes omit `pageSize`.
+- Orders Reports filter settings migration: `pageSize` leaves `project-goods.orders-reports-settings` and is migrated once on initial launch to `ordersReportsRepairs`, `ordersReportsSales`, and `ordersReportsProcurement` in `project-goods.page-sizes` if valid (`10 | 30 | 50 | 100 | 200`), falling back legacy `25` to `30`. Subsequent filter writes omit `pageSize`, and filter reset never clears stored page sizes.
 
 ## Stock Receipt Preferences Rule (2026-10-21)
 
@@ -86,7 +95,7 @@ For any mutation that can affect shared screens (orders, sales, stock, client de
 - Persisted state must be restored automatically on page load and immediately applied to the list/query result.
 - This includes at least: Orders filters, Clients filters, Supplier Orders filters, Warehouse search/filter mode, and dashboard-level catalog/orders search inputs.
 - `Orders -> Supplier Order` and `Orders -> Information` share the supplier-order filter state, so the analytics tab reflects the same persisted search/status/payment/date/starred working set as the supplier-order table.
-- `Orders -> Reports` persists last-used kind, mode, filters (period, dates, status, master/manager/client/supplier ids, search `q`, exact `lineName`, line kind, payment method, unpaid/overdue flags), visible columns per kind, groupBy, sort, and page size in `localStorage` key `project-goods.orders-reports-settings`. Saved presets are server state in the `ordersReport` scenario domain (`GET/POST/PUT/DELETE /api/scenarios`, 50-cap, `horizonDays` default 30). **Reset** clears the local key and restores defaults (Repairs / Register / `last30`, finance columns off).
+- `Orders -> Reports` persists last-used kind, mode, filters (period, dates, status, master/manager/client/supplier ids, search `q`, exact `lineName`, line kind, payment method, unpaid/overdue flags), visible columns per kind, groupBy, and sort in `localStorage` key `project-goods.orders-reports-settings`; page sizes are stored separately in `project-goods.page-sizes` per kind (`ordersReportsRepairs`, `ordersReportsSales`, `ordersReportsProcurement`) with default 30. Saved presets are server state in the `ordersReport` scenario domain (`GET/POST/PUT/DELETE /api/scenarios`, 50-cap, `horizonDays` default 30). **Reset** clears the local key and restores defaults (Repairs / Register / `last30`, finance columns off) without clearing stored page sizes.
 - `Orders` and `Sales` each persist their active `favoritesOnly` starred filter with the rest of the order filters.
 
 ## Dashboard Settings Storage Rule (2026-06-23)

@@ -11,6 +11,7 @@ import {
   getFinanceCategoryLabel,
 } from '../../../../entities/finance';
 import { TruncatedTextTooltip } from '../../../../shared/ui/TruncatedTextTooltip';
+import { AnalyticsSectionCard } from '../common/AnalyticsPrimitives';
 import { formatMoney, formatPercent } from '../../model/accounting';
 import {
   buildProfitChartRows,
@@ -42,6 +43,9 @@ export interface AccountingProfitChartsProps {
     refunds: number;
     net: number;
   };
+  isSectionCollapsed?: (sectionId: string) => boolean;
+  onToggleSectionCollapse?: (sectionId: string) => void;
+  onSetSectionCollapsed?: (sectionId: string, collapsed: boolean) => void;
 }
 
 const formatChartValue = (
@@ -55,7 +59,16 @@ const formatChartValue = (
 
 export const AccountingProfitCharts: React.FC<
   AccountingProfitChartsProps
-> = ({ rows, chartMetric, onChartMetricChange, currency, cash }) => {
+> = ({
+  rows,
+  chartMetric,
+  onChartMetricChange,
+  currency,
+  cash,
+  isSectionCollapsed,
+  onToggleSectionCollapse,
+  onSetSectionCollapsed,
+}) => {
   const { t } = useTranslation();
   const [leadersMetric, setLeadersMetric] =
     useState<ProfitReportLeadersMetric>('profit');
@@ -88,15 +101,14 @@ export const AccountingProfitCharts: React.FC<
 
   return (
     <div className='finance-profit-charts'>
-      <section className='finance-info-panel finance-profit-mix-panel'>
-        <div className='analytics-panel-header'>
-          <div>
-            <p className='section-label'>
-              {t('accounting.profit.charts.mixSection')}
-            </p>
-            <h3>{t('accounting.profit.charts.mixTitle')}</h3>
-          </div>
-          {onChartMetricChange ? (
+      <AnalyticsSectionCard
+        id="accounting-reports-products-services"
+        variant="finance"
+        className="finance-profit-mix-panel"
+        eyebrow={t('accounting.profit.charts.mixSection')}
+        title={t('accounting.profit.charts.mixTitle')}
+        actions={
+          onChartMetricChange ? (
             <div
               className='period-toggle'
               role='tablist'
@@ -122,8 +134,25 @@ export const AccountingProfitCharts: React.FC<
             <span className='report-badge is-info'>
               {t(`accounting.profit.visual.metrics.${chartMetric}`)}
             </span>
-          )}
-        </div>
+          )
+        }
+        collapsible={Boolean(isSectionCollapsed)}
+        isCollapsed={
+          isSectionCollapsed
+            ? isSectionCollapsed('accounting-reports-products-services')
+            : false
+        }
+        onCollapsedChange={(collapsed) => {
+          if (onSetSectionCollapsed) {
+            onSetSectionCollapsed(
+              'accounting-reports-products-services',
+              collapsed,
+            );
+          } else if (onToggleSectionCollapse) {
+            onToggleSectionCollapse('accounting-reports-products-services');
+          }
+        }}
+      >
         {mixTotal <= 0 ? (
           chartMetric === 'profit' && uncosted.total > 0 ? (
             <div className='finance-mix-empty-state'>
@@ -229,16 +258,15 @@ export const AccountingProfitCharts: React.FC<
             </div>
           </div>
         )}
-      </section>
+      </AnalyticsSectionCard>
 
-      <section className='finance-info-panel finance-profit-leaders-panel'>
-        <div className='analytics-panel-header'>
-          <div>
-            <p className='section-label'>
-              {t('accounting.profit.charts.topSection')}
-            </p>
-            <h3>{t('accounting.profit.charts.topTitle')}</h3>
-          </div>
+      <AnalyticsSectionCard
+        id="accounting-reports-leaders-top-items"
+        variant="finance"
+        className="finance-profit-leaders-panel"
+        eyebrow={t('accounting.profit.charts.topSection')}
+        title={t('accounting.profit.charts.topTitle')}
+        actions={
           <div
             className='period-toggle'
             role='tablist'
@@ -261,7 +289,24 @@ export const AccountingProfitCharts: React.FC<
               </button>
             ))}
           </div>
-        </div>
+        }
+        collapsible={Boolean(isSectionCollapsed)}
+        isCollapsed={
+          isSectionCollapsed
+            ? isSectionCollapsed('accounting-reports-leaders-top-items')
+            : false
+        }
+        onCollapsedChange={(collapsed) => {
+          if (onSetSectionCollapsed) {
+            onSetSectionCollapsed(
+              'accounting-reports-leaders-top-items',
+              collapsed,
+            );
+          } else if (onToggleSectionCollapse) {
+            onToggleSectionCollapse('accounting-reports-leaders-top-items');
+          }
+        }}
+      >
         {distributionRows.length === 0 ? (
           <p className='empty-state'>
             {t('accounting.profit.charts.empty')}
@@ -295,17 +340,31 @@ export const AccountingProfitCharts: React.FC<
             ))}
           </div>
         )}
-      </section>
+      </AnalyticsSectionCard>
 
-      <section className='finance-info-panel finance-profit-comparison-panel'>
-        <div className='analytics-panel-header'>
-          <div>
-            <p className='section-label'>
-              {t('accounting.profit.charts.topSection')}
-            </p>
-            <h3>{t('accounting.profit.charts.comparisonTitle')}</h3>
-          </div>
-        </div>
+      <AnalyticsSectionCard
+        id="accounting-reports-leaders-top-three"
+        variant="finance"
+        className="finance-profit-comparison-panel"
+        eyebrow={t('accounting.profit.charts.topSection')}
+        title={t('accounting.profit.charts.comparisonTitle')}
+        collapsible={Boolean(isSectionCollapsed)}
+        isCollapsed={
+          isSectionCollapsed
+            ? isSectionCollapsed('accounting-reports-leaders-top-three')
+            : false
+        }
+        onCollapsedChange={(collapsed) => {
+          if (onSetSectionCollapsed) {
+            onSetSectionCollapsed(
+              'accounting-reports-leaders-top-three',
+              collapsed,
+            );
+          } else if (onToggleSectionCollapse) {
+            onToggleSectionCollapse('accounting-reports-leaders-top-three');
+          }
+        }}
+      >
         {topBarRows.length === 0 ? (
           <p className='empty-state'>
             {t('accounting.profit.charts.empty')}
@@ -347,17 +406,28 @@ export const AccountingProfitCharts: React.FC<
             })}
           </div>
         )}
-      </section>
+      </AnalyticsSectionCard>
 
-      <section className='finance-info-panel finance-profit-waterfall-panel'>
-        <div className='analytics-panel-header'>
-          <div>
-            <p className='section-label'>
-              {t('accounting.profit.charts.waterfallSection')}
-            </p>
-            <h3>{t('accounting.profit.charts.waterfallTitle')}</h3>
-          </div>
-        </div>
+      <AnalyticsSectionCard
+        id="accounting-reports-cashflow"
+        variant="finance"
+        className="finance-profit-waterfall-panel"
+        eyebrow={t('accounting.profit.charts.waterfallSection')}
+        title={t('accounting.profit.charts.waterfallTitle')}
+        collapsible={Boolean(isSectionCollapsed)}
+        isCollapsed={
+          isSectionCollapsed
+            ? isSectionCollapsed('accounting-reports-cashflow')
+            : false
+        }
+        onCollapsedChange={(collapsed) => {
+          if (onSetSectionCollapsed) {
+            onSetSectionCollapsed('accounting-reports-cashflow', collapsed);
+          } else if (onToggleSectionCollapse) {
+            onToggleSectionCollapse('accounting-reports-cashflow');
+          }
+        }}
+      >
         {outflowTotal <= 0 ? (
           <p className='empty-state'>
             {t('accounting.profit.charts.empty')}
@@ -420,7 +490,7 @@ export const AccountingProfitCharts: React.FC<
             </div>
           </>
         )}
-      </section>
+      </AnalyticsSectionCard>
     </div>
   );
 };

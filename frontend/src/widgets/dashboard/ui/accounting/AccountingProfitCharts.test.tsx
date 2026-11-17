@@ -154,4 +154,77 @@ describe('AccountingProfitCharts Mix card', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Switch to Revenue' }));
     expect(onMetricChange).toHaveBeenCalledWith('revenue');
   });
+
+  it('renders all 4 profit chart panels as controlled collapsible cards with finance styling and accessible buttons', () => {
+    const handleSetCollapsed = vi.fn();
+    const handleToggleCollapsed = vi.fn();
+    const collapsedSet = new Set(['accounting-reports-products-services']);
+
+    renderWithProviders(
+      <AccountingProfitCharts
+        rows={sampleRows}
+        chartMetric='revenue'
+        currency='UAH'
+        cash={{
+          collected: 700,
+          inventoryPurchases: 100,
+          opex: 0,
+          refunds: 0,
+          net: 600,
+        }}
+        isSectionCollapsed={(id) => collapsedSet.has(id)}
+        onSetSectionCollapsed={handleSetCollapsed}
+        onToggleSectionCollapse={handleToggleCollapsed}
+      />,
+    );
+
+    // 1. All 4 headings render as toggle buttons
+    const mixBtn = screen.getByRole('button', {
+      name: /Products and services/i,
+    });
+    const leadersBtn = screen.getByRole('button', {
+      name: /Top items/i,
+    });
+    const comparisonBtn = screen.getByRole('button', {
+      name: /Top three/i,
+    });
+    const cashflowBtn = screen.getByRole('button', {
+      name: /Money in and out/i,
+    });
+
+    // 2. Mix is collapsed as per controlled function; others are expanded
+    expect(mixBtn).toHaveAttribute('aria-expanded', 'false');
+    expect(mixBtn).toHaveAttribute(
+      'aria-controls',
+      'accounting-reports-products-services-content',
+    );
+    expect(
+      document.getElementById('accounting-reports-products-services-content'),
+    ).toHaveAttribute('hidden');
+
+    expect(leadersBtn).toHaveAttribute('aria-expanded', 'true');
+    expect(leadersBtn).toHaveAttribute(
+      'aria-controls',
+      'accounting-reports-leaders-top-items-content',
+    );
+    expect(
+      document.getElementById('accounting-reports-leaders-top-items-content'),
+    ).not.toHaveAttribute('hidden');
+
+    expect(comparisonBtn).toHaveAttribute('aria-expanded', 'true');
+    expect(cashflowBtn).toHaveAttribute('aria-expanded', 'true');
+
+    // 3. Toggling invokes controlled callback
+    fireEvent.click(leadersBtn);
+    expect(handleSetCollapsed).toHaveBeenCalledWith(
+      'accounting-reports-leaders-top-items',
+      true,
+    );
+
+    fireEvent.click(mixBtn);
+    expect(handleSetCollapsed).toHaveBeenCalledWith(
+      'accounting-reports-products-services',
+      false,
+    );
+  });
 });

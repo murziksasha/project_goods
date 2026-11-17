@@ -146,7 +146,6 @@ export type StoredOrdersReportSettings = {
   groupBy: OrdersReportGroupBy[];
   sortBy: string;
   sortDir: 'asc' | 'desc';
-  pageSize: number;
 };
 
 export const defaultOrdersReportSettings = (
@@ -176,7 +175,6 @@ export const defaultOrdersReportSettings = (
   groupBy: [],
   sortBy: 'intakeDate',
   sortDir: 'desc',
-  pageSize: 25,
 });
 
 const isKind = (v: unknown): v is OrdersReportKind =>
@@ -223,7 +221,6 @@ export const getStoredOrdersReportSettings = (
         : [],
       sortBy: String(parsed.sortBy ?? fallback.sortBy),
       sortDir: parsed.sortDir === 'asc' ? 'asc' : 'desc',
-      pageSize: Number(parsed.pageSize) > 0 ? Number(parsed.pageSize) : 25,
     };
   } catch {
     return fallback;

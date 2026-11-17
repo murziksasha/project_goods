@@ -243,6 +243,12 @@
   border-radius: 10px;
   background: var(--bg-card);
   min-width: 0;
+  transition: none !important;
+  animation: none !important;
+}
+
+.report-section-card.is-collapsed {
+  gap: 0;
 }
 
 .report-section-card-head {
@@ -251,6 +257,8 @@
   justify-content: space-between;
   align-items: center;
   gap: 8px 12px;
+  transition: none !important;
+  animation: none !important;
 }
 
 .report-section-card-head h3 {
@@ -258,6 +266,77 @@
   font-size: 1rem;
   font-weight: 700;
   color: var(--color-text-heading);
+}
+
+.report-section-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: transparent;
+  border: none;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.report-section-toggle-btn:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+.report-section-chevron {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-muted);
+  transition: none !important;
+  animation: none !important;
+}
+
+.report-section-chevron svg {
+  display: block;
+  transition: none !important;
+  animation: none !important;
+}
+
+.report-section-chevron.is-collapsed {
+  transform: rotate(-90deg);
+}
+
+.report-section-card-body {
+  min-width: 0;
+  transition: none !important;
+  animation: none !important;
+}
+
+.report-section-card-body[hidden],
+.report-section-card [hidden],
+.finance-info-panel [hidden] {
+  display: none !important;
+}
+
+.finance-info-panel.is-collapsed {
+  gap: 0;
+}
+
+.finance-info-panel.is-collapsible,
+.finance-info-panel.is-collapsed,
+.finance-info-panel .analytics-panel-header,
+.finance-info-panel .report-section-chevron {
+  transition: none !important;
+  animation: none !important;
+}
+
+.analytics-panel-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .report-section-card-subtitle {
@@ -490,22 +569,6 @@
 .report-badge.is-info {
   background: var(--bg-soft-info);
   color: var(--color-info);
-}
-
-.report-pagination-bar {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  align-items: center;
-  gap: 8px 12px;
-  font-size: 0.83rem;
-  color: var(--color-muted);
-}
-
-.report-pagination-controls {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
 }
 
 .report-scenario-bar {

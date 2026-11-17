@@ -2,6 +2,7 @@ import type React from 'react';
 import { useTranslation } from 'react-i18next';
 import type { ClientDevice } from '../../../../../entities/client-device';
 import type { Sale } from '../../../../../entities/sale';
+import { formatDate } from '../../../../../shared/lib/format';
 import {
   getSaleProductName,
 } from '../../../../../entities/sale';
@@ -128,14 +129,17 @@ export const CreateOrderSidePanel: React.FC<CreateOrderSidePanelProps> = ({
                 getSaleProductName(sale, t('orders.create.deviceFallback'));
               return (
                 <div key={sale.id} className="create-side-list-item">
-                  <a
-                    className="create-side-list-link"
-                    href={getOrderLink(sale.id, sale.kind)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    {sale.recordNumber ?? 'r------'}
-                  </a>
+                  <div className="create-side-request-heading">
+                    <a
+                      className="create-side-list-link"
+                      href={getOrderLink(sale.id, sale.kind)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      {sale.recordNumber ?? 'r------'}
+                    </a>
+                    <span>{formatDate(sale.saleDate)}</span>
+                  </div>
                   <span>{deviceNameValue}</span>
                 </div>
               );

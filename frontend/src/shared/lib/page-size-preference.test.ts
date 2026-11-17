@@ -1,6 +1,7 @@
 import { act, renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
+  ORDERS_REPORTS_SETTINGS_KEY,
   PAGE_SIZE_STORAGE_KEY,
   readStoredPageSize,
   useStoredPageSize,
@@ -138,6 +139,81 @@ describe('page-size-preference', () => {
       expect(
         JSON.parse(window.localStorage.getItem(PAGE_SIZE_STORAGE_KEY) || '{}'),
       ).toEqual({ orders: 50 });
+    });
+  });
+
+  describe('legacy orders-reports-settings migration', () => {
+    it('migrates valid legacy pageSize (50) to all three reports keys and removes pageSize from settings', () => {
+      window.localStorage.setItem(
+        ORDERS_REPORTS_SETTINGS_KEY,
+        JSON.stringify({ kind: 'repairs', mode: 'register', pageSize: 50 }),
+      );
+
+      expect(readStoredPageSize('ordersReportsRepairs')).toBe(50);
+      expect(readStoredPageSize('ordersReportsSales')).toBe(50);
+      expect(readStoredPageSize('ordersReportsProcurement')).toBe(50);
+
+      // Verify page-sizes map
+      const storedMap = JSON.parse(
+        window.localStorage.getItem(PAGE_SIZE_STORAGE_KEY) || '{}',
+      );
+      expect(storedMap.ordersReportsRepairs).toBe(50);
+      expect(storedMap.ordersReportsSales).toBe(50);
+      expect(storedMap.ordersReportsProcurement).toBe(50);
+
+      // Verify pageSize is removed from orders-reports-settings
+      const updatedSettings = JSON.parse(
+        window.localStorage.getItem(ORDERS_REPORTS_SETTINGS_KEY) || '{}',
+      );
+      expect(updatedSettings.pageSize).toBeUndefined();
+      expect(updatedSettings.kind).toBe('repairs');
+    });
+
+    it('falls back legacy pageSize 25 to 30 and removes pageSize from settings', () => {
+      window.localStorage.setItem(
+        ORDERS_REPORTS_SETTINGS_KEY,
+        JSON.stringify({ kind: 'repairs', mode: 'register', pageSize: 25 }),
+      );
+
+      expect(readStoredPageSize('ordersReportsRepairs')).toBe(30);
+      expect(readStoredPageSize('ordersReportsSales')).toBe(30);
+      expect(readStoredPageSize('ordersReportsProcurement')).toBe(30);
+
+      const storedMap = JSON.parse(
+        window.localStorage.getItem(PAGE_SIZE_STORAGE_KEY) || '{}',
+      );
+      expect(storedMap.ordersReportsRepairs).toBe(30);
+      expect(storedMap.ordersReportsSales).toBe(30);
+      expect(storedMap.ordersReportsProcurement).toBe(30);
+
+      const updatedSettings = JSON.parse(
+        window.localStorage.getItem(ORDERS_REPORTS_SETTINGS_KEY) || '{}',
+      );
+      expect(updatedSettings.pageSize).toBeUndefined();
+    });
+  });
+
+  describe('analytical tab independence', () => {
+    it('stores each analytical tab pageSize independently', () => {
+      writeStoredPageSize('ordersInformationRepairs', 10);
+      writeStoredPageSize('ordersInformationSales', 30);
+      writeStoredPageSize('ordersInformationProcurement', 50);
+      writeStoredPageSize('ordersReportsRepairs', 100);
+      writeStoredPageSize('ordersReportsSales', 200);
+      writeStoredPageSize('ordersReportsProcurement', 30);
+      writeStoredPageSize('warehouseInformationProducts', 50);
+      writeStoredPageSize('accountingInformation', 100);
+      writeStoredPageSize('accountingReportDetails', 200);
+
+      expect(readStoredPageSize('ordersInformationRepairs')).toBe(10);
+      expect(readStoredPageSize('ordersInformationSales')).toBe(30);
+      expect(readStoredPageSize('ordersInformationProcurement')).toBe(50);
+      expect(readStoredPageSize('ordersReportsRepairs')).toBe(100);
+      expect(readStoredPageSize('ordersReportsSales')).toBe(200);
+      expect(readStoredPageSize('ordersReportsProcurement')).toBe(30);
+      expect(readStoredPageSize('warehouseInformationProducts')).toBe(50);
+      expect(readStoredPageSize('accountingInformation')).toBe(100);
+      expect(readStoredPageSize('accountingReportDetails')).toBe(200);
     });
   });
 });

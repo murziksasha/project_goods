@@ -428,4 +428,41 @@ describe('OrdersReportsWorkspace', () => {
     const register = workbook.sheets.find((s) => s.name === 'Register');
     expect(register?.rows).toHaveLength(1);
   });
+
+  it('renders PaginationPanel in register mode, places Grand Total after it, and updates pageSize with page reset', () => {
+    renderWorkspace();
+
+    const select = screen.getByRole('combobox', { name: /Rows per page/i });
+    expect(select).toBeInTheDocument();
+    expect(select).toHaveValue('30');
+    expect(screen.getByText(/2 records/i)).toBeInTheDocument();
+
+    const grandTotal = screen.getByText(/Grand total/);
+    expect(grandTotal).toBeInTheDocument();
+
+    fireEvent.change(select, { target: { value: '50' } });
+    const lastCall = tableHookSpy.mock.calls.at(-1);
+    expect(lastCall?.[1]).toEqual(
+      expect.objectContaining({ page: 1, pageSize: 50 }),
+    );
+  });
+
+  it('does not render PaginationPanel in summary mode and keeps Grand Total directly under summary table', () => {
+    renderWorkspace();
+    const modes = within(screen.getByLabelText('Report mode'));
+    fireEvent.click(modes.getByRole('tab', { name: 'Summary' }));
+
+    expect(screen.queryByRole('combobox', { name: /Rows per page/i })).not.toBeInTheDocument();
+    expect(screen.getByText(/Grand total/)).toBeInTheDocument();
+  });
+
+  it('reset does not clear page size preferences', () => {
+    renderWorkspace();
+    const select = screen.getByRole('combobox', { name: /Rows per page/i });
+    fireEvent.change(select, { target: { value: '100' } });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Reset' }));
+
+    expect(screen.getByRole('combobox', { name: /Rows per page/i })).toHaveValue('100');
+  });
 });

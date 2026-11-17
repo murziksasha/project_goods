@@ -21,7 +21,9 @@ import {
 import type { SupplierOrder } from '../../../../entities/supplier-order';
 import type { WarehouseItem } from '../../../../entities/warehouse-settings';
 import { formatCurrency, formatDate } from '../../../../shared/lib/format';
+import { useStoredPageSize } from '../../../../shared/lib/page-size-preference';
 import { exportReportWorkbookToDownload } from '../../../../shared/lib/report-excel';
+import { useAnalyticsCollapsedSections } from '../../model/analytics-collapsed-sections';
 import {
   AnalyticsCoverageBanner,
   AnalyticsInteractiveBars,
@@ -46,6 +48,7 @@ export interface WarehouseInformationPanelProps {
   sales: Sale[];
   warehouses: WarehouseItem[];
   supplierOrders: SupplierOrder[];
+  currentEmployeeId?: string | null;
 }
 
 const AGE_BUCKET_TONES: Record<
@@ -67,8 +70,10 @@ const DEMAND_BADGE_CLASS: Record<'steady' | 'sparse' | 'zero', string> = {
 
 export const WarehouseInformationPanel: React.FC<
   WarehouseInformationPanelProps
-> = ({ warehouses }) => {
+> = ({ warehouses, currentEmployeeId }) => {
   const { t } = useTranslation();
+  const { isSectionCollapsed, setSectionCollapsed } =
+    useAnalyticsCollapsedSections(currentEmployeeId);
 
   // Filter controls
   const [warehouseId, setWarehouseId] = useState('');
@@ -88,7 +93,7 @@ export const WarehouseInformationPanel: React.FC<
 
   // Drill-down pagination & sort
   const [page, setPage] = useState(1);
-  const pageSize = 25;
+  const [pageSize, setPageSize] = useStoredPageSize('warehouseInformationProducts');
   const [sortBy, setSortBy] = useState('valuation');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
   const [isExporting, setIsExporting] = useState(false);
@@ -977,6 +982,12 @@ export const WarehouseInformationPanel: React.FC<
 
           <div className="report-two-col-grid">
             <AnalyticsSectionCard
+              id="warehouse-aging-buckets"
+              collapsible={true}
+              isCollapsed={isSectionCollapsed('warehouse-aging-buckets')}
+              onCollapsedChange={(c) =>
+                setSectionCollapsed('warehouse-aging-buckets', c)
+              }
               title={t('warehouse.information.sections.agingBuckets')}
               subtitle={t(
                 'warehouse.information.sections.agingBucketsSubtitle',
@@ -1005,6 +1016,12 @@ export const WarehouseInformationPanel: React.FC<
             </AnalyticsSectionCard>
 
             <AnalyticsSectionCard
+              id="warehouse-supplier-distribution"
+              collapsible={true}
+              isCollapsed={isSectionCollapsed('warehouse-supplier-distribution')}
+              onCollapsedChange={(c) =>
+                setSectionCollapsed('warehouse-supplier-distribution', c)
+              }
               title={t('warehouse.information.sections.supplierDistribution')}
               subtitle={t(
                 'warehouse.information.sections.supplierDistributionSubtitle',
@@ -1035,6 +1052,12 @@ export const WarehouseInformationPanel: React.FC<
           </div>
 
           <AnalyticsSectionCard
+            id="warehouse-location-distribution"
+            collapsible={true}
+            isCollapsed={isSectionCollapsed('warehouse-location-distribution')}
+            onCollapsedChange={(c) =>
+              setSectionCollapsed('warehouse-location-distribution', c)
+            }
             title={t('warehouse.information.sections.locationDistribution')}
             subtitle={t(
               'warehouse.information.sections.locationDistributionSubtitle',
@@ -1084,6 +1107,12 @@ export const WarehouseInformationPanel: React.FC<
           </AnalyticsSectionCard>
 
           <AnalyticsSectionCard
+            id="warehouse-forecast-reorder"
+            collapsible={true}
+            isCollapsed={isSectionCollapsed('warehouse-forecast-reorder')}
+            onCollapsedChange={(c) =>
+              setSectionCollapsed('warehouse-forecast-reorder', c)
+            }
             title={t('warehouse.information.sections.forecastTitle')}
             subtitle={t('warehouse.information.sections.forecastSubtitle', {
               observed: report.forecast.observationWindow.observedHistoryDays,
@@ -1269,6 +1298,12 @@ export const WarehouseInformationPanel: React.FC<
       ) : null}
 
       <AnalyticsSectionCard
+        id="warehouse-stock-drill-down"
+        collapsible={true}
+        isCollapsed={isSectionCollapsed('warehouse-stock-drill-down')}
+        onCollapsedChange={(c) =>
+          setSectionCollapsed('warehouse-stock-drill-down', c)
+        }
         title={t('warehouse.information.sections.stockDrillDown')}
         subtitle={
           details
@@ -1301,9 +1336,13 @@ export const WarehouseInformationPanel: React.FC<
               : null
           }
           page={details?.page ?? page}
-          pageSize={details?.pageSize ?? pageSize}
+          pageSize={pageSize}
           total={details?.total ?? 0}
           onPageChange={setPage}
+          onPageSizeChange={(nextSize) => {
+            setPageSize(nextSize);
+            setPage(1);
+          }}
         />
       </AnalyticsSectionCard>
     </div>

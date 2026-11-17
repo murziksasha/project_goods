@@ -28,6 +28,8 @@ import {
   type StatsPeriod,
 } from '../../model/stats-period';
 import { StatsPeriodToggle } from '../analytics/StatsPeriodToggle';
+import { AnalyticsSectionCard } from '../common/AnalyticsPrimitives';
+import { useAnalyticsCollapsedSections } from '../../model/analytics-collapsed-sections';
 import { employeeRoleLabelKey, employeeRoleTone } from './employee-ui';
 
 const createDefaultFilters = (): EmployeeInformationFilters => ({
@@ -130,14 +132,18 @@ export interface EmployeeInformationPanelProps {
   employees: Employee[];
   sales: Sale[];
   isLoading?: boolean;
+  currentEmployeeId?: string | null;
 };
 
 export const EmployeeInformationPanel: React.FC<EmployeeInformationPanelProps> = ({
   employees,
   sales,
   isLoading = false,
+  currentEmployeeId,
 }) => {
   const { t, i18n } = useTranslation();
+  const { isSectionCollapsed, setSectionCollapsed } =
+    useAnalyticsCollapsedSections(currentEmployeeId);
   const [view, setView] = useState<EmployeeInformationView>('achievements');
   const [statsPeriod, setStatsPeriod] = useState<StatsPeriod>('whole');
   const [filters, setFilters] = useState<EmployeeInformationFilters>(createDefaultFilters);
@@ -632,13 +638,18 @@ export const EmployeeInformationPanel: React.FC<EmployeeInformationPanelProps> =
       ) : (
         <>
           <div className="finance-information-grid">
-            <section className="finance-info-panel finance-info-panel-wide">
-              <div className="analytics-panel-header">
-                <div>
-                  <p className="section-label">{t('employees.information.charts.leaders')}</p>
-                  <h3>{t('employees.information.charts.topPerformers')}</h3>
-                </div>
-              </div>
+            <AnalyticsSectionCard
+              id="employees-top-performers"
+              variant="finance"
+              className="finance-info-panel-wide"
+              eyebrow={t('employees.information.charts.leaders')}
+              title={t('employees.information.charts.topPerformers')}
+              collapsible={true}
+              isCollapsed={isSectionCollapsed('employees-top-performers')}
+              onCollapsedChange={(collapsed) =>
+                setSectionCollapsed('employees-top-performers', collapsed)
+              }
+            >
               <div className="finance-cashbox-distribution">
                 {topChartRows.length === 0 ? (
                   <EmptyState>{t('employees.information.table.empty')}</EmptyState>
@@ -657,15 +668,19 @@ export const EmployeeInformationPanel: React.FC<EmployeeInformationPanelProps> =
                   ))
                 )}
               </div>
-            </section>
+            </AnalyticsSectionCard>
 
-            <section className="finance-info-panel">
-              <div className="analytics-panel-header">
-                <div>
-                  <p className="section-label">{t('employees.information.charts.comparison')}</p>
-                  <h3>{t('employees.information.charts.topThree')}</h3>
-                </div>
-              </div>
+            <AnalyticsSectionCard
+              id="employees-top-three"
+              variant="finance"
+              eyebrow={t('employees.information.charts.comparison')}
+              title={t('employees.information.charts.topThree')}
+              collapsible={true}
+              isCollapsed={isSectionCollapsed('employees-top-three')}
+              onCollapsedChange={(collapsed) =>
+                setSectionCollapsed('employees-top-three', collapsed)
+              }
+            >
               {topBarRows.length === 0 ? (
                 <EmptyState>{t('employees.information.table.empty')}</EmptyState>
               ) : (
@@ -691,7 +706,7 @@ export const EmployeeInformationPanel: React.FC<EmployeeInformationPanelProps> =
                   })}
                 </div>
               )}
-            </section>
+            </AnalyticsSectionCard>
           </div>
 
           <div className="catalog-table-wrap">

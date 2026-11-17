@@ -23,6 +23,7 @@ import type {
   FinancePolicy,
   FinanceProfitReport,
 } from '../../../../entities/finance';
+import type { Employee } from '../../../../entities/employee';
 import i18n from '../../../../shared/i18n/config';
 import { AccountingProfitReportsView } from './AccountingProfitReportsView';
 
@@ -161,6 +162,17 @@ const { report, exportMock, mockPolicyState } = vi.hoisted(() => {
     dataScope: 'live_sales_only',
     coldSalesPurgedExist: false,
     saleCount: 1,
+    trendSeries: [
+      {
+        dateKey: '2026-09-01',
+        revenue: 500,
+        knownCost: 200,
+        knownProfit: 300,
+        cashCollected: 500,
+        cashOutflows: 150,
+        cashNet: 350,
+      },
+    ],
   };
   return { report, exportMock: vi.fn(), mockPolicyState };
 });
@@ -689,5 +701,194 @@ describe('AccountingProfitReportsView', () => {
     expect(
       screen.getByText(/Індикатори порівняння вимкнено для періоду/),
     ).toBeInTheDocument();
+  });
+
+  it('renders all 8 Accounting Reports sections as independent collapsible cards, does not collapse KPIs, and preserves state across visual toggles and employee switch', async () => {
+    await i18n.changeLanguage('en');
+    window.localStorage.clear();
+
+    const employee1: Employee = {
+      id: 'emp-rep-1',
+      name: 'Accountant One',
+      phone: '',
+      email: '',
+      username: 'acc1',
+      role: 'accountant',
+      permissions: ['finance.view', 'sales.manage'],
+      isActive: true,
+      isRegistered: true,
+      note: '',
+      createdAt: '',
+      updatedAt: '',
+    };
+
+    const employee2: Employee = {
+      ...employee1,
+      id: 'emp-rep-2',
+      name: 'Accountant Two',
+      username: 'acc2',
+    };
+
+    const { unmount } = renderView(
+      <I18nextProvider i18n={i18n}>
+        <AccountingProfitReportsView currentEmployee={employee1} />
+      </I18nextProvider>,
+    );
+
+    // 1. Top KPI panels (Gross result, Cash result) DO NOT have collapse buttons
+    expect(
+      screen.queryByRole('button', { name: /Gross result/i }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: /Cash result/i }),
+    ).not.toBeInTheDocument();
+
+    // 2. All 8 Report sections have toggle buttons and are open by default
+    const trendBtn = screen.getByRole('button', {
+      name: /Revenue, Known Cost & Known Profit Trend/i,
+    });
+    const mixBtn = screen.getByRole('button', {
+      name: /Products and services/i,
+    });
+    const topItemsBtn = screen.getByRole('button', {
+      name: /Top items/i,
+    });
+    const topThreeBtn = screen.getByRole('button', {
+      name: /Top three/i,
+    });
+    const cashflowBtn = screen.getByRole('button', {
+      name: /Money in and out/i,
+    });
+    const marginTableBtn = screen.getByRole('button', {
+      name: /Margin by product or service/i,
+    });
+    const withdrawalsBtn = screen.getByRole('button', {
+      name: /Withdrawals by category/i,
+    });
+    const drillDownBtn = screen.getByRole('button', {
+      name: /Source Orders & Repairs Drill-Down/i,
+    });
+
+    expect(trendBtn).toHaveAttribute('aria-expanded', 'true');
+    expect(mixBtn).toHaveAttribute('aria-expanded', 'true');
+    expect(topItemsBtn).toHaveAttribute('aria-expanded', 'true');
+    expect(topThreeBtn).toHaveAttribute('aria-expanded', 'true');
+    expect(cashflowBtn).toHaveAttribute('aria-expanded', 'true');
+    expect(marginTableBtn).toHaveAttribute('aria-expanded', 'true');
+    expect(withdrawalsBtn).toHaveAttribute('aria-expanded', 'true');
+    expect(drillDownBtn).toHaveAttribute('aria-expanded', 'true');
+
+    expect(trendBtn).toHaveAttribute(
+      'aria-controls',
+      'accounting-reports-profit-trend-content',
+    );
+    expect(mixBtn).toHaveAttribute(
+      'aria-controls',
+      'accounting-reports-products-services-content',
+    );
+    expect(topItemsBtn).toHaveAttribute(
+      'aria-controls',
+      'accounting-reports-leaders-top-items-content',
+    );
+    expect(topThreeBtn).toHaveAttribute(
+      'aria-controls',
+      'accounting-reports-leaders-top-three-content',
+    );
+    expect(cashflowBtn).toHaveAttribute(
+      'aria-controls',
+      'accounting-reports-cashflow-content',
+    );
+    expect(marginTableBtn).toHaveAttribute(
+      'aria-controls',
+      'accounting-reports-margin-by-item-content',
+    );
+    expect(withdrawalsBtn).toHaveAttribute(
+      'aria-controls',
+      'accounting-reports-withdrawals-by-category-content',
+    );
+    expect(drillDownBtn).toHaveAttribute(
+      'aria-controls',
+      'accounting-reports-source-drill-down-content',
+    );
+
+    // 3. Mouse click collapses Margin Table
+    const marginContent = document.getElementById(
+      'accounting-reports-margin-by-item-content',
+    );
+    fireEvent.click(marginTableBtn);
+    expect(marginTableBtn).toHaveAttribute('aria-expanded', 'false');
+    expect(marginContent).toHaveAttribute('hidden');
+
+    // 4. Keyboard Space collapses Profit Trend
+    const trendContent = document.getElementById(
+      'accounting-reports-profit-trend-content',
+    );
+    fireEvent.keyDown(trendBtn, { key: ' ', code: 'Space' });
+    fireEvent.click(trendBtn);
+    expect(trendBtn).toHaveAttribute('aria-expanded', 'false');
+    expect(trendContent).toHaveAttribute('hidden');
+
+    // 5. Keyboard Enter collapses Withdrawals
+    const withdrawalsContent = document.getElementById(
+      'accounting-reports-withdrawals-by-category-content',
+    );
+    fireEvent.keyDown(withdrawalsBtn, { key: 'Enter', code: 'Enter' });
+    fireEvent.click(withdrawalsBtn);
+    expect(withdrawalsBtn).toHaveAttribute('aria-expanded', 'false');
+    expect(withdrawalsContent).toHaveAttribute('hidden');
+
+    // 6. Visual setting toggle does NOT reset localStorage collapse state
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Report visual settings' }),
+    );
+    const compactToggle = screen.getByLabelText('Compact table');
+    fireEvent.click(compactToggle);
+
+    expect(
+      screen.getByRole('button', {
+        name: /Margin by product or service/i,
+      }),
+    ).toHaveAttribute('aria-expanded', 'false');
+    expect(
+      screen.getByRole('button', {
+        name: /Revenue, Known Cost & Known Profit Trend/i,
+      }),
+    ).toHaveAttribute('aria-expanded', 'false');
+
+    // 7. Remount preserves collapsed state for emp-rep-1
+    unmount();
+    const { unmount: unmount2 } = renderView(
+      <I18nextProvider i18n={i18n}>
+        <AccountingProfitReportsView currentEmployee={employee1} />
+      </I18nextProvider>,
+    );
+    expect(
+      screen.getByRole('button', {
+        name: /Margin by product or service/i,
+      }),
+    ).toHaveAttribute('aria-expanded', 'false');
+    expect(
+      screen.getByRole('button', {
+        name: /Revenue, Known Cost & Known Profit Trend/i,
+      }),
+    ).toHaveAttribute('aria-expanded', 'false');
+
+    // 8. Isolation for emp-rep-2 (all open by default)
+    unmount2();
+    renderView(
+      <I18nextProvider i18n={i18n}>
+        <AccountingProfitReportsView currentEmployee={employee2} />
+      </I18nextProvider>,
+    );
+    expect(
+      screen.getByRole('button', {
+        name: /Margin by product or service/i,
+      }),
+    ).toHaveAttribute('aria-expanded', 'true');
+    expect(
+      screen.getByRole('button', {
+        name: /Revenue, Known Cost & Known Profit Trend/i,
+      }),
+    ).toHaveAttribute('aria-expanded', 'true');
   });
 });

@@ -1707,6 +1707,7 @@ export const DashboardPage: React.FC = () => {
                   onActiveTabChange={changeOrdersTab}
                   onToggleTabVisibility={toggleOrdersTabVisibility}
                   employees={state.allEmployees}
+                  currentEmployeeId={currentEmployee?.id}
                   canViewRepairs={hasAnyEmployeePermission(currentEmployee, [
                     'orders.view',
                     'orders.manage',

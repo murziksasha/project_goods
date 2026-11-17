@@ -2457,6 +2457,7 @@ export const WarehousePanel: React.FC<WarehousePanelProps> = ({
           sales={sales}
           warehouses={warehouses}
           supplierOrders={supplierOrders}
+          currentEmployeeId={currentEmployeeId}
         />
       ) : activeTab === 'stock' ? (
         <>

@@ -118,8 +118,11 @@ Preset ranges are applied to `sale.saleDate` (fallback `sale.createdAt`), same a
 
 ### Charts
 
-- Horizontal distribution bars for top 8 performers (share vs leader)
-- Vertical bar chart for top 3 comparison
+Both analytics chart blocks are independently collapsible using `AnalyticsSectionCard` (`variant="finance"`):
+- `employees-top-performers`: Horizontal distribution bars for top 8 performers (share vs leader; `finance-info-panel-wide`).
+- `employees-top-three`: Vertical bar chart for top 3 comparison (`finance-info-panel`).
+
+Default state is expanded on first visit. Subsequent collapse states persist per employee in browser `localStorage` under `project-goods.analytics-collapsed-sections.<employeeId>`. Collapsing conceals the eyebrow, subtitle, and body instantly without unmounting (`hidden`), retaining component state and performance metrics without reflow animations. Part of the platform-wide total of 34 collapsible analytics cards.
 
 ### Table and export
 

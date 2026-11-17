@@ -5666,6 +5666,13 @@ button.payment-summary-discount-badge:hover:not(:disabled) {
   border-bottom: 1px solid #e1e8f0;
 }
 
+.create-side-request-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+}
+
 .create-side-list-link {
   font-size: 0.96rem;
   font-weight: 700;

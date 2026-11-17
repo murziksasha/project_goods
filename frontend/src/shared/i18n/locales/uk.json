@@ -4738,11 +4738,7 @@
       "noTrend": "Немає точок тренду за обраний період.",
       "trendChartAria": "Графік тренду за період",
       "noMatchingRecords": "Немає відповідних записів.",
-      "loadingRecords": "Завантаження записів...",
-      "showingRange": "Показано {{from}}–{{to}} з {{total}}",
-      "prev": "Назад",
-      "next": "Далі",
-      "pageOf": "Сторінка {{page}} / {{totalPages}}"
+      "loadingRecords": "Завантаження записів..."
     },
     "scenario": {
       "estimateScenario": "Сценарій оцінки",

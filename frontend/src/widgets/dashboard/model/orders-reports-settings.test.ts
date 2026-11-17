@@ -55,4 +55,16 @@ describe('orders report settings', () => {
     expect(getStoredOrdersReportSettings(false).kind).toBe('repairs');
     expect(getStoredOrdersReportSettings(false).period).toBe('last30');
   });
+
+  it('does not store or return pageSize in settings blob', () => {
+    const stored = defaultOrdersReportSettings(false);
+    expect((stored as Record<string, unknown>).pageSize).toBeUndefined();
+
+    window.localStorage.setItem(
+      ordersReportsSettingsStorageKey,
+      JSON.stringify({ ...stored, pageSize: 50 }),
+    );
+    const parsed = getStoredOrdersReportSettings(false);
+    expect((parsed as Record<string, unknown>).pageSize).toBeUndefined();
+  });
 });
