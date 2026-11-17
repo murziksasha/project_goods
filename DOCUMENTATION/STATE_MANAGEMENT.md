@@ -205,6 +205,13 @@ For any mutation that can affect shared screens (orders, sales, stock, client de
 - Warehouse workspace layout on this device (not synced): `project-goods.warehouse-filters` (tab, committed toolbar search, current page, `stockView`, `receiptsView`; page size is stored in `project-goods.page-sizes`). Commit timing: [WAREHOUSE_FLOW.md — Toolbar search](./WAREHOUSE_FLOW.md#toolbar-search). Column layout: `project-goods.warehouse-columns` (column visibility), `project-goods.warehouse-stock-name-width` (stock `Name` column width, 180–720px; applied to `<colgroup>` `<col>` track and `--warehouse-name-col-width` CSS variable).
 - One-time client migration: if the server list is empty, legacy `localStorage` presets for that employee are POSTed and the old storage key is cleared.
 
+## Stock order links (2026-11-15)
+
+- Query key `stockOrderLinks(productIds, serials)` lives in `shared/api/queryClient.ts`. `useStockOrderLinksQuery` (`entities/sale/api/saleApi.ts`) sorts the ids, uses `staleTime` 15s, and stays disabled when both lists are empty.
+- `WarehousePanel` enables that query only on the `Stock balances` tab, for units with `quantity > 0`. `ProductModelModal` calls `getStockOrderLinks` from an effect instead of React Query, so the modal still renders without a `QueryClient`.
+- A request larger than 2000 ids or serials is split. The first id chunk also sends the first 2000 serials. Later serial chunks send an empty `productIds` list. Duplicate `productId` + `saleId` pairs are dropped.
+- A failed request clears the link list. Issued visibility and client-order numbers then use only the sales already loaded. Spec: [WAREHOUSE_FLOW.md](./WAREHOUSE_FLOW.md#client-order-and-issued-stock-2026-11-15).
+
 ## Upgraded Report & Scenario Queries (2026-11-11)
 
 - Added dedicated TanStack Query keys and SSE path invalidations in `shared/api/queryClient.ts` & `liveEvents.ts`:

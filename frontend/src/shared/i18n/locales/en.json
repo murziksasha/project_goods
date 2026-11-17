@@ -653,7 +653,15 @@
         "noRepairOrders": "No repair orders for this client yet.",
         "noSalesOrders": "No sales orders for this client yet.",
         "selectedFlags": "Selected flags",
-        "noFlagsSelected": "No flags selected."
+        "noFlagsSelected": "No flags selected.",
+        "deviceNotSpecified": "Device not specified",
+        "toggleContents": "Toggle contents of {{number}}",
+        "quantity": "Qty",
+        "unitPrice": "Unit price",
+        "lineTotal": "Total",
+        "noItems": "No products or services in this order.",
+        "serialLoadError": "Could not load purchase information for this serial number.",
+        "retry": "Retry"
       },
       "errors": {
         "productCannotBeSelected": "Product cannot be selected: {{reason}}.",
@@ -4099,6 +4107,7 @@
       "serialNumber": "Serial #",
       "purchaseDate": "Receipt date",
       "supplierOrder": "Supplier order",
+      "clientOrder": "Client order",
       "serialMissing": "No serial",
       "latestBatchBadge": "Latest",
       "reservedBadge": "Reserved",
@@ -4117,7 +4126,9 @@
       "noStockRowsTable": "No stock rows.",
       "cancel": "Cancel",
       "saving": "Saving...",
-      "saveModel": "Save model"
+      "saveModel": "Save model",
+      "selectedSerialTitle": "Selected serial purchase",
+      "selectedSerialUnavailable": "Purchase information is unavailable for this serial number."
     },
     "serviceForm": {
       "editService": "Edit service",

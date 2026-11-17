@@ -171,6 +171,12 @@ Permission: `system.backups.manage` (except finance snapshot read).
   - Empty `serials` → `{ occupied: [] }` (no DB scan)
   - Response: `{ occupied: string[] }` — normalized uppercase, only the requested subset
   - Used by order/sale card `SerialBindModal`. Binding does not drop `freeQuantity` until issue/paid; occupancy is sale-domain. Spec: [WAREHOUSE_FLOW.md](./WAREHOUSE_FLOW.md#430-bind-modal-occupancy-opened-repair-and-sale-cards)
+- `POST /sales/stock-links` — minimal sale links for the given stock units
+  - Permission: same read set as `GET /sales` (`orders.view`, `sales.manage`, `repairs.execute`, `kanban.use`, `supplierOrders.view`, or `supplierOrders.manage`). `finance.view` alone is `403`. No token is `401`
+  - Body: `{ productIds: string[], serials: string[] }`. Ids that are not ObjectIds are dropped. Serials are trimmed and uppercased. Each list is capped at 2000; a larger list is `400` with `Too many products or serials.` Both empty → `{ links: [] }` and no database read
+  - The server loads those products, expands serials from the product documents, then finds sales by `lineItems.productId`, `sale.product`, and a product-line `serialNumbers` match. Service lines are ignored. The repair device field `sale.serialNumber` is not read. There is no `excludeSaleId`: the opened card is included
+  - Response: `{ links: { productId, serialNumber, saleId, recordNumber, kind, status }[] }`, sorted by `productId`, `recordNumber`, then `saleId`. One row per product and sale. Status is passed through (`issued`, `returned`, and the rest). Does not change `Product.quantity`
+  - The client splits a list above 2000 and drops duplicate `productId` + `saleId` pairs. Used by the product-model `Purchase by serial` table and `Stock balances` so issued visibility and `Client order` numbers do not depend on `GET /sales?limit=500` or the warehouse `limit=2000` list. Spec: [WAREHOUSE_FLOW.md](./WAREHOUSE_FLOW.md#client-order-and-issued-stock-2026-11-15)
 - `GET /events/stream` — SSE (`text/event-stream`) для LAN live-invalidation. Auth: Bearer. Події `resource.changed` після успішних POST/PUT/PATCH/DELETE.
 - `POST /sales` - создать продажу или заказ
   - **Regular sale** (`kind: "sale"`, `isRapidSale` omitted/false): `lineItems[]` may contain only `kind: "service"` rows; product lines are optional. Empty product entry rows from the create form are not persisted. At least one product or service line is required before save.

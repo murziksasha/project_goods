@@ -3,8 +3,53 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import * as clipboard from '../../../../shared/lib/clipboard';
 import type { Client } from '../../../../entities/client';
 import type { Sale } from '../../../../entities/sale';
+import i18n from '../../../../shared/i18n/config';
 import type { ClientMainForm } from '../../model/clients-workspace';
 import { ClientCardModal } from './ClientCardModal';
+
+const { idleQuery } = vi.hoisted(() => ({
+  idleQuery: () => ({
+    data: [] as unknown[],
+    isError: false,
+    isLoading: false,
+    refetch: vi.fn(),
+  }),
+}));
+
+vi.mock('../../../../entities/product', async (importOriginal) => {
+  const actual = await importOriginal<
+    typeof import('../../../../entities/product')
+  >();
+  return { ...actual, useProductsQuery: () => idleQuery() };
+});
+
+vi.mock('../../../../entities/warehouse-settings', async (importOriginal) => {
+  const actual = await importOriginal<
+    typeof import('../../../../entities/warehouse-settings')
+  >();
+  return {
+    ...actual,
+    useWarehouseSettingsQuery: () => ({
+      ...idleQuery(),
+      data: { warehouses: [] },
+    }),
+  };
+});
+
+vi.mock('../../../../entities/supplier-order', async (importOriginal) => {
+  const actual = await importOriginal<
+    typeof import('../../../../entities/supplier-order')
+  >();
+  return { ...actual, useSupplierOrdersQuery: () => idleQuery() };
+});
+
+vi.mock('../../../../entities/sale', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../../entities/sale')>();
+  return {
+    ...actual,
+    getOccupiedSerialNumbers: vi.fn(async () => ({ occupied: [] as string[] })),
+  };
+});
 
 afterEach(() => {
   cleanup();
@@ -403,12 +448,9 @@ describe('ClientCardModal', () => {
 
     openSpy.mockClear();
     fireEvent.click(screen.getByText('Dell monitor'));
+    fireEvent.click(screen.getByText('paid'));
     expect(onOpenSaleCard).not.toHaveBeenCalled();
-    expect(openSpy).toHaveBeenCalledWith(
-      expect.stringContaining('saleId=sale-repair-1'),
-      '_blank',
-      'noopener,noreferrer',
-    );
+    expect(openSpy).not.toHaveBeenCalled();
   });
 
   it('does not force a new tab when the order number is Ctrl+clicked', () => {
@@ -426,6 +468,423 @@ describe('ClientCardModal', () => {
     });
     expect(onOpenSaleCard).not.toHaveBeenCalled();
     expect(openSpy).not.toHaveBeenCalled();
+  });
+
+});
+
+const toggleFor = (number: string) =>
+  screen.getByRole('button', { name: `Toggle contents of ${number}` });
+
+const contentsFor = (number: string) => {
+  const id = toggleFor(number).getAttribute('aria-controls');
+  const contents = id ? document.getElementById(id) : null;
+  expect(contents).not.toBeNull();
+  return contents as HTMLElement;
+};
+
+const detailedRepair = historySale({
+  id: 'sale-repair-detail',
+  recordNumber: 'r000780',
+  kind: 'repair',
+  status: 'paid',
+  product: {
+    id: 'device-1',
+    article: '',
+    name: 'Dell monitor',
+    serialNumber: 'SN-1',
+  },
+  lineItems: [
+    {
+      id: 'line-part',
+      kind: 'product',
+      name: 'Power board',
+      price: 125,
+      quantity: 2,
+      warrantyPeriod: 0,
+      serialNumbers: ['  S000111  '],
+    },
+    {
+      id: 'line-service',
+      kind: 'service',
+      name: 'BIOS flash',
+      price: 400,
+      quantity: 1,
+      warrantyPeriod: 0,
+    },
+  ],
+});
+
+const bundledSale = historySale({
+  id: 'sale-bundle',
+  recordNumber: 's000540',
+  kind: 'sale',
+  status: 'issued',
+  lineItems: [
+    {
+      id: 'line-case',
+      kind: 'product',
+      name: 'Phone case',
+      price: 400,
+      quantity: 1,
+      warrantyPeriod: 0,
+      serialNumbers: ['S000533'],
+    },
+    {
+      id: 'line-cable',
+      kind: 'product',
+      name: 'Cable',
+      price: 80,
+      quantity: 2,
+      warrantyPeriod: 0,
+      serialNumbers: ['S000900'],
+    },
+  ],
+});
+
+describe('ClientCardModal history details', () => {
+  it('keeps several rows open through search, filter, and pagination, and resets on client or tab change', () => {
+    const second = historySale({
+      ...repairSale,
+      id: 'sale-repair-2',
+      recordNumber: 'r000772',
+      status: 'new',
+    });
+    const pageRows = [
+      repairSale,
+      second,
+      ...Array.from({ length: 9 }, (_, index) =>
+        historySale({
+          id: `sale-page-${index}`,
+          recordNumber: `r0009${index}`,
+          kind: 'repair',
+          status: 'paid',
+          product: {
+            id: `device-page-${index}`,
+            article: '',
+            name: `Paged device ${index}`,
+            serialNumber: '',
+          },
+        }),
+      ),
+    ];
+    const view = renderCard({
+      clientCardTab: 'orders',
+      activeHistoryRows: pageRows,
+    });
+
+    fireEvent.click(toggleFor('r000770'));
+    fireEvent.click(toggleFor('r000772'));
+    expect(toggleFor('r000770')).toHaveAttribute('aria-expanded', 'true');
+    expect(toggleFor('r000772')).toHaveAttribute('aria-expanded', 'true');
+
+    fireEvent.change(
+      screen.getByPlaceholderText('Search by number, device, serial, status'),
+      { target: { value: 'r000770' } },
+    );
+    expect(
+      screen.queryByRole('button', { name: 'Toggle contents of r000772' }),
+    ).toBeNull();
+    fireEvent.change(
+      screen.getByPlaceholderText('Search by number, device, serial, status'),
+      { target: { value: '' } },
+    );
+    expect(toggleFor('r000770')).toHaveAttribute('aria-expanded', 'true');
+    expect(toggleFor('r000772')).toHaveAttribute('aria-expanded', 'true');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Filter' }));
+    fireEvent.change(screen.getByRole('combobox', { name: 'Status' }), {
+      target: { value: 'paid' },
+    });
+    expect(
+      screen.queryByRole('button', { name: 'Toggle contents of r000772' }),
+    ).toBeNull();
+    fireEvent.change(screen.getByRole('combobox', { name: 'Status' }), {
+      target: { value: 'all' },
+    });
+    expect(toggleFor('r000772')).toHaveAttribute('aria-expanded', 'true');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Next page' }));
+    expect(
+      screen.queryByRole('button', { name: 'Toggle contents of r000770' }),
+    ).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Previous page' }));
+    expect(toggleFor('r000770')).toHaveAttribute('aria-expanded', 'true');
+
+    view.rerender(
+      <ClientCardModal
+        activeHistoryRows={pageRows}
+        clientCardTab='sales'
+        historyClient={client}
+        isHistoryLoading={false}
+        isSaving={false}
+        mainTabForm={mainTabForm}
+        mainTabPhoneError={null}
+        selectedClient={client}
+        selectedClientId={client.id}
+        clientVisitCount={1}
+        onClose={vi.fn()}
+        onMainTabFormChange={vi.fn()}
+        onOpenSaleCard={vi.fn()}
+        onSaveMainTab={vi.fn()}
+        onTabChange={vi.fn()}
+        onValidatePhone={() => true}
+        onClearPhoneError={vi.fn()}
+        clientDevices={[]}
+        onUpdateClientDevice={vi.fn(async () => true)}
+        onDeleteClientDevice={vi.fn(async () => true)}
+      />,
+    );
+    view.rerender(
+      <ClientCardModal
+        activeHistoryRows={pageRows}
+        clientCardTab='orders'
+        historyClient={client}
+        isHistoryLoading={false}
+        isSaving={false}
+        mainTabForm={mainTabForm}
+        mainTabPhoneError={null}
+        selectedClient={client}
+        selectedClientId={client.id}
+        clientVisitCount={1}
+        onClose={vi.fn()}
+        onMainTabFormChange={vi.fn()}
+        onOpenSaleCard={vi.fn()}
+        onSaveMainTab={vi.fn()}
+        onTabChange={vi.fn()}
+        onValidatePhone={() => true}
+        onClearPhoneError={vi.fn()}
+        clientDevices={[]}
+        onUpdateClientDevice={vi.fn(async () => true)}
+        onDeleteClientDevice={vi.fn(async () => true)}
+      />,
+    );
+    expect(toggleFor('r000770')).toHaveAttribute('aria-expanded', 'false');
+
+    fireEvent.click(toggleFor('r000770'));
+    view.rerender(
+      <ClientCardModal
+        activeHistoryRows={pageRows}
+        clientCardTab='orders'
+        historyClient={client}
+        isHistoryLoading={false}
+        isSaving={false}
+        mainTabForm={mainTabForm}
+        mainTabPhoneError={null}
+        selectedClient={client}
+        selectedClientId='client-2'
+        clientVisitCount={1}
+        onClose={vi.fn()}
+        onMainTabFormChange={vi.fn()}
+        onOpenSaleCard={vi.fn()}
+        onSaveMainTab={vi.fn()}
+        onTabChange={vi.fn()}
+        onValidatePhone={() => true}
+        onClearPhoneError={vi.fn()}
+        clientDevices={[]}
+        onUpdateClientDevice={vi.fn(async () => true)}
+        onDeleteClientDevice={vi.fn(async () => true)}
+      />,
+    );
+    expect(toggleFor('r000770')).toHaveAttribute('aria-expanded', 'false');
+  });
+
+  it('shows saved order and sale composition and does not invent snapshot rows', () => {
+    const emptyRepair = historySale({
+      id: 'sale-empty',
+      recordNumber: 'r000781',
+      kind: 'repair',
+      product: {
+        id: '',
+        article: 'REPAIR',
+        name: 'Old radio',
+        serialNumber: '',
+      },
+      lineItems: [],
+    });
+    const { rerender } = renderCard({
+      clientCardTab: 'orders',
+      activeHistoryRows: [detailedRepair, emptyRepair],
+    });
+
+    fireEvent.click(screen.getByText('paid'));
+    expect(screen.queryByText('Power board')).toBeNull();
+
+    fireEvent.click(toggleFor('r000780'));
+    const details = contentsFor('r000780');
+    expect(within(details).getByText('Power board')).toBeVisible();
+    expect(within(details).getByText('BIOS flash')).toBeVisible();
+    expect(within(details).getByText('2')).toBeVisible();
+    expect(within(details).getByRole('button', { name: 'S000111' })).toBeVisible();
+    expect(within(details).queryByText(/S\/N:/)).toBeNull();
+
+    fireEvent.click(toggleFor('r000781'));
+    const emptyDetails = contentsFor('r000781');
+    expect(
+      within(emptyDetails).getByText(i18n.t('orders.create.sidePanel.noItems')),
+    ).toBeVisible();
+    expect(within(emptyDetails).queryByText('Old radio')).toBeNull();
+    expect(screen.getByText('Old radio')).toBeVisible();
+
+    rerender(
+      <ClientCardModal
+        activeHistoryRows={[bundledSale]}
+        clientCardTab='sales'
+        historyClient={client}
+        isHistoryLoading={false}
+        isSaving={false}
+        mainTabForm={mainTabForm}
+        mainTabPhoneError={null}
+        selectedClient={client}
+        selectedClientId={client.id}
+        clientVisitCount={1}
+        onClose={vi.fn()}
+        onMainTabFormChange={vi.fn()}
+        onOpenSaleCard={vi.fn()}
+        onSaveMainTab={vi.fn()}
+        onTabChange={vi.fn()}
+        onValidatePhone={() => true}
+        onClearPhoneError={vi.fn()}
+        clientDevices={[]}
+        onUpdateClientDevice={vi.fn(async () => true)}
+        onDeleteClientDevice={vi.fn(async () => true)}
+      />,
+    );
+    fireEvent.click(toggleFor('s000540'));
+    const saleDetails = contentsFor('s000540');
+    expect(within(saleDetails).getByText('Phone case')).toBeVisible();
+    expect(within(saleDetails).getByText('Cable')).toBeVisible();
+    expect(within(saleDetails).queryByRole('heading', { name: 'Services' })).toBeNull();
+  });
+
+  it('opens only from the number and copies the device name or each sale name', async () => {
+    const onOpenSaleCard = vi.fn();
+    const copySpy = vi
+      .spyOn(clipboard, 'copyTextToClipboard')
+      .mockResolvedValue(true);
+    const { rerender } = renderCard({
+      clientCardTab: 'orders',
+      activeHistoryRows: [detailedRepair],
+      onOpenSaleCard,
+    });
+
+    fireEvent.click(screen.getByText('paid'));
+    fireEvent.click(screen.getByText('Dell monitor'));
+    expect(onOpenSaleCard).not.toHaveBeenCalled();
+
+    const deviceCopy = within(
+      screen.getByText('Dell monitor').closest('.copyable-value') as HTMLElement,
+    ).getByRole('button', { name: 'Copy' });
+    fireEvent.click(deviceCopy);
+    await waitFor(() => {
+      expect(copySpy).toHaveBeenCalledWith('Dell monitor');
+    });
+    expect(onOpenSaleCard).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('link', { name: 'r000780' }));
+    expect(onOpenSaleCard).toHaveBeenCalledWith(detailedRepair);
+
+    rerender(
+      <ClientCardModal
+        activeHistoryRows={[bundledSale]}
+        clientCardTab='sales'
+        historyClient={client}
+        isHistoryLoading={false}
+        isSaving={false}
+        mainTabForm={mainTabForm}
+        mainTabPhoneError={null}
+        selectedClient={client}
+        selectedClientId={client.id}
+        clientVisitCount={1}
+        onClose={vi.fn()}
+        onMainTabFormChange={vi.fn()}
+        onOpenSaleCard={onOpenSaleCard}
+        onSaveMainTab={vi.fn()}
+        onTabChange={vi.fn()}
+        onValidatePhone={() => true}
+        onClearPhoneError={vi.fn()}
+        clientDevices={[]}
+        onUpdateClientDevice={vi.fn(async () => true)}
+        onDeleteClientDevice={vi.fn(async () => true)}
+      />,
+    );
+    expect(document.querySelector('.clients-history-sale-line')).toHaveTextContent(
+      'Phone case x1, Cable x2',
+    );
+    const caseCopy = within(
+      screen.getByText('Phone case x1').closest('.copyable-value') as HTMLElement,
+    ).getByRole('button', { name: 'Copy' });
+    fireEvent.click(caseCopy);
+    await waitFor(() => {
+      expect(copySpy).toHaveBeenCalledWith('Phone case');
+    });
+    const cableCopy = within(
+      screen.getByText('Cable x2').closest('.copyable-value') as HTMLElement,
+    ).getByRole('button', { name: 'Copy' });
+    fireEvent.click(cableCopy);
+    await waitFor(() => {
+      expect(copySpy).toHaveBeenCalledWith('Cable');
+    });
+    expect(onOpenSaleCard).toHaveBeenCalledTimes(1);
+  });
+
+  it('opens the product model from row and expanded serials without opening it from the copy icon', async () => {
+    const copySpy = vi
+      .spyOn(clipboard, 'copyTextToClipboard')
+      .mockResolvedValue(true);
+    renderCard({
+      clientCardTab: 'orders',
+      activeHistoryRows: [detailedRepair],
+    });
+
+    const rowSerial = screen.getByRole('button', { name: 'S/N: SN-1' });
+    const rowCopy = within(
+      rowSerial.closest('.copyable-value') as HTMLElement,
+    ).getByRole('button', { name: 'Copy' });
+    fireEvent.click(rowCopy);
+    await waitFor(() => {
+      expect(copySpy).toHaveBeenCalledWith('SN-1');
+    });
+    expect(screen.queryByRole('dialog', { name: 'Dell monitor' })).toBeNull();
+
+    fireEvent.click(rowSerial);
+    expect(screen.getByRole('dialog', { name: 'Dell monitor' })).toBeVisible();
+    expect(
+      screen.getByText('Purchase information is unavailable for this serial number.'),
+    ).toBeVisible();
+
+    fireEvent.click(toggleFor('r000780'));
+    const expandedSerial = within(contentsFor('r000780')).getByRole('button', {
+      name: 'S000111',
+    });
+    const expandedCopy = within(
+      expandedSerial.closest('.copyable-value') as HTMLElement,
+    ).getByRole('button', { name: 'Copy' });
+    fireEvent.click(expandedCopy);
+    await waitFor(() => {
+      expect(copySpy).toHaveBeenCalledWith('S000111');
+    });
+    expect(screen.queryByRole('dialog', { name: 'Power board' })).toBeNull();
+
+    fireEvent.click(expandedSerial);
+    const partDialog = screen.getByRole('dialog', { name: 'Power board' });
+    expect(
+      within(partDialog).getByText(
+        'Purchase information is unavailable for this serial number.',
+      ),
+    ).toBeVisible();
+  });
+
+  it('binds each sales serial to its product line', () => {
+    renderCard({
+      clientCardTab: 'sales',
+      activeHistoryRows: [bundledSale],
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'S/N: S000900' }));
+    expect(screen.getByRole('dialog', { name: 'Cable' })).toBeVisible();
+    expect(
+      screen.getByText('Purchase information is unavailable for this serial number.'),
+    ).toBeVisible();
   });
 });
 

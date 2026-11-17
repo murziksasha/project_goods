@@ -886,6 +886,8 @@ export const ClientsWorkspace: React.FC<ClientsWorkspaceProps> = ({
           onTabChange={setClientCardTab}
           onValidatePhone={validatePhone}
           clientDevices={clientDevices}
+          currentEmployee={currentEmployee}
+          sales={sales}
           onUpdateClientDevice={onUpdateClientDevice}
           onDeleteClientDevice={onDeleteClientDevice}
         />
