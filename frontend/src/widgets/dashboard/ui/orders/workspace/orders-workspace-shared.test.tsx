@@ -6,6 +6,7 @@ import type { Product } from '../../../../../entities/product';
 import { defaultPrintForms } from '../../../../../entities/settings';
 import i18n from '../../../../../shared/i18n/config';
 import {
+  renderOrderPrintCodes,
   allOrdersColumnKeys,
   buildOrderPrintBody,
   buildOrderPrintHtml,
@@ -1483,5 +1484,23 @@ describe('getLatestDepositPaymentMethod and hasNonCashPayment', () => {
     });
     expect(getLatestDepositPaymentMethod(sale)).toBe('non-cash');
     expect(hasNonCashPayment(sale)).toBe(false);
+  });
+});
+
+describe('order print label fitting', () => {
+  it('splits the date year and keeps long order numbers whole when codes render', async () => {
+    const root = document.createElement('div');
+    root.innerHTML =
+      '<div class="print-label"><div class="print-columns print-columns-wide-left">' +
+      '<div><p class="print-block-paragraph print-text-size-hero">#124000</p></div>' +
+      '<div><p class="print-block-paragraph">18.11.2026<br>11:25</p></div></div></div>';
+    await renderOrderPrintCodes(root, 'r124000');
+    const hero = root.querySelector('.print-text-size-hero')!;
+    expect(hero.textContent).toBe('#124000');
+    expect(hero.classList.contains('print-fit-text')).toBe(true);
+    expect(hero.classList.contains('print-fit-chars-7')).toBe(true);
+    expect(root.querySelector('.print-columns-wide-left > div:last-child p')!.innerHTML).toBe(
+      '18.11.<br>2026<br>11:25',
+    );
   });
 });

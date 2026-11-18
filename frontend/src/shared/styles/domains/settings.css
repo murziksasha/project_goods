@@ -857,6 +857,33 @@
   letter-spacing: -0.02em;
 }
 
+.settings-print-preview-page .print-label .print-block-heading.print-fit-text,
+.settings-print-preview-page .print-label .print-block-paragraph.print-fit-text {
+  white-space: nowrap;
+  overflow: visible;
+  text-overflow: clip;
+}
+
+.settings-print-preview-page .print-label .print-text-size-hero.print-fit-chars-5 {
+  font-size: 6.2mm;
+}
+
+.settings-print-preview-page .print-label .print-text-size-hero.print-fit-chars-6 {
+  font-size: 5.2mm;
+}
+
+.settings-print-preview-page .print-label .print-text-size-hero.print-fit-chars-7 {
+  font-size: 4.5mm;
+}
+
+.settings-print-preview-page .print-label .print-text-size-hero.print-fit-chars-8 {
+  font-size: 3.9mm;
+}
+
+.settings-print-preview-page .print-label .print-columns-wide-left > div:last-child .print-block-paragraph {
+  line-height: 0.95;
+}
+
 .settings-print-preview-page .print-label .print-code-row-slim {
   margin-top: auto;
 }
