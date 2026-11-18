@@ -3985,20 +3985,18 @@ button.orders-kanban-count:focus-visible {
   opacity: 0.65;
 }
 
-/* Order card: kit row (view + inline list editor). */
+/* Order card: kit row (chips + add input, saves on each change). */
 .order-detail-kit-value {
   display: flex;
   align-items: center;
-  gap: 6px;
   min-width: 0;
 }
 
-.order-detail-kit-edit {
-  display: grid;
-  gap: 8px;
+.order-detail-kit-value .chip-list-input {
   width: 100%;
 }
 
-.order-detail-kit-edit-button {
-  flex: 0 0 auto;
+.order-detail-kit-value .chip-list-input-entry input {
+  min-height: 28px;
+  padding: 2px 8px;
 }

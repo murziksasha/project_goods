@@ -2,14 +2,21 @@ import type React from 'react';
 import { useTranslation } from 'react-i18next';
 import type { ClientDevice } from '../../../../../entities/client-device';
 import { useDismissibleSuggestions } from '../../../../../shared/lib/useDismissibleSuggestions';
-import { StringListInput } from '../../../../../shared/ui/StringListInput';
-import { saleKitMaxItemLength, saleKitMaxItems } from '../../../../../entities/sale';
+import { ChipListInput } from '../../../../../shared/ui/ChipListInput';
+import {
+  addSaleKitItems,
+  removeSaleKitItem,
+  saleKitMaxItemLength,
+  saleKitMaxItems,
+} from '../../../../../entities/sale';
 
 export interface CreateOrderRepairSectionProps {
   deviceName: string;
   deviceSerialNumber: string;
   deviceColor: string;
   deviceKit: string[];
+  /** Typed but not yet added kit text; added on Save order. */
+  deviceKitInput: string;
   repairType: string;
   issueFromClient: string;
   externalView: string;
@@ -23,6 +30,7 @@ export interface CreateOrderRepairSectionProps {
   onDeviceSerialNumberChange: (value: string) => void;
   onDeviceColorChange: (value: string) => void;
   onDeviceKitChange: (value: string[]) => void;
+  onDeviceKitInputChange: (value: string) => void;
   onRepairTypeChange: (value: string) => void;
   onIssueFromClientChange: (value: string) => void;
   onExternalViewChange: (value: string) => void;
@@ -37,6 +45,7 @@ export const CreateOrderRepairSection: React.FC<CreateOrderRepairSectionProps> =
   deviceSerialNumber,
   deviceColor,
   deviceKit,
+  deviceKitInput,
   repairType,
   issueFromClient,
   externalView,
@@ -50,6 +59,7 @@ export const CreateOrderRepairSection: React.FC<CreateOrderRepairSectionProps> =
   onDeviceSerialNumberChange,
   onDeviceColorChange,
   onDeviceKitChange,
+  onDeviceKitInputChange,
   onRepairTypeChange,
   onIssueFromClientChange,
   onExternalViewChange,
@@ -168,17 +178,25 @@ export const CreateOrderRepairSection: React.FC<CreateOrderRepairSectionProps> =
         </label>
       </div>
 
-      <StringListInput
-        className="create-order-kit-field"
-        label={t('orders.create.kit')}
-        items={deviceKit}
-        onChange={onDeviceKitChange}
-        placeholder={t('orders.create.kitItemPlaceholder')}
-        addLabel={t('orders.create.addKitItem')}
-        getRemoveLabel={(item) => t('orders.create.removeKitItem', { item })}
-        maxItems={saleKitMaxItems}
-        maxItemLength={saleKitMaxItemLength}
-      />
+      <div className="field create-order-kit-field">
+        <span>{t('orders.create.kit')}</span>
+        <ChipListInput
+          label={t('orders.create.kit')}
+          items={deviceKit}
+          inputValue={deviceKitInput}
+          onInputChange={onDeviceKitInputChange}
+          onAdd={() => {
+            onDeviceKitChange(addSaleKitItems(deviceKit, deviceKitInput).kit);
+            onDeviceKitInputChange('');
+          }}
+          onRemove={(index) => onDeviceKitChange(removeSaleKitItem(deviceKit, index).kit)}
+          placeholder={t('orders.create.kitItemPlaceholder')}
+          addLabel={t('orders.create.addKitItem')}
+          getRemoveLabel={(item) => t('orders.create.removeKitItem', { item })}
+          maxItems={saleKitMaxItems}
+          maxItemLength={saleKitMaxItemLength}
+        />
+      </div>
 
       <label className="field">
         <span>{t('orders.filters.repairType')}</span>

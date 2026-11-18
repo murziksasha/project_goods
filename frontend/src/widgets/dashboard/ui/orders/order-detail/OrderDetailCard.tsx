@@ -192,7 +192,7 @@ export const OrderDetailCard: React.FC<OrderDetailCardProps> = ({
   onSuccess,
   onSaveMainInfo,
   onSaveUserNote,
-  onSaveKit,
+  onChangeKit,
 }) => {
   const { t, i18n } = useTranslation();
   const isSaleCard = !isRepairOrder(sale);
@@ -1419,7 +1419,7 @@ export const OrderDetailCard: React.FC<OrderDetailCardProps> = ({
                     saleId={sale.id}
                     kit={getSaleKit(sale)}
                     canEdit={!isContentLocked}
-                    onSaveKit={onSaveKit}
+                    onChangeKit={onChangeKit}
                   />
                 </>
               )}

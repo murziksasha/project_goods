@@ -128,7 +128,8 @@ import {
   buildRemovedProductTimelineMessage,
   buildRemovedServiceTimelineMessage,
   buildUpdatedMainInfoTimelineMessage,
-  buildUpdatedKitTimelineMessage,
+  buildKitChangeTimelineMessage,
+  type SaleKitChange,
   buildUpdatedUserNoteTimelineMessage,
   getStatusLabel,
   getWarehouseLabel,
@@ -3218,16 +3219,16 @@ export const OrdersWorkspace: React.FC<OrdersWorkspaceProps> = ({
     }
   };
 
-  const saveOrderKit = async (sale: Sale, kit: string[]) => {
+  const saveOrderKit = async (sale: Sale, kit: string[], change: SaleKitChange) => {
     const previousKit = getSaleKit(sale);
     const nextKit = normalizeSaleKit(kit);
-    if (areSaleKitsEqual(previousKit, nextKit)) {
+    if (areSaleKitsEqual(previousKit, nextKit) || change.items.length === 0) {
       return;
     }
     try {
       const timeline = [
         appendTimelineEntry(
-          buildUpdatedKitTimelineMessage(currentEmployeeName, previousKit, nextKit),
+          buildKitChangeTimelineMessage(currentEmployeeName, change),
         ),
         ...sale.timeline,
       ];
@@ -3390,7 +3391,7 @@ export const OrdersWorkspace: React.FC<OrdersWorkspaceProps> = ({
             onSaveUserNote={(userNote) =>
               saveOrderUserNote(selectedSale, userNote)
             }
-            onSaveKit={(kit) => saveOrderKit(selectedSale, kit)}
+            onChangeKit={(kit, change) => saveOrderKit(selectedSale, kit, change)}
           />
         </div>
       ) : null}

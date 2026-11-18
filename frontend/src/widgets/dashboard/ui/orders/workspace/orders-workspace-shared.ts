@@ -10,6 +10,7 @@ import type {
 import { isRepairOrder } from '../../../../../entities/sale';
 import {
   formatSaleKit,
+  formatSaleKitLabel,
   getSaleKit,
   getSaleListItemSerial,
   getSaleListLineItems,
@@ -853,19 +854,26 @@ export const buildUpdatedUserNoteTimelineMessage = (author: string) =>
   i18n.t('orders.timeline.updatedUserNote', { author });
 
 /** Order history line for a kit edit, e.g. `Олена оновив комплект: ЗП → ЗП, сумка.` */
-export const buildUpdatedKitTimelineMessage = (
-  author: string,
-  previousKit: readonly string[],
-  nextKit: readonly string[],
-) => {
-  const empty = i18n.t('orders.detail.kitEmpty');
-  return i18n.t('orders.timeline.updatedKit', {
-    author,
-    from: formatSaleKit(previousKit) || empty,
-    to: formatSaleKit(nextKit) || empty,
-    interpolation: { escapeValue: false },
-  });
+export type SaleKitChange = {
+  type: 'add' | 'remove';
+  items: readonly string[];
 };
+
+/** One order-history line per kit add / remove in the order card. */
+export const buildKitChangeTimelineMessage = (
+  author: string,
+  change: SaleKitChange,
+) =>
+  i18n.t(
+    change.type === 'add'
+      ? 'orders.timeline.addedKitItems'
+      : 'orders.timeline.removedKitItems',
+    {
+      author,
+      items: formatSaleKit(change.items),
+      interpolation: { escapeValue: false },
+    },
+  );
 
 export const readSavedOrderFilters = () => {
   try {
@@ -1555,6 +1563,7 @@ export const getPrintTemplateData = (
     deviceName: isRepair ? getSaleProductName(sale) : '',
     serialNumber: isRepair ? getSaleProductSerialNumber(sale) : '',
     kit: isRepair ? formatSaleKit(getSaleKit(sale)) : '',
+    kitLabel: isRepair ? formatSaleKitLabel(getSaleKit(sale)) : '',
     orderNumberShort: formatOrderNumberShort(orderNumber),
     acceptedDate: formatPrintAcceptedDate(sale.createdAt),
     acceptedTime: formatPrintAcceptedTime(sale.createdAt),
