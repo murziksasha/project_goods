@@ -79,6 +79,24 @@ Related: [ORDER_CARD.md](./ORDER_CARD.md) · [SALE_FLOW.md](./SALE_FLOW.md) · [
 - Dismissing the suggestion list does **not** enable `Create new`. Active catalog matches still block it. Save still accepts the typed device name.
 - New device is created in `client-devices` collection, not in warehouse products.
 
+## Device kit (2026-11-18)
+
+- `Create order → Repair` has a **Kit** list instead of the free-text field:
+  one input per item, `×` removes an item, `+` (or Enter) adds a row. Limits:
+  20 items, 80 characters each.
+- Selecting an existing client device pre-fills the list from the device note
+  (split by commas).
+- On save the list is normalized (trim, collapse spaces, drop empty and
+  case-insensitive duplicates) and sent as `kit: string[]`. The kit is no longer
+  written into the system note as `(kits: …)`.
+- Old orders keep `(kits: …)` in `note`; the card and print forms fall back to it.
+- Backend (`POST /sales`, `PUT /sales/:id`, `PATCH /sales/:id/workspace`):
+  `kit` must be an array of strings, otherwise 400; more than 20 unique items
+  or an item over 80 characters → 400. Omitted `kit` on update keeps the stored
+  value.
+- Editing in the order card: [ORDER_CARD.md → Kit](./ORDER_CARD.md#kit-2026-11-18).
+- Printing: variable `{{kit}}` ([PRINT_FORMS_SPEC.md](./PRINT_FORMS_SPEC.md#new-barcode-label-2026-11-18)).
+
 ## Urgent Term
 
 - If `Urgent repair` flag is selected during repair order creation, order term is shown as `Urgent` in light red.

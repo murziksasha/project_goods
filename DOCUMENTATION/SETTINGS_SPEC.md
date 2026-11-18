@@ -77,6 +77,8 @@ Manually written text in the builder supports inline **bold** / *italic* / under
 
 The shared **Template variables** picker in Heading, Text, and Barcode editors defaults to expanded and can be collapsed/expanded via its heading button (local UI state only; reopening the editor resets it). Rules: [PRINT_FORMS_SPEC.md → Collapsible Template Variables](./PRINT_FORMS_SPEC.md#collapsible-template-variables-2026-11-11).
 
+Each template has **Show in print menu** checkboxes (Sale / Repair / Warehouse (product)) stored server-side as `printMenuVisibility`; absent = legacy (shown everywhere), empty = hidden from menus but kept in the constructor. Built-in **New Barcode (with bar)** / **(without bar)** default to Repair only. Rules: [PRINT_FORMS_SPEC.md → Print menu visibility](./PRINT_FORMS_SPEC.md#print-menu-visibility-2026-11-18), [→ New Barcode label](./PRINT_FORMS_SPEC.md#new-barcode-label-2026-11-18).
+
 Save writes template **content** to the API. Per-employee layout (margins, page/label size, orientation) is written to `project-goods.print-form-overrides.{employeeId}` only on **Save settings**.
 
 ## Backups
