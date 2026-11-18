@@ -44,6 +44,18 @@ const clampLabelSizeMm = (value: unknown, fallback: number) =>
 const readObject = (value: unknown): Record<string, unknown> =>
   value && typeof value === 'object' ? (value as Record<string, unknown>) : {};
 
+const printMenuDocumentTypeSet = new Set(['sale', 'repair', 'warehouse']);
+
+/** Keep known document types once, in canonical order. */
+export const normalizePrintMenuVisibility = (value: unknown[]) => {
+  const requested = new Set(
+    value.map((item) => toNonEmptyString(item)).filter((item) =>
+      printMenuDocumentTypeSet.has(item),
+    ),
+  );
+  return ['sale', 'repair', 'warehouse'].filter((item) => requested.has(item));
+};
+
 const defaultLabelContentMargins = {
   topMm: 0.45,
   rightMm: 1.25,
@@ -209,6 +221,13 @@ export const normalizeSettingsPayload = (payload: SettingsPayload) => {
                 pageSize,
               ),
               isActive: toBoolean(source.isActive, true),
+              ...(Array.isArray(source.printMenuVisibility)
+                ? {
+                    printMenuVisibility: normalizePrintMenuVisibility(
+                      source.printMenuVisibility,
+                    ),
+                  }
+                : {}),
               sortOrder: clampInteger(source.sortOrder, (index + 1) * 10, 0),
             };
           })

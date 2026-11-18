@@ -14,6 +14,7 @@ import { getStockLines, type SaleLineItem } from './stock';
 import {
   assertLineItemCatalogProductIds,
   assertSerialNumbersNotBoundToOtherSales,
+  assertSaleKitPayload,
   assertSerializedLineItemsAreAtomic,
 } from './validators';
 import { attachServiceCatalogIds } from '../service-catalog/service';
@@ -58,6 +59,7 @@ export const createSale = async (
   payloadInput: SalePayload,
   actor?: Pick<EmployeeDocument, '_id' | 'name' | 'role' | 'permissions'> | null,
 ) => {
+  assertSaleKitPayload(payloadInput.kit);
   const payload = normalizeSalePayload(payloadInput);
   const isRapidSale = payload.isRapidSale === true;
   const normalizedKind = payload.kind === 'sale' ? 'sale' : 'repair';
@@ -185,6 +187,7 @@ export const createSale = async (
         isRapidSale,
         note: payload.note,
         userNote: payload.userNote,
+        kit: payload.kit,
         timeline: payload.timeline ?? [],
         paymentHistory: payload.paymentHistory ?? [],
         lineItems: preparedCosts.lineItems,

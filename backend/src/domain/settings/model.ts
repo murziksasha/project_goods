@@ -6,6 +6,8 @@ export const defaultLabelSize = {
   heightMm: 40,
 };
 
+export const printMenuDocumentTypes = ['sale', 'repair', 'warehouse'] as const;
+
 export const defaultPrintForms = [
   {
     id: 'receipt',
@@ -164,6 +166,12 @@ const printFormSchema = new mongoose.Schema(
       leftMm: { type: Number, min: 0, max: 60, default: 0 },
     },
     isActive: { type: Boolean, default: true },
+    // Document types whose print menu lists the template. Absent = legacy
+    // behaviour (listed everywhere); [] = hidden from every print menu.
+    printMenuVisibility: {
+      type: [{ type: String, enum: printMenuDocumentTypes }],
+      default: undefined,
+    },
     sortOrder: { type: Number, default: 0 },
   },
   { _id: false },

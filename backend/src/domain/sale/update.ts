@@ -22,6 +22,7 @@ import {
 import {
   assertLineItemCatalogProductIds,
   assertSerialNumbersNotBoundToOtherSales,
+  assertSaleKitPayload,
   assertSerializedLineItemsAreAtomic,
 } from './validators';
 import { attachServiceCatalogIds } from '../service-catalog/service';
@@ -56,6 +57,7 @@ export const updateSale = async (
 ) => {
   isValidObjectIdOrThrow(saleId, 'saleId');
 
+  assertSaleKitPayload(payloadInput.kit);
   const payload = normalizeSalePayload(payloadInput);
   const normalizedKind = payload.kind === 'sale' ? 'sale' : 'repair';
   isValidObjectIdOrThrow(payload.clientId, 'clientId');
@@ -254,6 +256,10 @@ export const updateSale = async (
           paidAmount: payload.paidAmount || 0,
           note: payload.note,
           userNote: payload.userNote,
+          kit:
+            payloadInput.kit === undefined
+              ? (existingSale.kit ?? [])
+              : payload.kit,
           timeline: payload.timeline ?? existingSale.timeline ?? [],
           paymentHistory:
             payload.paymentHistory ??
@@ -381,6 +387,11 @@ export const updateSaleWorkspace = async (
   const nextUserNote = hasUserNoteUpdate
     ? payload.userNote
     : (existingSale.userNote ?? '');
+  assertSaleKitPayload(payloadInput.kit);
+  const nextKit =
+    payloadInput.kit === undefined
+      ? (existingSale.kit ?? [])
+      : payload.kit;
   const nextTimeline =
     Array.isArray(payloadInput.timeline) &&
     payload.timeline.length > 0
@@ -560,6 +571,7 @@ export const updateSaleWorkspace = async (
           statusTransitions: nextStatusTransitions,
           discount: nextDiscount,
           userNote: nextUserNote,
+          kit: nextKit,
           productSnapshot: {
             article: existingSale.productSnapshot?.article ?? '',
             name:
