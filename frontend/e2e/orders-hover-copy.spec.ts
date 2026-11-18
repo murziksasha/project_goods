@@ -118,6 +118,40 @@ const boot = async (
   });
 };
 
+test('orders list keeps every copy icon hidden until its value is hovered', async ({
+  page,
+}) => {
+  await boot(page, 'orders');
+  await expect(page.getByText('Saturn TV')).toBeVisible();
+  await page.mouse.move(2, 790);
+  const icons = page.locator('.copyable-value-copy');
+  expect(await icons.count()).toBeGreaterThan(2);
+  for (const icon of await icons.all()) {
+    await expect(icon).toHaveCSS('opacity', '0');
+  }
+  const clientValue = page.locator('.orders-client-cell > .copyable-value').first();
+  await clientValue.hover();
+  await expect(clientValue.locator('.copyable-value-copy')).toHaveCSS('opacity', '1');
+  const alwaysVisibleMedia = await page.evaluate(() => {
+    const conditions: string[] = [];
+    for (const sheet of Array.from(document.styleSheets)) {
+      let rules: CSSRuleList;
+      try {
+        rules = sheet.cssRules;
+      } catch {
+        continue;
+      }
+      for (const rule of Array.from(rules)) {
+        if (rule instanceof CSSMediaRule && rule.cssText.includes('.copyable-value-copy')) {
+          conditions.push(rule.conditionText);
+        }
+      }
+    }
+    return conditions;
+  });
+  expect(alwaysVisibleMedia).toEqual(['(hover: none) and (any-hover: none)']);
+});
+
 test('orders list copies the device name and client name', async ({
   page,
 }) => {

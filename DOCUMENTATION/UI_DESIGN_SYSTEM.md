@@ -130,7 +130,9 @@ Shared control: [`frontend/src/shared/ui/CopyableValue.tsx`](../frontend/src/sha
 - Icon click uses `preventDefault` + `stopPropagation` so star, expand, delete, and row handlers do not run.
 - Empty / whitespace-only values have no icon.
 - The icon is **not** `position: absolute` and must not cover the star, expand chevron, status badge, delete `×`, next column, or modal close.
-- Hidden until hover by collapsing width (`width: 0`). On `@media (hover: none)` the icon stays visible.
+- Hidden until hover by collapsing width (`width: 0`, `opacity: 0`, `pointer-events: none`). It appears on hover or `:focus-within` of the value wrapper, on keyboard `:focus-visible` of the icon itself, and while the success state is shown.
+- Always visible **only** on touch-only devices: `@media (hover: none) and (any-hover: none)` (phones, tablets without a mouse/trackpad), where hover does not exist.
+- Desktop and hybrid devices (touch laptops, touch monitors, Chrome on Windows with a touchscreen) keep the hover reveal even if the primary pointer reports `hover: none`, because a mouse/touchpad still can hover (`any-hover: hover`). Fixed 2026-11-18: the earlier plain `@media (hover: none)` rule showed every copy icon permanently on such devices (and in Chrome DevTools touch emulation).
 - Success state (~1.4s) uses `--color-success` on the icon button.
 - Labels: `common.copy` / `common.copied` / `common.copyFailed`. Catalog **name** idle label is `catalog.tables.copyName` (keep `copyName` / `copied` / `copyFailed` in `frontend/scripts/catalog-locale-*.json` so locale merge does not drop them).
 
