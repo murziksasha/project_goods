@@ -313,7 +313,13 @@
   border-color: var(--color-line-panel);
 }
 
-@media (hover: none) {
+/*
+ * Always-visible copy icons only on devices where NO input can hover
+ * (phones / tablets). Touch laptops and touch monitors with a mouse or
+ * touchpad often report `hover: none` for the primary pointer; they keep
+ * the hover / focus reveal (`any-hover: hover`).
+ */
+@media (hover: none) and (any-hover: none) {
   .copyable-value-copy,
   .catalog-name-copy-button {
     width: 22px;
