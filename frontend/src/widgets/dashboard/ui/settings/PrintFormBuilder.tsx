@@ -4,6 +4,8 @@ import { useTranslation } from 'react-i18next';
 import JsBarcode from 'jsbarcode';
 import type {
   PrintForm,
+  PrintLayoutTextSize,
+  PrintMenuDocumentType,
   PrintLayoutBlock,
   PrintLayoutField,
   PrintLayoutTableColumn,
@@ -20,6 +22,8 @@ import {
   normalizeContentMargins,
   normalizeLabelSize,
   printFormVariableGroups,
+  printLayoutTextSizes,
+  printMenuDocumentTypes,
   renderPrintLayout,
   renderPrintTemplate,
 } from '../../../../entities/settings';
@@ -78,7 +82,7 @@ const blockInsertOptions: PrintLayoutBlock['type'][] = [
 
 const alignOptions = ['left', 'center', 'right'] as const;
 const textWeightOptions = ['light', 'normal', 'bold'] as const;
-const barcodeSizeOptions = ['compact', 'standard', 'large'] as const;
+const barcodeSizeOptions = ['compact', 'standard', 'large', 'slim'] as const;
 
 const renderCodes = (root: HTMLElement | Document) => {
   root.querySelectorAll<SVGSVGElement>('svg[data-barcode-value]').forEach((node) => {
@@ -94,6 +98,9 @@ const renderCodes = (root: HTMLElement | Document) => {
         height: isLabelBarcode ? 52 : 44,
         margin: 0,
       });
+      if (node.closest('.print-code-row-slim')) {
+        node.setAttribute('preserveAspectRatio', 'none');
+      }
     } catch {
       node.replaceWith(document.createTextNode(value));
     }
@@ -375,6 +382,50 @@ const WeightInput = ({
   );
 };
 
+const TextSizeInput = ({
+  value,
+  onChange,
+}: {
+  value: PrintLayoutTextSize | undefined;
+  onChange: (value: PrintLayoutTextSize | undefined) => void;
+}) => {
+  const { t } = useTranslation();
+  const sizeLabelKeys = {
+    normal: 'settings.printBuilder.textSizeNormal',
+    large: 'settings.printBuilder.textSizeLarge',
+    xlarge: 'settings.printBuilder.textSizeXlarge',
+    hero: 'settings.printBuilder.textSizeHero',
+  } as const;
+
+  return (
+    <label className="field">
+      <span>{t('settings.printBuilder.textSize')}</span>
+      <select
+        value={value ?? 'normal'}
+        onChange={(event) => {
+          const next = event.target.value as PrintLayoutTextSize;
+          onChange(next === 'normal' ? undefined : next);
+        }}
+      >
+        {printLayoutTextSizes.map((size) => (
+          <option key={size} value={size}>
+            {t(sizeLabelKeys[size])}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+};
+
+const withTextSize = <T extends { size?: PrintLayoutTextSize }>(
+  block: T,
+  size: PrintLayoutTextSize | undefined,
+): T => {
+  const { size: _previous, ...rest } = block;
+  void _previous;
+  return (size ? { ...rest, size } : rest) as T;
+};
+
 const updateField = (
   fields: PrintLayoutField[],
   index: number,
@@ -431,6 +482,10 @@ const BlockEditor = ({
             value={block.weight}
             onChange={(weight) => onChange({ ...block, weight })}
           />
+          <TextSizeInput
+            value={block.size}
+            onChange={(size) => onChange(withTextSize(block, size))}
+          />
           <AlignInput value={block.align} onChange={(align) => onChange({ ...block, align })} />
           <VariablePicker onInsert={appendToFirstText} />
         </div>
@@ -447,6 +502,10 @@ const BlockEditor = ({
           <WeightInput
             value={block.weight}
             onChange={(weight) => onChange({ ...block, weight })}
+          />
+          <TextSizeInput
+            value={block.size}
+            onChange={(size) => onChange(withTextSize(block, size))}
           />
           <AlignInput value={block.align} onChange={(align) => onChange({ ...block, align })} />
           <VariablePicker onInsert={appendToFirstText} />
@@ -655,6 +714,7 @@ const BlockEditor = ({
           compact: 'settings.printBuilder.barcodeSizeCompact',
           standard: 'settings.printBuilder.barcodeSizeStandard',
           large: 'settings.printBuilder.barcodeSizeLarge',
+          slim: 'settings.printBuilder.barcodeSizeSlim',
         } as const;
 
         return (
@@ -680,7 +740,9 @@ const BlockEditor = ({
                       ? 'compact'
                       : event.target.value === 'large'
                         ? 'large'
-                        : 'standard',
+                        : event.target.value === 'slim'
+                          ? 'slim'
+                          : 'standard',
                   })
                 }
               >
@@ -737,6 +799,24 @@ const BlockEditor = ({
     case 'columns':
       return (
         <div className="print-block-editor-fields">
+          <label className="field">
+            <span>{t('settings.printBuilder.columnsLayout')}</span>
+            <select
+              value={block.layout ?? 'equal'}
+              onChange={(event) => {
+                const { layout: _previous, ...rest } = block;
+                void _previous;
+                onChange(
+                  event.target.value === 'wide-left'
+                    ? { ...rest, layout: 'wide-left' }
+                    : rest,
+                );
+              }}
+            >
+              <option value="equal">{t('settings.printBuilder.columnsLayoutEqual')}</option>
+              <option value="wide-left">{t('settings.printBuilder.columnsLayoutWideLeft')}</option>
+            </select>
+          </label>
           {block.columns.map((column, index) => (
             <FormattedTextAreaInput
               key={column.id}
@@ -757,6 +837,9 @@ const BlockEditor = ({
                           level: existingParagraph?.type === 'paragraph' ? existingParagraph.level : 3,
                           align: existingParagraph?.type === 'paragraph' ? existingParagraph.align : undefined,
                           weight: existingParagraph?.type === 'paragraph' ? existingParagraph.weight : undefined,
+                          ...(existingParagraph?.type === 'paragraph' && existingParagraph.size
+                            ? { size: existingParagraph.size }
+                            : {}),
                           text,
                         },
                       ],
@@ -804,6 +887,22 @@ export const PrintFormBuilder: React.FC<PrintFormBuilderProps> = ({
   useEffect(() => {
     setActiveBlockId(firstBlockId);
   }, [firstBlockId, selectedForm.id]);
+
+  const isVisibleInMenu = (documentType: PrintMenuDocumentType) =>
+    selectedForm.printMenuVisibility === undefined ||
+    selectedForm.printMenuVisibility.includes(documentType);
+
+  // First edit turns the legacy "everywhere" state into an explicit list.
+  const togglePrintMenuVisibility = (
+    documentType: PrintMenuDocumentType,
+    checked: boolean,
+  ) => {
+    const current = selectedForm.printMenuVisibility ?? printMenuDocumentTypes;
+    const next = printMenuDocumentTypes.filter((type) =>
+      type === documentType ? checked : current.includes(type),
+    );
+    onUpdateForm(selectedForm.id, { printMenuVisibility: next });
+  };
 
   const updateBlocks = (nextBlocks: PrintLayoutBlock[]) => {
     onUpdateForm(selectedForm.id, regenerateLayoutContent(selectedForm, nextBlocks));
@@ -937,6 +1036,26 @@ export const PrintFormBuilder: React.FC<PrintFormBuilderProps> = ({
             <span>{t('settings.printBuilder.activeInPrintMenu')}</span>
           </label>
         </div>
+        <fieldset className="settings-print-options-row settings-print-visibility-row">
+          <legend className="section-label">{t('settings.printBuilder.printMenuVisibility')}</legend>
+          {printMenuDocumentTypes.map((documentType) => (
+            <label key={documentType} className="settings-check">
+              <input
+                type="checkbox"
+                checked={isVisibleInMenu(documentType)}
+                onChange={(event) => togglePrintMenuVisibility(documentType, event.target.checked)}
+              />
+              <span>{t(`settings.printBuilder.printMenuTypes.${documentType}`)}</span>
+            </label>
+          ))}
+          <small className="print-builder-muted">
+            {selectedForm.printMenuVisibility === undefined
+              ? t('settings.printBuilder.printMenuVisibilityLegacy')
+              : selectedForm.printMenuVisibility.length === 0
+                ? t('settings.printBuilder.printMenuVisibilityHidden')
+                : null}
+          </small>
+        </fieldset>
         {selectedForm.pageSize === 'label' ? (
           <div className="settings-print-options-row settings-label-size-row">
             <label className="field">

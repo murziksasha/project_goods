@@ -10,6 +10,7 @@ import {
   buildOrderPrintBody,
   buildOrderPrintHtml,
   buildSupplierOrderLinkNote,
+  buildUpdatedKitTimelineMessage,
   computeOrderExtraLinesMenuPosition,
   computeOrderStatusMenuPosition,
   EMPTY_LINE_ITEM_SERIAL,
@@ -123,6 +124,42 @@ const printCompanySettings = {
   companyEmail: '',
   companySite: '',
 };
+
+describe('New Barcode label print data', () => {
+  it('provides orderNumberShort, Kyiv accepted date/time and the kit field', () => {
+    const sale = repairSale({
+      createdAt: '2026-11-10T14:00:00.000Z',
+      kit: ['ЗП', 'сумка'],
+      note: '(kits: old)',
+    });
+    const data = getPrintTemplateData(sale, [], 0, 'r000124', printCompanySettings);
+    expect(data.orderNumberShort).toBe('#124');
+    expect(data.acceptedDate).toBe('10.11.2026');
+    expect(data.acceptedTime).toBe('16:00');
+    expect(data.kit).toBe('ЗП, сумка');
+    expect(data.barcode).toBe('r000124');
+  });
+
+  it('falls back to the legacy (kits: ...) note for old orders', () => {
+    const sale = repairSale({ note: '(kits: ЗП, сумка)\nType: repair' });
+    expect(getPrintTemplateData(sale, [], 0, 'r000003', printCompanySettings).kit).toBe('ЗП, сумка');
+  });
+
+  it('leaves the kit empty for sales', () => {
+    const sale = repairSale({ kind: 'sale', kit: ['ЗП'] });
+    expect(getPrintTemplateData(sale, [], 0, 's000003', printCompanySettings).kit).toBe('');
+  });
+
+  it('builds a readable order-history line for kit edits', async () => {
+    await i18n.changeLanguage('uk');
+    expect(buildUpdatedKitTimelineMessage('Олена', ['ЗП'], ['ЗП', 'сумка'])).toBe(
+      'Олена оновив комплект: ЗП → ЗП, сумка.',
+    );
+    expect(buildUpdatedKitTimelineMessage('Олена', [], ['ЗП'])).toBe(
+      'Олена оновив комплект: Без комплекту → ЗП.',
+    );
+  });
+});
 
 describe('invoice source record and service center', () => {
   it('uses identical Ukrainian print data in English and Ukrainian interfaces', async () => {

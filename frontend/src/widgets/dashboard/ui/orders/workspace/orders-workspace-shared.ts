@@ -9,6 +9,8 @@ import type {
 } from '../../../../../entities/sale';
 import { isRepairOrder } from '../../../../../entities/sale';
 import {
+  formatSaleKit,
+  getSaleKit,
   getSaleListItemSerial,
   getSaleListLineItems,
   getSaleListPrimaryItem,
@@ -39,6 +41,9 @@ import type {
 } from '../../../../../entities/client-device';
 import type { PrintForm } from '../../../../../entities/settings';
 import {
+  formatOrderNumberShort,
+  formatPrintAcceptedDate,
+  formatPrintAcceptedTime,
   getOrientedLabelSize,
   getIncludedVatAmounts,
   getPrintFormTemplateData,
@@ -845,6 +850,21 @@ export const buildUpdatedMainInfoTimelineMessage = (author: string) =>
 export const buildUpdatedUserNoteTimelineMessage = (author: string) =>
   i18n.t('orders.timeline.updatedUserNote', { author });
 
+/** Order history line for a kit edit, e.g. `Олена оновив комплект: ЗП → ЗП, сумка.` */
+export const buildUpdatedKitTimelineMessage = (
+  author: string,
+  previousKit: readonly string[],
+  nextKit: readonly string[],
+) => {
+  const empty = i18n.t('orders.detail.kitEmpty');
+  return i18n.t('orders.timeline.updatedKit', {
+    author,
+    from: formatSaleKit(previousKit) || empty,
+    to: formatSaleKit(nextKit) || empty,
+    interpolation: { escapeValue: false },
+  });
+};
+
 export const readSavedOrderFilters = () => {
   try {
     const raw = JSON.parse(
@@ -1532,6 +1552,10 @@ export const getPrintTemplateData = (
     clientPhone: sale.isRapidSale ? '' : sale.client.phone,
     deviceName: isRepair ? getSaleProductName(sale) : '',
     serialNumber: isRepair ? getSaleProductSerialNumber(sale) : '',
+    kit: isRepair ? formatSaleKit(getSaleKit(sale)) : '',
+    orderNumberShort: formatOrderNumberShort(orderNumber),
+    acceptedDate: formatPrintAcceptedDate(sale.createdAt),
+    acceptedTime: formatPrintAcceptedTime(sale.createdAt),
     article: isRepair ? getSaleProductArticle(sale) : '',
     defect: sale.note || '-',
     comment: sale.note || '-',
@@ -1691,6 +1715,10 @@ export const renderOrderPrintCodes = async (
           height: isLabelBarcode ? 52 : 44,
           margin: 0,
         });
+        // Slim label barcodes are stretched to a fixed ~5 mm box.
+        if (node.closest('.print-code-row-slim')) {
+          node.setAttribute('preserveAspectRatio', 'none');
+        }
       } catch {
         node.replaceWith(node.ownerDocument.createTextNode(value));
       }

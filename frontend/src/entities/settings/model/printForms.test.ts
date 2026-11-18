@@ -715,6 +715,8 @@ describe('normalizePrintFormsForView', () => {
       'Invoice without VAT',
       'Barcode',
       'Product barcode',
+      'New Barcode (with bar)',
+      'New Barcode (without bar)',
     ]);
     expect(defaultPrintForms.map((form) => form.content).join(' ')).not.toContain('Р');
   });

@@ -391,8 +391,29 @@
         "barcode": "Штрихкод",
         "products_table": "Таблиця товарів",
         "services_table": "Таблиця послуг",
-        "invoice_items_table": "Таблиця позицій рахунку"
-      }
+        "invoice_items_table": "Таблиця позицій рахунку",
+        "acceptedDate": "Дата прийому (дд.ММ.рррр)",
+        "acceptedTime": "Час прийому (ГГ:хх)",
+        "orderNumberShort": "Короткий номер (#124)",
+        "kit": "Комплект"
+      },
+      "printMenuTypes": {
+        "sale": "Продаж",
+        "repair": "Ремонт",
+        "warehouse": "Склад (товар)"
+      },
+      "barcodeSizeSlim": "вузький (~5 мм)",
+      "textSize": "Розмір",
+      "textSizeNormal": "Звичайний",
+      "textSizeLarge": "Великий",
+      "textSizeXlarge": "Дуже великий",
+      "textSizeHero": "Величезний",
+      "columnsLayout": "Ширина стовпців",
+      "columnsLayoutEqual": "Однакова",
+      "columnsLayoutWideLeft": "Широкий лівий, правий за вмістом",
+      "printMenuVisibility": "Показувати в меню друку",
+      "printMenuVisibilityLegacy": "Не налаштовано: показується як раніше",
+      "printMenuVisibilityHidden": "Прихований з меню друку, залишається в конструкторі"
     },
     "backups": {
       "noPermission": "Поточний співробітник не може керувати резервними копіями.",
@@ -692,7 +713,10 @@
           "warrantyCardIssued": "Видано гарантійний талон",
           "deliveryRequired": "Потрібна доставка"
         }
-      }
+      },
+      "addKitItem": "Додати до комплекту",
+      "removeKitItem": "Видалити {{item}}",
+      "kitItemPlaceholder": "напр. ЗП"
     },
     "rapidSale": {
       "title": "Швидкий продаж",
@@ -1174,7 +1198,10 @@
         "product": "Товар",
         "retailPrice": "Роздрібна ціна",
         "note": "Примітка"
-      }
+      },
+      "kit": "Комплект",
+      "kitEmpty": "Без комплекту",
+      "editKit": "Редагувати комплект"
     },
     "supplier": {
       "toolbar": {
@@ -1501,7 +1528,8 @@
         "serialAlreadyLinked": "Серійний номер уже привʼязаний до іншого замовлення: {{serials}}.",
         "serialNotInStock": "Серійний номер не знайдено на складі: {{serials}}.",
         "serialNoFreeStock": "Серійний номер без вільного залишку: {{serials}}.",
-        "operationFailed": "Операцію не виконано."
+        "operationFailed": "Операцію не виконано.",
+        "failedSaveKit": "Не вдалося зберегти комплект."
       },
       "success": {
         "filterSaved": "Фільтр збережено.",
@@ -1522,7 +1550,8 @@
         "serviceSaved": "Послугу збережено в каталозі.",
         "serviceUpdated": "Послугу оновлено.",
         "productWithSerialAdded": "Товар \"{{name}}\" з S/N {{serial}} додано.",
-        "serialsUpdated": "Серійні номери оновлено."
+        "serialsUpdated": "Серійні номери оновлено.",
+        "kitUpdated": "Комплект оновлено."
       }
     },
     "serialAvailability": {
@@ -1566,7 +1595,8 @@
       "removedService": "{{author}} видалив послугу \"{{name}}\" з замовлення.",
       "boundSerials": "{{author}} прив'язав серійні номери для \"{{name}}\".",
       "updatedMainInfo": "{{author}} оновив основну інформацію замовлення.",
-      "updatedUserNote": "{{author}} оновив примітку."
+      "updatedUserNote": "{{author}} оновив примітку.",
+      "updatedKit": "{{author}} оновив комплект: {{from}} → {{to}}."
     },
     "fallbacks": {
       "recordNumber": "r------",

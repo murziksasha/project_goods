@@ -43,7 +43,10 @@ import {
   mergeProductsWithLatestSortOrders,
 } from '../../../model/product-suggestion-reorder';
 import {
+  formatSaleKit,
   getOccupiedSerialNumbers,
+  normalizeSaleKit,
+  splitSaleKitText,
   type Sale,
 } from '../../../../../entities/sale';
 import type { CreateOrderRequestPayload } from '../../../model/order-request';
@@ -189,7 +192,7 @@ export const CreateOrderCard: React.FC<CreateOrderCardProps> = ({
   const [deviceName, setDeviceName] = useState('');
   const [deviceSerialNumber, setDeviceSerialNumber] = useState('');
   const [deviceColor, setDeviceColor] = useState('');
-  const [deviceKit, setDeviceKit] = useState('');
+  const [deviceKit, setDeviceKit] = useState<string[]>([]);
   const [repairType, setRepairType] = useState('Paid');
   const [issueFromClient, setIssueFromClient] = useState('');
   const [externalView, setExternalView] = useState('');
@@ -911,7 +914,7 @@ export const CreateOrderCard: React.FC<CreateOrderCardProps> = ({
   const applyDevice = (device: ClientDevice) => {
     setDeviceName(device.name);
     setDeviceSerialNumber(device.serialNumber);
-    setDeviceKit(extractDeviceKit(device.note));
+    setDeviceKit(splitSaleKitText(extractDeviceKit(device.note)));
     setSelectedDeviceSuggestionId(device.id);
     setDeviceSuggestions([]);
   };
@@ -1274,7 +1277,7 @@ export const CreateOrderCard: React.FC<CreateOrderCardProps> = ({
         clientPhone: selectedClient.phone,
         name,
         serialNumber: '',
-        note: deviceKit.trim(),
+        note: formatSaleKit(normalizeSaleKit(deviceKit)),
         source: 'repairOrder',
         isActive: newDeviceIsActive,
       });
@@ -1519,7 +1522,7 @@ export const CreateOrderCard: React.FC<CreateOrderCardProps> = ({
       deviceName,
       deviceSerialNumber,
       deviceColor,
-      deviceKit,
+      deviceKit: normalizeSaleKit(deviceKit),
       serviceName: '',
       repairType,
       issueFromClient,
