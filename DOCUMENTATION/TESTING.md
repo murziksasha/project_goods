@@ -32,6 +32,7 @@ cd frontend && npm run test:e2e:ui           # Playwright UI mode
 - Authenticated specs mock `/api/**` and inject `project-goods.auth-token` — no real Mongo login.
 - English UI via `project-goods.lang`.
 - Not on CI. `npm test` / `npm run verify` stay unit + lint + typecheck + build.
+- No Playwright browsers installed (e.g. sandbox box)? Use a local, uncommitted config that spreads `playwright.config.ts` and sets `use.launchOptions.executablePath` (e.g. `/usr/bin/google-chrome`) per project, then `npx playwright test -c <that config> e2e/<spec>`. For flaky-test checks add `--repeat-each 5`.
 
 Specs:
 
@@ -47,7 +48,7 @@ Specs:
 - `e2e/product-model-serial-client-order.spec.ts` — Purchase by serial: pinned header while the table scrolls, client-order open and copy, several bindings, issued serial hidden from stock and the active table, returned serial kept, and horizontal scroll below 720px. The loaded sales list is empty; numbers come from `POST /sales/stock-links`.
 - `e2e/create-order-history.spec.ts` — repair/sale creation history, independent inline expansion, client/tab reset, keyboard and touch controls, sold serial purchase details, draft preservation, missing serial records, permission-gated supplier queries, retry, long names/serials in the mobile dark theme, and a chevron centered on the request number.
 - `e2e/client-card-history.spec.ts` — client card Orders and Sales on desktop and mobile: expansion, attached details without overflow, a new tab per number while the modal stays, Device and per-item Sale clipboard values, and the read-only serial modal.
-- `e2e/orders-hover-copy.spec.ts` — Orders/Kanban copy controls, Sales current product/service name plus each S/N, and opened repair/sale card fields: independent hover targets, clipboard payloads, navigation, keyboard phone copy and `tel:` links, long-name containment, narrow viewport, and touch visibility.
+- `e2e/orders-hover-copy.spec.ts` — Orders/Kanban copy controls, Sales current product/service name plus each S/N, and opened repair/sale card fields: independent hover targets, clipboard payloads, navigation, keyboard phone copy and `tel:` links, long-name containment, narrow viewport, touch visibility, and icons hidden until hover. The "sales product and each serial" test used to time out ("element is not stable") on the second serial: revealing its icon widened the serial, wrapped it to the next line away from the pointer, and it flickered between lines. Fixed 2026-11-18 in the UI (the serial list reserves the icon slot, see [Hover copy icon](./UI_DESIGN_SYSTEM.md#hover-copy-icon)); the test also waits until the icon is fully revealed (`expectRevealedIcon`) before clicking, as a user would. No `force: true`.
 - `e2e/sales-current-items.spec.ts` — Regular/Rapid sale card edits update the Sales Product label, serial, raw-row count and menu without a page reload; empty sales remain clickable and removed snapshot items do not match item search.
 - `e2e/list-phone-search.spec.ts` — Orders, Sales, Clients, and Suppliers list search: Ukrainian and punctuated phones, additional numbers beside the primary, bare `+380`, serials, notes, manager names, the client filter, and the single-result count.
   - This spec mocks `/api/sales`; backend phone regex and server pagination behavior are verified by backend unit tests.
