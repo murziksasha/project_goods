@@ -302,7 +302,7 @@ Layout (builder blocks):
    (level 2, bold, right-aligned).
 2. `divider`.
 3. Paragraph `{{deviceName}}` (level 2, bold).
-4. Paragraph `{{kit}}` — one line with ellipsis; hidden when empty
+4. Paragraph `{{kitLabel}}` (items joined with ` / `, e.g. `ЗП / сумка`) — one line with ellipsis; hidden when empty
    (`.print-block-paragraph:empty`).
 5. Paragraph `{{clientName}}`.
 6. Paragraph `{{clientPhone}}`.
@@ -317,7 +317,16 @@ Variables added for any template:
 | `orderNumberShort` | `#124` for `r000124` (prefix and leading zeros dropped) | order number |
 | `acceptedDate` | `dd.MM.yyyy` | order `createdAt` in Europe/Kyiv |
 | `acceptedTime` | `HH:mm` (24 h) | order `createdAt` in Europe/Kyiv |
-| `kit` | comma-joined kit, e.g. `ЗП, сумка`; empty for sales | order `kit`, falling back to legacy `(kits: …)` in the system note |
+| `kit` | comma-joined kit, e.g. `ЗП, сумка`; empty for sales. Used by acts and other documents | order `kit` (items containing commas are split), falling back to legacy `(kits: …)` in the system note |
+| `kitLabel` | slash-joined kit for labels, e.g. `ЗП / сумка`; empty for sales | same source as `kit` |
+
+Saved copies and the kit separator: on load (`normalizePrintFormsForView` →
+`migrateNewBarcodeKitBlock`) the kit block of `new-barcode-with-bar` /
+`new-barcode-without-bar` (block id `<template id>-kit`) is switched from
+`{{kit}}` to `{{kitLabel}}` only when its text is exactly the old default
+`{{kit}}`. Edited text (e.g. `Комплект: {{kit}}`) and duplicated templates with
+other ids are not changed. The change is in memory and is written to the
+server with the next **Save** of print forms; printing uses it right away.
 
 Seeding: missing built-in templates are re-added on load. The two New Barcode
 templates are seeded as a group: if saved settings already contain one of them,

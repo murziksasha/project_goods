@@ -54,6 +54,7 @@ export const demoPrintValues: Record<string, string> = {
   deviceName: 'iPhone 13 Pro',
   serialNumber: 'SN-2026-001',
   kit: 'ЗП, чохол',
+  kitLabel: 'ЗП / чохол',
   article: 'IPH13P',
   defect: 'Не працює дисплей',
   comment: 'Заміна дисплея та діагностика',

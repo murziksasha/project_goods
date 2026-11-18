@@ -395,7 +395,8 @@
         "acceptedDate": "Accepted date (dd.MM.yyyy)",
         "acceptedTime": "Accepted time (HH:mm)",
         "orderNumberShort": "Order number short (#124)",
-        "kit": "Kit"
+        "kit": "Kit",
+        "kitLabel": "Kit for labels (a / b)"
       },
       "printMenuTypes": {
         "sale": "Sale",
@@ -1201,7 +1202,7 @@
       },
       "kit": "Kit",
       "kitEmpty": "No kit",
-      "editKit": "Edit kit"
+      "kitInputPlaceholder": "Add item"
     },
     "supplier": {
       "toolbar": {
@@ -1596,7 +1597,8 @@
       "boundSerials": "{{author}} bound serial numbers for \"{{name}}\".",
       "updatedMainInfo": "{{author}} updated order main information.",
       "updatedUserNote": "{{author}} updated note.",
-      "updatedKit": "{{author}} updated kit: {{from}} → {{to}}."
+      "addedKitItems": "{{author}} added to kit: {{items}}.",
+      "removedKitItems": "{{author}} removed from kit: {{items}}."
     },
     "fallbacks": {
       "recordNumber": "r------",

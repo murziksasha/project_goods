@@ -11,7 +11,7 @@ import {
   buildOrderPrintBody,
   buildOrderPrintHtml,
   buildSupplierOrderLinkNote,
-  buildUpdatedKitTimelineMessage,
+  buildKitChangeTimelineMessage,
   computeOrderExtraLinesMenuPosition,
   computeOrderStatusMenuPosition,
   EMPTY_LINE_ITEM_SERIAL,
@@ -151,14 +151,28 @@ describe('New Barcode label print data', () => {
     expect(getPrintTemplateData(sale, [], 0, 's000003', printCompanySettings).kit).toBe('');
   });
 
-  it('builds a readable order-history line for kit edits', async () => {
+  it('builds one order-history line per kit add / remove', async () => {
+    const initialLanguage = i18n.language;
     await i18n.changeLanguage('uk');
-    expect(buildUpdatedKitTimelineMessage('Олена', ['ЗП'], ['ЗП', 'сумка'])).toBe(
-      'Олена оновив комплект: ЗП → ЗП, сумка.',
+    expect(buildKitChangeTimelineMessage('Олена', { type: 'add', items: ['сумка'] })).toBe(
+      'Олена додав комплект: сумка.',
     );
-    expect(buildUpdatedKitTimelineMessage('Олена', [], ['ЗП'])).toBe(
-      'Олена оновив комплект: Без комплекту → ЗП.',
+    expect(buildKitChangeTimelineMessage('Олена', { type: 'remove', items: ['ЗП'] })).toBe(
+      'Олена видалив з комплекту: ЗП.',
     );
+    await i18n.changeLanguage('en');
+    expect(buildKitChangeTimelineMessage('Olena', { type: 'add', items: ['bag', 'cable'] })).toBe(
+      'Olena added to kit: bag, cable.',
+    );
+    await i18n.changeLanguage(initialLanguage);
+  });
+
+  it('provides a slash-joined kitLabel next to the comma-joined kit', () => {
+    const sale = repairSale({ kit: ['ЗП', 'сумка'] });
+    const data = getPrintTemplateData(sale, [], 0, 'r000124', printCompanySettings);
+    expect(data.kit).toBe('ЗП, сумка');
+    expect(data.kitLabel).toBe('ЗП / сумка');
+    expect(getPrintTemplateData(repairSale({ kind: 'sale', kit: ['ЗП'] }), [], 0, 's1', printCompanySettings).kitLabel).toBe('');
   });
 });
 

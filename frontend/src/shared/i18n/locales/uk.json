@@ -395,7 +395,8 @@
         "acceptedDate": "Дата прийому (дд.ММ.рррр)",
         "acceptedTime": "Час прийому (ГГ:хх)",
         "orderNumberShort": "Короткий номер (#124)",
-        "kit": "Комплект"
+        "kit": "Комплект",
+        "kitLabel": "Комплект для етикеток (a / b)"
       },
       "printMenuTypes": {
         "sale": "Продаж",
@@ -1201,7 +1202,7 @@
       },
       "kit": "Комплект",
       "kitEmpty": "Без комплекту",
-      "editKit": "Редагувати комплект"
+      "kitInputPlaceholder": "Додати"
     },
     "supplier": {
       "toolbar": {
@@ -1596,7 +1597,8 @@
       "boundSerials": "{{author}} прив'язав серійні номери для \"{{name}}\".",
       "updatedMainInfo": "{{author}} оновив основну інформацію замовлення.",
       "updatedUserNote": "{{author}} оновив примітку.",
-      "updatedKit": "{{author}} оновив комплект: {{from}} → {{to}}."
+      "addedKitItems": "{{author}} додав комплект: {{items}}.",
+      "removedKitItems": "{{author}} видалив з комплекту: {{items}}."
     },
     "fallbacks": {
       "recordNumber": "r------",
