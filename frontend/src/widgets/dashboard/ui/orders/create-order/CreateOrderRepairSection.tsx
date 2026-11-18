@@ -2,12 +2,14 @@ import type React from 'react';
 import { useTranslation } from 'react-i18next';
 import type { ClientDevice } from '../../../../../entities/client-device';
 import { useDismissibleSuggestions } from '../../../../../shared/lib/useDismissibleSuggestions';
+import { StringListInput } from '../../../../../shared/ui/StringListInput';
+import { saleKitMaxItemLength, saleKitMaxItems } from '../../../../../entities/sale';
 
 export interface CreateOrderRepairSectionProps {
   deviceName: string;
   deviceSerialNumber: string;
   deviceColor: string;
-  deviceKit: string;
+  deviceKit: string[];
   repairType: string;
   issueFromClient: string;
   externalView: string;
@@ -20,7 +22,7 @@ export interface CreateOrderRepairSectionProps {
   onDeviceNameChange: (value: string) => void;
   onDeviceSerialNumberChange: (value: string) => void;
   onDeviceColorChange: (value: string) => void;
-  onDeviceKitChange: (value: string) => void;
+  onDeviceKitChange: (value: string[]) => void;
   onRepairTypeChange: (value: string) => void;
   onIssueFromClientChange: (value: string) => void;
   onExternalViewChange: (value: string) => void;
@@ -166,14 +168,17 @@ export const CreateOrderRepairSection: React.FC<CreateOrderRepairSectionProps> =
         </label>
       </div>
 
-      <label className="field">
-        <span>{t('orders.create.kit')}</span>
-        <input
-          value={deviceKit}
-          onChange={(event) => onDeviceKitChange(event.target.value)}
-          placeholder={t('orders.create.describeAccessories')}
-        />
-      </label>
+      <StringListInput
+        className="create-order-kit-field"
+        label={t('orders.create.kit')}
+        items={deviceKit}
+        onChange={onDeviceKitChange}
+        placeholder={t('orders.create.kitItemPlaceholder')}
+        addLabel={t('orders.create.addKitItem')}
+        getRemoveLabel={(item) => t('orders.create.removeKitItem', { item })}
+        maxItems={saleKitMaxItems}
+        maxItemLength={saleKitMaxItemLength}
+      />
 
       <label className="field">
         <span>{t('orders.filters.repairType')}</span>

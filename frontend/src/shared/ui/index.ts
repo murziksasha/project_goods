@@ -10,3 +10,4 @@ export { AccessDeniedPanel } from './AccessDeniedPanel';
 export { PageHeader, type PageHeaderProps } from './PageHeader';
 export { ThemeSwitcher } from './ThemeSwitcher';
 export { sidebarNavIcons } from './sidebarNavIcons';
+export { StringListInput, type StringListInputProps } from './StringListInput';

@@ -244,3 +244,22 @@ describe('createSale product identity', () => {
     });
   });
 });
+describe('createSale kit', () => {
+  it('stores the normalized kit of a repair order', async () => {
+    await createSale({
+      ...basePayload,
+      kind: 'repair',
+      deviceName: 'Ноутбук DNS',
+      kit: [' ЗП ', 'сумка', ''],
+    });
+
+    expect([...capturedSales[0].kit]).toEqual(['ЗП', 'сумка']);
+  });
+
+  it('rejects an invalid kit with 400 before saving', async () => {
+    await expect(
+      createSale({ ...basePayload, kind: 'repair', kit: 'ЗП, сумка' }),
+    ).rejects.toMatchObject({ statusCode: 400 });
+    expect(capturedSales).toHaveLength(0);
+  });
+});

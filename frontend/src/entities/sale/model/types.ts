@@ -28,6 +28,7 @@ export type SaleFormValues = {
   salePrice: string;
   note: string;
   userNote?: string;
+  kit?: string[];
   managerId?: string;
   masterId?: string;
   issuedById?: string;
@@ -57,6 +58,7 @@ export type SaleWorkspacePayload = {
   paymentHistory?: Sale['paymentHistory'];
   lineItems?: Sale['lineItems'];
   userNote?: string;
+  kit?: string[];
   expectedUpdatedAt?: string;
   kanbanRank?: number;
 };

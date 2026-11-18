@@ -46,6 +46,23 @@ Related: [ORDER_FLOW.md](./ORDER_FLOW.md) · [SALE_CARD.md](./SALE_CARD.md) · [
 - `S/N` is stored in order card snapshot/history and used as suggestion for repeat requests of the same client/device.
 - Empty `S/N` is a valid value and must not block `Save changes` (including status-only updates).
 
+### Kit (2026-11-18)
+
+- Repair cards show a **Kit** row under `S/N`: comma-joined items, or `No kit`
+  (uk: `Без комплекту`). Hover copy copies the comma-joined text.
+- Old orders without the `kit` field show the kit parsed from `(kits: …)` in the
+  system note (read-only fallback; no migration).
+- The pencil button opens a list editor (one input per item, `×` removes, `+`
+  or Enter adds a row; max 20 items × 80 characters). **Save** normalizes the
+  list (trim, drop empty and duplicate items) and sends `PATCH
+  /sales/:id/workspace` with `kit` plus a system timeline entry
+  `"{author} updated kit: {from} → {to}."` (uk: `оновив комплект`), which shows
+  in the Live feed (order history). **Cancel** discards the draft.
+- Editable only when the card is editable (`isOrderEditableStatus` and not
+  read-only). A failed save keeps the editor open with the draft.
+- Kit changes need the normal order-manage permission; kanban, away-status and
+  chat-only shortcuts reject patches that change `kit`.
+
 ## Status And Issued
 
 - Status in card is draft-only until `Save changes`.
@@ -156,7 +173,7 @@ Related: [ORDER_FLOW.md](./ORDER_FLOW.md) · [SALE_CARD.md](./SALE_CARD.md) · [
 ### System note (`note`)
 
 - Written automatically on repair order creation from `Create order` fields. Typical lines (non-empty only):
-  - `(kits: …)` — from `Kit`
+  - `(kits: …)` — legacy only: orders created before 2026-11-18 stored the kit here; new orders store it in the `kit` field ([Kit](#kit-2026-11-18))
   - free-text issue from client
   - external view (repair only)
   - `Service: …`

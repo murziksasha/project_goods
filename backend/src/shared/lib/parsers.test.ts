@@ -627,3 +627,30 @@ describe('normalizeSettingsPayload', () => {
     });
   });
 });
+
+describe('normalizeSettingsPayload print menu visibility', () => {
+  const form = (extra: Record<string, unknown>) => ({
+    id: 'new-barcode-with-bar',
+    title: 'New Barcode (with bar)',
+    type: 'barcode',
+    content: '<div class="print-label"></div>',
+    contentFormat: 'html',
+    pageSize: 'label',
+    ...extra,
+  });
+
+  it('keeps known document types once in canonical order', () => {
+    const result = normalizeSettingsPayload({
+      printForms: [form({ printMenuVisibility: ['warehouse', 'repair', 'bogus', 'repair', 5] })],
+    });
+    expect(result.printForms[0]).toMatchObject({ printMenuVisibility: ['repair', 'warehouse'] });
+  });
+
+  it('persists an empty list (hidden from menus) and omits the field when absent', () => {
+    const result = normalizeSettingsPayload({
+      printForms: [form({ printMenuVisibility: [] }), form({ id: 'legacy' })],
+    });
+    expect(result.printForms[0]).toMatchObject({ printMenuVisibility: [] });
+    expect(result.printForms[1]).not.toHaveProperty('printMenuVisibility');
+  });
+});

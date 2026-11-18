@@ -209,6 +209,8 @@ export type Sale = {
   isRapidSale?: boolean;
   note: string;
   userNote?: string;
+  /** Device kit (accessories) accepted with a repair order. */
+  kit?: string[];
   timeline: Array<{
     id: string;
     kind?: 'manual' | 'system';
@@ -302,6 +304,15 @@ export type PrintLayoutTableRow = {
   cells: Record<string, string>;
 };
 
+export type PrintLayoutTextSize = 'normal' | 'large' | 'xlarge' | 'hero';
+
+export type PrintLayoutColumnsLayout = 'equal' | 'wide-left';
+
+export type PrintLayoutBarcodeSize = 'compact' | 'standard' | 'large' | 'slim';
+
+/** Document types for the "Show in print menu" setting of a template. */
+export type PrintMenuDocumentType = 'sale' | 'repair' | 'warehouse';
+
 export type PrintLayoutBlock =
   | {
       id: string;
@@ -310,6 +321,7 @@ export type PrintLayoutBlock =
       level: 1 | 2 | 3;
       align?: PrintLayoutTextAlign;
       weight?: PrintLayoutTextWeight;
+      size?: PrintLayoutTextSize;
     }
   | {
       id: string;
@@ -318,6 +330,7 @@ export type PrintLayoutBlock =
       level: 1 | 2 | 3;
       align?: PrintLayoutTextAlign;
       weight?: PrintLayoutTextWeight;
+      size?: PrintLayoutTextSize;
     }
   | {
       id: string;
@@ -353,7 +366,7 @@ export type PrintLayoutBlock =
       label?: string;
       value?: string;
       showValue?: boolean;
-      size?: 'compact' | 'standard' | 'large';
+      size?: PrintLayoutBarcodeSize;
     }
   | {
       id: string;
@@ -373,6 +386,7 @@ export type PrintLayoutBlock =
   | {
       id: string;
       type: 'columns';
+      layout?: PrintLayoutColumnsLayout;
       columns: Array<{
         id: string;
         blocks: PrintLayoutBlock[];
@@ -403,5 +417,10 @@ export type PrintForm = {
   contentMargins?: PrintContentMargins;
   orientation: 'portrait' | 'landscape';
   isActive: boolean;
+  /**
+   * Document types whose print menu lists this template. `undefined` keeps the
+   * legacy behaviour (listed everywhere it was listed before); `[]` hides it.
+   */
+  printMenuVisibility?: PrintMenuDocumentType[];
   sortOrder: number;
 };
