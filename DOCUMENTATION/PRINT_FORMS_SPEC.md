@@ -39,6 +39,32 @@ gender/plurals and rounding; shared order-print tests compare the full generated
 data across both site languages. `e2e/invoice-print.spec.ts` checks both invoices,
 Receipt/Check/Warranty/Completion act, popup and builder preview in both languages.
 
+## Phone Print Format (2026-11-18)
+
+Every print form (sale, repair, warehouse, labels, invoices, acts, previews)
+prints Ukrainian phone numbers in local format **`050-556-70-90`**:
+
+- The country prefix `+380` / `380` (and the old long-distance `80`) is removed,
+  and the 10-digit local number is grouped 3-3-2-2 with hyphens.
+- Recognised input: 12 digits starting `380` (with or without `+`), 11 digits
+  starting `80`, 10 digits starting `0`; spaces, brackets, hyphens and dots are
+  ignored. Examples: `+380974122235` → `097-412-22-35`,
+  `+38 (050) 556-70-90` → `050-556-70-90`.
+- Anything else prints unchanged: foreign numbers (`+48…`, `+1…`), incomplete
+  numbers, text, extensions (`… ext 12`), `-`.
+- Several numbers in one value separated by `,` or `;` are formatted one by one.
+- Formatter: `formatPhoneForPrint` in `frontend/src/shared/lib/phoneFormatter.ts`.
+- Applied in two places, so custom data sources and saved templates are covered:
+  - `renderPrintTemplate` formats the phone variables `{{clientPhone}}`,
+    `{{service_center_phone}}`, `{{warehouse_phone}}` on substitution;
+  - order print data (`getPrintTemplateData`) formats `clientPhone`,
+    `service_center_phone` and the repair-label `labelContact` (client phone).
+    `labelContact` is not formatted globally because on warehouse stock labels
+    it holds the product article.
+- Builder preview sample data uses the same format (`067-111-22-33`).
+- Only print output changes. Stored phones, the order/client cards, search and
+  `tel:` links keep their existing format.
+
 ## Layout Builder (Block-Based Templates)
 
 Templates with `layoutVersion: 1` are edited in **Settings → Print forms** via the
@@ -454,7 +480,7 @@ to scan and read at the counter. It is used by **order print** flows
 - Repair order label:
   - `barcode` and `labelCode`: order number, for example `r0035760`.
   - `labelTitle`: accepted device name.
-  - `labelContact`: client phone.
+  - `labelContact`: client phone in print format `050-556-70-90` ([Phone Print Format](#phone-print-format-2026-11-18)).
 - Sale/product label:
   - If a product serial exists, `barcode` and `labelCode`: first product serial.
   - If no product serial exists, `barcode` and `labelCode`: order number.

@@ -14,6 +14,7 @@ import type {
 } from './types';
 import { translatePrintBlock, translatePrintSource, translatePrintText } from './print-language';
 import { renderPrintInlineMarkup } from './printInlineMarkup';
+import { formatPhoneForPrint } from '../../../shared/lib/phoneFormatter';
 
 export type LabelSizePreset = {
   id: string;
@@ -1464,6 +1465,17 @@ const unwrapEditorTokens = (html: string) =>
     '$1',
   );
 
+/**
+ * Phone variables printed in Ukrainian local format `050-556-70-90`
+ * (see formatPhoneForPrint). `labelContact` is not listed: on warehouse labels
+ * it holds the article, so order print data formats it at the source.
+ */
+export const printPhoneVariables: ReadonlySet<string> = new Set([
+  'clientPhone',
+  'service_center_phone',
+  'warehouse_phone',
+]);
+
 export const renderPrintTemplate = (
   template: string,
   values: PrintTemplateData,
@@ -1510,6 +1522,10 @@ export const renderPrintTemplate = (
           ? `<span class="print-order-number">${escapeHtml(values.orderNumber ?? '')}</span>`
           : escapeHtml(values.orderNumber ?? ''),
       );
+    }
+
+    if (printPhoneVariables.has(key)) {
+      return result.replaceAll(`{{${key}}}`, escapeHtml(formatPhoneForPrint(values[key] ?? '')));
     }
 
     return result.replaceAll(`{{${key}}}`, escapeHtml(values[key] ?? ''));

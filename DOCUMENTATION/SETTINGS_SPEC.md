@@ -79,6 +79,8 @@ The shared **Template variables** picker in Heading, Text, and Barcode editors d
 
 Each template has **Show in print menu** checkboxes (Sale / Repair / Warehouse (product)) stored server-side as `printMenuVisibility`; absent = legacy (shown everywhere), empty = hidden from menus but kept in the constructor. Built-in **New Barcode (with bar)** / **(without bar)** default to Repair only. Rules: [PRINT_FORMS_SPEC.md → Print menu visibility](./PRINT_FORMS_SPEC.md#print-menu-visibility-2026-11-18), [→ New Barcode label](./PRINT_FORMS_SPEC.md#new-barcode-label-2026-11-18).
 
+Phone variables print in Ukrainian local format `050-556-70-90` (country code removed, 3-3-2-2); foreign or unparsable numbers print as-is. Rules: [PRINT_FORMS_SPEC.md → Phone Print Format](./PRINT_FORMS_SPEC.md#phone-print-format-2026-11-18).
+
 Save writes template **content** to the API. Per-employee layout (margins, page/label size, orientation) is written to `project-goods.print-form-overrides.{employeeId}` only on **Save settings**.
 
 ## Backups
