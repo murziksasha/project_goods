@@ -5,6 +5,30 @@ import {
   toOptionalDate,
 } from './primitives';
 
+export const saleKitMaxItems = 20;
+export const saleKitMaxItemLength = 80;
+
+/**
+ * Normalize a repair-order kit: trim, collapse whitespace, drop empty items and
+ * case-insensitive duplicates. Non-arrays become `[]`. Limits are enforced by
+ * `assertSaleKitPayload` (validators.ts), not silently truncated here.
+ */
+export const normalizeSaleKit = (value: unknown): string[] => {
+  if (!Array.isArray(value)) return [];
+  const seen = new Set<string>();
+  const result: string[] = [];
+  for (const raw of value) {
+    if (typeof raw !== 'string') continue;
+    const item = raw.trim().replace(/\s+/g, ' ');
+    if (!item) continue;
+    const key = item.toLocaleLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    result.push(item);
+  }
+  return result;
+};
+
 export const normalizeSalePayload = (payload: SalePayload) => ({
   saleDate: toOptionalDate(payload.saleDate) ?? new Date(),
   clientId: toNonEmptyString(payload.clientId),
@@ -13,6 +37,7 @@ export const normalizeSalePayload = (payload: SalePayload) => ({
   salePrice: toNumber(payload.salePrice),
   note: toNonEmptyString(payload.note),
   userNote: toNonEmptyString(payload.userNote),
+  kit: normalizeSaleKit(payload.kit),
   managerId: toNonEmptyString(payload.managerId),
   masterId: toNonEmptyString(payload.masterId),
   issuedById: toNonEmptyString(payload.issuedById),

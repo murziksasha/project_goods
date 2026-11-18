@@ -62,7 +62,8 @@ Editable fields for both types:
 | Text | `text` | string | placeholder with `{{orderNumber}}` for paragraph | supports `{{variable}}` tokens |
 | Level | `level` | `1`, `2`, `3` | `1` for heading, `3` for paragraph | controls font **size** (H1/H2/H3 or paragraph size tier) |
 | Weight | `weight` | `light`, `normal`, `bold` | `normal` | controls font **weight**; see below |
-| Align | `align` | `left`, `center`, `right` | `left` | omitted in HTML when `left` |
+| Align | `align` | `left`, `center`, `right` | `left` | omitted in document HTML when `left`; label templates emit `print-align-left` because labels centre by default |
+| Size | `size` | `normal`, `large`, `xlarge`, `hero` | `normal` (property omitted) | optional larger font tiers, class `print-text-size-{size}`; label sizes 3 / 4.5 / 7.5 mm, document sizes 18 / 26 / 40 px. Added 2026-11-18 for the New Barcode label |
 
 #### Font weight (`weight`)
 
@@ -236,11 +237,95 @@ payloads.
 
 ### Other Block Types
 
-Non-text blocks (divider, spacer, line-item tables) keep their previous
+Non-text blocks (spacer, line-item tables) keep their previous
 behaviour. Text inside field grids, custom tables, signatures, table titles and
 the barcode caption supports inline formatting (see above). Nested paragraphs
-inside **Columns** preserve `level`, `align`, and `weight` when column text is
+inside **Columns** preserve `level`, `align`, `weight`, and `size` when column text is
 edited.
+
+Additions (2026-11-18, all optional and backward compatible):
+
+- **Columns** `layout`: `equal` (default, two equal columns) or `wide-left`
+  (left column takes the free space, right column fits its content). Class
+  `print-columns-wide-left`. On labels columns use a 1 mm gap.
+- **Barcode** `size`: `slim` next to `compact` / `standard` / `large`. On labels
+  it renders a centred CODE128 about 5 mm high and 75 % of the content width,
+  pushed to the bottom of the label (`preserveAspectRatio="none"`).
+- **Divider** on labels: solid black 0.5 mm full-width line (documents keep the
+  thin grey rule).
+
+## New Barcode label (2026-11-18)
+
+Plan and decisions: [NEW_BARCODE_LABEL_PLAN.md](./NEW_BARCODE_LABEL_PLAN.md).
+
+Two built-in label templates for repair intake, without any QR code:
+
+| id | Title | Difference |
+|---|---|---|
+| `new-barcode-with-bar` | New Barcode (with bar) | adds a `slim` barcode at the bottom encoding `{{barcode}}` (full order number, e.g. `r000124`) |
+| `new-barcode-without-bar` | New Barcode (without bar) | no barcode |
+
+Page setup (copied from the working `Barcode` setup): `label`, preset `40x25`,
+`landscape`, content margins top 0.45 / right 1.5 / bottom 0.45 / left 5 mm.
+`printMenuVisibility: ['repair']`.
+
+Layout (builder blocks):
+
+1. `columns` `wide-left`: left paragraph `{{orderNumberShort}}` (size `hero`,
+   bold); right paragraph `{{acceptedDate}}` + new line + `{{acceptedTime}}`
+   (level 2, bold, right-aligned).
+2. `divider`.
+3. Paragraph `{{deviceName}}` (level 2, bold).
+4. Paragraph `{{kit}}` — one line with ellipsis; hidden when empty
+   (`.print-block-paragraph:empty`).
+5. Paragraph `{{clientName}}`.
+6. Paragraph `{{clientPhone}}`.
+7. With-bar only: `barcode` `slim`.
+
+The old `Barcode` and `Product barcode` templates are unchanged.
+
+Variables added for any template:
+
+| Variable | Value | Source |
+|---|---|---|
+| `orderNumberShort` | `#124` for `r000124` (prefix and leading zeros dropped) | order number |
+| `acceptedDate` | `dd.MM.yyyy` | order `createdAt` in Europe/Kyiv |
+| `acceptedTime` | `HH:mm` (24 h) | order `createdAt` in Europe/Kyiv |
+| `kit` | comma-joined kit, e.g. `ЗП, сумка`; empty for sales | order `kit`, falling back to legacy `(kits: …)` in the system note |
+
+Seeding: missing built-in templates are re-added on load. The two New Barcode
+templates are seeded as a group: if saved settings already contain one of them,
+a missing sibling counts as deleted by the user and is not re-added. If both are
+deleted, both come back on the next load.
+
+Long order numbers: on 40x25 the `hero` size fits about four characters next
+to the date. For 5+ digit numbers choose `xlarge` in the builder.
+
+## Print menu visibility (2026-11-18)
+
+Each template has **Show in print menu** checkboxes in the constructor:
+**Sale**, **Repair**, **Warehouse (product)** (uk: Продаж / Ремонт / Склад (товар)).
+Stored as `printForms[].printMenuVisibility: Array<'sale' | 'repair' | 'warehouse'>`.
+
+| Stored value | Behaviour |
+|---|---|
+| absent | legacy: listed everywhere it was listed before (all checkboxes shown checked) |
+| `['repair']` etc. | listed only in the print menus of those document types |
+| `[]` | hidden from every print menu; still listed and editable in the constructor |
+
+- The first checkbox change turns the legacy state into an explicit list.
+- `isActive = false` still hides the template regardless of visibility.
+- Order print dialog (`OrderPrintDialog`): repair orders show templates visible
+  for `repair`, sales those visible for `sale` (`getPrintMenuForms`).
+- Warehouse stock labels print one template (`getWarehouseBarcodePrintForm`):
+  `Product barcode` while it is active and visible for `warehouse`; otherwise
+  the first active label template explicitly marked `warehouse`; otherwise the
+  built-in `Product barcode` default.
+- New templates created from defaults with an explicit value (New Barcode)
+  default to `['repair']`. Templates created with **Add** have no value
+  (legacy behaviour) until the checkboxes are changed.
+- Backend keeps known values once in canonical order and drops unknown ones;
+  the field is omitted when the payload has no array.
 
 ## Product Barcode (Warehouse Stock Label)
 

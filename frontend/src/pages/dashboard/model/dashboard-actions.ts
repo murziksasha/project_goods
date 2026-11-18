@@ -50,6 +50,7 @@ import type {
 import {
   getSaleProductName,
   mapCachedSalesClientSnapshot,
+  normalizeSaleKit,
 } from '../../../entities/sale';
 import {
   getCreateOrderSaleTitle,
@@ -2056,9 +2057,11 @@ export const createDashboardActions = ({
           managerName ??
           i18n.t('common.system');
 
-        const kitsNote = payload.deviceKit.trim();
+        const kit =
+          payload.sourceTab === 'repair'
+            ? normalizeSaleKit(payload.deviceKit)
+            : [];
         const noteParts = [
-          kitsNote ? `(kits: ${kitsNote})` : '',
           payload.issueFromClient.trim(),
           payload.sourceTab === 'repair'
             ? payload.externalView.trim()
@@ -2128,6 +2131,7 @@ export const createDashboardActions = ({
               ? noteParts.join('\n')
               : '',
           userNote: '',
+          kit,
           managerId: payload.managerId,
           masterId:
             payload.sourceTab === 'repair' ? payload.masterId : '',

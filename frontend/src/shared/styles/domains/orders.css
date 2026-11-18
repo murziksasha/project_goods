@@ -3984,3 +3984,21 @@ button.orders-kanban-count:focus-visible {
   cursor: not-allowed;
   opacity: 0.65;
 }
+
+/* Order card: kit row (view + inline list editor). */
+.order-detail-kit-value {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.order-detail-kit-edit {
+  display: grid;
+  gap: 8px;
+  width: 100%;
+}
+
+.order-detail-kit-edit-button {
+  flex: 0 0 auto;
+}

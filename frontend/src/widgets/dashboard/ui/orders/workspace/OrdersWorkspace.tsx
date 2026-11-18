@@ -14,7 +14,12 @@ import {
   hasEmployeePermission,
 } from '../../../../../entities/employee';
 import type { Sale } from '../../../../../entities/sale';
-import { isRepairOrder } from '../../../../../entities/sale';
+import {
+  areSaleKitsEqual,
+  getSaleKit,
+  isRepairOrder,
+  normalizeSaleKit,
+} from '../../../../../entities/sale';
 import {
   getSaleListItemSerialNumbers,
   getSaleListLineItems,
@@ -123,6 +128,7 @@ import {
   buildRemovedProductTimelineMessage,
   buildRemovedServiceTimelineMessage,
   buildUpdatedMainInfoTimelineMessage,
+  buildUpdatedKitTimelineMessage,
   buildUpdatedUserNoteTimelineMessage,
   getStatusLabel,
   getWarehouseLabel,
@@ -1528,6 +1534,7 @@ export const OrdersWorkspace: React.FC<OrdersWorkspaceProps> = ({
         paymentHistory: payload.paymentHistory,
         lineItems: payload.lineItems,
         userNote: payload.userNote,
+        kit: payload.kit,
         expectedUpdatedAt: sale.updatedAt,
         kanbanRank: payload.kanbanRank,
       });
@@ -3211,6 +3218,31 @@ export const OrdersWorkspace: React.FC<OrdersWorkspaceProps> = ({
     }
   };
 
+  const saveOrderKit = async (sale: Sale, kit: string[]) => {
+    const previousKit = getSaleKit(sale);
+    const nextKit = normalizeSaleKit(kit);
+    if (areSaleKitsEqual(previousKit, nextKit)) {
+      return;
+    }
+    try {
+      const timeline = [
+        appendTimelineEntry(
+          buildUpdatedKitTimelineMessage(currentEmployeeName, previousKit, nextKit),
+        ),
+        ...sale.timeline,
+      ];
+      await persistSaleWorkspace(sale, { kit: nextKit, timeline });
+      onSuccess(t('orders.messages.success.kitUpdated'));
+    } catch (error) {
+      const message =
+        error instanceof Error && error.message
+          ? error.message
+          : t('orders.messages.errors.failedSaveKit');
+      onError(message);
+      throw error instanceof Error ? error : new Error(message);
+    }
+  };
+
   const saveOrderUserNote = async (sale: Sale, userNote: string) => {
     try {
       const normalizedUserNote = userNote.trim();
@@ -3358,6 +3390,7 @@ export const OrdersWorkspace: React.FC<OrdersWorkspaceProps> = ({
             onSaveUserNote={(userNote) =>
               saveOrderUserNote(selectedSale, userNote)
             }
+            onSaveKit={(kit) => saveOrderKit(selectedSale, kit)}
           />
         </div>
       ) : null}

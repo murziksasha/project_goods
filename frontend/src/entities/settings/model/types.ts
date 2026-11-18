@@ -8,6 +8,10 @@ import type {
   PrintLayoutTableRow,
   PrintLayoutTextAlign,
   PrintLayoutTextWeight,
+  PrintLayoutTextSize,
+  PrintLayoutColumnsLayout,
+  PrintLayoutBarcodeSize,
+  PrintMenuDocumentType,
   RateProvider,
   WeatherProvider,
 } from '../../../shared/types/domain';
@@ -22,6 +26,10 @@ export type {
   PrintLayoutTableRow,
   PrintLayoutTextAlign,
   PrintLayoutTextWeight,
+  PrintLayoutTextSize,
+  PrintLayoutColumnsLayout,
+  PrintLayoutBarcodeSize,
+  PrintMenuDocumentType,
   RateProvider,
   WeatherProvider,
 };

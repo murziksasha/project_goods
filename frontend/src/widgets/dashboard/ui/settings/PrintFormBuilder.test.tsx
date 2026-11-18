@@ -10,6 +10,7 @@ import {
   type PrintLayoutBlock,
 } from '../../../../entities/settings';
 import { PrintFormBuilder } from './PrintFormBuilder';
+import i18n from '../../../../shared/i18n/config';
 
 const buildTestForm = (blocks: PrintLayoutBlock[]): PrintForm => {
   const base = createLayoutPrintForm({
@@ -172,3 +173,52 @@ describe('PrintFormBuilder VariablePicker collapse', () => {
     ).toBeInTheDocument();
   });
 });
+
+describe('PrintFormBuilder print menu visibility', () => {
+  it('turns the legacy state into an explicit list and allows hiding the template', () => {
+    let latest: PrintForm | null = null;
+    render(
+      <BuilderHarness
+        initialBlocks={[createPrintLayoutBlockForTest()]}
+        onFormChange={(form) => {
+          latest = form;
+        }}
+      />,
+    );
+
+    const sale = screen.getByRole('checkbox', { name: i18n.t('settings.printBuilder.printMenuTypes.sale') });
+    const repair = screen.getByRole('checkbox', { name: i18n.t('settings.printBuilder.printMenuTypes.repair') });
+    const warehouse = screen.getByRole('checkbox', { name: i18n.t('settings.printBuilder.printMenuTypes.warehouse') });
+    expect([sale, repair, warehouse].every((box) => (box as HTMLInputElement).checked)).toBe(true);
+    expect(screen.getByText(i18n.t('settings.printBuilder.printMenuVisibilityLegacy'))).toBeInTheDocument();
+
+    fireEvent.click(sale);
+    expect(latest!.printMenuVisibility).toEqual(['repair', 'warehouse']);
+    fireEvent.click(repair);
+    fireEvent.click(warehouse);
+    expect(latest!.printMenuVisibility).toEqual([]);
+    expect(screen.getByText(i18n.t('settings.printBuilder.printMenuVisibilityHidden'))).toBeInTheDocument();
+  });
+
+  it('edits text size and columns layout of builder blocks', () => {
+    let latest: PrintForm | null = null;
+    render(
+      <BuilderHarness
+        initialBlocks={[{ id: 'p-1', type: 'paragraph', level: 3, text: '{{orderNumberShort}}' }]}
+        onFormChange={(form) => {
+          latest = form;
+        }}
+      />,
+    );
+
+    fireEvent.change(screen.getByLabelText(i18n.t('settings.printBuilder.textSize')), {
+      target: { value: 'hero' },
+    });
+    expect(latest!.layoutBlocks?.[0]).toMatchObject({ size: 'hero' });
+    expect(latest!.content).toContain('print-text-size-hero');
+  });
+});
+
+function createPrintLayoutBlockForTest(): PrintLayoutBlock {
+  return { id: 'p-vis', type: 'paragraph', level: 3, text: 'x' };
+}

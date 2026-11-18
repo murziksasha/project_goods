@@ -1,5 +1,6 @@
 import type { SalePayload } from '../shared/types';
 import { normalizeSalePayload } from '../../shared/lib/parsers';
+import { normalizeSaleKit } from '../../shared/lib/parse/sale';
 
 export const getSaleFavoritePermission = (kind: unknown) =>
   kind === 'sale' ? 'sales.manage' : 'orders.manage';
@@ -22,6 +23,7 @@ type WorkspaceComparableSale = {
   lineItems?: unknown[];
   timeline?: unknown[];
   userNote?: string | null;
+  kit?: string[] | null;
 };
 
 const asComparableId = (value: unknown) => {
@@ -82,6 +84,7 @@ const toComparableWorkspaceState = (
     paymentHistory: currentNormalized.paymentHistory,
     lineItems: currentNormalized.lineItems,
     timeline: sale.timeline ?? [],
+    kit: normalizeSaleKit(sale.kit ?? []),
   };
 
   return {
@@ -126,9 +129,14 @@ const toComparableWorkspaceState = (
           ? current.lineItems
           : payload.lineItems,
       timeline: payload.timeline,
+      kit:
+        payloadInput.kit === undefined ? current.kit : payload.kit,
     },
   };
 };
+
+const isSameKit = (left: string[], right: string[]) =>
+  JSON.stringify(left) === JSON.stringify(right);
 
 /** True when PATCH workspace only appends live-feed timeline (orders.chat). */
 export const isManualCommentWorkspacePatch = (
@@ -153,6 +161,7 @@ export const isManualCommentWorkspacePatch = (
     current.issuedById === next.issuedById &&
     current.deviceName === next.deviceName &&
     current.serialNumber === next.serialNumber &&
+    isSameKit(current.kit, next.kit) &&
     JSON.stringify(current.discount) ===
       JSON.stringify(next.discount) &&
     JSON.stringify(current.paymentHistory) ===
@@ -194,6 +203,7 @@ export const isAwayStatusWorkspacePatch = (
     current.paidAmount === next.paidAmount &&
     current.deviceName === next.deviceName &&
     current.serialNumber === next.serialNumber &&
+    isSameKit(current.kit, next.kit) &&
     JSON.stringify(current.discount) ===
       JSON.stringify(next.discount) &&
     JSON.stringify(current.paymentHistory) ===
@@ -244,6 +254,7 @@ export const isKanbanBoardWorkspacePatch = (
     current.paidAmount === next.paidAmount &&
     current.deviceName === next.deviceName &&
     current.serialNumber === next.serialNumber &&
+    isSameKit(current.kit, next.kit) &&
     JSON.stringify(current.discount) ===
       JSON.stringify(next.discount) &&
     JSON.stringify(current.paymentHistory) ===

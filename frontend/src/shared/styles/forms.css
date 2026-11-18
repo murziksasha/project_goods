@@ -303,3 +303,31 @@
   gap: 8px 16px;
   margin-bottom: 16px;
 }
+
+/* Editable list of short items (order kit): one input per row, × remove, + add. */
+.string-list-input-rows {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.string-list-input-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.string-list-input-row input {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.string-list-input-remove,
+.string-list-input-add {
+  flex: 0 0 auto;
+  min-width: 32px;
+  line-height: 1;
+}

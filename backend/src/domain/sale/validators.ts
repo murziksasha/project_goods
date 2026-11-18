@@ -4,6 +4,39 @@ import { HttpError } from '../../shared/lib/errors';
 import { isValidObjectIdOrThrow } from '../../shared/lib/query';
 import { Sale, type SaleDocument } from './model';
 import type { SaleLineItem } from './stock';
+import {
+  normalizeSaleKit,
+  saleKitMaxItemLength,
+  saleKitMaxItems,
+} from '../../shared/lib/parse/sale';
+
+/**
+ * Validate the raw `kit` payload before normalization: must be an array of
+ * strings, at most `saleKitMaxItems` items of `saleKitMaxItemLength` chars.
+ * `undefined` means "not provided" and is accepted.
+ */
+export const assertSaleKitPayload = (kit: unknown) => {
+  if (kit === undefined) return;
+  if (!Array.isArray(kit)) {
+    throw new HttpError(400, 'Kit must be a list of items.');
+  }
+  if (kit.some((item) => typeof item !== 'string')) {
+    throw new HttpError(400, 'Kit items must be text.');
+  }
+  const items = normalizeSaleKit(kit);
+  if (items.length > saleKitMaxItems) {
+    throw new HttpError(
+      400,
+      `Kit must contain no more than ${saleKitMaxItems} items.`,
+    );
+  }
+  if (items.some((item) => item.length > saleKitMaxItemLength)) {
+    throw new HttpError(
+      400,
+      `Kit item must contain no more than ${saleKitMaxItemLength} characters.`,
+    );
+  }
+};
 
 export const normalizeBoundSerialNumber = (value: unknown) =>
   String(value ?? '').trim().toUpperCase();
