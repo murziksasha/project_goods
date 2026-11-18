@@ -6,6 +6,7 @@ import {
   getSaleById,
   listOccupiedSerialNumbers,
   listSales,
+  listStockOrderLinks,
   refundSalePayment,
   returnSale,
   returnSaleLineItem,
@@ -58,6 +59,11 @@ export const list = async (req: Request, res: Response): Promise<void> => {
 export const listOccupiedSerials = async (req: Request, res: Response): Promise<void> => {
   await requireAnyPermission(req, saleReadPermissions);
   res.json(await listOccupiedSerialNumbers(req.query as Record<string, unknown>));
+};
+
+export const listStockLinks = async (req: Request, res: Response): Promise<void> => {
+  await requireAnyPermission(req, saleReadPermissions);
+  res.json(await listStockOrderLinks(req.body));
 };
 
 export const getById = async (req: Request, res: Response): Promise<void> => {

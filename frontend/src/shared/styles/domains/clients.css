@@ -385,14 +385,108 @@
   max-width: 100%;
 }
 
-.clients-history-row {
-  cursor: pointer;
+.clients-history-number {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.clients-card-table tr.clients-history-row-open > td,
+.clients-card-table tr.clients-history-details > td {
+  background: var(--bg-soft-primary);
+}
+
+.clients-card-table tr.clients-history-row-open > td {
+  border-bottom-color: transparent;
+}
+
+.clients-card-table tr.clients-history-details > td {
+  padding-top: 4px;
+  overflow: visible;
+  white-space: normal;
+}
+
+.clients-card-table tr.clients-history-details[hidden] {
+  display: none;
 }
 
 .clients-history-items {
   display: grid;
   gap: 2px;
   min-width: 0;
+}
+
+.clients-history-sale-line {
+  display: inline;
+  white-space: normal;
+}
+
+.clients-history-sale-item {
+  display: inline;
+}
+
+.clients-history-sale-item > .copyable-value {
+  display: inline-flex;
+  vertical-align: baseline;
+  max-width: 100%;
+}
+
+.clients-history-serial-button {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.clients-history-serial-button:hover,
+.clients-history-serial-button:focus-visible {
+  color: var(--color-primary);
+  text-decoration: underline;
+}
+
+@media (max-width: 1024px) {
+  .orders-table-wrap:has(.clients-history-row) .clients-card-table tbody {
+    gap: 0;
+  }
+
+  .clients-card-table tr.clients-history-row,
+  .clients-card-table tr.clients-history-details {
+    margin-bottom: 10px;
+  }
+
+  .clients-card-table tr.clients-history-row-open {
+    margin-bottom: 0;
+    border-bottom-color: transparent;
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+  }
+
+  .clients-card-table tr.clients-history-details:not([hidden]) {
+    margin-top: 0;
+    border-top-color: transparent;
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
+  }
+
+  .clients-card-table tr.clients-history-details[hidden] {
+    display: none !important;
+    margin: 0;
+  }
+
+  .clients-card-table tr.clients-history-details > td {
+    display: block;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .clients-card-table tr.clients-history-details > td::before {
+    content: none;
+  }
 }
 
 .clients-history-item-serial {

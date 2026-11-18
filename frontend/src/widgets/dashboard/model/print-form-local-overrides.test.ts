@@ -12,14 +12,17 @@ import {
 const employeeA = 'employee-a';
 const employeeB = 'employee-b';
 
+const receiptBase = defaultPrintForms.find((form) => form.id === 'receipt')!;
+const barcodeBase = defaultPrintForms.find((form) => form.id === 'barcode')!;
+
 const baseForms: PrintForm[] = [
   {
-    ...defaultPrintForms[0],
+    ...receiptBase,
     pageSize: 'A4',
     orientation: 'portrait',
   },
   {
-    ...defaultPrintForms[5],
+    ...barcodeBase,
     pageSize: 'label',
     labelSize: { presetId: '40x25', widthMm: 40, heightMm: 25 },
     orientation: 'landscape',

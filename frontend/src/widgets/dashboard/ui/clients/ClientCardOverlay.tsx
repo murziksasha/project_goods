@@ -8,6 +8,7 @@ import type {
   ClientDevice,
   ClientDeviceFormValues,
 } from '../../../../entities/client-device';
+import type { Employee } from '../../../../entities/employee';
 import type { Sale } from '../../../../entities/sale';
 import { queryKeys } from '../../../../shared/api/queryClient';
 import { isValidUkrainianPhone } from '../../../../shared/lib/phoneFormatter';
@@ -45,12 +46,11 @@ const emptyMainTabForm = (): ClientMainForm => ({
 export interface ClientCardOverlayProps {
   clientId: string;
   client: Client | null;
+  currentEmployee: Employee | null;
   sales: Sale[];
   clientDevices: ClientDevice[];
   isSaving: boolean;
-  saleLinkMode: 'in-app' | 'new-tab';
   onClose: () => void;
-  onOpenSaleCard: (sale: Sale) => void;
   onOpenClientList: (clientId: string) => void;
   onUpdateClient: (
     clientId: string,
@@ -66,12 +66,11 @@ export interface ClientCardOverlayProps {
 export const ClientCardOverlay: React.FC<ClientCardOverlayProps> = ({
   clientId,
   client,
+  currentEmployee,
   sales,
   clientDevices,
   isSaving,
-  saleLinkMode,
   onClose,
-  onOpenSaleCard,
   onOpenClientList,
   onUpdateClient,
   onUpdateClientDevice,
@@ -129,8 +128,11 @@ export const ClientCardOverlay: React.FC<ClientCardOverlayProps> = ({
     isMainTabDirtyRef.current = false;
   }, [client, clientId]);
 
-  const historySales =
-    historyQuery.data?.client.id === clientId ? historyQuery.data.sales : [];
+  const historySales = useMemo(
+    () =>
+      historyQuery.data?.client.id === clientId ? historyQuery.data.sales : [],
+    [clientId, historyQuery.data],
+  );
   const ordersHistory = useMemo(
     () => historySales.filter((sale) => sale.kind === 'repair'),
     [historySales],
@@ -201,7 +203,6 @@ export const ClientCardOverlay: React.FC<ClientCardOverlayProps> = ({
       selectedClientId={clientId}
       showClientListButton
       usePortal
-      saleLinkMode={saleLinkMode}
       onClearPhoneError={() => setMainTabPhoneError(null)}
       onClose={onClose}
       onMainTabFormChange={(value) => {
@@ -209,13 +210,14 @@ export const ClientCardOverlay: React.FC<ClientCardOverlayProps> = ({
         setMainTabForm(value);
       }}
       onOpenClientList={() => onOpenClientList(clientId)}
-      onOpenSaleCard={onOpenSaleCard}
       onSaveMainTab={() => {
         void handleMainTabSave();
       }}
       onTabChange={setClientCardTab}
       onValidatePhone={validatePhone}
       clientDevices={clientDevices}
+      currentEmployee={currentEmployee}
+      sales={sales}
       onUpdateClientDevice={onUpdateClientDevice}
       onDeleteClientDevice={onDeleteClientDevice}
     />

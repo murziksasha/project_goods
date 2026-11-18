@@ -110,6 +110,8 @@ import { CreateOrderSaleSection } from './CreateOrderSaleSection';
 import { CreateOrderSaleServicesSection } from './CreateOrderSaleServicesSection';
 import { OrderDetailCatalogServiceEditorModal } from '../order-detail/OrderDetailCatalogServiceEditorModal';
 import { CreateOrderSidePanel } from './CreateOrderSidePanel';
+import { CreateOrderHistorySerialModal } from './CreateOrderHistorySerialModal';
+import type { CreateOrderHistorySerialContext } from './CreateOrderHistorySerialModal';
 import { RapidSaleModal } from './RapidSaleModal';
 
 const getPhoneIdentity = (value: string) =>
@@ -177,6 +179,8 @@ export const CreateOrderCard: React.FC<CreateOrderCardProps> = ({
   onOpenClientCard,
 }) => {
   const { t } = useTranslation();
+  const [historySerialContext, setHistorySerialContext] =
+    useState<CreateOrderHistorySerialContext | null>(null);
   const [activeTab, setActiveTab] = useState<
     CreateOrderRequestPayload['sourceTab']
   >(() => initialTab);
@@ -1989,6 +1993,7 @@ export const CreateOrderCard: React.FC<CreateOrderCardProps> = ({
           </div>
 
           <CreateOrderSidePanel
+            key={`${selectedClientId}:${activeClientRequestTab}`}
             hasSelectedClient={Boolean(selectedClientId)}
             registeredClientDevices={registeredClientDevices}
             unbindingDeviceId={unbindingDeviceId}
@@ -2000,9 +2005,22 @@ export const CreateOrderCard: React.FC<CreateOrderCardProps> = ({
               void handleUnbindDevice(device);
             }}
             onClientRequestTabChange={setActiveClientRequestTab}
+            onOpenSerial={(sale, item, serialNumber) => setHistorySerialContext({
+              name: item.name,
+              serialNumber,
+              saleId: sale.id,
+            })}
           />
         </div>
       </div>
+      {historySerialContext ? (
+        <CreateOrderHistorySerialModal
+          context={historySerialContext}
+          currentEmployee={currentEmployee}
+          sales={clientHistory?.sales ?? sales}
+          onClose={() => setHistorySerialContext(null)}
+        />
+      ) : null}
       {isCreateDeviceModalOpen ? (
         <CreateOrderDeviceModal
           name={newDeviceName}

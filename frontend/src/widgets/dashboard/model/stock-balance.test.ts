@@ -13,6 +13,7 @@ import {
   isProductNameLikeStockQuery,
   isSaleLineItemLinkedToStockProduct,
   matchesStockSearchQuery,
+  mergeSalesWithStockOrderLinks,
   type StockSearchMode,
   type StockSupplierOrderLink,
 } from './stock-balance';
@@ -541,5 +542,97 @@ describe('groupStockProductsByModel', () => {
     expect(groups).toHaveLength(2);
     expect(groups[0]?.products.map((item) => item.id)).toEqual(['p-1', 'p-2']);
     expect(groups[1]?.products.map((item) => item.id)).toEqual(['p-3']);
+  });
+});
+
+describe('mergeSalesWithStockOrderLinks', () => {
+  it('hides an issued unit whose sale is outside the loaded list and leaves quantity unchanged', () => {
+    const unit = product({
+      id: 'p-113',
+      serialNumber: 'S000113',
+      quantity: 1,
+    });
+    const sales = mergeSalesWithStockOrderLinks(
+      [],
+      [
+        {
+          productId: 'p-113',
+          serialNumber: 'S000113',
+          saleId: 'sale-old',
+          recordNumber: 'r000255',
+          kind: 'sale',
+          status: 'issued',
+        },
+      ],
+    );
+
+    expect(filter({ products: [unit], sales }).map((item) => item.id)).toEqual(
+      [],
+    );
+    expect(unit.quantity).toBe(1);
+  });
+
+  it('keeps a returned unit visible and exposes its order number', () => {
+    const unit = product({
+      id: 'p-113',
+      serialNumber: 'S000113',
+      quantity: 1,
+    });
+    const sales = mergeSalesWithStockOrderLinks(
+      [],
+      [
+        {
+          productId: 'p-113',
+          serialNumber: 'S000113',
+          saleId: 'sale-old',
+          recordNumber: 'r000255',
+          kind: 'sale',
+          status: 'returned',
+        },
+      ],
+    );
+
+    expect(filter({ products: [unit], sales }).map((item) => item.id)).toEqual([
+      'p-113',
+    ]);
+    expect(
+      buildSalesByProductId([unit], sales)['p-113']?.map(
+        (item) => item.recordNumber,
+      ),
+    ).toEqual(['r000255']);
+    expect(unit.quantity).toBe(1);
+  });
+
+  it('keeps a loaded sale and adds only sales missing from that list', () => {
+    const loaded = sale({
+      id: 'sale-known',
+      recordNumber: 'r000001',
+      status: 'new',
+    });
+    const merged = mergeSalesWithStockOrderLinks(
+      [loaded],
+      [
+        {
+          productId: 'p-1',
+          serialNumber: 'S-1',
+          saleId: 'sale-known',
+          recordNumber: 'r000001',
+          kind: 'sale',
+          status: 'new',
+        },
+        {
+          productId: 'p-1',
+          serialNumber: 'S-1',
+          saleId: 'sale-old',
+          recordNumber: 'r000255',
+          kind: 'sale',
+          status: 'issued',
+        },
+      ],
+    );
+
+    expect(merged).toHaveLength(2);
+    expect(merged[0]).toBe(loaded);
+    expect(merged[1]?.id).toBe('sale-old');
   });
 });

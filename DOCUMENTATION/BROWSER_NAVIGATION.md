@@ -89,7 +89,7 @@ Examples:
 | Open client card from Orders, Sales, an order/sale card, or Create-order blacklist | `pushState` with `{ clientCardOverlay: true }`. Sidebar stays on Orders. |
 | Close that overlay with Back, Esc, X, Cancel, or backdrop | `history.back()` when the current entry has the overlay flag. Otherwise `replaceState` strips `clientCard` (refresh / direct load). |
 | **Client list** from that overlay | `replaceState` to `page=clients` (no `clientCard`). Back returns to the previous order screen. |
-| Left-click an order/sale from that overlay (list or open card, not Create order) | `replaceState` to that `saleId` and drop `clientCard`. Back does not reopen the overlay. |
+| Plain left click on an order/sale number in the client card (Clients menu, orders overlay, or Create order) | No history write on the source page. Opens `getOrderLink` in a remembered browser tab. |
 | Accounting sub-tab change | `pushState` |
 | Warehouse stock → client order link (left click) | `pushState` |
 | Login / logout / invite cleanup | `replaceState` |
@@ -129,16 +129,16 @@ On **Back / Forward**, the URL is authoritative. `localStorage` must not overrid
   - Payment modal opens on the sales list via React state `pendingPaymentSale` (not encoded in the URL).
   - `saleId` stays unset until the operator opens the sale card manually from the list; Back/Forward does not replay the payment modal.
   - See [SALE_FLOW.md](./SALE_FLOW.md#rapid-sale-2026-06-24) for full UX rules.
-- Deep links from client card, warehouse stock table, and in-app cross-links use `getOrderLink()` / `navigateTo()`.
+- Deep links from the warehouse stock table and other in-app cross-links use `getOrderLink()` / `navigateTo()`. A client-card number uses `getOrderLink()` in a separate tab and does not call `navigateTo()`.
 - Create-order sidebar request numbers still open in a **new browser tab** (`target="_blank"`) by design; see [ORDER_FLOW.md](./ORDER_FLOW.md).
 
 ### Client card
 
-- `Clients & suppliers -> Client card -> Orders` / `Sales` numbers expose a valid `href` via `getOrderLink(saleId, kind)` (`ordersTab=orders` for repair, `ordersTab=sales` for sale). `getOrderLink` never includes `clientCard`.
-- **Clients menu.** Left click opens the order/sale card inside the SPA (`onOpenSaleCard` → `navigateTo()` push), closing the client modal. The Clients menu does not push the overlay history flag.
-- **Orders overlay** (`clientCard` on `page=orders`). Left click of a history row or number replaces the overlay entry with that order and closes the modal. From Create order (`createOrder` still set), the same left click opens the link in a new tab and leaves the overlay and the draft in place.
-- **Right-click** shows the native browser “Open link in new tab”. **Middle click / Ctrl+click** opens the deep-link URL in a new tab (`?page=orders&ordersTab=...&saleId=...`) and is not handled as an in-app or forced-new-tab click.
-- Number-cell clicks always `stopPropagation` so a modified click does not also fire the row handler in the current tab.
+- `Clients & suppliers -> Client card -> Orders` / `Sales` numbers, and the same numbers on the orders overlay (including Create order), expose a valid `href` via `getOrderLink(saleId, kind)` (`ordersTab=orders` for repair, `ordersTab=sales` for sale). `getOrderLink` never includes `clientCard`.
+- A plain left click calls `window.open(getOrderLink(...), '_blank')` and keeps the source page and the modal. The page keeps the returned window for that sale id until reload. The next plain left click calls `focus()` on that window and does not navigate it. A closed window is dropped, and the next plain left click opens a new tab. Each sale id has its own window. The map is in memory only, so reloading the source page forgets every tab even if those tabs are still open.
+- `window.open` is called without `noopener`, because that feature returns no handle. The new window's `opener` is then set to `null`.
+- **Right-click** shows the native browser “Open link in new tab”. **Middle click / Ctrl+click / Shift+click** follow the link with the browser and do not call `window.open` or change the remembered tab.
+- Number-cell clicks always `stopPropagation`. S/N still opens the product model. The copy icon and the expand arrow do not open a tab.
 - Hover copy icon on the number copies the visible `recordNumber` and does not navigate. Spec: [UI_DESIGN_SYSTEM.md — Hover copy icon](./UI_DESIGN_SYSTEM.md#hover-copy-icon).
 - Full overlay rules (Client list button, no page change, save patch): [CLIENTS_RULES.md](./CLIENTS_RULES.md#client-card-tabs).
 
@@ -151,6 +151,7 @@ On **Back / Forward**, the URL is authoritative. `localStorage` must not overrid
 
 - `Client order` links in `Stock balances` expose a valid `href` for new-tab opens.
 - Left click calls `onOpenSaleCard` → `navigateTo()` (SPA navigation, no full reload).
+- Product model `Purchase by serial` uses the same `href`. Left click calls `onOpenSaleCard` when the modal received it (Stock balances). Otherwise it pushes the same order URL and syncs the dashboard from `popstate`.
 - Hover copy icon on `Client order` / `Supplier order` copies the visible number and does not navigate. Spec: [UI_DESIGN_SYSTEM.md — Hover copy icon](./UI_DESIGN_SYSTEM.md#hover-copy-icon).
 
 ## Deployment / backend

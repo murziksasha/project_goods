@@ -8,6 +8,8 @@ import type {
 import type { Employee } from '../../../../entities/employee';
 import type { Sale } from '../../../../entities/sale';
 import type { ClientDevice } from '../../../../entities/client-device';
+import { getOrderLink } from '../../../../pages/dashboard/model/dashboard-navigation';
+import { clearClientOrderTabs } from './client-order-tab';
 import { ClientsWorkspace } from './ClientsWorkspace';
 import {
   mapClientDraftToPayload,
@@ -16,6 +18,50 @@ import {
 import { getClientPhones, getPrimaryClientPhone } from '../../../../entities/client';
 
 const savedFiltersStore: Array<Record<string, unknown>> = [];
+
+const { idleQuery } = vi.hoisted(() => ({
+  idleQuery: () => ({
+    data: [] as unknown[],
+    isError: false,
+    isLoading: false,
+    refetch: vi.fn(),
+  }),
+}));
+
+vi.mock('../../../../entities/product', async (importOriginal) => {
+  const actual = await importOriginal<
+    typeof import('../../../../entities/product')
+  >();
+  return { ...actual, useProductsQuery: () => idleQuery() };
+});
+
+vi.mock('../../../../entities/warehouse-settings', async (importOriginal) => {
+  const actual = await importOriginal<
+    typeof import('../../../../entities/warehouse-settings')
+  >();
+  return {
+    ...actual,
+    useWarehouseSettingsQuery: () => ({
+      ...idleQuery(),
+      data: { warehouses: [] },
+    }),
+  };
+});
+
+vi.mock('../../../../entities/supplier-order', async (importOriginal) => {
+  const actual = await importOriginal<
+    typeof import('../../../../entities/supplier-order')
+  >();
+  return { ...actual, useSupplierOrdersQuery: () => idleQuery() };
+});
+
+vi.mock('../../../../entities/sale', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../../entities/sale')>();
+  return {
+    ...actual,
+    getOccupiedSerialNumbers: vi.fn(async () => ({ occupied: [] as string[] })),
+  };
+});
 
 vi.mock('../../../../entities/saved-filter', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../../../entities/saved-filter')>();
@@ -47,10 +93,23 @@ vi.mock('../../../../entities/saved-filter', async (importOriginal) => {
 });
 
 afterEach(() => {
+  clearClientOrderTabs();
   cleanup();
   window.localStorage.clear();
   savedFiltersStore.length = 0;
 });
+
+const fakeOrderTab = () => {
+  const tab = {
+    closed: false,
+    opener: window,
+    focus: vi.fn(),
+  };
+  return tab as unknown as Window & {
+    closed: boolean;
+    focus: ReturnType<typeof vi.fn>;
+  };
+};
 
 const createClient = (overrides: Partial<Client>): Client => {
   const basePhone = overrides.phone ?? '+380501111111';
@@ -135,7 +194,6 @@ const createSale = (
 const renderWorkspace = ({
   clients = [],
   history = null,
-  onOpenSaleCard = vi.fn(),
   onSelectClient = vi.fn(),
   sales = [],
   selectedClientId = null,
@@ -144,7 +202,6 @@ const renderWorkspace = ({
 }: {
   clients?: Client[];
   history?: ClientHistory | null;
-  onOpenSaleCard?: (sale: Sale) => void;
   onSelectClient?: (clientId: string | null) => void;
   sales?: Sale[];
   selectedClientId?: string | null;
@@ -170,7 +227,6 @@ const renderWorkspace = ({
       onExportClients={vi.fn().mockResolvedValue(undefined)}
       onMergeClients={vi.fn().mockResolvedValue(true)}
       onUpdateClient={vi.fn().mockResolvedValue(true)}
-      onOpenSaleCard={onOpenSaleCard}
       clientDevices={clientDevices}
       onUpdateClientDevice={vi.fn().mockResolvedValue(true)}
       onDeleteClientDevice={onDeleteClientDevice}
@@ -424,7 +480,6 @@ describe('ClientsWorkspace', () => {
         onExportClients={vi.fn().mockResolvedValue(undefined)}
         onMergeClients={vi.fn().mockResolvedValue(true)}
         onUpdateClient={vi.fn().mockResolvedValue(true)}
-        onOpenSaleCard={vi.fn()}
         clientDevices={[]}
         onUpdateClientDevice={vi.fn().mockResolvedValue(true)}
         onDeleteClientDevice={vi.fn().mockResolvedValue(true)}
@@ -474,35 +529,103 @@ describe('ClientsWorkspace', () => {
     expect(screen.getByText('Invalid phone number format')).toBeInTheDocument();
   });
 
-  it('opens a sale from the client card history', () => {
+  it('opens Orders and Sales numbers in remembered tabs and keeps the client card', () => {
     const client = createClient({ id: 'client-ivan' });
-    const sale = createSale(client);
-    const onOpenSaleCard = vi.fn();
+    const repair = createSale(client, {
+      id: 'sale-repair-1',
+      recordNumber: 'r000770',
+      kind: 'repair',
+      product: {
+        id: 'device-1',
+        article: '',
+        name: 'Dell monitor',
+        serialNumber: 'SN-1',
+      },
+    });
+    const otherRepair = createSale(client, {
+      id: 'sale-repair-2',
+      recordNumber: 'r000771',
+      kind: 'repair',
+    });
+    const sale = createSale(client, {
+      id: 'sale-sale-1',
+      recordNumber: 's000533',
+      kind: 'sale',
+      lineItems: [
+        {
+          id: 'line-1',
+          kind: 'product',
+          name: 'Phone case',
+          price: 100,
+          quantity: 1,
+          warrantyPeriod: 0,
+          serialNumbers: ['S000533'],
+        },
+      ],
+    });
     const onSelectClient = vi.fn();
+    const repairTab = fakeOrderTab();
+    const openSpy = vi.spyOn(window, 'open').mockReturnValue(repairTab);
 
     renderWorkspace({
       clients: [client],
       history: {
         client,
-        sales: [sale],
+        sales: [repair, otherRepair, sale],
         stats: {
-          totalItemsSold: 1,
-          totalRevenue: 100,
-          totalSales: 1,
+          totalItemsSold: 2,
+          totalRevenue: 200,
+          totalSales: 3,
         },
       },
-      onOpenSaleCard,
       onSelectClient,
-      sales: [sale],
+      sales: [repair, otherRepair, sale],
       selectedClientId: client.id,
     });
 
     fireEvent.click(screen.getByText('Ivan Petrenko'));
-    fireEvent.click(screen.getByRole('tab', { name: 'Sales' }));
-    fireEvent.click(screen.getByRole('link', { name: 'r000001' }));
+    fireEvent.click(screen.getByRole('tab', { name: 'Orders' }));
+    const repairLink = screen.getByRole('link', { name: 'r000770' });
+    fireEvent.click(repairLink);
+    fireEvent.click(repairLink);
+    expect(openSpy).toHaveBeenCalledTimes(1);
+    expect(openSpy).toHaveBeenCalledWith(getOrderLink(repair.id, 'repair'), '_blank');
+    expect(repairTab.focus).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole('dialog', { name: 'Ivan Petrenko' })).toBeVisible();
+    expect(onSelectClient).not.toHaveBeenCalledWith(null);
 
-    expect(onOpenSaleCard).toHaveBeenCalledWith(sale);
-    expect(onSelectClient).toHaveBeenLastCalledWith(null);
+    repairTab.closed = true;
+    const reopened = fakeOrderTab();
+    openSpy.mockReturnValue(reopened);
+    fireEvent.click(repairLink);
+    expect(openSpy).toHaveBeenCalledTimes(2);
+
+    const otherTab = fakeOrderTab();
+    openSpy.mockReturnValue(otherTab);
+    fireEvent.click(screen.getByRole('link', { name: 'r000771' }));
+    expect(openSpy).toHaveBeenLastCalledWith(
+      getOrderLink(otherRepair.id, 'repair'),
+      '_blank',
+    );
+
+    fireEvent.click(repairLink, { ctrlKey: true });
+    fireEvent.click(screen.getByRole('button', { name: 'S/N: SN-1' }));
+    expect(openSpy).toHaveBeenCalledTimes(3);
+    expect(screen.getByRole('dialog', { name: 'Dell monitor' })).toBeVisible();
+
+    const saleTab = fakeOrderTab();
+    openSpy.mockReturnValue(saleTab);
+    fireEvent.click(screen.getByRole('tab', { name: 'Sales' }));
+    const saleLink = screen.getByRole('link', { name: 's000533' });
+    fireEvent.click(saleLink);
+    fireEvent.click(saleLink);
+    expect(openSpy).toHaveBeenCalledTimes(4);
+    expect(openSpy).toHaveBeenLastCalledWith(getOrderLink(sale.id, 'sale'), '_blank');
+    expect(saleTab.focus).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole('dialog', { name: 'Ivan Petrenko' })).toBeVisible();
+    fireEvent.click(screen.getByRole('button', { name: 'S/N: S000533' }));
+    expect(openSpy).toHaveBeenCalledTimes(4);
+    expect(screen.getByRole('dialog', { name: 'Phone case' })).toBeVisible();
   });
 
   it('shows client devices tab and unbinds a removable device', async () => {
