@@ -31,9 +31,9 @@ Related: [ORDER_CARD.md](./ORDER_CARD.md) · [SALE_FLOW.md](./SALE_FLOW.md) · [
 
 - Left-click navigation inside the dashboard (sidebar, orders tabs, open/close cards) uses client-side History API (`pushState`) and does **not** reload the page.
 - Browser **Back** / **Forward** restore the previous in-app view (page, tab, open card) from the URL query string.
-- Opening an order/sale card from the orders workspace, the Clients-menu client card, or the warehouse stock table updates `saleId` in the URL and pushes a history entry; closing the card clears `saleId` so Back can reopen the card.
+- Opening an order/sale card from the orders workspace or the warehouse stock table updates `saleId` in the URL and pushes a history entry; closing the card clears `saleId` so Back can reopen the card.
 - Opening a client from the Orders or Sales list, or from an order/sale card, pushes `clientCard` on the current orders URL and does not change `page`. Back closes only that modal. See [BROWSER_NAVIGATION.md](./BROWSER_NAVIGATION.md) · [CLIENTS_RULES.md](./CLIENTS_RULES.md).
-- Client card `Orders` / `Sales` numbers are real `getOrderLink()` hrefs. From the Clients menu, left click opens the card in-app and closes the modal. From the orders overlay, left click replaces the overlay history entry with that order. From Create order, left click opens a new tab and keeps the draft. Right-click / middle-click / Ctrl+click opens a new browser tab in every case. Spec: [BROWSER_NAVIGATION.md](./BROWSER_NAVIGATION.md) · [CLIENTS_RULES.md](./CLIENTS_RULES.md).
+- Client card `Orders` / `Sales` numbers are real `getOrderLink()` hrefs. A plain left click opens that card in a remembered browser tab and leaves the client modal open, in the Clients menu and on the orders overlay, including Create order. Right-click / middle-click / Ctrl+click stay native. Spec: [BROWSER_NAVIGATION.md](./BROWSER_NAVIGATION.md) · [CLIENTS_RULES.md](./CLIENTS_RULES.md).
 - Create-order `Client requests` links remain `target="_blank"` (new tab) — they are intentionally outside the in-app history stack.
 - URL helpers: `getOrderLink()` / `buildDashboardHref()` in `frontend/src/pages/dashboard/model/dashboard-navigation.ts`.
 - See [BROWSER_NAVIGATION.md](./BROWSER_NAVIGATION.md).

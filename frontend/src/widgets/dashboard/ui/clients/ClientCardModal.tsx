@@ -63,6 +63,7 @@ import { PhonesField } from '../../../../shared/ui/PhonesField';
 import { Modal } from '../../../../shared/ui/Modal';
 import { CompactPaginationPanel } from '../../../../shared/ui/PaginationPanel';
 import { getOrderLink } from '../../../../pages/dashboard/model/dashboard-navigation';
+import { openClientOrderTab } from './client-order-tab';
 import {
   RequestContentsToggle,
   RequestLineItemsContents,
@@ -94,7 +95,6 @@ export interface ClientCardModalProps {
   clientTotalRevenue?: number;
   onClose: () => void;
   onMainTabFormChange: Dispatch<SetStateAction<ClientMainForm>>;
-  onOpenSaleCard: (sale: Sale) => void;
   onOpenClientList?: () => void;
   onSaveMainTab: () => void;
   onTabChange: (tab: ClientCardTab) => void;
@@ -103,7 +103,6 @@ export interface ClientCardModalProps {
   showClientListButton?: boolean;
   /** Cover the sidebar. Used by the orders overlay only. */
   usePortal?: boolean;
-  saleLinkMode?: 'in-app' | 'new-tab';
   clientDevices: ClientDevice[];
   currentEmployee?: Employee | null;
   /** Dashboard sales list used for occupied-serial calculation. */
@@ -138,7 +137,6 @@ export const ClientCardModal: React.FC<ClientCardModalProps> = ({
   clientTotalRevenue,
   onClose,
   onMainTabFormChange,
-  onOpenSaleCard,
   onOpenClientList,
   onSaveMainTab,
   onTabChange,
@@ -146,7 +144,6 @@ export const ClientCardModal: React.FC<ClientCardModalProps> = ({
   onClearPhoneError,
   showClientListButton = false,
   usePortal = false,
-  saleLinkMode = 'in-app',
   clientDevices,
   currentEmployee = null,
   sales = [],
@@ -587,8 +584,6 @@ export const ClientCardModal: React.FC<ClientCardModalProps> = ({
                 });
               }}
               onOpenSerial={setHistorySerialContext}
-              onOpenSaleCard={onOpenSaleCard}
-              saleLinkMode={saleLinkMode}
             />
           )}
         </div>
@@ -1119,30 +1114,18 @@ const ClientHistoryItemCell = ({
   );
 };
 
-const openSaleInNewTab = (sale: Sale) => {
-  window.open(
-    getOrderLink(sale.id, sale.kind),
-    '_blank',
-    'noopener,noreferrer',
-  );
-};
-
 const ClientHistoryTable = ({
   rows,
   tab,
   expandedIds,
   onToggleExpanded,
   onOpenSerial,
-  onOpenSaleCard,
-  saleLinkMode,
 }: {
   rows: Sale[];
   tab: ClientCardTab;
   expandedIds: Set<string>;
   onToggleExpanded: (saleId: string) => void;
   onOpenSerial: (context: HistorySerialContext) => void;
-  onOpenSaleCard: (sale: Sale) => void;
-  saleLinkMode: 'in-app' | 'new-tab';
 }) => {
   const { t } = useTranslation();
   const contentsId = useId();
@@ -1187,11 +1170,7 @@ const ClientHistoryTable = ({
                             event.stopPropagation();
                             if (!isPlainLeftClick(event)) return;
                             event.preventDefault();
-                            if (saleLinkMode === 'new-tab') {
-                              openSaleInNewTab(sale);
-                              return;
-                            }
-                            onOpenSaleCard(sale);
+                            openClientOrderTab(sale.id, sale.kind);
                           }}
                         >
                           {recordNumber}

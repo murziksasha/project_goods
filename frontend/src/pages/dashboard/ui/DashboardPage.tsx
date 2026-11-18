@@ -1180,24 +1180,6 @@ export const DashboardPage: React.FC = () => {
     );
   }, [navigateTo]);
 
-  const openSaleReplacingClientCard = (sale: {
-    id: string;
-    kind: 'repair' | 'sale';
-  }) => {
-    navigateTo(
-      {
-        page: 'orders',
-        ordersTab: sale.kind === 'sale' ? 'sales' : 'orders',
-        createOrder: null,
-        saleId: sale.id,
-        clientCard: null,
-        accountingTab: null,
-      },
-      { replace: true },
-    );
-    setExternalSelectedSaleId(sale.id);
-  };
-
   const openClientListFromOrderCard = (clientId: string) => {
     const client = state.allClients.find((item) => item.id === clientId);
     if (client) {
@@ -1874,7 +1856,6 @@ export const DashboardPage: React.FC = () => {
                 onUpdateClient={actions.updateClientCard}
                 onCreateSupplier={actions.createSupplierCard}
                 onUpdateSupplier={actions.updateSupplierCard}
-                onOpenSaleCard={openSaleFromClientCard}
                 revealClientId={revealClientId}
                 onRevealClientHandled={() => setRevealClientId(null)}
                 clientDevices={state.clientDevices}
@@ -2048,9 +2029,7 @@ export const DashboardPage: React.FC = () => {
               sales={state.sales}
               clientDevices={state.clientDevices}
               isSaving={state.isClientSaving}
-              saleLinkMode={isCreateOrderOpen ? 'new-tab' : 'in-app'}
               onClose={closeOrderClientCard}
-              onOpenSaleCard={openSaleReplacingClientCard}
               onOpenClientList={openClientListFromOrderCard}
               onUpdateClient={actions.updateClientCard}
               onUpdateClientDevice={actions.updateClientDeviceCard}

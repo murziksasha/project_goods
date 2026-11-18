@@ -207,6 +207,18 @@ const supplierOrder = (
 
 const boot = async (page: Page) => {
   await installE2eApiMocks(page);
+  await page.context().route('**/api/**', async (route) => {
+    const path = new URL(route.request().url()).pathname.replace(/^\/api/, '');
+    if (path === '/auth/me' || path.endsWith('/auth/me')) {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(e2eEmployee),
+      });
+      return;
+    }
+    await route.fallback();
+  });
   await page.route('**/api/**', async (route) => {
     const request = route.request();
     const url = new URL(request.url());
@@ -266,7 +278,7 @@ const boot = async (page: Page) => {
       body: JSON.stringify(body),
     });
   });
-  await page.addInitScript((employee) => {
+  await page.context().addInitScript((employee) => {
     window.localStorage.setItem('project-goods.lang', 'en');
     window.localStorage.setItem('project-goods.auth-token', 'e2e-token');
     window.localStorage.setItem(
@@ -437,11 +449,14 @@ test('client card orders and sales keep details on the row and open only from th
   await expect(purchase.getByText('SO-77', { exact: true })).toBeVisible();
   await closeProductModel(page, 'Power board');
 
+  const repairPopupPromise = page.waitForEvent('popup');
   await repairRow.getByRole('link', { name: 'r000780', exact: true }).click();
-  await expect(page).toHaveURL(/saleId=sale-repair/);
-  await expect(page).not.toHaveURL(/clientCard/);
-  await page.locator('.order-detail-list .orders-client-link').click();
+  const repairPopup = await repairPopupPromise;
+  await expect.poll(() => repairPopup.url()).toMatch(/saleId=sale-repair/);
+  await expect.poll(() => repairPopup.url()).not.toMatch(/clientCard/);
+  await expect(page).toHaveURL(/clientCard=client-1/);
   await expect(card(page)).toBeVisible();
+  await repairPopup.close();
 
   await card(page).getByRole('tab', { name: 'Sales', exact: true }).click();
   await expect(toggle(page, 's000540')).toHaveAttribute('aria-expanded', 'false');
@@ -493,10 +508,13 @@ test('client card orders and sales keep details on the row and open only from th
   await card(page).getByRole('tab', { name: 'Orders', exact: true }).click();
   await expect(toggle(page, 'r000780')).toHaveAttribute('aria-expanded', 'false');
   await card(page).getByRole('tab', { name: 'Sales', exact: true }).click();
+  const salePopupPromise = page.waitForEvent('popup');
   await saleRow.getByRole('link', { name: 's000540', exact: true }).click();
-  await expect(page).toHaveURL(/saleId=sale-bundle/);
-  await expect(page).toHaveURL(/ordersTab=sales/);
-  await expect(page).not.toHaveURL(/clientCard/);
+  const salePopup = await salePopupPromise;
+  await expect.poll(() => salePopup.url()).toMatch(/saleId=sale-bundle/);
+  await expect.poll(() => salePopup.url()).toMatch(/ordersTab=sales/);
+  await expect(page).toHaveURL(/clientCard=client-1/);
+  await expect(card(page)).toBeVisible();
 });
 
 test('clients list opens the same order and sale details', async ({ page }) => {
@@ -567,8 +585,113 @@ test.describe('touch client card', () => {
     await copyValue(page, saleRow.locator('.clients-history-sale-item').nth(1), 'Cable');
     await saleRow.getByText('Cable x2', { exact: true }).tap();
     await expect(page).not.toHaveURL(/saleId=/);
+    const salePopupPromise = page.waitForEvent('popup');
     await saleRow.getByRole('link', { name: 's000540', exact: true }).tap();
-    await expect(page).toHaveURL(/saleId=sale-bundle/);
-    await expect(page).not.toHaveURL(/clientCard/);
+    const salePopup = await salePopupPromise;
+    await expect.poll(() => salePopup.url()).toMatch(/saleId=sale-bundle/);
+    await expect(page).toHaveURL(/clientCard=client-1/);
+    await expect(card(page)).toBeVisible();
   });
+});
+
+const numberLink = (page: Page, number: string) =>
+  historyRow(page, number).getByRole('link', { name: number, exact: true });
+
+const openNumberTab = async (page: Page, number: string) => {
+  const popupPromise = page.waitForEvent('popup');
+  await numberLink(page, number).click();
+  return popupPromise;
+};
+
+test('client card numbers keep the modal and reuse one tab per order', async ({
+  page,
+}) => {
+  test.setTimeout(60_000);
+  await boot(page);
+  await openFromOrders(page);
+  await openOrdersTab(page);
+
+  const repairPopup = await openNumberTab(page, 'r000780');
+  await expect.poll(() => repairPopup.url()).toMatch(/saleId=sale-repair/);
+  await expect.poll(() => repairPopup.url()).toMatch(/ordersTab=orders/);
+  await expect.poll(() => repairPopup.url()).not.toMatch(/clientCard/);
+  await expect(page).toHaveURL(/clientCard=client-1/);
+  await expect(card(page)).toBeVisible();
+
+  const pagesAfterRepair = page.context().pages().length;
+  await numberLink(page, 'r000780').click();
+  await expect.poll(() => repairPopup.evaluate(() => document.hasFocus())).toBe(true);
+  expect(page.context().pages()).toHaveLength(pagesAfterRepair);
+
+  const otherPopup = await openNumberTab(page, 'r000781');
+  await expect.poll(() => otherPopup.url()).toMatch(/saleId=sale-empty/);
+  const pagesWithBoth = page.context().pages().length;
+  expect(pagesWithBoth).toBeGreaterThan(pagesAfterRepair);
+
+  await numberLink(page, 'r000780').click();
+  await expect.poll(() => repairPopup.evaluate(() => document.hasFocus())).toBe(true);
+  expect(page.context().pages()).toHaveLength(pagesWithBoth);
+
+  await repairPopup.close();
+  const reopened = await openNumberTab(page, 'r000780');
+  await expect.poll(() => reopened.url()).toMatch(/saleId=sale-repair/);
+  expect(reopened).not.toBe(repairPopup);
+
+  const beforeModified = page.context().pages().length;
+  await numberLink(page, 'r000781').click({ modifiers: ['Control'] });
+  await expect.poll(() => page.context().pages().length).toBe(beforeModified + 1);
+  await expect(page).toHaveURL(/clientCard=client-1/);
+  await expect(card(page)).toBeVisible();
+
+  await numberLink(page, 'r000781').click({ button: 'middle' });
+  await expect.poll(() => page.context().pages().length).toBe(beforeModified + 2);
+  await expect(card(page)).toBeVisible();
+
+  await numberLink(page, 'r000781').click({ button: 'right' });
+  expect(page.context().pages()).toHaveLength(beforeModified + 2);
+  await expect(card(page)).toBeVisible();
+
+  const plainPages = page.context().pages().length;
+  await numberLink(page, 'r000781').click();
+  await expect.poll(() => otherPopup.evaluate(() => document.hasFocus())).toBe(true);
+  expect(page.context().pages()).toHaveLength(plainPages);
+
+  let serialOpened = false;
+  const onSerialPopup = () => {
+    serialOpened = true;
+  };
+  page.on('popup', onSerialPopup);
+  await historyRow(page, 'r000780')
+    .getByRole('button', { name: 'S/N: SN-1', exact: true })
+    .click();
+  await expect(
+    page.getByRole('dialog', { name: 'Dell monitor', exact: true }),
+  ).toBeVisible();
+  expect(serialOpened).toBe(false);
+  page.off('popup', onSerialPopup);
+  await closeProductModel(page, 'Dell monitor');
+
+  await card(page).getByRole('tab', { name: 'Sales', exact: true }).click();
+  const salePopup = await openNumberTab(page, 's000540');
+  await expect.poll(() => salePopup.url()).toMatch(/saleId=sale-bundle/);
+  await expect.poll(() => salePopup.url()).toMatch(/ordersTab=sales/);
+  await expect(card(page)).toBeVisible();
+  await salePopup.close();
+
+  await page.goto('/?page=clients');
+  await expect(page.locator('.dashboard-shell')).toBeVisible({ timeout: 20_000 });
+  await page
+    .locator('[data-client-id="client-1"]')
+    .getByText('Ada Client', { exact: true })
+    .click();
+  await expect(card(page)).toBeVisible();
+  await openOrdersTab(page);
+  const clientsPopup = await openNumberTab(page, 'r000780');
+  await expect.poll(() => clientsPopup.url()).toMatch(/saleId=sale-repair/);
+  await expect(page).toHaveURL(/page=clients/);
+  await expect(card(page)).toBeVisible();
+  const clientsPages = page.context().pages().length;
+  await numberLink(page, 'r000780').click();
+  await expect.poll(() => clientsPopup.evaluate(() => document.hasFocus())).toBe(true);
+  expect(page.context().pages()).toHaveLength(clientsPages);
 });
