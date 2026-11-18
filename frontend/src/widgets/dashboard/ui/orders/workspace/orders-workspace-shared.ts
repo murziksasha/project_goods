@@ -54,6 +54,7 @@ import {
   normalizeLabelSize,
   printDocumentStyles,
   printLabelDocumentStyles,
+  fitPrintLabelLayout,
   renderPrintTemplate as renderSettingsPrintTemplate,
   type PrintTemplateData,
 } from '../../../../../entities/settings';
@@ -1723,6 +1724,7 @@ export const renderOrderPrintCodes = async (
         node.replaceWith(node.ownerDocument.createTextNode(value));
       }
     });
+  fitPrintLabelLayout(root);
 };
 
 export const buildOrderPrintBody = (

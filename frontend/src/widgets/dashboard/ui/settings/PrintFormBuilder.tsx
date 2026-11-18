@@ -14,6 +14,7 @@ import type {
 import {
   createLayoutPrintForm,
   createPrintLayoutBlock,
+  fitPrintLabelLayout,
   customLabelSizePresetId,
   getOrientedLabelSize,
   getPrintFormTemplateData,
@@ -105,6 +106,7 @@ const renderCodes = (root: HTMLElement | Document) => {
       node.replaceWith(document.createTextNode(value));
     }
   });
+  fitPrintLabelLayout(root);
 };
 
 const getPreviewStyle = (form: PrintForm): CSSProperties => {

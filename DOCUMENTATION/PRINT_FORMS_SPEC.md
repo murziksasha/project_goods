@@ -298,8 +298,25 @@ templates are seeded as a group: if saved settings already contain one of them,
 a missing sibling counts as deleted by the user and is not re-added. If both are
 deleted, both come back on the next load.
 
-Long order numbers: on 40x25 the `hero` size fits about four characters next
-to the date. For 5+ digit numbers choose `xlarge` in the builder.
+### Order number always prints in full (2026-11-18 fix)
+
+Applies at render time to every label, so saved copies of the templates
+benefit without being recreated:
+
+- Label texts with size `large` / `xlarge` / `hero` get `print-fit-text`: no
+  ellipsis, `overflow: visible`, single line.
+- In the right column of label `wide-left` columns, any `dd.MM.yyyy` date is
+  split after the month: `18.11.` / `2026` / time. The right column shrinks to
+  that width (line-height 0.95 so three lines fit next to the hero number).
+- Auto-fit: after the HTML is rendered (print window, order print preview,
+  builder preview) the app measures each fitted text and shrinks its font
+  until it fits the column (minimum 6 px). Short numbers (`#124`) keep the full
+  7.5 mm size. The print window stays script-free: the code runs from the app
+  window on the print window DOM (`fitPrintLabelLayout`, called from
+  `renderOrderPrintCodes` and the builder preview).
+- Fallback when the DOM is not laid out (tests, hidden preview): hero texts get
+  a static step by length — 5 chars 6.2 mm, 6 chars 5.2 mm, 7 chars 4.5 mm,
+  8+ chars 3.9 mm (`print-fit-chars-N`).
 
 ## Print menu visibility (2026-11-18)
 

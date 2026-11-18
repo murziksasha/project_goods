@@ -1636,6 +1636,12 @@ export const printLabelDocumentStyles = `
   .print-label .print-block-heading.print-text-size-large, .print-label .print-block-paragraph.print-text-size-large { font-size: 3mm; line-height: 1.05; }
   .print-label .print-block-heading.print-text-size-xlarge, .print-label .print-block-paragraph.print-text-size-xlarge { font-size: 4.5mm; line-height: 1; }
   .print-label .print-block-heading.print-text-size-hero, .print-label .print-block-paragraph.print-text-size-hero { font-size: 7.5mm; line-height: 1; letter-spacing: -0.02em; }
+  .print-label .print-block-heading.print-fit-text, .print-label .print-block-paragraph.print-fit-text { white-space: nowrap; overflow: visible; text-overflow: clip; }
+  .print-label .print-text-size-hero.print-fit-chars-5 { font-size: 6.2mm; }
+  .print-label .print-text-size-hero.print-fit-chars-6 { font-size: 5.2mm; }
+  .print-label .print-text-size-hero.print-fit-chars-7 { font-size: 4.5mm; }
+  .print-label .print-text-size-hero.print-fit-chars-8 { font-size: 3.9mm; }
+  .print-label .print-columns-wide-left > div:last-child .print-block-paragraph { line-height: 0.95; }
   .print-label .print-code-row-slim { margin-top: auto; }
   .print-label .print-code-row-slim .print-barcode { display: block; width: 75%; max-width: 75%; height: 5mm; margin: 0 auto; }
   @media print {
