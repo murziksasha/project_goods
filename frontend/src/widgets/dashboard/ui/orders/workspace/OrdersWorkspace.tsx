@@ -2002,8 +2002,11 @@ export const OrdersWorkspace: React.FC<OrdersWorkspaceProps> = ({
                           className='orders-table-cell-truncate'
                         />
                       </button>
+                      {index < saleSerialNumbers.length - 1 ? (
+                        <span className='order-sale-serial-separator'>,</span>
+                      ) : null}
                     </CopyableValue>
-                    {index < saleSerialNumbers.length - 1 ? ', ' : null}
+                    {index < saleSerialNumbers.length - 1 ? ' ' : null}
                   </span>
                 ))}
               </small>

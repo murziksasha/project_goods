@@ -264,6 +264,17 @@ const expectClipboard = async (page: Page, value: string) => {
     .toBe(value);
 };
 
+/**
+ * The icon reveal animates opacity (and width outside the serial list, 0.12s).
+ * Wait until it has finished, like a user who sees the icon before clicking.
+ * The serial list reserves the icon slot, so hovering a serial no longer
+ * re-wraps the line (which used to cause an endless hover/wrap flicker).
+ */
+const expectRevealedIcon = async (icon: Locator) => {
+  await expect(icon).toHaveCSS('opacity', '1');
+  await expect(icon).toHaveCSS('width', '22px');
+};
+
 const expectIconInsideCell = async (cell: Locator, icon: Locator) => {
   const cellBox = await cell.boundingBox();
   const iconBox = await icon.boundingBox();
@@ -312,10 +323,12 @@ test('sales product and each serial have independent hover, copy, and sale-card 
   }
 
   await name.hover();
+  await expectRevealedIcon(nameIcon);
   await nameIcon.click();
   await expectClipboard(page, longProductName);
   for (const [index, serial] of ['S000101', 'S000102'].entries()) {
-    await serialValues.nth(index).hover();
+    await serialValues.nth(index).locator('.order-device-serial').hover();
+    await expectRevealedIcon(serialIcons.nth(index));
     await serialIcons.nth(index).click();
     await expectClipboard(page, serial);
   }
