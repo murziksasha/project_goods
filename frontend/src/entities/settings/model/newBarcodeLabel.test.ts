@@ -257,3 +257,30 @@ describe('print menu visibility', () => {
     expect(getWarehouseBarcodePrintForm(withHiddenProductBarcode).id).toBe('warehouse-barcode');
   });
 });
+
+describe('print phone format in templates', () => {
+  it('formats phone variables even when the data source passes raw numbers', () => {
+    const html = renderPrintTemplate(
+      '<p>{{clientPhone}} | {{service_center_phone}} | {{warehouse_phone}} | {{labelContact}}</p>',
+      {
+        clientPhone: '+380974122235',
+        service_center_phone: '380670000000',
+        warehouse_phone: '+48123456789',
+        labelContact: '0501234567',
+      } as never,
+      'html',
+    );
+    expect(html).toBe('<p>097-412-22-35 | 067-000-00-00 | +48123456789 | 0501234567</p>');
+  });
+
+  it('prints the New Barcode phone line in local format', () => {
+    const form = getDefault('new-barcode-with-bar');
+    const html = renderPrintTemplate(
+      form.content,
+      { ...labelData, clientPhone: '+380505567090' } as never,
+      form.contentFormat,
+    );
+    expect(html).toContain('>050-556-70-90<');
+    expect(html).not.toContain('+380505567090');
+  });
+});

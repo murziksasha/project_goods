@@ -26,6 +26,7 @@ import {
 import { sanitizePrintHtml } from '../../../../../shared/lib/sanitizeHtml';
 import i18n from '../../../../../shared/i18n/config';
 import { formatAmountInWords, formatPrintAmount, printT } from '../../../../../shared/lib/printFormatting';
+import { formatPhoneForPrint } from '../../../../../shared/lib/phoneFormatter';
 import { getSaleClientDisplayName } from '../../../model/sale-client-display';
 import { groupPrintProductLineItems } from '../../../model/order-line-item-groups';
 import type { SupplierOrder } from '../../../../../entities/supplier-order';
@@ -1536,7 +1537,7 @@ export const getPrintTemplateData = (
   const repairLabelData = {
     labelCode: orderNumber,
     labelTitle: getSaleProductName(sale),
-    labelContact: sale.client.phone,
+    labelContact: formatPhoneForPrint(sale.client.phone),
   };
   const saleLabelData = getLabelProductData(lineItems, orderNumber);
   const labelData = isRepairLabel ? repairLabelData : saleLabelData;
@@ -1546,11 +1547,11 @@ export const getPrintTemplateData = (
     id: sale.id,
     orderNumber,
     repair_order_reference: isRepair ? `Ремонтне замовлення №${orderNumber}` : '',
-    service_center_phone: serviceCenter?.phone ?? '',
+    service_center_phone: formatPhoneForPrint(serviceCenter?.phone ?? ''),
     date: createdAt.split(',')[0] ?? createdAt,
     status: statusOption ? printT(statusOption.labelKey) : sale.status,
     clientName: getSaleClientDisplayName(sale, printT),
-    clientPhone: sale.isRapidSale ? '' : sale.client.phone,
+    clientPhone: sale.isRapidSale ? '' : formatPhoneForPrint(sale.client.phone),
     deviceName: isRepair ? getSaleProductName(sale) : '',
     serialNumber: isRepair ? getSaleProductSerialNumber(sale) : '',
     kit: isRepair ? formatSaleKit(getSaleKit(sale)) : '',

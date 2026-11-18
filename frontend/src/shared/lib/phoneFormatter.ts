@@ -68,3 +68,37 @@ export const formatPhoneForDial = (phone: string): string => {
   if (!digits) return '';
   return phone.trim().startsWith('+') ? `+${digits}` : digits;
 };
+
+const printPhoneAllowedChars = /^[\d\s+()\-.]+$/;
+
+const toUkrainianLocalDigits = (phone: string): string | null => {
+  const trimmed = phone.trim();
+  if (!trimmed || !printPhoneAllowedChars.test(trimmed)) return null;
+  const digits = phone.replace(/\D/g, '');
+  if (digits.length === 12 && digits.startsWith('380')) return digits.slice(2);
+  if (trimmed.startsWith('+')) return null;
+  if (digits.length === 11 && digits.startsWith('80')) return digits.slice(1);
+  if (digits.length === 10 && digits.startsWith('0')) return digits;
+  return null;
+};
+
+/**
+ * Print format for Ukrainian phones: `050-556-70-90`.
+ * Strips the +38 / 38 / 8 country prefix and groups the local number 3-3-2-2.
+ * Several numbers separated by `,` or `;` are formatted one by one.
+ * Non-Ukrainian or unparsable values are returned unchanged.
+ */
+export const formatPhoneForPrint = (phone: string | null | undefined): string => {
+  if (!phone) return phone ?? '';
+  const formatPart = (part: string) => {
+    const local = toUkrainianLocalDigits(part);
+    if (!local) return part;
+    const formatted = `${local.slice(0, 3)}-${local.slice(3, 6)}-${local.slice(6, 8)}-${local.slice(8, 10)}`;
+    const leading = part.match(/^\s*/)?.[0] ?? '';
+    const trailing = part.match(/\s*$/)?.[0] ?? '';
+    return `${leading}${formatted}${trailing}`;
+  };
+  return /[,;]/.test(phone)
+    ? phone.split(/([,;])/).map((part) => (part === ',' || part === ';' ? part : formatPart(part))).join('')
+    : formatPart(phone);
+};

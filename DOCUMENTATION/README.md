@@ -58,7 +58,7 @@ One topic → one source of truth. Other files **link**, they do not copy the ru
 
 - [WAREHOUSE_FLOW.md](./WAREHOUSE_FLOW.md) — stock models/units, receipts, transfers, information, occupancy, bind-modal candidate row, labels, [toolbar search commit](./WAREHOUSE_FLOW.md#toolbar-search), [client order and issued stock](./WAREHOUSE_FLOW.md#client-order-and-issued-stock-2026-11-15)
 - [SERIAL_NUMBER_SEQUENCE_SPEC.md](./SERIAL_NUMBER_SEQUENCE_SPEC.md) — `S000001` assignment on receipt
-- [PRINT_FORMS_SPEC.md](./PRINT_FORMS_SPEC.md) — print templates, block builder, inline B / I / U (Ж / К / П) text formatting, collapsible Template variables, New Barcode label, print menu visibility
+- [PRINT_FORMS_SPEC.md](./PRINT_FORMS_SPEC.md) — print templates, block builder, inline B / I / U (Ж / К / П) text formatting, collapsible Template variables, New Barcode label, print menu visibility, phone print format `050-556-70-90`
 - [NEW_BARCODE_LABEL_PLAN.md](./NEW_BARCODE_LABEL_PLAN.md) — New Barcode repair label: decisions, plan, manual check
 - [CATALOG_PRODUCT_CREATE_MODAL_SPEC.md](./CATALOG_PRODUCT_CREATE_MODAL_SPEC.md) — Product List modal (not stock); catalog list hover-copy (Suppliers phone)
 
