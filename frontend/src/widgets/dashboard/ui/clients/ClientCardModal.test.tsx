@@ -3,9 +3,11 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import * as clipboard from '../../../../shared/lib/clipboard';
 import type { Client } from '../../../../entities/client';
 import type { Sale } from '../../../../entities/sale';
+import { getOrderLink } from '../../../../pages/dashboard/model/dashboard-navigation';
 import i18n from '../../../../shared/i18n/config';
 import type { ClientMainForm } from '../../model/clients-workspace';
 import { ClientCardModal } from './ClientCardModal';
+import { clearClientOrderTabs } from './client-order-tab';
 
 const { idleQuery } = vi.hoisted(() => ({
   idleQuery: () => ({
@@ -52,6 +54,7 @@ vi.mock('../../../../entities/sale', async (importOriginal) => {
 });
 
 afterEach(() => {
+  clearClientOrderTabs();
   cleanup();
   vi.restoreAllMocks();
 });
@@ -130,6 +133,19 @@ const repairSale = historySale({
   ],
 });
 
+const secondRepair = historySale({
+  id: 'sale-repair-2',
+  recordNumber: 'r000771',
+  kind: 'repair',
+  status: 'new',
+  product: {
+    id: 'device-2',
+    article: '',
+    name: 'Old radio',
+    serialNumber: '',
+  },
+});
+
 const productSale = historySale({
   id: 'sale-sale-1',
   recordNumber: 's000533',
@@ -165,6 +181,18 @@ const mainTabForm: ClientMainForm = {
   status: '',
 };
 
+const fakeOrderTab = () => {
+  const tab = {
+    closed: false,
+    opener: window,
+    focus: vi.fn(),
+  };
+  return tab as unknown as Window & {
+    closed: boolean;
+    focus: ReturnType<typeof vi.fn>;
+  };
+};
+
 const renderCard = (
   patch: Partial<Parameters<typeof ClientCardModal>[0]> = {},
 ) =>
@@ -182,7 +210,6 @@ const renderCard = (
       clientVisitCount={1}
       onClose={vi.fn()}
       onMainTabFormChange={vi.fn()}
-      onOpenSaleCard={vi.fn()}
       onSaveMainTab={vi.fn()}
       onTabChange={vi.fn()}
       onValidatePhone={() => true}
@@ -237,12 +264,12 @@ describe('ClientCardModal', () => {
     expect(copySpy).toHaveBeenCalledWith('+380501111111');
   });
 
-  it('shows Device instead of services on Orders and opens in-app on left click', () => {
-    const onOpenSaleCard = vi.fn();
+  it('shows Device instead of services on Orders and opens the order in a new tab', () => {
+    const opened = fakeOrderTab();
+    const openSpy = vi.spyOn(window, 'open').mockReturnValue(opened);
     renderCard({
       clientCardTab: 'orders',
-      activeHistoryRows: [repairSale],
-      onOpenSaleCard,
+      activeHistoryRows: [repairSale, secondRepair],
     });
 
     expect(screen.getByRole('columnheader', { name: 'Device' })).toBeInTheDocument();
@@ -255,64 +282,73 @@ describe('ClientCardModal', () => {
     expect(screen.queryByText(/BIOS flash/)).not.toBeInTheDocument();
 
     const numberLink = screen.getByRole('link', { name: 'r000770' });
-    expect(numberLink).toHaveAttribute(
-      'href',
-      expect.stringContaining('page=orders'),
-    );
-    expect(numberLink).toHaveAttribute(
-      'href',
-      expect.stringContaining('ordersTab=orders'),
-    );
-    expect(numberLink).toHaveAttribute(
-      'href',
-      expect.stringContaining('saleId=sale-repair-1'),
-    );
+    expect(numberLink).toHaveAttribute('href', getOrderLink(repairSale.id, 'repair'));
 
     fireEvent.click(numberLink);
-    expect(onOpenSaleCard).toHaveBeenCalledWith(repairSale);
+    fireEvent.click(numberLink);
+    expect(openSpy).toHaveBeenCalledTimes(1);
+    expect(openSpy).toHaveBeenCalledWith(getOrderLink(repairSale.id, 'repair'), '_blank');
+    expect(opened.focus).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole('dialog', { name: 'Ivan Petrenko' })).toBeVisible();
+
+    opened.closed = true;
+    const reopened = fakeOrderTab();
+    openSpy.mockReturnValue(reopened);
+    fireEvent.click(numberLink);
+    expect(openSpy).toHaveBeenCalledTimes(2);
+    expect(reopened.focus).not.toHaveBeenCalled();
+
+    const other = fakeOrderTab();
+    openSpy.mockReturnValue(other);
+    fireEvent.click(screen.getByRole('link', { name: 'r000771' }));
+    expect(openSpy).toHaveBeenLastCalledWith(
+      getOrderLink(secondRepair.id, 'repair'),
+      '_blank',
+    );
+    expect(screen.getByRole('dialog', { name: 'Ivan Petrenko' })).toBeVisible();
   });
 
-  it('does not open in-app when the order number is Ctrl+clicked', () => {
-    const onOpenSaleCard = vi.fn();
+  it('leaves modified order-number clicks to the browser', () => {
+    const openSpy = vi.spyOn(window, 'open').mockReturnValue(fakeOrderTab());
     renderCard({
       clientCardTab: 'orders',
       activeHistoryRows: [repairSale],
-      onOpenSaleCard,
     });
 
-    fireEvent.click(screen.getByRole('link', { name: 'r000770' }), {
-      ctrlKey: true,
-    });
-    expect(onOpenSaleCard).not.toHaveBeenCalled();
+    const numberLink = screen.getByRole('link', { name: 'r000770' });
+    fireEvent.click(numberLink, { ctrlKey: true });
+    fireEvent.click(numberLink, { metaKey: true });
+    fireEvent.click(numberLink, { shiftKey: true });
+    fireEvent.click(numberLink, { altKey: true });
+    fireEvent.click(numberLink, { button: 1 });
+    expect(openSpy).not.toHaveBeenCalled();
+    expect(screen.getByRole('dialog', { name: 'Ivan Petrenko' })).toBeVisible();
   });
 
-  it('uses a sales deep link on the Sales tab number', () => {
-    const onOpenSaleCard = vi.fn();
+  it('uses a sales deep link and a separate tab on the Sales tab', () => {
+    const opened = fakeOrderTab();
+    const openSpy = vi.spyOn(window, 'open').mockReturnValue(opened);
     renderCard({
       clientCardTab: 'sales',
       activeHistoryRows: [productSale],
-      onOpenSaleCard,
     });
 
     expect(screen.getByRole('columnheader', { name: 'Sale' })).toBeInTheDocument();
     expect(screen.getByText('Phone case x1')).toBeInTheDocument();
 
     const numberLink = screen.getByRole('link', { name: 's000533' });
-    expect(numberLink).toHaveAttribute(
-      'href',
-      expect.stringContaining('ordersTab=sales'),
-    );
-    expect(numberLink).toHaveAttribute(
-      'href',
-      expect.stringContaining('saleId=sale-sale-1'),
-    );
+    expect(numberLink).toHaveAttribute('href', getOrderLink(productSale.id, 'sale'));
 
     fireEvent.click(numberLink);
-    expect(onOpenSaleCard).toHaveBeenCalledWith(productSale);
+    fireEvent.click(numberLink);
+    expect(openSpy).toHaveBeenCalledTimes(1);
+    expect(openSpy).toHaveBeenCalledWith(getOrderLink(productSale.id, 'sale'), '_blank');
+    expect(opened.focus).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole('dialog', { name: 'Ivan Petrenko' })).toBeVisible();
   });
 
   it('copies the history order number from the hover icon without opening the card', async () => {
-    const onOpenSaleCard = vi.fn();
+    const openSpy = vi.spyOn(window, 'open').mockReturnValue(fakeOrderTab());
     const copySpy = vi
       .spyOn(clipboard, 'copyTextToClipboard')
       .mockResolvedValue(true);
@@ -320,7 +356,6 @@ describe('ClientCardModal', () => {
     renderCard({
       clientCardTab: 'orders',
       activeHistoryRows: [repairSale],
-      onOpenSaleCard,
     });
 
     const numberCopy = within(
@@ -333,11 +368,11 @@ describe('ClientCardModal', () => {
     await waitFor(() => {
       expect(copySpy).toHaveBeenCalledWith('r000770');
     });
-    expect(onOpenSaleCard).not.toHaveBeenCalled();
+    expect(openSpy).not.toHaveBeenCalled();
   });
 
   it('copies history serials from the hover icon without opening the card', async () => {
-    const onOpenSaleCard = vi.fn();
+    const openSpy = vi.spyOn(window, 'open').mockReturnValue(fakeOrderTab());
     const copySpy = vi
       .spyOn(clipboard, 'copyTextToClipboard')
       .mockResolvedValue(true);
@@ -345,7 +380,6 @@ describe('ClientCardModal', () => {
     renderCard({
       clientCardTab: 'orders',
       activeHistoryRows: [repairSale],
-      onOpenSaleCard,
     });
 
     const serialCopy = within(
@@ -356,11 +390,14 @@ describe('ClientCardModal', () => {
     await waitFor(() => {
       expect(copySpy).toHaveBeenCalledWith('SN-1');
     });
-    expect(onOpenSaleCard).not.toHaveBeenCalled();
+    expect(openSpy).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'S/N: SN-1' }));
+    expect(screen.getByRole('dialog', { name: 'Dell monitor' })).toBeVisible();
+    expect(openSpy).not.toHaveBeenCalled();
   });
 
   it('copies bound sale serials on the Sales tab', async () => {
-    const onOpenSaleCard = vi.fn();
+    const openSpy = vi.spyOn(window, 'open').mockReturnValue(fakeOrderTab());
     const copySpy = vi
       .spyOn(clipboard, 'copyTextToClipboard')
       .mockResolvedValue(true);
@@ -368,7 +405,6 @@ describe('ClientCardModal', () => {
     renderCard({
       clientCardTab: 'sales',
       activeHistoryRows: [productSale],
-      onOpenSaleCard,
     });
 
     expect(screen.getByText('S/N: S000533')).toBeInTheDocument();
@@ -380,7 +416,7 @@ describe('ClientCardModal', () => {
     await waitFor(() => {
       expect(copySpy).toHaveBeenCalledWith('S000533');
     });
-    expect(onOpenSaleCard).not.toHaveBeenCalled();
+    expect(openSpy).not.toHaveBeenCalled();
   });
 
   it('hides the serial copy control when the serial is empty', () => {
@@ -428,46 +464,20 @@ describe('ClientCardModal', () => {
     expect(onOpenClientList).toHaveBeenCalledTimes(1);
   });
 
-  it('opens a history row in a new tab from Create order', () => {
-    const onOpenSaleCard = vi.fn();
-    const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null);
+  it('does not open a tab from the device, status, or expand control', () => {
+    const openSpy = vi.spyOn(window, 'open').mockReturnValue(fakeOrderTab());
     renderCard({
       clientCardTab: 'orders',
       activeHistoryRows: [repairSale],
-      saleLinkMode: 'new-tab',
-      onOpenSaleCard,
     });
 
-    fireEvent.click(screen.getByRole('link', { name: 'r000770' }));
-    expect(onOpenSaleCard).not.toHaveBeenCalled();
-    expect(openSpy).toHaveBeenCalledWith(
-      expect.stringContaining('saleId=sale-repair-1'),
-      '_blank',
-      'noopener,noreferrer',
-    );
-
-    openSpy.mockClear();
     fireEvent.click(screen.getByText('Dell monitor'));
     fireEvent.click(screen.getByText('paid'));
-    expect(onOpenSaleCard).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Toggle contents of r000770' }));
     expect(openSpy).not.toHaveBeenCalled();
-  });
-
-  it('does not force a new tab when the order number is Ctrl+clicked', () => {
-    const onOpenSaleCard = vi.fn();
-    const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null);
-    renderCard({
-      clientCardTab: 'orders',
-      activeHistoryRows: [repairSale],
-      saleLinkMode: 'new-tab',
-      onOpenSaleCard,
-    });
-
-    fireEvent.click(screen.getByRole('link', { name: 'r000770' }), {
-      ctrlKey: true,
-    });
-    expect(onOpenSaleCard).not.toHaveBeenCalled();
-    expect(openSpy).not.toHaveBeenCalled();
+    expect(
+      screen.getByRole('button', { name: 'Toggle contents of r000770' }),
+    ).toHaveAttribute('aria-expanded', 'true');
   });
 
 });
@@ -624,7 +634,6 @@ describe('ClientCardModal history details', () => {
         clientVisitCount={1}
         onClose={vi.fn()}
         onMainTabFormChange={vi.fn()}
-        onOpenSaleCard={vi.fn()}
         onSaveMainTab={vi.fn()}
         onTabChange={vi.fn()}
         onValidatePhone={() => true}
@@ -648,7 +657,6 @@ describe('ClientCardModal history details', () => {
         clientVisitCount={1}
         onClose={vi.fn()}
         onMainTabFormChange={vi.fn()}
-        onOpenSaleCard={vi.fn()}
         onSaveMainTab={vi.fn()}
         onTabChange={vi.fn()}
         onValidatePhone={() => true}
@@ -675,7 +683,6 @@ describe('ClientCardModal history details', () => {
         clientVisitCount={1}
         onClose={vi.fn()}
         onMainTabFormChange={vi.fn()}
-        onOpenSaleCard={vi.fn()}
         onSaveMainTab={vi.fn()}
         onTabChange={vi.fn()}
         onValidatePhone={() => true}
@@ -739,7 +746,6 @@ describe('ClientCardModal history details', () => {
         clientVisitCount={1}
         onClose={vi.fn()}
         onMainTabFormChange={vi.fn()}
-        onOpenSaleCard={vi.fn()}
         onSaveMainTab={vi.fn()}
         onTabChange={vi.fn()}
         onValidatePhone={() => true}
@@ -757,19 +763,18 @@ describe('ClientCardModal history details', () => {
   });
 
   it('opens only from the number and copies the device name or each sale name', async () => {
-    const onOpenSaleCard = vi.fn();
+    const openSpy = vi.spyOn(window, 'open').mockReturnValue(fakeOrderTab());
     const copySpy = vi
       .spyOn(clipboard, 'copyTextToClipboard')
       .mockResolvedValue(true);
     const { rerender } = renderCard({
       clientCardTab: 'orders',
       activeHistoryRows: [detailedRepair],
-      onOpenSaleCard,
     });
 
     fireEvent.click(screen.getByText('paid'));
     fireEvent.click(screen.getByText('Dell monitor'));
-    expect(onOpenSaleCard).not.toHaveBeenCalled();
+    expect(openSpy).not.toHaveBeenCalled();
 
     const deviceCopy = within(
       screen.getByText('Dell monitor').closest('.copyable-value') as HTMLElement,
@@ -778,10 +783,13 @@ describe('ClientCardModal history details', () => {
     await waitFor(() => {
       expect(copySpy).toHaveBeenCalledWith('Dell monitor');
     });
-    expect(onOpenSaleCard).not.toHaveBeenCalled();
+    expect(openSpy).not.toHaveBeenCalled();
 
     fireEvent.click(screen.getByRole('link', { name: 'r000780' }));
-    expect(onOpenSaleCard).toHaveBeenCalledWith(detailedRepair);
+    expect(openSpy).toHaveBeenCalledWith(
+      getOrderLink(detailedRepair.id, 'repair'),
+      '_blank',
+    );
 
     rerender(
       <ClientCardModal
@@ -797,7 +805,6 @@ describe('ClientCardModal history details', () => {
         clientVisitCount={1}
         onClose={vi.fn()}
         onMainTabFormChange={vi.fn()}
-        onOpenSaleCard={onOpenSaleCard}
         onSaveMainTab={vi.fn()}
         onTabChange={vi.fn()}
         onValidatePhone={() => true}
@@ -824,7 +831,7 @@ describe('ClientCardModal history details', () => {
     await waitFor(() => {
       expect(copySpy).toHaveBeenCalledWith('Cable');
     });
-    expect(onOpenSaleCard).toHaveBeenCalledTimes(1);
+    expect(openSpy).toHaveBeenCalledTimes(1);
   });
 
   it('opens the product model from row and expanded serials without opening it from the copy icon', async () => {

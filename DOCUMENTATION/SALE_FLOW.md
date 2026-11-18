@@ -18,7 +18,7 @@ Related: [SALE_CARD.md](./SALE_CARD.md) · [ORDER_FLOW.md](./ORDER_FLOW.md) · [
 - The blacklist warning must include the client name/phone and must not prevent saving the sales order.
 - Clicking the blacklist warning opens the matched client card over Create order so the operator can read the client note/reason before continuing. The sidebar stays on Orders. See [CLIENTS_RULES.md](./CLIENTS_RULES.md#client-card-tabs).
 - If client does not exist and phone+name are provided, a new client is created only when the operator presses `Save order` and hard validation passes (same rule as repair orders). Lookup/suggestions for existing clients are unchanged.
-- Client card `Sales` numbers use the same `getOrderLink(saleId, 'sale')` pattern as Orders. From the Clients menu, left click opens the sale card in-app. From the orders overlay, left click replaces the overlay entry with that sale. From Create order, left click opens a new tab and keeps the draft. Right-click / middle-click / Ctrl+click opens a new browser tab. Spec: [BROWSER_NAVIGATION.md](./BROWSER_NAVIGATION.md) · [CLIENTS_RULES.md](./CLIENTS_RULES.md).
+- Client card `Sales` numbers use the same `getOrderLink(saleId, 'sale')` pattern as Orders. A plain left click opens the sale in a remembered browser tab and leaves the client modal open. Right-click / middle-click / Ctrl+click stay native. Spec: [BROWSER_NAVIGATION.md](./BROWSER_NAVIGATION.md) · [CLIENTS_RULES.md](./CLIENTS_RULES.md).
 
 ## Sales Toolbar Count (2026-10-28)
 

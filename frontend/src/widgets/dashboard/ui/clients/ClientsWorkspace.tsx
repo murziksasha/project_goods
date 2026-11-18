@@ -89,7 +89,6 @@ export interface ClientsWorkspaceProps {
     clientId: string,
     payload: ClientFormValues,
   ) => Promise<boolean>;
-  onOpenSaleCard: (sale: Sale) => void;
   openClientCardRequestId?: string | null;
   onOpenClientCardHandled?: () => void;
   revealClientId?: string | null;
@@ -165,7 +164,6 @@ export const ClientsWorkspace: React.FC<ClientsWorkspaceProps> = ({
   onExportClients,
   onMergeClients,
   onUpdateClient,
-  onOpenSaleCard,
   openClientCardRequestId = null,
   onOpenClientCardHandled,
   revealClientId = null,
@@ -704,11 +702,6 @@ export const ClientsWorkspace: React.FC<ClientsWorkspaceProps> = ({
     }
   };
 
-  const openSaleCardFromClientModal = (sale: Sale) => {
-    closeClientCard();
-    onOpenSaleCard(sale);
-  };
-
   return (
     <section className='panel clients-workspace'>
       <ClientsToolbar
@@ -879,7 +872,6 @@ export const ClientsWorkspace: React.FC<ClientsWorkspaceProps> = ({
           onClearPhoneError={() => setMainTabPhoneError(null)}
           onClose={closeClientCard}
           onMainTabFormChange={handleMainTabFormChange}
-          onOpenSaleCard={openSaleCardFromClientModal}
           onSaveMainTab={() => {
             void handleMainTabSave();
           }}

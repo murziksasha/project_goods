@@ -50,9 +50,7 @@ export interface ClientCardOverlayProps {
   sales: Sale[];
   clientDevices: ClientDevice[];
   isSaving: boolean;
-  saleLinkMode: 'in-app' | 'new-tab';
   onClose: () => void;
-  onOpenSaleCard: (sale: Sale) => void;
   onOpenClientList: (clientId: string) => void;
   onUpdateClient: (
     clientId: string,
@@ -72,9 +70,7 @@ export const ClientCardOverlay: React.FC<ClientCardOverlayProps> = ({
   sales,
   clientDevices,
   isSaving,
-  saleLinkMode,
   onClose,
-  onOpenSaleCard,
   onOpenClientList,
   onUpdateClient,
   onUpdateClientDevice,
@@ -207,7 +203,6 @@ export const ClientCardOverlay: React.FC<ClientCardOverlayProps> = ({
       selectedClientId={clientId}
       showClientListButton
       usePortal
-      saleLinkMode={saleLinkMode}
       onClearPhoneError={() => setMainTabPhoneError(null)}
       onClose={onClose}
       onMainTabFormChange={(value) => {
@@ -215,7 +210,6 @@ export const ClientCardOverlay: React.FC<ClientCardOverlayProps> = ({
         setMainTabForm(value);
       }}
       onOpenClientList={() => onOpenClientList(clientId)}
-      onOpenSaleCard={onOpenSaleCard}
       onSaveMainTab={() => {
         void handleMainTabSave();
       }}

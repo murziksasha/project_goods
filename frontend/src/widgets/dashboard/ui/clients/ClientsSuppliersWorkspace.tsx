@@ -226,7 +226,6 @@ export interface ClientsSuppliersWorkspaceProps {
     clientId: string,
     payload: ClientFormValues,
   ) => Promise<boolean>;
-  onOpenSaleCard: (sale: Sale) => void;
   openClientCardRequestId?: string | null;
   onOpenClientCardHandled?: () => void;
   revealClientId?: string | null;
@@ -269,7 +268,6 @@ export const ClientsSuppliersWorkspace: React.FC<
   onExportSuppliers,
   onMergeClients,
   onUpdateClient,
-  onOpenSaleCard,
   openClientCardRequestId,
   onOpenClientCardHandled,
   revealClientId = null,
@@ -651,7 +649,6 @@ export const ClientsSuppliersWorkspace: React.FC<
           onExportClients={onExportClients}
           onMergeClients={onMergeClients}
           onUpdateClient={onUpdateClient}
-          onOpenSaleCard={onOpenSaleCard}
           openClientCardRequestId={openClientCardRequestId}
           onOpenClientCardHandled={onOpenClientCardHandled}
           revealClientId={revealClientId}
