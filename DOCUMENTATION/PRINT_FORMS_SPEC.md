@@ -39,6 +39,32 @@ gender/plurals and rounding; shared order-print tests compare the full generated
 data across both site languages. `e2e/invoice-print.spec.ts` checks both invoices,
 Receipt/Check/Warranty/Completion act, popup and builder preview in both languages.
 
+## Phone Print Format (2026-11-18)
+
+Every print form (sale, repair, warehouse, labels, invoices, acts, previews)
+prints Ukrainian phone numbers in local format **`050-556-70-90`**:
+
+- The country prefix `+380` / `380` (and the old long-distance `80`) is removed,
+  and the 10-digit local number is grouped 3-3-2-2 with hyphens.
+- Recognised input: 12 digits starting `380` (with or without `+`), 11 digits
+  starting `80`, 10 digits starting `0`; spaces, brackets, hyphens and dots are
+  ignored. Examples: `+380974122235` → `097-412-22-35`,
+  `+38 (050) 556-70-90` → `050-556-70-90`.
+- Anything else prints unchanged: foreign numbers (`+48…`, `+1…`), incomplete
+  numbers, text, extensions (`… ext 12`), `-`.
+- Several numbers in one value separated by `,` or `;` are formatted one by one.
+- Formatter: `formatPhoneForPrint` in `frontend/src/shared/lib/phoneFormatter.ts`.
+- Applied in two places, so custom data sources and saved templates are covered:
+  - `renderPrintTemplate` formats the phone variables `{{clientPhone}}`,
+    `{{service_center_phone}}`, `{{warehouse_phone}}` on substitution;
+  - order print data (`getPrintTemplateData`) formats `clientPhone`,
+    `service_center_phone` and the repair-label `labelContact` (client phone).
+    `labelContact` is not formatted globally because on warehouse stock labels
+    it holds the product article.
+- Builder preview sample data uses the same format (`067-111-22-33`).
+- Only print output changes. Stored phones, the order/client cards, search and
+  `tel:` links keep their existing format.
+
 ## Layout Builder (Block-Based Templates)
 
 Templates with `layoutVersion: 1` are edited in **Settings → Print forms** via the
@@ -276,7 +302,7 @@ Layout (builder blocks):
    (level 2, bold, right-aligned).
 2. `divider`.
 3. Paragraph `{{deviceName}}` (level 2, bold).
-4. Paragraph `{{kit}}` — one line with ellipsis; hidden when empty
+4. Paragraph `{{kitLabel}}` (items joined with ` / `, e.g. `ЗП / сумка`) — one line with ellipsis; hidden when empty
    (`.print-block-paragraph:empty`).
 5. Paragraph `{{clientName}}`.
 6. Paragraph `{{clientPhone}}`.
@@ -291,7 +317,16 @@ Variables added for any template:
 | `orderNumberShort` | `#124` for `r000124` (prefix and leading zeros dropped) | order number |
 | `acceptedDate` | `dd.MM.yyyy` | order `createdAt` in Europe/Kyiv |
 | `acceptedTime` | `HH:mm` (24 h) | order `createdAt` in Europe/Kyiv |
-| `kit` | comma-joined kit, e.g. `ЗП, сумка`; empty for sales | order `kit`, falling back to legacy `(kits: …)` in the system note |
+| `kit` | comma-joined kit, e.g. `ЗП, сумка`; empty for sales. Used by acts and other documents | order `kit` (items containing commas are split), falling back to legacy `(kits: …)` in the system note |
+| `kitLabel` | slash-joined kit for labels, e.g. `ЗП / сумка`; empty for sales | same source as `kit` |
+
+Saved copies and the kit separator: on load (`normalizePrintFormsForView` →
+`migrateNewBarcodeKitBlock`) the kit block of `new-barcode-with-bar` /
+`new-barcode-without-bar` (block id `<template id>-kit`) is switched from
+`{{kit}}` to `{{kitLabel}}` only when its text is exactly the old default
+`{{kit}}`. Edited text (e.g. `Комплект: {{kit}}`) and duplicated templates with
+other ids are not changed. The change is in memory and is written to the
+server with the next **Save** of print forms; printing uses it right away.
 
 Seeding: missing built-in templates are re-added on load. The two New Barcode
 templates are seeded as a group: if saved settings already contain one of them,
@@ -454,7 +489,7 @@ to scan and read at the counter. It is used by **order print** flows
 - Repair order label:
   - `barcode` and `labelCode`: order number, for example `r0035760`.
   - `labelTitle`: accepted device name.
-  - `labelContact`: client phone.
+  - `labelContact`: client phone in print format `050-556-70-90` ([Phone Print Format](#phone-print-format-2026-11-18)).
 - Sale/product label:
   - If a product serial exists, `barcode` and `labelCode`: first product serial.
   - If no product serial exists, `barcode` and `labelCode`: order number.

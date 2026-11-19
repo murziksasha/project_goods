@@ -5,7 +5,9 @@ import {
   defaultPrintForms,
   getPrintMenuForms,
   getWarehouseBarcodePrintForm,
+  getDefaultPrintLayoutBlocks,
   isPrintFormVisibleFor,
+  migrateNewBarcodeKitBlock,
   newBarcodePrintFormIds,
   normalizePrintFormsForView,
   normalizePrintLayoutBlocks,
@@ -27,6 +29,7 @@ const labelData = {
   acceptedTime: '16:00',
   deviceName: 'Ноутбук DNS',
   kit: 'ЗП, сумка',
+  kitLabel: 'ЗП / сумка',
   clientName: 'Сергій',
   clientPhone: '050-662-81-44',
   barcode: 'r000124',
@@ -104,7 +107,7 @@ describe('New Barcode label templates', () => {
     expect(html).toContain('10.11.2026<br>16:00');
     expect(html).toContain('<hr class="print-divider" />');
     expect(html).toMatch(/print-block-weight-bold[^>]*>Ноутбук DNS</);
-    expect(html).toContain('>ЗП, сумка<');
+    expect(html).toContain('>ЗП / сумка<');
     expect(html).toContain('>Сергій<');
     expect(html).toContain('>050-662-81-44<');
     expect(html.toLowerCase()).not.toContain('qr');
@@ -121,7 +124,7 @@ describe('New Barcode label templates', () => {
 
   it('leaves an empty kit paragraph empty so the label hides it', () => {
     const form = getDefault('new-barcode-without-bar');
-    const html = renderPrintTemplate(form.content, { ...labelData, kit: '' }, form.contentFormat);
+    const html = renderPrintTemplate(form.content, { ...labelData, kit: '', kitLabel: '' }, form.contentFormat);
     expect(html).toMatch(/<p class="print-block-paragraph[^"]*"><\/p>/);
     expect(printLabelDocumentStyles).toContain('.print-label .print-block-paragraph:empty { display: none; }');
   });
@@ -255,5 +258,74 @@ describe('print menu visibility', () => {
     expect(getWarehouseBarcodePrintForm([...withHiddenProductBarcode, custom]).id).toBe('my-stock-label');
     // New Barcode templates are repair-only and never picked for stock labels.
     expect(getWarehouseBarcodePrintForm(withHiddenProductBarcode).id).toBe('warehouse-barcode');
+  });
+});
+
+describe('print phone format in templates', () => {
+  it('formats phone variables even when the data source passes raw numbers', () => {
+    const html = renderPrintTemplate(
+      '<p>{{clientPhone}} | {{service_center_phone}} | {{warehouse_phone}} | {{labelContact}}</p>',
+      {
+        clientPhone: '+380974122235',
+        service_center_phone: '380670000000',
+        warehouse_phone: '+48123456789',
+        labelContact: '0501234567',
+      } as never,
+      'html',
+    );
+    expect(html).toBe('<p>097-412-22-35 | 067-000-00-00 | +48123456789 | 0501234567</p>');
+  });
+
+  it('prints the New Barcode phone line in local format', () => {
+    const form = getDefault('new-barcode-with-bar');
+    const html = renderPrintTemplate(
+      form.content,
+      { ...labelData, clientPhone: '+380505567090' } as never,
+      form.contentFormat,
+    );
+    expect(html).toContain('>050-556-70-90<');
+    expect(html).not.toContain('+380505567090');
+  });
+});
+
+describe('New Barcode kit separator', () => {
+  it('default templates print the slash-joined kitLabel', () => {
+    for (const id of newBarcodePrintFormIds) {
+      const form = getDefault(id);
+      expect(form.content).toContain('{{kitLabel}}');
+      expect(form.content).not.toContain('{{kit}}');
+      const html = renderPrintTemplate(form.content, { ...labelData, kitLabel: 'ЗП / сумка' } as never, form.contentFormat);
+      expect(html).toContain('>ЗП / сумка<');
+    }
+  });
+
+  it('migrates saved copies whose kit block still has the old default {{kit}}', () => {
+    const saved = defaultPrintForms
+      .filter((form) => newBarcodePrintFormIds.includes(form.id))
+      .map((form) => ({
+        ...form,
+        layoutBlocks: getDefaultPrintLayoutBlocks(form.id).map((block) =>
+          block.id === `${form.id}-kit` && block.type === 'paragraph' ? { ...block, text: '{{kit}}' } : block,
+        ),
+        content: 'stale',
+      }));
+    const normalized = normalizePrintFormsForView([...defaultPrintForms.filter((f) => !newBarcodePrintFormIds.includes(f.id)), ...saved]);
+    for (const id of newBarcodePrintFormIds) {
+      const form = normalized.find((item) => item.id === id)!;
+      expect(form.content).toContain('{{kitLabel}}');
+      expect(form.content).not.toContain('{{kit}}');
+    }
+  });
+
+  it('keeps user-edited kit text and other templates untouched', () => {
+    const edited = migrateNewBarcodeKitBlock({
+      ...defaultPrintForms.find((form) => form.id === 'new-barcode-with-bar')!,
+      layoutBlocks: [{ id: 'new-barcode-with-bar-kit', type: 'paragraph', level: 3, text: 'Комплект: {{kit}}' }],
+    });
+    expect(edited.layoutBlocks).toEqual([
+      { id: 'new-barcode-with-bar-kit', type: 'paragraph', level: 3, text: 'Комплект: {{kit}}' },
+    ]);
+    const other = { ...defaultPrintForms[0], layoutBlocks: [{ id: 'x-kit', type: 'paragraph' as const, level: 3 as const, text: '{{kit}}' }] };
+    expect(migrateNewBarcodeKitBlock(other)).toBe(other);
   });
 });

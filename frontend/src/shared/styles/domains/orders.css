@@ -2497,6 +2497,21 @@
   overflow: hidden;
 }
 
+/*
+ * Serial list wraps. The copy icon slot is reserved (always 22px, only opacity
+ * changes) so hovering a serial never changes its width: a growing icon could
+ * push the last serial to the next line, out from under the pointer, collapse
+ * it and bring it back — an endless hover / wrap flicker.
+ */
+.order-sale-serial-value .copyable-value-copy {
+  width: 22px;
+  min-width: 22px;
+}
+
+.order-sale-serial-separator {
+  flex: 0 0 auto;
+}
+
 .order-sale-serial-value .order-device-serial {
   display: block;
   width: auto;
@@ -3985,20 +4000,18 @@ button.orders-kanban-count:focus-visible {
   opacity: 0.65;
 }
 
-/* Order card: kit row (view + inline list editor). */
+/* Order card: kit row (chips + add input, saves on each change). */
 .order-detail-kit-value {
   display: flex;
   align-items: center;
-  gap: 6px;
   min-width: 0;
 }
 
-.order-detail-kit-edit {
-  display: grid;
-  gap: 8px;
+.order-detail-kit-value .chip-list-input {
   width: 100%;
 }
 
-.order-detail-kit-edit-button {
-  flex: 0 0 auto;
+.order-detail-kit-value .chip-list-input-entry input {
+  min-height: 28px;
+  padding: 2px 8px;
 }

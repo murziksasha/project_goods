@@ -9,6 +9,7 @@ import type {
   OrderLineItem,
   OrderStatus,
   OrderTabDefinition,
+  SaleKitChange,
   TimelineEntry,
 } from '../workspace/orders-workspace-shared';
 
@@ -107,5 +108,5 @@ export type OrderDetailCardProps = {
   }) => Promise<void>;
   onSaveUserNote: (userNote: string) => Promise<void>;
   /** Persist the repair kit; rejects on failure so the editor stays open. */
-  onSaveKit: (kit: string[]) => Promise<void>;
+  onChangeKit: (kit: string[], change: SaleKitChange) => Promise<void>;
 };

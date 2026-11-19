@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
+  addSaleKitItems,
+  expandSaleKitItems,
+  formatSaleKitLabel,
+  removeSaleKitItem,
   areSaleKitsEqual,
   formatSaleKit,
   getSaleKit,
@@ -50,5 +54,40 @@ describe('sale kit helpers', () => {
     expect(formatSaleKit([])).toBe('');
     expect(areSaleKitsEqual(['a', 'b'], ['a', 'b'])).toBe(true);
     expect(areSaleKitsEqual(['a', 'b'], ['b', 'a'])).toBe(false);
+  });
+});
+
+describe('kit list editing helpers', () => {
+  it('adds typed items, splitting commas and ignoring blanks and duplicates', () => {
+    expect(addSaleKitItems(['ЗП'], ' сумка, зп , ,Сумка ')).toEqual({
+      kit: ['ЗП', 'сумка'],
+      added: ['сумка'],
+    });
+    expect(addSaleKitItems(['ЗП'], '   ')).toEqual({ kit: ['ЗП'], added: [] });
+  });
+
+  it('keeps the 20 item limit', () => {
+    const full = Array.from({ length: 20 }, (_, index) => `item ${index}`);
+    expect(addSaleKitItems(full, 'extra').added).toEqual([]);
+  });
+
+  it('turns leftover input into the last item on save', () => {
+    expect(addSaleKitItems(['ЗП', 'сумка'], 'чохол').kit).toEqual(['ЗП', 'сумка', 'чохол']);
+  });
+
+  it('removes an item by index', () => {
+    expect(removeSaleKitItem(['ЗП', 'сумка'], 0)).toEqual({ kit: ['сумка'], removed: 'ЗП' });
+    expect(removeSaleKitItem(['ЗП'], 5)).toEqual({ kit: ['ЗП'], removed: undefined });
+  });
+
+  it('splits legacy single-string kits by commas for display', () => {
+    expect(expandSaleKitItems(['ЗП, сумка'])).toEqual(['ЗП', 'сумка']);
+    expect(getSaleKit({ kit: ['плита, кабель'], note: '' })).toEqual(['плита', 'кабель']);
+    expect(getSaleKit({ kit: [], note: '(kits: ЗП, сумка)' })).toEqual(['ЗП', 'сумка']);
+  });
+
+  it('joins label kits with slashes', () => {
+    expect(formatSaleKitLabel(['ЗП', 'сумка'])).toBe('ЗП / сумка');
+    expect(formatSaleKit(['ЗП', 'сумка'])).toBe('ЗП, сумка');
   });
 });

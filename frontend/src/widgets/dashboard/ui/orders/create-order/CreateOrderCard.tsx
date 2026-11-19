@@ -45,7 +45,7 @@ import {
 import {
   formatSaleKit,
   getOccupiedSerialNumbers,
-  normalizeSaleKit,
+  addSaleKitItems,
   splitSaleKitText,
   type Sale,
 } from '../../../../../entities/sale';
@@ -193,6 +193,9 @@ export const CreateOrderCard: React.FC<CreateOrderCardProps> = ({
   const [deviceSerialNumber, setDeviceSerialNumber] = useState('');
   const [deviceColor, setDeviceColor] = useState('');
   const [deviceKit, setDeviceKit] = useState<string[]>([]);
+  const [deviceKitInput, setDeviceKitInput] = useState('');
+  /** Added items plus leftover text typed in the kit input. */
+  const getDeviceKitForSave = () => addSaleKitItems(deviceKit, deviceKitInput).kit;
   const [repairType, setRepairType] = useState('Paid');
   const [issueFromClient, setIssueFromClient] = useState('');
   const [externalView, setExternalView] = useState('');
@@ -915,6 +918,7 @@ export const CreateOrderCard: React.FC<CreateOrderCardProps> = ({
     setDeviceName(device.name);
     setDeviceSerialNumber(device.serialNumber);
     setDeviceKit(splitSaleKitText(extractDeviceKit(device.note)));
+    setDeviceKitInput('');
     setSelectedDeviceSuggestionId(device.id);
     setDeviceSuggestions([]);
   };
@@ -1277,7 +1281,7 @@ export const CreateOrderCard: React.FC<CreateOrderCardProps> = ({
         clientPhone: selectedClient.phone,
         name,
         serialNumber: '',
-        note: formatSaleKit(normalizeSaleKit(deviceKit)),
+        note: formatSaleKit(getDeviceKitForSave()),
         source: 'repairOrder',
         isActive: newDeviceIsActive,
       });
@@ -1522,7 +1526,7 @@ export const CreateOrderCard: React.FC<CreateOrderCardProps> = ({
       deviceName,
       deviceSerialNumber,
       deviceColor,
-      deviceKit: normalizeSaleKit(deviceKit),
+      deviceKit: getDeviceKitForSave(),
       serviceName: '',
       repairType,
       issueFromClient,
@@ -1815,6 +1819,7 @@ export const CreateOrderCard: React.FC<CreateOrderCardProps> = ({
                 deviceSerialNumber={deviceSerialNumber}
                 deviceColor={deviceColor}
                 deviceKit={deviceKit}
+                deviceKitInput={deviceKitInput}
                 repairType={repairType}
                 issueFromClient={issueFromClient}
                 externalView={externalView}
@@ -1830,6 +1835,7 @@ export const CreateOrderCard: React.FC<CreateOrderCardProps> = ({
                 onDeviceSerialNumberChange={setDeviceSerialNumber}
                 onDeviceColorChange={setDeviceColor}
                 onDeviceKitChange={setDeviceKit}
+                onDeviceKitInputChange={setDeviceKitInput}
                 onRepairTypeChange={setRepairType}
                 onIssueFromClientChange={setIssueFromClient}
                 onExternalViewChange={setExternalView}

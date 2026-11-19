@@ -14,6 +14,7 @@ import type {
 } from './types';
 import { translatePrintBlock, translatePrintSource, translatePrintText } from './print-language';
 import { renderPrintInlineMarkup } from './printInlineMarkup';
+import { formatPhoneForPrint } from '../../../shared/lib/phoneFormatter';
 
 export type LabelSizePreset = {
   id: string;
@@ -156,6 +157,7 @@ export type PrintFormVariable =
   | 'deviceName'
   | 'serialNumber'
   | 'kit'
+  | 'kitLabel'
   | 'article'
   | 'defect'
   | 'comment'
@@ -250,6 +252,7 @@ export const printFormVariableGroups: Array<{
       { key: 'deviceName', label: 'Device' },
       { key: 'serialNumber', label: 'Serial number' },
       { key: 'kit', label: 'Kit' },
+      { key: 'kitLabel', label: 'Kit for labels (a / b)' },
       { key: 'article', label: 'Article' },
       { key: 'defect', label: 'Defect' },
       { key: 'comment', label: 'Comment' },
@@ -1073,7 +1076,7 @@ const newBarcodeLayoutBlocks = (prefix: string): PrintLayoutBlock[] => [
   },
   { id: `${prefix}-divider`, type: 'divider' },
   { id: `${prefix}-device`, type: 'paragraph', level: 2, weight: 'bold', align: 'left', text: '{{deviceName}}' },
-  { id: `${prefix}-kit`, type: 'paragraph', level: 3, align: 'left', text: '{{kit}}' },
+  { id: `${prefix}-kit`, type: 'paragraph', level: 3, align: 'left', text: '{{kitLabel}}' },
   { id: `${prefix}-client`, type: 'paragraph', level: 3, align: 'left', text: '{{clientName}}' },
   { id: `${prefix}-phone`, type: 'paragraph', level: 3, align: 'left', text: '{{clientPhone}}' },
 ];
@@ -1339,16 +1342,37 @@ export const createDefaultSettingsForm = (): AppSettingsFormValues => ({
   },
 });
 
+/**
+ * Saved copies of the New Barcode templates printed the kit comma-joined.
+ * Switch the untouched default kit block (`<id>-kit` with text `{{kit}}`) to
+ * the slash-joined `{{kitLabel}}`. Edited text is left alone.
+ */
+export const migrateNewBarcodeKitBlock = (form: PrintForm): PrintForm => {
+  if (!newBarcodePrintFormIds.includes(form.id) || !form.layoutBlocks?.length) return form;
+  const kitBlockId = `${form.id}-kit`;
+  let changed = false;
+  const layoutBlocks = form.layoutBlocks.map((block) => {
+    if (block.id !== kitBlockId || block.type !== 'paragraph' || block.text.trim() !== '{{kit}}') {
+      return block;
+    }
+    changed = true;
+    return { ...block, text: '{{kitLabel}}' };
+  });
+  return changed ? { ...form, layoutBlocks } : form;
+};
+
 export const normalizePrintFormsForView = (forms: PrintForm[]) => {
   const sourceForms = forms.length > 0 ? forms : defaultPrintForms;
   const sourceBarcodeForm = sourceForms.find((form) => form.id === 'barcode');
   const normalized = sourceForms.map(
     (sourceForm, index) => {
-      const form = sourceForm.id === 'invoice' && legacyDefaultPrintFormTitles.invoice.includes(sourceForm.title)
+      const form = migrateNewBarcodeKitBlock(
+        sourceForm.id === 'invoice' && legacyDefaultPrintFormTitles.invoice.includes(sourceForm.title)
         ? createLayoutPrintForm({ ...sourceForm, title: 'Invoice with VAT', layoutBlocks: invoiceLayoutBlocks })
         : (sourceForm.id === 'invoice-no-vat' || sourceForm.id === 'invoice') && sourceForm.layoutBlocks?.length
           ? { ...sourceForm, layoutBlocks: sourceForm.layoutBlocks.map(translatePrintBlock) }
-          : sourceForm;
+          : sourceForm,
+      );
       const shouldUseDefaultLayout =
         isPreviousDefaultBarcode(form) ||
         (!hasLayoutBlocks(form) &&
@@ -1464,6 +1488,17 @@ const unwrapEditorTokens = (html: string) =>
     '$1',
   );
 
+/**
+ * Phone variables printed in Ukrainian local format `050-556-70-90`
+ * (see formatPhoneForPrint). `labelContact` is not listed: on warehouse labels
+ * it holds the article, so order print data formats it at the source.
+ */
+export const printPhoneVariables: ReadonlySet<string> = new Set([
+  'clientPhone',
+  'service_center_phone',
+  'warehouse_phone',
+]);
+
 export const renderPrintTemplate = (
   template: string,
   values: PrintTemplateData,
@@ -1510,6 +1545,10 @@ export const renderPrintTemplate = (
           ? `<span class="print-order-number">${escapeHtml(values.orderNumber ?? '')}</span>`
           : escapeHtml(values.orderNumber ?? ''),
       );
+    }
+
+    if (printPhoneVariables.has(key)) {
+      return result.replaceAll(`{{${key}}}`, escapeHtml(formatPhoneForPrint(values[key] ?? '')));
     }
 
     return result.replaceAll(`{{${key}}}`, escapeHtml(values[key] ?? ''));
