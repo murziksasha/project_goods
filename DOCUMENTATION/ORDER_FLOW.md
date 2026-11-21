@@ -137,6 +137,7 @@ The Orders, Sales, and Supplier Order tabs show the same count chip as the Kanba
 - i18n keys: `orders.kanban.ordersCount`, `orders.kanban.salesCount` (`en.json` / `uk.json`). Supplier Order reuses `orders.kanban.ordersCount`.
 - The chip is a static label. When the search field is non-empty and `N === 1`, it becomes a button that opens the single match, and the pager is hidden (same as before). Orders and Sales `N` uses the same phone and text rules as the rows, so the chip opens the row the list shows.
 - Components: `OrdersWorkspaceListHeader.tsx` (Orders / Kanban / Sales), `SupplierOrdersToolbar` in `SupplierOrdersWorkspaceSections.tsx` (Supplier Order / Information).
+- Filter panel close button `×` (`.orders-filter-panel-close`) on Orders and Sales hides the gray panel without applying, clearing, or resetting draft filters. Escape closes Save filter sheet first, then status menu, then panel. Reopening the save drawer during an in-flight save preserves the reopened drawer on completion.
 
 ## Orders List Columns (`Orders` tab)
 
