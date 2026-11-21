@@ -16,6 +16,13 @@ export type ProductModelPriceForm = {
   wholesalePrice: string;
 };
 
+export type ProductModelClientOrder = {
+  saleId: string;
+  recordNumber: string;
+  kind: 'repair' | 'sale';
+  status: string;
+};
+
 export type ProductModelSerialPurchaseRow = {
   productId: string;
   serialNumber: string;
@@ -26,9 +33,14 @@ export type ProductModelSerialPurchaseRow = {
   supplierOrderId?: string;
   supplierOrderItemIndex?: number;
   supplierOrderNumber: string;
+  clientOrders: ProductModelClientOrder[];
 };
 
-export type ProductModelSaleLink = StockSaleLink & { id?: string };
+export type ProductModelSaleLink = StockSaleLink & {
+  id?: string;
+  recordNumber?: string | null;
+  kind?: 'repair' | 'sale';
+};
 
 const getBatchTimestamp = (product: Product) => {
   const raw = product.purchaseDate ?? product.createdAt;
@@ -49,6 +61,48 @@ export const getLatestBatchProduct = (products: Product[]): Product | null => {
 
 const getBatchKey = (product: Product) =>
   `${getBatchTimestamp(product)}::${product.price}`;
+
+const compareClientOrderLabel = (
+  first: ProductModelClientOrder,
+  second: ProductModelClientOrder,
+) => {
+  const firstLabel = first.recordNumber || first.saleId;
+  const secondLabel = second.recordNumber || second.saleId;
+  return firstLabel.localeCompare(secondLabel, undefined, {
+    numeric: true,
+    sensitivity: 'base',
+  });
+};
+
+export const buildClientOrdersByProductId = (
+  products: Product[],
+  sales: ProductModelSaleLink[],
+) => {
+  const ordersByProductId = new Map<string, ProductModelClientOrder[]>();
+
+  sales.forEach((sale) => {
+    const saleId = sale.id?.trim() ?? '';
+    if (!saleId) return;
+
+    getStockProductIdsLinkedToSale(sale, products).forEach((productId) => {
+      const current = ordersByProductId.get(productId) ?? [];
+      if (current.some((order) => order.saleId === saleId)) return;
+      current.push({
+        saleId,
+        recordNumber: String(sale.recordNumber ?? '').trim(),
+        kind: sale.kind === 'sale' ? 'sale' : 'repair',
+        status: String(sale.status ?? ''),
+      });
+      ordersByProductId.set(productId, current);
+    });
+  });
+
+  ordersByProductId.forEach((orders) => {
+    orders.sort(compareClientOrderLabel);
+  });
+
+  return ordersByProductId;
+};
 
 export const getReservedProductIdsOnOtherSales = (
   products: Product[],
@@ -96,11 +150,13 @@ export const buildProductModelSerialPurchases = (
     string,
     StockSupplierOrderLink[]
   > = {},
+  sales: ProductModelSaleLink[] = [],
 ): ProductModelSerialPurchaseRow[] => {
   const latestBatchProduct = getLatestBatchProduct(products);
   const latestBatchKey = latestBatchProduct
     ? getBatchKey(latestBatchProduct)
     : '';
+  const clientOrdersByProductId = buildClientOrdersByProductId(products, sales);
 
   return [...products]
     .sort((first, second) => {
@@ -124,6 +180,7 @@ export const buildProductModelSerialPurchases = (
         isLatestBatch: getBatchKey(product) === latestBatchKey,
         isReserved: reservedProductIds.has(product.id),
         supplierOrderNumber: link?.displayNumber ?? '',
+        clientOrders: clientOrdersByProductId.get(product.id) ?? [],
         ...(link
           ? {
               supplierOrderId: link.order.id,

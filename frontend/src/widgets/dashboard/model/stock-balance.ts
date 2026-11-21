@@ -1,5 +1,5 @@
 import type { Product } from '../../../entities/product';
-import type { Sale } from '../../../entities/sale';
+import type { Sale, StockOrderLink } from '../../../entities/sale';
 import { getSaleProductSerialNumber } from '../../../entities/sale';
 import type { SupplierOrder } from '../../../entities/supplier-order';
 import { buildSupplierOrderItemNumber } from './supplier-order-utils';
@@ -181,6 +181,80 @@ export const getIssuedSaleProductIds = (
   });
 
   return issuedProductIds;
+};
+
+const stockOrderLinkKind = (kind: StockOrderLink['kind']): Sale['kind'] =>
+  kind === 'sale' ? 'sale' : 'repair';
+
+const saleFromStockOrderLinks = (
+  saleId: string,
+  links: StockOrderLink[],
+): Sale => {
+  const first = links[0];
+  return {
+    id: saleId,
+    recordNumber: first?.recordNumber.trim() || null,
+    saleDate: '',
+    quantity: 1,
+    salePrice: 0,
+    kind: stockOrderLinkKind(first?.kind ?? 'repair'),
+    status: first?.status ?? '',
+    paidAmount: 0,
+    note: '',
+    timeline: [],
+    paymentHistory: [],
+    lineItems: links.map((link) => ({
+      id: `${saleId}:${link.productId}`,
+      kind: 'product',
+      productId: link.productId,
+      name: '',
+      price: 0,
+      quantity: 1,
+      warrantyPeriod: 0,
+      serialNumbers: link.serialNumber.trim() ? [link.serialNumber.trim()] : [],
+    })),
+    client: {
+      id: '',
+      name: '',
+      phone: '',
+      status: '',
+    },
+    product: {
+      id: first?.productId ?? '',
+      article: '',
+      name: '',
+      serialNumber: first?.serialNumber ?? '',
+    },
+    manager: null,
+    master: null,
+    issuedBy: null,
+    createdAt: '',
+    updatedAt: '',
+  };
+};
+
+export const mergeSalesWithStockOrderLinks = (
+  sales: Sale[],
+  links: StockOrderLink[],
+) => {
+  if (links.length === 0) return sales;
+
+  const knownSaleIds = new Set(sales.map((sale) => sale.id));
+  const linksBySaleId = new Map<string, StockOrderLink[]>();
+  links.forEach((link) => {
+    const saleId = link.saleId.trim();
+    if (!saleId || knownSaleIds.has(saleId)) return;
+    linksBySaleId.set(saleId, [...(linksBySaleId.get(saleId) ?? []), link]);
+  });
+
+  if (linksBySaleId.size === 0) return sales;
+
+  return [
+    ...sales,
+    ...Array.from(linksBySaleId.entries()).map(([saleId, saleLinks]) =>
+      saleFromStockOrderLinks(saleId, saleLinks),
+    ),
+  ];
 };
 
 export const buildProductWarehouseMetaById = (

@@ -49,6 +49,13 @@ export const useDismissibleSuggestions = ({
 
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return;
+      const backdrops = document.querySelectorAll('.modal-backdrop');
+      const topmostBackdrop = backdrops[backdrops.length - 1];
+      if (
+        topmostBackdrop &&
+        !topmostBackdrop.contains(rootNodeRef.current) &&
+        !topmostBackdrop.contains(panelNodeRef.current)
+      ) return;
       event.preventDefault();
       event.stopPropagation();
       setDismissedQuery(query);

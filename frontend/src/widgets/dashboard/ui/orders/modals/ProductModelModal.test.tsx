@@ -3,10 +3,13 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Product } from '../../../../../entities/product';
 import type { Sale } from '../../../../../entities/sale';
 import type { SupplierOrder } from '../../../../../entities/supplier-order';
-import { getOccupiedSerialNumbers } from '../../../../../entities/sale';
+import { getStockOrderLinks } from '../../../../../entities/sale';
+import type { StockOrderLink } from '../../../../../entities/sale';
+import { getOrderLink } from '../../../../../shared/config/routing';
 import { defaultPrintForms } from '../../../../../entities/settings';
 import i18n from '../../../../../shared/i18n/config';
 import * as clipboard from '../../../../../shared/lib/clipboard';
+import { formatCurrency, formatDate } from '../../../../../shared/lib/format';
 import * as ordersWorkspaceShared from '../workspace/orders-workspace-shared';
 import { ProductModelModal } from './ProductModelModal';
 
@@ -14,11 +17,11 @@ vi.mock('../../../../../entities/sale', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../../../../entities/sale')>();
   return {
     ...actual,
-  getOccupiedSerialNumbers: vi.fn(async () => ({ occupied: [] as string[] })),
+  getStockOrderLinks: vi.fn(async () => ({ links: [] as StockOrderLink[] })),
   };
 });
 
-const getOccupiedSerialNumbersMock = vi.mocked(getOccupiedSerialNumbers);
+const getStockOrderLinksMock = vi.mocked(getStockOrderLinks);
 
 const createProduct = (patch: Partial<Product>): Product => ({
   id: 'product-1',
@@ -128,8 +131,123 @@ const saleBindingProduct = (
 
 afterEach(async () => {
   vi.clearAllMocks();
-  getOccupiedSerialNumbersMock.mockResolvedValue({ occupied: [] });
+  getStockOrderLinksMock.mockResolvedValue({ links: [] });
   await i18n.changeLanguage('en');
+});
+
+describe('ProductModelModal selected historical serial', () => {
+  it('shows sold-unit purchase provenance without adding it to active stock or latest batch', () => {
+    const sold = createProduct({
+      id: 'sold-unit',
+      serialNumber: 'S-SOLD',
+      quantity: 0,
+      freeQuantity: 0,
+      isInStock: false,
+      price: 175,
+      purchaseDate: '2026-11-12',
+      supplierOrderId: 'so-1',
+      supplierOrderItemIndex: 0,
+    });
+    const active = createProduct({
+      id: 'active-unit',
+      serialNumber: 'S-ACTIVE',
+      price: 220,
+      purchaseDate: '2026-10-01',
+    });
+
+    render(
+      <ProductModelModal
+        name={sold.name}
+        products={[sold, active]}
+        sales={[saleBindingProduct('issued-sale', sold, 'issued')]}
+        supplierOrders={[createSupplierOrder()]}
+        warehouses={[]}
+        selectedSerial={{ serialNumber: sold.serialNumber, product: sold }}
+        readOnly
+        onClose={vi.fn()}
+        onSave={vi.fn(async () => true)}
+      />,
+    );
+
+    const selected = screen.getByRole('region', {
+      name: i18n.t('catalog.productModel.selectedSerialTitle'),
+    });
+    expect(within(selected).getByText(sold.serialNumber)).toBeVisible();
+    expect(within(selected).getByText(formatCurrency(sold.price), { normalizer: (text) => text })).toBeVisible();
+    expect(within(selected).getByText(formatDate(sold.purchaseDate))).toBeVisible();
+    expect(within(selected).getByText('SO-1')).toBeVisible();
+    const purchases = document.querySelector('.product-model-serial-purchases-table') as HTMLElement;
+    expect(purchases).not.toBeNull();
+    expect(within(purchases).queryByText(sold.serialNumber)).toBeNull();
+    expect(within(purchases).getByText(active.serialNumber)).toBeVisible();
+    expect(within(purchases).getByText(i18n.t('catalog.productModel.latestBatchBadge'))).toBeVisible();
+    expect(screen.getByText(i18n.t('catalog.productModel.latestBatchSummary', {
+      price: formatCurrency(active.price),
+      date: formatDate(active.purchaseDate),
+    }), { normalizer: (text) => text })).toBeVisible();
+    expect(screen.queryByRole('button', { name: i18n.t('catalog.productModel.saveModel') })).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: i18n.t('catalog.productModel.sections.stock') }));
+    const summary = document.querySelector('.product-model-summary') as HTMLElement;
+    expect(within(summary).getByText(i18n.t('catalog.productModel.total')).parentElement).toHaveTextContent('1');
+    expect(within(summary).getByText(i18n.t('catalog.productModel.free')).parentElement).toHaveTextContent('1');
+    expect(within(summary).getByText(i18n.t('catalog.productModel.reserved')).parentElement).toHaveTextContent('0');
+  });
+
+  it('keeps purchase details available when all units are sold and falls back to receipt creation date', () => {
+    const sold = createProduct({
+      id: 'last-sold-unit',
+      serialNumber: 'S-LAST',
+      quantity: 0,
+      freeQuantity: 0,
+      isInStock: false,
+      purchaseDate: null,
+      createdAt: '2026-01-18T11:30:00.000Z',
+    });
+    render(
+      <ProductModelModal
+        name={sold.name}
+        products={[sold]}
+        sales={[saleBindingProduct('issued-sale', sold, 'issued')]}
+        warehouses={[]}
+        selectedSerial={{ serialNumber: sold.serialNumber, product: sold }}
+        readOnly
+        onClose={vi.fn()}
+        onSave={vi.fn(async () => true)}
+      />,
+    );
+
+    const selected = screen.getByRole('region', {
+      name: i18n.t('catalog.productModel.selectedSerialTitle'),
+    });
+    expect(within(selected).getByText(sold.serialNumber)).toBeVisible();
+    expect(within(selected).getByText(formatCurrency(sold.price), { normalizer: (text) => text })).toBeVisible();
+    expect(within(selected).getByText(formatDate(sold.createdAt))).toBeVisible();
+    expect(screen.getByText(i18n.t('catalog.productModel.noStockRows'))).toBeVisible();
+    expect(document.querySelector('.product-model-serial-purchases-table')).toBeNull();
+    expect(screen.queryByText(i18n.t('catalog.productModel.latestBatchBadge'))).toBeNull();
+  });
+
+  it('preserves an unknown serial and explicitly reports unavailable purchase information', () => {
+    render(
+      <ProductModelModal
+        name='Historical product'
+        products={[]}
+        warehouses={[]}
+        selectedSerial={{ serialNumber: 'S-MISSING', product: null }}
+        readOnly
+        onClose={vi.fn()}
+        onSave={vi.fn(async () => true)}
+      />,
+    );
+
+    const selected = screen.getByRole('region', {
+      name: i18n.t('catalog.productModel.selectedSerialTitle'),
+    });
+    expect(within(selected).getByText('S-MISSING')).toBeVisible();
+    expect(within(selected).getByText('Purchase information is unavailable for this serial number.')).toBeVisible();
+    expect(screen.queryByRole('button', { name: i18n.t('catalog.productModel.saveModel') })).toBeNull();
+  });
 });
 
 describe('ProductModelModal serial printing', () => {
@@ -410,6 +528,9 @@ describe('ProductModelModal serial printing', () => {
       screen.getByText(i18n.t('catalog.productModel.supplierOrder')),
     ).toBeInTheDocument();
     expect(
+      screen.getByText(i18n.t('catalog.productModel.clientOrder')),
+    ).toBeInTheDocument();
+    expect(
       screen.getByText(
         i18n.t('catalog.productModel.latestBatchSummary', {
           price: '250,00 ₴',
@@ -509,10 +630,19 @@ describe('ProductModelModal serial printing', () => {
     ).toBeNull();
   });
 
-  it('marks occupied serials from the occupancy api as reserved', async () => {
+  it('marks a non-issued binding from stock-links as reserved', async () => {
     const { clickedProduct, products } = serialPurchaseProducts();
-    getOccupiedSerialNumbersMock.mockResolvedValue({
-      occupied: ['R0000001'],
+    getStockOrderLinksMock.mockResolvedValue({
+      links: [
+        {
+          productId: 'old-batch',
+          serialNumber: 'R0000001',
+          saleId: 'sale-outside-list',
+          recordNumber: 'r000088',
+          kind: 'sale',
+          status: 'reserved',
+        },
+      ],
     });
 
     render(
@@ -535,8 +665,9 @@ describe('ProductModelModal serial printing', () => {
     expect(
       document.querySelector('.product-model-serial-row-reserved'),
     ).toHaveTextContent('R0000001');
-    expect(getOccupiedSerialNumbersMock).toHaveBeenCalledWith({
-      excludeSaleId: undefined,
+    expect(screen.getByRole('link', { name: 'r000088' })).toBeInTheDocument();
+    expect(getStockOrderLinksMock).toHaveBeenCalledWith({
+      productIds: expect.arrayContaining(['old-batch', 'new-batch']),
       serials: expect.arrayContaining(['R0000001', 'R0000002']),
     });
   });
@@ -669,5 +800,182 @@ describe('ProductModelModal serial printing', () => {
     });
 
     copySpy.mockRestore();
+  });
+
+  it('keeps the purchase-by-serial header sticky inside the table scroller', () => {
+    const products = Array.from({ length: 8 }, (_, index) =>
+      createProduct({
+        id: `serial-${index}`,
+        serialNumber: `S00010${index}`,
+        purchaseDate: `2026-01-${String(index + 1).padStart(2, '0')}`,
+        createdAt: `2026-01-${String(index + 1).padStart(2, '0')}T00:00:00.000Z`,
+      }),
+    );
+
+    render(
+      <ProductModelModal
+        name='БЖ Meanwell 9V 1.66A'
+        products={products}
+        warehouses={[]}
+        printForms={defaultPrintForms}
+        onClose={vi.fn()}
+        onSave={vi.fn(async () => true)}
+      />,
+    );
+
+    const wrap = document.querySelector(
+      '.product-model-serial-purchases-table-wrap',
+    );
+    const head = wrap?.querySelector('thead');
+    expect(head).not.toBeNull();
+    expect(head?.querySelectorAll('.product-model-serial-purchases-sticky-head')).toHaveLength(6);
+    expect(wrap?.contains(head ?? null)).toBe(true);
+    if (wrap instanceof HTMLElement) {
+      wrap.scrollTop = 48;
+      expect(wrap.querySelector('thead th')).toHaveClass(
+        'product-model-serial-purchases-sticky-head',
+      );
+    }
+  });
+
+  it('shows every bound order, opens it, and copies the visible number', async () => {
+    const onOpenSaleCard = vi.fn();
+    const copySpy = vi
+      .spyOn(clipboard, 'copyTextToClipboard')
+      .mockResolvedValue(true);
+    const { products } = serialPurchaseProducts();
+    getStockOrderLinksMock.mockResolvedValue({
+      links: [
+        {
+          productId: 'old-batch',
+          serialNumber: 'R0000001',
+          saleId: 'sale-current',
+          recordNumber: 'r000010',
+          kind: 'repair',
+          status: 'new',
+        },
+        {
+          productId: 'old-batch',
+          serialNumber: 'R0000001',
+          saleId: 'sale-other',
+          recordNumber: 'r000088',
+          kind: 'sale',
+          status: 'reserved',
+        },
+        {
+          productId: 'new-batch',
+          serialNumber: 'R0000002',
+          saleId: 'sale-second',
+          recordNumber: 'r000099',
+          kind: 'sale',
+          status: 'paid',
+        },
+      ],
+    });
+
+    render(
+      <ProductModelModal
+        name='БЖ Meanwell 9V 1.66A'
+        products={products}
+        currentSaleId='sale-current'
+        warehouses={[]}
+        printForms={defaultPrintForms}
+        onClose={vi.fn()}
+        onSave={vi.fn(async () => true)}
+        onOpenSaleCard={onOpenSaleCard}
+      />,
+    );
+
+    const currentLink = await screen.findByRole('link', { name: 'r000010' });
+    const otherLink = screen.getByRole('link', { name: 'r000088' });
+    expect(currentLink).toHaveAttribute(
+      'href',
+      getOrderLink('sale-current', 'repair'),
+    );
+    expect(otherLink).toHaveAttribute('href', getOrderLink('sale-other', 'sale'));
+    expect(screen.getByRole('link', { name: 'r000099' })).toBeInTheDocument();
+    const reservedRow = currentLink.closest('tr');
+    expect(reservedRow).toHaveClass('product-model-serial-row-reserved');
+    expect(reservedRow).toHaveTextContent('R0000001');
+    expect(reservedRow).toHaveTextContent('r000010');
+    expect(reservedRow).toHaveTextContent('r000088');
+
+    fireEvent.click(currentLink);
+    expect(onOpenSaleCard).toHaveBeenCalledWith({
+      id: 'sale-current',
+      kind: 'repair',
+    });
+    fireEvent.click(otherLink, { ctrlKey: true });
+    expect(onOpenSaleCard).toHaveBeenCalledTimes(1);
+
+    const copyButton = currentLink
+      .closest('.copyable-value')
+      ?.querySelector('button');
+    expect(copyButton).not.toBeNull();
+    fireEvent.click(copyButton as HTMLButtonElement);
+    await waitFor(() => {
+      expect(copySpy).toHaveBeenCalledWith('r000010');
+    });
+    expect(onOpenSaleCard).toHaveBeenCalledTimes(1);
+    copySpy.mockRestore();
+  });
+
+  it('drops an issued serial from outside the loaded sales and keeps a returned serial', async () => {
+    const issued = createProduct({
+      id: 'issued-unit',
+      serialNumber: 'S000113',
+      quantity: 1,
+      purchaseDate: '2026-01-02',
+      createdAt: '2026-01-02T00:00:00.000Z',
+    });
+    const returned = createProduct({
+      id: 'returned-unit',
+      serialNumber: 'S000114',
+      quantity: 1,
+      purchaseDate: '2026-02-02',
+      createdAt: '2026-02-02T00:00:00.000Z',
+    });
+    getStockOrderLinksMock.mockResolvedValue({
+      links: [
+        {
+          productId: issued.id,
+          serialNumber: 'S000113',
+          saleId: 'sale-issued',
+          recordNumber: 'r000255',
+          kind: 'sale',
+          status: 'issued',
+        },
+        {
+          productId: returned.id,
+          serialNumber: 'S000114',
+          saleId: 'sale-returned',
+          recordNumber: 'r000256',
+          kind: 'sale',
+          status: 'returned',
+        },
+      ],
+    });
+
+    render(
+      <ProductModelModal
+        name='БЖ Meanwell 9V 1.66A'
+        products={[issued, returned]}
+        sales={[]}
+        warehouses={[]}
+        printForms={defaultPrintForms}
+        onClose={vi.fn()}
+        onSave={vi.fn(async () => true)}
+      />,
+    );
+
+    expect(await screen.findByRole('link', { name: 'r000256' })).toBeInTheDocument();
+    expect(screen.getByText('S000114')).toBeInTheDocument();
+    expect(screen.queryByText('S000113')).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'r000255' })).not.toBeInTheDocument();
+    expect(issued.quantity).toBe(1);
+    expect(returned.quantity).toBe(1);
+    expect(
+      document.querySelector('.product-model-serial-row-reserved'),
+    ).toHaveTextContent('S000114');
   });
 });

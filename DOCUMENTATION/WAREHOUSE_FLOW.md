@@ -32,6 +32,8 @@ The warehouse toolbar search box (`WarehouseToolbar`) is shared by `Stock balanc
 - **Left click** opens the order/sale card inside the SPA (`navigateTo` / `pushState`) — no full page reload; browser Back returns to the warehouse view.
 - **Middle click / Ctrl+click** opens the deep-link URL in a new tab (full SPA load with `?page=orders&ordersTab=...&saleId=...`).
 - Hover on the badge shows a copy icon. Only the icon copies the visible number (`recordNumber`, else `sale.id` first 8 chars). Badge click stays the SPA / new-tab flow. Spec: [UI_DESIGN_SYSTEM.md — Hover copy icon](./UI_DESIGN_SYSTEM.md#hover-copy-icon).
+- Product model `Purchase by serial` uses this same number, `href`, left-click, and copy icon. See [§4.4](#44-product-model-detail-modal).
+- A sale outside the loaded sales list still supplies this number when `POST /sales/stock-links` succeeds. See [Client order and issued stock (2026-11-15)](#client-order-and-issued-stock-2026-11-15).
 
 ### Supplier order links (Stock balances)
 
@@ -109,6 +111,7 @@ The warehouse toolbar search box (`WarehouseToolbar`) is shared by `Stock balanc
 ### 4.1) Issued Sale Visibility Rule
 
 - Product linked to `Sales order` with status `issued` must not be shown in `Stock balances`.
+- Issued linkage is read from `POST /sales/stock-links` for the stock units on screen (`productIds` and `serials`), so a sale outside the loaded `GET /sales?limit=500` (or warehouse `limit=2000`) list still hides the unit. The loaded sales list is only the fallback when that request fails. The request does not change `Product.quantity`.
 - Matching is resolved only by strict linkage identifiers:
 
 1. `productId` (from `sale.product.id` or `sale.lineItems[].productId`)
@@ -298,19 +301,22 @@ Canonical UI for `Serials x/y` → `SerialBindModal` on **opened sale and repair
 3. retail price from `salePriceOptions[0]`
 4. wholesale price from `salePriceOptions[1]`
 5. purchase prices in `PRICES` (**read-only**, per serialized stock unit):
-   - section title `Purchase by serial` lists every **active in-stock** matching row as `Serial # | Purchase | Receipt date | Supplier order`
+   - section title `Purchase by serial` lists every **active in-stock** matching row as `Serial # | Purchase | Receipt date | Supplier order | Client order`
    - active row rule matches `Stock balances` visibility: `quantity > 0` and not linked to a sale with status `issued`
+   - issued linkage for this table and for `Stock balances` comes from `POST /sales/stock-links` (status included). A sale outside the loaded sales list still removes the row. `Product.quantity` is not rewritten. If the request fails, the loaded sales list remains the fallback
+   - `Client order` shows every bound sale/order number for that active unit, including the opened card. The visible number is `recordNumber`, otherwise the sale id's first 8 characters. Left click opens that card through `getOrderLink` / `onOpenSaleCard` (same route as Stock balances). The hover copy icon copies only the visible number. Several bindings render as separate badges. An empty cell is `—`
    - each row uses that unit's own `Product.price` and `purchaseDate` (fallback `createdAt`) from take-on-charge
    - `Supplier order` is unit-level provenance (same as §2.1): `product.supplierOrderId` + `product.supplierOrderItemIndex` resolved to `displayNumber` (`SO-1`, or `SO-1-2` on multi-item orders). Missing / unmatched provenance shows `—`
    - click the supplier-order number to open the existing `SupplierOrderModal` (item-scoped, same as Stock balances). The product-model modal stays open underneath
    - hover on the serial number shows a copy icon; only the icon copies the visible serial. Empty / whitespace serials have no icon. `Latest` / `Reserved` badges stay outside the copy target. Spec: [UI_DESIGN_SYSTEM.md — Hover copy icon](./UI_DESIGN_SYSTEM.md#hover-copy-icon)
    - hover on the supplier-order number shows a copy icon; only the icon copies the visible number. Spec: [UI_DESIGN_SYSTEM.md — Hover copy icon](./UI_DESIGN_SYSTEM.md#hover-copy-icon)
    - rows are sorted by receipt date descending, then serial number
-   - compact scrollable table (`max-height: 220px`, dense cell padding) keeps serial, purchase, date, and supplier-order number visible without horizontal scroll on the desktop modal width
+   - compact scrollable table (`max-height: 220px`, dense cell padding). The header row stays sticky at the top of that scroller (`border-collapse: separate` so the pin works). Below 720px the table keeps a 36rem minimum width and scrolls inside the same wrap, so the new column stays readable
+   - the separate `Selected serial purchase` block is unchanged and does not show `Client order`
    - header summary `Latest batch: <price> · <date>` uses the newest receipt batch among **remaining active rows**
    - badge `Latest` marks every active row that belongs to that newest batch (same receipt date + purchase price)
    - badge `Reserved` (red) marks an active row already bound on another sale/order
-   - occupancy source of truth is `GET /sales/occupied-serials` (same helper as §4.3.0); in-memory `sales` is only a fallback
+   - `Reserved` uses the same stock-link rows: a non-issued binding whose sale id is not the opened card. Issued rows are absent, so they are not badged. In-memory `sales` is only a fallback when `POST /sales/stock-links` fails. `GET /sales/occupied-serials` remains the bind-modal source (§4.3.0), not this table
    - from an opened repair/sale card, `excludeSaleId` is the opened card so serials bound only on **that** card are not `Reserved`
    - warehouse (no current sale) treats any occupancy hit as reserved
    - `Latest` and `Reserved` can appear on the same row; reserved row background wins over latest
@@ -333,6 +339,30 @@ Canonical UI for `Serials x/y` → `SerialBindModal` on **opened sale and repair
 - Model save payload updates only `article`, `note`, `salePriceOptions[0]` (retail), and `salePriceOptions[1]` (wholesale); `Product.price` (purchase price) is never changed through this modal.
 - Saving does not update `CatalogProduct` and does not create stock rows.
 - If no matching stock rows exist, balances are shown as zero and stock-backed fields cannot be saved.
+
+#### Selected serial from create-order history (2026-11-14)
+
+- Create-order history reuses `ProductModelModal` read-only, passing an optional `selectedSerial` context (`serialNumber`, resolved `Product` or `null`). Existing callers can omit it. The modal also accepts optional `usePortal` for display above the create form.
+- The separate `Selected serial purchase` section shows the exact selected serial, its own purchase price, receipt date (`purchaseDate`, fallback `createdAt`), and supplier-order provenance using the existing unit-level resolver. The unit is resolved by normalized serial across all product records, including sold/zero-quantity units.
+- This section remains visible when no active stock rows exist. A missing product record shows an explicit purchase-information-unavailable message. Missing supplier provenance displays `—`; supplier-order loading retains existing permissions.
+- Selected historical units never enter the active-stock purchase table, latest-batch calculation, reservation badges, printable selections, or stock totals merely because they were selected. Existing stock filtering remains the source of truth.
+- Closing the modal (including Escape) returns to the expanded history and preserves the new-order draft. No product, order, or stock data is modified by this read-only history path.
+- At mobile widths, the product-model header stacks its subtitle above the title and limits the visible name to three lines, leaving the purchase details scrollable. The existing copy-name action retains the complete name.
+
+#### Client order and issued stock (2026-11-15)
+
+An issued sale outside the loaded window left `Product.quantity` at 1. `Purchase by serial` then kept the serial, and `GET /sales/occupied-serials` only painted `Reserved` because that response has no status and no record number.
+
+- `POST /sales/stock-links` returns one row per product and sale: `productId`, `serialNumber`, `saleId`, `recordNumber`, `kind`, `status`. Contract: [API.md](./API.md). The read set matches `GET /sales`. `finance.view` alone is not enough.
+- Linkage is `sale.product` id, a product line `productId` when the product serial agrees, and product-line `serialNumbers`. Service lines are ignored. The repair device field `sale.serialNumber` is not a stock link.
+- The product-model table and `Stock balances` merge those links with the loaded sales. A sale already in memory stays that object. Issued status from either source hides the unit. `Product.quantity` is not rewritten.
+- A `returned` sale that still carries the serial stays visible, shows its number, and is `Reserved` when that sale is not the opened card. `paid`, `reserved`, and `new` do not hide stock.
+- `Client order` on an active row lists every bound number, including the opened card, in record-number order. The label is `recordNumber`, otherwise the first 8 characters of the sale id. An empty cell is `—` and has no copy icon. Open and copy match [Client order links](#client-order-links-stock-balances). A binding only on the opened card is still not `Reserved`.
+- The `Purchase by serial` header stays pinned inside the 220px scroller (`border-collapse: separate`). Below 720px the table `min-width` is 36rem and that same wrap scrolls horizontally.
+- `Selected serial purchase` is unchanged and does not show `Client order`.
+- `GET /sales/occupied-serials` stays the bind-modal occupancy source ([§4.3.0](#430-bind-modal-occupancy-opened-repair-and-sale-cards)). The product-model table does not call it.
+- On `Stock balances`, `Client order` stays off until the operator enables it in the column menu. Issued units disappear either way. The stock-tab request runs only while that tab is open, and only for units with `quantity > 0`. Warehouse Information keeps the loaded sales list.
+- If the request fails, both surfaces fall back to the loaded sales list.
 
 ### 4.5) Serial Label Printing (Stock Balances)
 

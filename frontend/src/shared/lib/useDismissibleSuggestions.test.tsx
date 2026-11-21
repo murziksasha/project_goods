@@ -122,6 +122,45 @@ describe('useDismissibleSuggestions', () => {
     expect(screen.getByTestId('panel')).toBeInTheDocument();
   });
 
+  it('does not intercept Escape from a modal above a background lookup', () => {
+    const modalListener = vi.fn();
+    render(
+      <>
+        <Harness query='samsung' isActive />
+        <div className='modal-backdrop'>
+          <button type='button'>Modal action</button>
+        </div>
+      </>,
+    );
+    document.addEventListener('keydown', modalListener);
+    try {
+      fireEvent.keyDown(screen.getByRole('button', { name: 'Modal action' }), {
+        key: 'Escape',
+      });
+      expect(modalListener).toHaveBeenCalledOnce();
+      expect(screen.getByTestId('panel')).toBeInTheDocument();
+    } finally {
+      document.removeEventListener('keydown', modalListener);
+    }
+  });
+
+  it('still dismisses suggestions inside the topmost modal before closing it', () => {
+    const modalListener = vi.fn();
+    render(
+      <div className='modal-backdrop'>
+        <Harness query='samsung' isActive />
+      </div>,
+    );
+    document.addEventListener('keydown', modalListener);
+    try {
+      fireEvent.keyDown(screen.getByTestId('input'), { key: 'Escape' });
+      expect(screen.queryByTestId('panel')).not.toBeInTheDocument();
+      expect(modalListener).not.toHaveBeenCalled();
+    } finally {
+      document.removeEventListener('keydown', modalListener);
+    }
+  });
+
   it('reopens on resetDismissed without editing the query', () => {
     const ResetHarness = () => {
       const { rootRef, isVisible, resetDismissed } =

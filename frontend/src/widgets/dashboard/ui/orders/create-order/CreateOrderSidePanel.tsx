@@ -1,11 +1,16 @@
 import type React from 'react';
+import { useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { ClientDevice } from '../../../../../entities/client-device';
-import type { Sale } from '../../../../../entities/sale';
+import type { Sale, SaleLineItem } from '../../../../../entities/sale';
 import { formatDate } from '../../../../../shared/lib/format';
 import {
   getSaleProductName,
 } from '../../../../../entities/sale';
+import {
+  RequestContentsToggle,
+  RequestLineItemsContents,
+} from '../../shared/RequestLineItemsContents';
 import {
   getOrderLink,
   type ClientRequestTab,
@@ -23,6 +28,7 @@ export interface CreateOrderSidePanelProps {
   onApplyDevice: (device: ClientDevice) => void;
   onUnbindDevice: (device: ClientDevice) => void;
   onClientRequestTabChange: (tab: ClientRequestTab) => void;
+  onOpenSerial?: (sale: Sale, item: SaleLineItem, serialNumber: string) => void;
 };
 
 export const CreateOrderSidePanel: React.FC<CreateOrderSidePanelProps> = ({
@@ -35,8 +41,21 @@ export const CreateOrderSidePanel: React.FC<CreateOrderSidePanelProps> = ({
   onApplyDevice,
   onUnbindDevice,
   onClientRequestTabChange,
+  onOpenSerial,
 }) => {
   const { t } = useTranslation();
+  const contentsId = useId();
+  const [expandedRequests, setExpandedRequests] = useState<Set<string>>(
+    () => new Set(),
+  );
+  const toggleRequest = (id: string) => {
+    setExpandedRequests((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
   const shouldScrollClientRequests =
     activeClientRequests.length >= CLIENT_REQUESTS_SCROLL_THRESHOLD;
 
@@ -124,23 +143,53 @@ export const CreateOrderSidePanel: React.FC<CreateOrderSidePanelProps> = ({
               const deviceItem = sale.lineItems?.find(
                 (item) => item.kind === 'product',
               );
-              const deviceNameValue =
-                deviceItem?.name?.trim() ||
-                getSaleProductName(sale, t('orders.create.deviceFallback'));
+              const savedDeviceName = sale.product?.name?.trim() ?? '';
+              const hasDeviceName = savedDeviceName &&
+                !['REPAIR', 'REPAIR PLACEHOLDER'].includes(
+                  savedDeviceName.toUpperCase(),
+                );
+              const deviceNameValue = sale.kind === 'repair'
+                ? hasDeviceName
+                  ? savedDeviceName
+                  : t('orders.create.sidePanel.deviceNotSpecified')
+                : deviceItem?.name?.trim() ||
+                  getSaleProductName(sale, t('orders.create.deviceFallback'));
+              const isExpanded = expandedRequests.has(sale.id);
+              const requestContentsId = `${contentsId}-${sale.id}`;
               return (
                 <div key={sale.id} className="create-side-list-item">
                   <div className="create-side-request-heading">
-                    <a
-                      className="create-side-list-link"
-                      href={getOrderLink(sale.id, sale.kind)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      {sale.recordNumber ?? 'r------'}
-                    </a>
+                    <span className="create-side-request-number">
+                      <a
+                        className="create-side-list-link"
+                        href={getOrderLink(sale.id, sale.kind)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        {sale.recordNumber ?? 'r------'}
+                      </a>
+                      <RequestContentsToggle
+                        expanded={isExpanded}
+                        controlsId={requestContentsId}
+                        label={t('orders.create.sidePanel.toggleContents', {
+                          number: sale.recordNumber ?? 'r------',
+                        })}
+                        onClick={() => toggleRequest(sale.id)}
+                      />
+                    </span>
                     <span>{formatDate(sale.saleDate)}</span>
                   </div>
                   <span>{deviceNameValue}</span>
+                  <div id={requestContentsId} hidden={!isExpanded} className="create-side-request-contents">
+                    {isExpanded ? (
+                      <RequestLineItemsContents
+                        sale={sale}
+                        onOpenSerial={(item, serialNumber) =>
+                          onOpenSerial?.(sale, item, serialNumber)
+                        }
+                      />
+                    ) : null}
+                  </div>
                 </div>
               );
             })}

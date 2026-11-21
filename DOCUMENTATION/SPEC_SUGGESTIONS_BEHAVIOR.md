@@ -33,6 +33,8 @@ When a suggestion list is open:
 6. Focus-only does not re-open a dismissed list.
 7. Debounce, min-length, ranking, and select-apply rules are unchanged.
 
+When another modal is open above a lookup, its background suggestions must not intercept Escape. Only suggestions belonging to the topmost `.modal-backdrop` consume that keypress; otherwise the topmost modal handles it. This includes device lookups still loading behind create-order history's serial-purchase modal.
+
 **Device #1 example:** operator types `Телевізор Samsung`, longer catalog names stay in the list (`… 32`, `… 55`). Click Issue / Paid / other form chrome (or Escape) -> list gone, field still `Телевізор Samsung`. Save uses that typed name. Typing or deleting one character re-opens lookup.
 
 **Create new:** dismissing the list does **not** mean “no active matches”. `Create new` on Device #1 stays disabled while active catalog matches exist (see **Create Order Device Rule**).

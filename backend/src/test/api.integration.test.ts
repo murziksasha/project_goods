@@ -330,6 +330,37 @@ describe('API smoke reads', () => {
     expect(response.body).toEqual({ occupied: [] });
   });
 
+  it('returns stock links for a sale-read permission and rejects callers without one', async () => {
+    const allowed = await request(app)
+      .post('/api/sales/stock-links')
+      .set(authHeader())
+      .send({ productIds: [], serials: [] });
+
+    expect(allowed.status).toBe(200);
+    expect(allowed.body).toEqual({ links: [] });
+
+    activeEmployee = { role: 'warehouse', permissions: [] };
+    mockEmployeeLookup();
+    const warehouse = await request(app)
+      .post('/api/sales/stock-links')
+      .set(authHeader())
+      .send({ serials: ['S000113'] });
+    expect(warehouse.status).toBe(200);
+
+    activeEmployee = { role: 'auditor', permissions: ['finance.view'] };
+    mockEmployeeLookup();
+    const denied = await request(app)
+      .post('/api/sales/stock-links')
+      .set(authHeader())
+      .send({ serials: ['S000113'] });
+    expect(denied.status).toBe(403);
+
+    const anonymous = await request(app)
+      .post('/api/sales/stock-links')
+      .send({ serials: ['S000113'] });
+    expect(anonymous.status).toBe(401);
+  });
+
   it('returns settings for authenticated employees', async () => {
     const response = await request(app)
       .get('/api/settings')

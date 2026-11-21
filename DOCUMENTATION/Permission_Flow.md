@@ -114,6 +114,7 @@ All `/api/*` routes except health, login, and invitation flows require a valid B
 | Endpoint | Required access |
 | --- | --- |
 | `GET /sales` | `orders.view`, `sales.manage`, `repairs.execute`, `kanban.use`, `supplierOrders.view`, or `supplierOrders.manage`. |
+| `POST /sales/stock-links` | Same read set as `GET /sales`. |
 | `POST /sales`, `PUT /sales/:saleId`, `DELETE /sales/:saleId` | `orders.manage` for repair orders; `sales.manage` for product sales. |
 | `PATCH /sales/:saleId/workspace` (comment-only) | `orders.chat`. |
 | `PATCH /sales/:saleId/workspace` (status-only to `away`) | Any sale-read permission: `orders.view`, `sales.manage`, `repairs.execute`, `kanban.use`, `supplierOrders.view`, or `supplierOrders.manage`. |

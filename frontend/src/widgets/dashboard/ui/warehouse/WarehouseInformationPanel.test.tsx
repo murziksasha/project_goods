@@ -389,8 +389,8 @@ describe('WarehouseInformationPanel', () => {
     expect(agingBtn).toHaveAttribute('aria-expanded', 'false');
     // Subtitle is hidden
     expect(
-      screen.queryByText(/Click any bucket to filter stock details below/i),
-    ).not.toBeInTheDocument();
+      screen.getByText(/Click any bucket to filter stock details below/i),
+    ).toHaveAttribute('hidden');
 
     // Other 4 sections remain expanded
     expect(supplierBtn).toHaveAttribute('aria-expanded', 'true');

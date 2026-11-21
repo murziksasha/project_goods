@@ -31,9 +31,9 @@ Related: [ORDER_CARD.md](./ORDER_CARD.md) · [SALE_FLOW.md](./SALE_FLOW.md) · [
 
 - Left-click navigation inside the dashboard (sidebar, orders tabs, open/close cards) uses client-side History API (`pushState`) and does **not** reload the page.
 - Browser **Back** / **Forward** restore the previous in-app view (page, tab, open card) from the URL query string.
-- Opening an order/sale card from the orders workspace, the Clients-menu client card, or the warehouse stock table updates `saleId` in the URL and pushes a history entry; closing the card clears `saleId` so Back can reopen the card.
+- Opening an order/sale card from the orders workspace or the warehouse stock table updates `saleId` in the URL and pushes a history entry; closing the card clears `saleId` so Back can reopen the card.
 - Opening a client from the Orders or Sales list, or from an order/sale card, pushes `clientCard` on the current orders URL and does not change `page`. Back closes only that modal. See [BROWSER_NAVIGATION.md](./BROWSER_NAVIGATION.md) · [CLIENTS_RULES.md](./CLIENTS_RULES.md).
-- Client card `Orders` / `Sales` numbers are real `getOrderLink()` hrefs. From the Clients menu, left click opens the card in-app and closes the modal. From the orders overlay, left click replaces the overlay history entry with that order. From Create order, left click opens a new tab and keeps the draft. Right-click / middle-click / Ctrl+click opens a new browser tab in every case. Spec: [BROWSER_NAVIGATION.md](./BROWSER_NAVIGATION.md) · [CLIENTS_RULES.md](./CLIENTS_RULES.md).
+- Client card `Orders` / `Sales` numbers are real `getOrderLink()` hrefs. A plain left click opens that card in a remembered browser tab and leaves the client modal open, in the Clients menu and on the orders overlay, including Create order. Right-click / middle-click / Ctrl+click stay native. Spec: [BROWSER_NAVIGATION.md](./BROWSER_NAVIGATION.md) · [CLIENTS_RULES.md](./CLIENTS_RULES.md).
 - Create-order `Client requests` links remain `target="_blank"` (new tab) — they are intentionally outside the in-app history stack.
 - URL helpers: `getOrderLink()` / `buildDashboardHref()` in `frontend/src/pages/dashboard/model/dashboard-navigation.ts`.
 - See [BROWSER_NAVIGATION.md](./BROWSER_NAVIGATION.md).
@@ -49,6 +49,20 @@ Related: [ORDER_CARD.md](./ORDER_CARD.md) · [SALE_FLOW.md](./SALE_FLOW.md) · [
   - `Create order -> Repair order` activates `Orders`,
   - `Create order -> Sales order` activates `Sales`.
 - User can still switch `Client requests` tab manually after auto-selection.
+
+### Expandable request contents (2026-11-14)
+
+- Applies to both history tabs while creating either a repair or a sale. Every row immediately shows the linked request number and `saleDate`.
+- Repair summaries use the saved customer device name (`sale.product.name`), never the first replacement part/service. Missing names and technical repair placeholders show `Device not specified` (localized). Sales keep their existing first-product/name fallback summary.
+- A separate chevron button immediately beside the request number expands/collapses contents inline. Clicking the number still opens the exact card in a new tab without changing the draft.
+- All requests start collapsed; several can be expanded independently. Changing the selected client or history tab resets expansion. Reopening Create order starts collapsed. There is no persistent expansion preference.
+- Expanded contents show all saved `lineItems` in Products/Services groups, preserving separate rows and order within each group. Each row shows name, quantity, unit price, and line total (`price * quantity`, before order-level discounts); product rows show every non-empty bound serial. Empty orders show an explicit empty message, without inventing snapshot line items.
+- Clicking a product serial opens the shared read-only product model modal above Create order. Closing it preserves the draft and expanded history. Selected-unit purchase details, including sold units, follow [WAREHOUSE_FLOW.md §4.4](./WAREHOUSE_FLOW.md#44-product-model-detail-modal).
+- Serial lookups use the existing product/warehouse/supplier-order queries. Supplier orders are loaded only with their existing view/manage permission; missing product records have an explicit unavailable message, and load failures offer Retry.
+- History keeps its existing vertical scroll at four or more requests. Headings, names, serials, and numeric details wrap within the sidebar/mobile width; buttons support touch, Enter/Space, visible focus, `aria-expanded`, and `aria-controls` in both themes.
+- The Products/Services block is the shared `RequestLineItemsContents` component (`frontend/src/widgets/dashboard/ui/shared/RequestLineItemsContents.tsx`). The client card `Orders` and `Sales` tabs reuse it. Card rules: [CLIENTS_RULES.md](./CLIENTS_RULES.md#client-card-tabs).
+- The chevron is the existing button immediately beside the number. It stays 32px on desktop and 40px for touch and coarse pointers. The glyph is centered on the number's vertical middle, and the button keeps `aria-expanded` and `aria-controls`.
+- Each product serial in the expanded block has a hover-copy icon. The icon copies the trimmed serial only, without an `S/N:` prefix. The serial text still opens the shared read-only product model modal (`HistorySerialModal`, context `{ name, serialNumber, saleId }`). Service rows have no serials. Hover-copy matrix: [UI_DESIGN_SYSTEM.md](./UI_DESIGN_SYSTEM.md#hover-copy-icon).
 
 ## Repair Order Device Behavior
 

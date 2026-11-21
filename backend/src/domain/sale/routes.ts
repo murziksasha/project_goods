@@ -14,6 +14,7 @@ export {
 
 saleRouter.get('/sales', asyncHandler(controller.list));
 saleRouter.get('/sales/occupied-serials', asyncHandler(controller.listOccupiedSerials));
+saleRouter.post('/sales/stock-links', asyncHandler(controller.listStockLinks));
 saleRouter.get('/sales/:saleId', asyncHandler(controller.getById));
 saleRouter.post('/sales', asyncHandler(controller.create));
 saleRouter.put('/sales/:saleId', asyncHandler(controller.update));
