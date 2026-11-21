@@ -470,7 +470,7 @@ Implementation references:
   - **All** is pressed only while every status button is pressed. Click **All** when any are off -> press every status. Click **All** when all are on -> press none.
   - Click one status to press or release it. Releasing one turns **All** off. Pressing the last missing status turns **All** on.
   - Buttons and the Filter status checkboxes read and write the same list. A click on a button updates draft and applied at once and opens page 1. Other draft fields stay unapplied until **Apply**.
-  - While the Filter panel is open, the button row is hidden. Stock and Transfers do not show the buttons. Information uses the same applied status set (buttons hidden).
+  - While the Filter panel is open, the button row is hidden. The buttons are shown only on Receipts. Stock, Transfers, Information, and Settings do not show them and do not filter by this receipt status set.
 - Saved filters may store `partially_stocked` in `statuses`. A saved `received` selection no longer includes partially stocked orders.
 - Header summary on this tab: `{lines} lines · {orders} orders · {unpaid} unpaid`. The summary moves with the shared toolbar search commit ([Toolbar search](#toolbar-search)), not on each character. Receipts has no search-mode dropdown.
 - Filters persist per employee in `localStorage` (`project-goods.warehouse-filters.<employeeId>`). Stored shape includes an explicit list plus `statusSelectionExplicit: true`. A legacy record with no flag and empty list is read as every status and rewritten as the full list on the next save; a legacy non-empty list is kept and marked explicit. Named saved warehouse filters on the server follow the same read rule on apply.

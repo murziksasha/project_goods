@@ -32,7 +32,7 @@ Extracted from [ORDER_FLOW.md](./ORDER_FLOW.md) for focused maintenance. Covers 
 - Save filter sheet is portaled to `document.body` above the table and top bar (z-index 120); closes only after a successful save or on `×` / Cancel / Escape. Choosing a preset from the sheet applies it and closes the sheet. If closed and reopened while a save is pending, the completed save does not close the reopened sheet or clear its name.
 - Toolbar search is live (number, product, supplier, created by, note). Enter / count chip opens the unique match.
 - Starred-only is a live toolbar toggle. Column visibility persists in `project-goods.supplier-orders-columns`.
-- Information tab uses the same applied filters. Gear, star, search, and create stay hidden. Its chip uses the same `Orders: N` label and replaces the pager.
+- Information tab uses the same applied filters, including the status allow-list. Status buttons, gear, star, search, and create stay hidden. Its chip uses the same `Orders: N` label and replaces the pager.
 - Count chip rules shared with Orders/Sales/Kanban: [ORDER_FLOW.md](./ORDER_FLOW.md#toolbar-record-count-chip-2026-10-28).
 
 ## Table columns (gear)
