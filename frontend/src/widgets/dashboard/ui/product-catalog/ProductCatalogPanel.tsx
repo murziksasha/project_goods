@@ -452,37 +452,50 @@ export const ProductCatalogPanel: React.FC<
     };
   }, [currentEmployee?.id]);
 
-  const saveCurrentFilter = () => {
-    const filterName = newFilterName.trim();
-    if (!currentEmployee?.id || !filterName) return;
-    const filters = normalizeCatalogFilters(appliedFilters);
-    void (async () => {
-      try {
-        const created = await createSavedFilterRequest({
-          scope: 'catalog',
-          tab: activeTab,
-          name: filterName,
-          icon: newFilterIcon,
-          filters,
-        });
-        setSavedFilters((current) => [
-          {
-            id: created.id,
-            employeeId: created.employeeId,
-            name: created.name,
-            icon: created.icon,
-            tab: created.tab as CatalogTab,
-            filters: created.filters,
-            createdAt: created.createdAt,
-          },
-          ...current,
-        ]);
-        setNewFilterName('');
-        setNewFilterIcon(filterIconOptions[0]);
-      } catch {
-        // ignore
+  useEffect(() => {
+    if (!isFilterPanelOpen) return;
+
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsFilterPanelOpen(false);
       }
-    })();
+    };
+
+    document.addEventListener('keydown', closeOnEscape);
+
+    return () => {
+      document.removeEventListener('keydown', closeOnEscape);
+    };
+  }, [isFilterPanelOpen]);
+
+  const saveCurrentFilter = async (): Promise<boolean> => {
+    const filterName = newFilterName.trim();
+    if (!currentEmployee?.id || !filterName) return false;
+    const filters = normalizeCatalogFilters(appliedFilters);
+    try {
+      const created = await createSavedFilterRequest({
+        scope: 'catalog',
+        tab: activeTab,
+        name: filterName,
+        icon: newFilterIcon,
+        filters,
+      });
+      setSavedFilters((current) => [
+        {
+          id: created.id,
+          employeeId: created.employeeId,
+          name: created.name,
+          icon: created.icon,
+          tab: created.tab as CatalogTab,
+          filters: created.filters,
+          createdAt: created.createdAt,
+        },
+        ...current,
+      ]);
+      return true;
+    } catch {
+      return false;
+    }
   };
   const applySavedFilter = (filterId: string) => {
     const savedFilter = savedFilters.find(
@@ -1044,6 +1057,7 @@ export const ProductCatalogPanel: React.FC<
         canSave={Boolean(currentEmployee?.id)}
         draftFilters={draftFilters}
         isOpen={isFilterPanelOpen}
+        onClose={() => setIsFilterPanelOpen(false)}
         newFilterIcon={newFilterIcon}
         newFilterName={newFilterName}
         savedFilters={visibleSavedFilters.map((item) => ({
@@ -1616,7 +1630,8 @@ export interface CatalogFilterPanelProps {
   onDeleteSaved: (id: string) => void;
   onIconChange: (icon: string) => void;
   onNameChange: (name: string) => void;
-  onSave: () => void;
+  onSave: () => boolean | Promise<boolean>;
+  onClose: () => void;
   onUpdate: <K extends keyof CatalogFilters>(
     field: K,
     value: CatalogFilters[K],
@@ -1638,6 +1653,7 @@ const CatalogFilterPanel: React.FC<CatalogFilterPanelProps> = ({
   onIconChange,
   onNameChange,
   onSave,
+  onClose,
   onUpdate,
 }) => {
   const { t } = useTranslation();
@@ -1659,6 +1675,14 @@ const CatalogFilterPanel: React.FC<CatalogFilterPanelProps> = ({
           : 'orders-filter-panel'
       }
     >
+      <button
+        type='button'
+        className='orders-filter-panel-close'
+        aria-label={t('orders.filters.closePanel')}
+        onClick={onClose}
+      >
+        &times;
+      </button>
       <SavedFiltersPanel
         canSave={canSave}
         items={savedFilters}

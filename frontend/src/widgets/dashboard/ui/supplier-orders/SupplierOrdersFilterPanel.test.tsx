@@ -45,6 +45,7 @@ describe('SupplierOrdersFilterPanel', () => {
         onSaveCurrentFilter={vi.fn()}
         onApplySavedFilter={vi.fn()}
         onRemoveSavedFilter={vi.fn()}
+        onClose={vi.fn()}
       />,
     );
 
@@ -54,5 +55,44 @@ describe('SupplierOrdersFilterPanel', () => {
     expect(onReset).toHaveBeenCalled();
     expect(screen.getByText('Supplier')).toBeTruthy();
     expect(screen.getByText('Created by')).toBeTruthy();
+  });
+
+  it('calls onClose when close button is clicked without calling onApplyFilters', () => {
+    const onApply = vi.fn();
+    const onClose = vi.fn();
+
+    render(
+      <SupplierOrdersFilterPanel
+        isOpen
+        isStatusFilterOpen={false}
+        isPaymentFilterOpen={false}
+        canManageSavedFilters
+        draftFilters={emptySupplierOrdersFilters}
+        savedFilters={[]}
+        suppliers={[]}
+        createdByOptions={[]}
+        newFilterName=''
+        newFilterIcon='?'
+        statusFilterRef={{ current: null }}
+        paymentFilterRef={{ current: null }}
+        setDraftFilters={vi.fn()}
+        setIsStatusFilterOpen={vi.fn()}
+        setIsPaymentFilterOpen={vi.fn()}
+        setNewFilterName={vi.fn()}
+        setNewFilterIcon={vi.fn()}
+        onApplyFilters={onApply}
+        onResetFilters={vi.fn()}
+        onSaveCurrentFilter={vi.fn()}
+        onApplySavedFilter={vi.fn()}
+        onRemoveSavedFilter={vi.fn()}
+        onClose={onClose}
+      />,
+    );
+
+    const closeBtn = screen.getByRole('button', { name: 'Close filters' });
+    fireEvent.click(closeBtn);
+
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(onApply).not.toHaveBeenCalled();
   });
 });

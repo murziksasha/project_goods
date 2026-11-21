@@ -5,7 +5,9 @@ import {
   useMemo,
   useRef,
   useState,
+  type Dispatch,
   type ReactNode,
+  type SetStateAction,
 } from 'react';
 import { useTranslation } from 'react-i18next';
 import i18n from '../../../../../shared/i18n/config';
@@ -348,6 +350,18 @@ export const OrdersWorkspace: React.FC<OrdersWorkspaceProps> = ({
   const [isStatusFilterOpen, setIsStatusFilterOpen] = useState(false);
   const [isSaveFilterDrawerOpen, setIsSaveFilterDrawerOpen] =
     useState(false);
+  const saveFilterDrawerSessionRef = useRef(0);
+  const handleSetIsSaveFilterDrawerOpen: Dispatch<SetStateAction<boolean>> = (
+    action,
+  ) => {
+    setIsSaveFilterDrawerOpen((prev) => {
+      const next = typeof action === 'function' ? action(prev) : action;
+      if (next && !prev) {
+        saveFilterDrawerSessionRef.current += 1;
+      }
+      return next;
+    });
+  };
   const [savedFilters, setSavedFilters] = useState<
     SavedOrdersFilter[]
   >([]);
@@ -1050,6 +1064,7 @@ export const OrdersWorkspace: React.FC<OrdersWorkspaceProps> = ({
             product: draftFilters.product.trim(),
             service: draftFilters.service.trim(),
           };
+    const saveSession = saveFilterDrawerSessionRef.current;
     void (async () => {
       try {
         const created = await createSavedFilterRequest({
@@ -1069,9 +1084,11 @@ export const OrdersWorkspace: React.FC<OrdersWorkspaceProps> = ({
           createdAt: created.createdAt,
         };
         setSavedFilters((current) => [nextFilter, ...current]);
-        setIsSaveFilterDrawerOpen(false);
-        setNewFilterName('');
-        setNewFilterIcon(filterIconOptions[0]);
+        if (saveFilterDrawerSessionRef.current === saveSession) {
+          setIsSaveFilterDrawerOpen(false);
+          setNewFilterName('');
+          setNewFilterIcon(filterIconOptions[0]);
+        }
         onSuccess(t('orders.messages.success.filterSaved'));
       } catch (error) {
         onError(
@@ -3445,6 +3462,7 @@ export const OrdersWorkspace: React.FC<OrdersWorkspaceProps> = ({
         isFilterPanelOpen={isFilterPanelOpen}
         isStatusFilterOpen={isStatusFilterOpen}
         isSaveFilterDrawerOpen={isSaveFilterDrawerOpen}
+        onClose={() => setIsFilterPanelOpen(false)}
         canManageSavedFilters={canManageSavedFilters}
         visibleSavedFilters={visibleSavedFilters}
         employeeSavedFilters={employeeSavedFilters}
@@ -3463,7 +3481,7 @@ export const OrdersWorkspace: React.FC<OrdersWorkspaceProps> = ({
         }
         setDraftFilters={setDraftFilters}
         setIsStatusFilterOpen={setIsStatusFilterOpen}
-        setIsSaveFilterDrawerOpen={setIsSaveFilterDrawerOpen}
+        setIsSaveFilterDrawerOpen={handleSetIsSaveFilterDrawerOpen}
         setNewFilterName={setNewFilterName}
         setNewFilterIcon={setNewFilterIcon}
         onToggleStatusFilter={toggleStatusFilter}

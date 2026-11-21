@@ -25,7 +25,8 @@ export interface ClientsFilterPanelProps {
   onDeleteSavedFilter: (id: string) => void;
   onFilterIconChange: (icon: string) => void;
   onFilterNameChange: (name: string) => void;
-  onSaveFilter: () => void;
+  onSaveFilter: () => boolean | Promise<boolean>;
+  onClose: () => void;
 };
 
 export const ClientsFilterPanel: React.FC<ClientsFilterPanelProps> = ({
@@ -44,6 +45,7 @@ export const ClientsFilterPanel: React.FC<ClientsFilterPanelProps> = ({
   onFilterIconChange,
   onFilterNameChange,
   onSaveFilter,
+  onClose,
 }) => {
   const { t } = useTranslation();
 
@@ -60,6 +62,14 @@ export const ClientsFilterPanel: React.FC<ClientsFilterPanelProps> = ({
           : 'orders-filter-panel'
       }
     >
+      <button
+        type='button'
+        className='orders-filter-panel-close'
+        aria-label={t('orders.filters.closePanel')}
+        onClick={onClose}
+      >
+        &times;
+      </button>
       <SavedFiltersPanel
         canSave={canSaveFilter}
         items={savedFilters}

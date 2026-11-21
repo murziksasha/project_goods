@@ -59,6 +59,7 @@ Updated 2026-11-18 (chips UX; the earlier pencil / Cancel / Save editor is remov
 - Adding: typed text is trimmed and split by commas; empty items and
   case-insensitive duplicates are ignored. Max 20 items × 80 characters; the
   input and `+` are disabled at the limit or when the input is empty.
+- After `+` or Enter the caret returns to the kit input when the input is usable and focus is still inside the control, including after a failed card save (restored text). `×` does not move focus.
 - **Each add / remove saves immediately**: `PATCH /sales/:id/workspace` with the
   whole `kit` list plus ONE system timeline entry (Live feed / order history):
   - add: `"{author} added to kit: X."` (uk: `"{author} додав комплект: X."`; several

@@ -204,6 +204,8 @@ For any mutation that can affect shared screens (orders, sales, stock, client de
 - **Active/draft** filter form state (what is currently applied in the panel) may still use `localStorage` per browser; only the **saved presets list** is server-backed.
 - Warehouse workspace layout on this device (not synced): `project-goods.warehouse-filters` (tab, committed toolbar search, current page, `stockView`, `receiptsView`; page size is stored in `project-goods.page-sizes`). Commit timing: [WAREHOUSE_FLOW.md — Toolbar search](./WAREHOUSE_FLOW.md#toolbar-search). Column layout: `project-goods.warehouse-columns` (column visibility), `project-goods.warehouse-stock-name-width` (stock `Name` column width, 180–720px; applied to `<colgroup>` `<col>` track and `--warehouse-name-col-width` CSS variable).
 - One-time client migration: if the server list is empty, legacy `localStorage` presets for that employee are POSTed and the old storage key is cleared.
+- The shared `SavedFiltersPanel` sheet portals to `document.body` (z-index 120), closes only after a successful save or on `×` / Cancel / Escape, and choosing a preset from inside the sheet applies it and closes the sheet.
+- In-flight save requests use session tracking (`openSessionRef` / `saveFilterDrawerSessionRef`): if the sheet is closed and opened again while a save request is pending, the completed save applies to the previous session without closing the reopened sheet or clearing its newly entered name.
 
 ## Stock order links (2026-11-15)
 

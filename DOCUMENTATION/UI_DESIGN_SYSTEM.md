@@ -73,8 +73,12 @@ React wrappers: [`frontend/src/shared/ui/Button.tsx`](../frontend/src/shared/ui/
     - Summary action: `.payment-cash-badge.payment-cash-button` button labeled `Full amount` (`Повна сума`) sets the refund amount to the full paid sum (`paidAmount`), including both products and services.
     - Mobile (<= 720px): `.return-sale-form` collapses to single column with all fields stacked full-width; `.payment-cash-button` has touch-target min-height of 38px.
 - **Save-filter drawer** (orders / warehouse / clients shared classes in `domains/orders.css`):
-  - `.orders-filter-drawer-backdrop` is `position: fixed; inset: 0` with **`z-index: 120`** so it stacks **above** sticky `.topbar` (`z-index: 90`) and the filter name field is not clipped under the site header
-  - Used by `OrdersWorkspaceFilterPanel`, `SavedFiltersPanel`, and warehouse save-filter UI
+  - `.orders-filter-drawer-backdrop` is `position: fixed; inset: 0` with **`z-index: 120`** so it stacks **above** sticky `.topbar` (`z-index: 90`) and the filter name field is not clipped under the site header.
+  - Used by `OrdersWorkspaceFilterPanel`, `SavedFiltersPanel`, and warehouse save-filter UI.
+  - `SavedFiltersPanel` portals its open drawer to `document.body` to break out of `.orders-filter-panel` CSS `transform` context, attaching full-height to the viewport above tables and toolbars.
+- **Filter panel close control** (`.orders-filter-panel-close` in `domains/orders.css`):
+  - Gray filter panel (`.orders-filter-panel-open`) reserves 48px right padding (`padding: 14px 48px 14px 14px;`) for the top-right `×` (`right: 10px; width: 28px`), preventing overlap on narrow viewports down to 500px.
+  - Used across Orders, Kanban, Sales, Supplier Order, Information, Clients, Suppliers, Catalog, and Warehouse. Clicking `×` only hides the panel without applying, clearing, or resetting draft filters.
 
 ## Status badges
 
