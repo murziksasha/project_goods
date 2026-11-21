@@ -85,6 +85,7 @@ Related: [ORDER_CARD.md](./ORDER_CARD.md) · [SALE_FLOW.md](./SALE_FLOW.md) · [
   right; Enter also adds. Added items show as chips with `×`. Typed text is
   trimmed and split by commas; empty items and case-insensitive duplicates are
   ignored. Limits: 20 items, 80 characters each.
+- After `+` or Enter the caret returns to the kit input when the input is usable and focus is still inside the control, including after a failed card save (restored text). `×` does not move focus.
 - On **Save order**, text left in the input (not added with `+` / Enter) becomes
   the last item(s).
 - Selecting an existing client device pre-fills the chips from the device note

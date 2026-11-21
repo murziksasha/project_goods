@@ -13,7 +13,7 @@ const renderField = (props: Partial<React.ComponentProps<typeof OrderDetailKitFi
   return { onChangeKit, ...view };
 };
 
-const getInput = () => screen.getByRole('textbox', { name: 'Kit' });
+const getInput = () => screen.getByRole<HTMLInputElement>('textbox', { name: 'Kit' });
 
 describe('OrderDetailKitField', () => {
   it('shows chips with × and an add input without any edit mode or nested divs', async () => {
@@ -53,6 +53,7 @@ describe('OrderDetailKitField', () => {
     fireEvent.keyDown(getInput(), { key: 'Enter' });
     expect(onChangeKit).not.toHaveBeenCalled();
     expect(getInput()).toHaveValue('');
+    expect(document.activeElement).toBe(getInput());
   });
 
   it('removes an item with × and saves immediately with a remove change', async () => {
@@ -64,7 +65,29 @@ describe('OrderDetailKitField', () => {
     expect(screen.queryByText('ЗП')).not.toBeInTheDocument();
   });
 
-  it('reverts the optimistic change and restores typed text when saving fails', async () => {
+  it('focuses the empty textbox after the save promise resolves', async () => {
+    let resolveSave: () => void = () => undefined;
+    const onChangeKit = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveSave = resolve;
+        }),
+    );
+    renderField({ onChangeKit });
+    fireEvent.change(getInput(), { target: { value: 'сумка' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Add kit item' }));
+    expect(getInput()).toBeDisabled();
+
+    await act(async () => {
+      resolveSave();
+    });
+
+    expect(getInput()).not.toBeDisabled();
+    expect(getInput()).toHaveValue('');
+    expect(document.activeElement).toBe(getInput());
+  });
+
+  it('reverts the optimistic change, restores typed text and focuses with caret at end when saving fails', async () => {
     let reject: (error: Error) => void = () => undefined;
     const onChangeKit = vi.fn(
       () => new Promise<void>((_, rejectPromise) => {
@@ -82,6 +105,42 @@ describe('OrderDetailKitField', () => {
     expect(screen.queryByText('сумка')).not.toBeInTheDocument();
     expect(getInput()).toHaveValue('сумка');
     expect(getInput()).not.toBeDisabled();
+    expect(document.activeElement).toBe(getInput());
+    expect(getInput().selectionStart).toBe(5);
+    expect(getInput().selectionEnd).toBe(5);
+  });
+
+  it('stays unfocused when another control takes focus while saving', async () => {
+    let resolveSave: () => void = () => undefined;
+    const onChangeKit = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveSave = resolve;
+        }),
+    );
+    render(
+      <div>
+        <input data-testid="other-field" />
+        <dl className="order-detail-list">
+          <OrderDetailKitField saleId="sale-1" kit={['ЗП']} canEdit onChangeKit={onChangeKit} />
+        </dl>
+      </div>,
+    );
+    fireEvent.change(getInput(), { target: { value: 'сумка' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Add kit item' }));
+    expect(getInput()).toBeDisabled();
+
+    const otherField = screen.getByTestId('other-field');
+    otherField.focus();
+    expect(document.activeElement).toBe(otherField);
+
+    await act(async () => {
+      resolveSave();
+    });
+
+    expect(getInput()).not.toBeDisabled();
+    expect(document.activeElement).toBe(otherField);
+    expect(document.activeElement).not.toBe(getInput());
   });
 
   it('is read-only without × and input when the card is locked', () => {
