@@ -20,6 +20,9 @@ Extracted from [ORDER_FLOW.md](./ORDER_FLOW.md) for focused maintenance. Covers 
 - Filter drawer (draft → Apply / Clear): order statuses, payment statuses (multi; empty = all), supplier, created by, product, order number, date from/to, date field (`delivery` default or `created`).
 - Named saved filters use `GET/POST/DELETE /api/saved-filters` with `scope=orders` and `tab=supplierOrders`. Active/draft filters stay in `localStorage` (`project-goods.supplier-orders-filters`).
 - Removable chips under the toolbar cover statuses, payment, supplier, created by, product, number, dates, date-field, search query, and starred.
+- Filter panel close button `×` (`.orders-filter-panel-close`) hides the gray panel without applying, clearing, or resetting draft filters.
+- Escape closes in order: Save filter sheet, then status menu, then payment menu, then gray panel. Closing the panel closes any open status or payment menus.
+- Save filter sheet is portaled to `document.body` above the table and top bar (z-index 120); closes only after a successful save or on `×` / Cancel / Escape. Choosing a preset from the sheet applies it and closes the sheet.
 - Toolbar search is live (number, product, supplier, created by, note). Enter / count chip opens the unique match.
 - Starred-only is a live toolbar toggle. Column visibility persists in `project-goods.supplier-orders-columns`.
 - Information tab uses the same applied filters. Gear, star, search, and create stay hidden. Its chip uses the same `Orders: N` label and replaces the pager.

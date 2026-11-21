@@ -286,6 +286,37 @@ export const SupplierOrdersWorkspace: React.FC<
   ]);
 
   useEffect(() => {
+    if (!isFilterBarOpen) return;
+
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        if (isStatusFilterOpen) {
+          setIsStatusFilterOpen(false);
+          return;
+        }
+        if (isPaymentFilterOpen) {
+          setIsPaymentFilterOpen(false);
+          return;
+        }
+        setIsFilterBarOpen(false);
+      }
+    };
+
+    document.addEventListener('keydown', closeOnEscape);
+
+    return () => {
+      document.removeEventListener('keydown', closeOnEscape);
+    };
+  }, [isFilterBarOpen, isStatusFilterOpen, isPaymentFilterOpen]);
+
+  useEffect(() => {
+    if (!isFilterBarOpen) {
+      setIsStatusFilterOpen(false);
+      setIsPaymentFilterOpen(false);
+    }
+  }, [isFilterBarOpen]);
+
+  useEffect(() => {
     if (!openStatusOrder) {
       setStatusMenuPosition(null);
       return;
@@ -550,15 +581,15 @@ export const SupplierOrdersWorkspace: React.FC<
     };
   }, [currentEmployeeId, onError, t]);
 
-  const saveCurrentFilter = () => {
+  const saveCurrentFilter = async (): Promise<boolean> => {
     if (!currentEmployeeId) {
       onError(t('orders.messages.errors.employeeRequiredForFilters'));
-      return;
+      return false;
     }
     const name = newFilterName.trim();
     if (!name) {
       onError(t('orders.messages.errors.enterFilterName'));
-      return;
+      return false;
     }
     const payload: SupplierOrdersFilters = {
       ...draftFilters,
@@ -567,26 +598,25 @@ export const SupplierOrdersWorkspace: React.FC<
       product: draftFilters.product.trim(),
       createdBy: draftFilters.createdBy.trim(),
     };
-    void (async () => {
-      try {
-        const created = await createSavedFilterRequest({
-          scope: 'orders',
-          tab: 'supplierOrders',
-          name,
-          icon: newFilterIcon,
-          filters: payload,
-        });
-        setSavedFilters((current) => [created, ...current]);
-        setNewFilterName('');
-        onSuccess(t('orders.messages.success.filterSaved'));
-      } catch (error) {
-        onError(
-          error instanceof Error
-            ? error.message
-            : t('orders.supplier.messages.errors.failedLoad'),
-        );
-      }
-    })();
+    try {
+      const created = await createSavedFilterRequest({
+        scope: 'orders',
+        tab: 'supplierOrders',
+        name,
+        icon: newFilterIcon,
+        filters: payload,
+      });
+      setSavedFilters((current) => [created, ...current]);
+      onSuccess(t('orders.messages.success.filterSaved'));
+      return true;
+    } catch (error) {
+      onError(
+        error instanceof Error
+          ? error.message
+          : t('orders.supplier.messages.errors.failedLoad'),
+      );
+      return false;
+    }
   };
 
   const applySavedFilter = (filterId: string) => {
@@ -835,6 +865,7 @@ export const SupplierOrdersWorkspace: React.FC<
 
       <SupplierOrdersFilterPanel
         isOpen={isFilterBarOpen}
+        onClose={() => setIsFilterBarOpen(false)}
         isStatusFilterOpen={isStatusFilterOpen}
         isPaymentFilterOpen={isPaymentFilterOpen}
         canManageSavedFilters={canManageSavedFilters}

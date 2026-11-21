@@ -462,6 +462,8 @@ Implementation references:
   - `received` (**Taken on charge**) — `stocked`, `partially_completed`, `overdue`. This chip does not include `partially_stocked`.
   - `cancelled` — `cancelled`, `unavailable`
 - The toolbar `Filter` button counts a non-empty status selection as one active filter.
+- Filter panel close button `×` (`.orders-filter-panel-close`) hides the gray panel without applying, clearing, or resetting draft filters.
+- Escape closes in order: Save filter sheet, then receipt-status menu, then gray panel. The sheet placement stays as a sibling outside the panel.
 - Toolbar also has `Orders` / `Lines` view toggle (default `Orders`; persisted per browser) and a star toggle for starred supplier-order receipts.
 - Status chips under the toolbar use the same options, in this order: `All`, `New`, `Approved`, `Partially stocked`, `Taken on charge`, `Cancelled`. When a single receipt status is applied, that chip is active; `All` clears the status filter.
 - Saved filters may store `partially_stocked` in `statuses`. A saved `received` selection no longer includes partially stocked orders.

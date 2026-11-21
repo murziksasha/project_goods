@@ -514,37 +514,51 @@ export const ClientsWorkspace: React.FC<ClientsWorkspaceProps> = ({
     };
   }, [currentEmployee?.id]);
 
-  const saveCurrentFilter = () => {
-    const filterName = newFilterName.trim();
-    if (!currentEmployee?.id || !filterName) return;
-    const filters = normalizeClientFiltersForApply(appliedFilters);
-    void (async () => {
-      try {
-        const created = await createSavedFilterRequest({
-          scope: 'clients',
-          tab: 'clients',
-          name: filterName,
-          icon: newFilterIcon,
-          filters,
-        });
-        setSavedFilters((current) => [
-          {
-            id: created.id,
-            employeeId: created.employeeId,
-            name: created.name,
-            icon: created.icon,
-            tab: 'clients',
-            filters: created.filters as ClientFilters,
-            createdAt: created.createdAt,
-          },
-          ...current,
-        ]);
-        setNewFilterName('');
-        setNewFilterIcon(filterIconOptions[0]);
-      } catch {
-        // ignore UI toast if parent has no handler
+  useEffect(() => {
+    if (!isFilterOpen) return;
+
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsFilterOpen(false);
       }
-    })();
+    };
+
+    document.addEventListener('keydown', closeOnEscape);
+
+    return () => {
+      document.removeEventListener('keydown', closeOnEscape);
+    };
+  }, [isFilterOpen]);
+
+  const saveCurrentFilter = async (): Promise<boolean> => {
+    const filterName = newFilterName.trim();
+    if (!currentEmployee?.id || !filterName) return false;
+    const filters = normalizeClientFiltersForApply(appliedFilters);
+    try {
+      const created = await createSavedFilterRequest({
+        scope: 'clients',
+        tab: 'clients',
+        name: filterName,
+        icon: newFilterIcon,
+        filters,
+      });
+      setSavedFilters((current) => [
+        {
+          id: created.id,
+          employeeId: created.employeeId,
+          name: created.name,
+          icon: created.icon,
+          tab: 'clients',
+          filters: created.filters as ClientFilters,
+          createdAt: created.createdAt,
+        },
+        ...current,
+      ]);
+      return true;
+    } catch {
+      // ignore UI toast if parent has no handler
+      return false;
+    }
   };
   const applySavedFilter = (filterId: string) => {
     const savedFilter = savedFilters.find(
@@ -762,6 +776,7 @@ export const ClientsWorkspace: React.FC<ClientsWorkspaceProps> = ({
       <ClientsFilterPanel
         draftFilters={draftFilters}
         isOpen={isFilterOpen}
+        onClose={() => setIsFilterOpen(false)}
         statusOptions={filterStatusOptions}
         savedFilters={visibleSavedFilters.map((item) => ({
           id: item.id,

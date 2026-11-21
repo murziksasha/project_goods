@@ -40,9 +40,10 @@ export interface SupplierOrdersFilterPanelProps {
   setNewFilterIcon: Dispatch<SetStateAction<string>>;
   onApplyFilters: () => void;
   onResetFilters: () => void;
-  onSaveCurrentFilter: () => void;
+  onSaveCurrentFilter: () => boolean | Promise<boolean>;
   onApplySavedFilter: (filterId: string) => void;
   onRemoveSavedFilter: (filterId: string) => void;
+  onClose: () => void;
 };
 
 export const SupplierOrdersFilterPanel: React.FC<SupplierOrdersFilterPanelProps> = ({
@@ -68,6 +69,7 @@ export const SupplierOrdersFilterPanel: React.FC<SupplierOrdersFilterPanelProps>
   onSaveCurrentFilter,
   onApplySavedFilter,
   onRemoveSavedFilter,
+  onClose,
 }) => {
   const { t } = useTranslation();
 
@@ -96,6 +98,14 @@ export const SupplierOrdersFilterPanel: React.FC<SupplierOrdersFilterPanelProps>
       }
       aria-hidden={!isOpen}
     >
+      <button
+        type='button'
+        className='orders-filter-panel-close'
+        aria-label={t('orders.filters.closePanel')}
+        onClick={onClose}
+      >
+        &times;
+      </button>
       <SavedFiltersPanel
         canSave={canManageSavedFilters}
         items={savedFilters}

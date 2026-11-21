@@ -56,6 +56,7 @@ export interface OrdersWorkspaceFilterPanelProps {
   onSaveCurrentFilter: () => void;
   onApplySavedFilter: (savedFilter: SavedOrdersFilter) => void;
   onRemoveSavedFilter: (filterId: string) => void;
+  onClose: () => void;
 };
 
 export const OrdersWorkspaceFilterPanel: React.FC<OrdersWorkspaceFilterPanelProps> = ({
@@ -84,6 +85,7 @@ export const OrdersWorkspaceFilterPanel: React.FC<OrdersWorkspaceFilterPanelProp
   onSaveCurrentFilter,
   onApplySavedFilter,
   onRemoveSavedFilter,
+  onClose,
 }) => {
   const { t } = useTranslation();
   const isKanban = variant === 'kanban';
@@ -172,6 +174,14 @@ export const OrdersWorkspaceFilterPanel: React.FC<OrdersWorkspaceFilterPanelProp
         }
         aria-hidden={!isFilterPanelOpen}
       >
+        <button
+          type="button"
+          className="orders-filter-panel-close"
+          aria-label={t('orders.filters.closePanel')}
+          onClick={onClose}
+        >
+          &times;
+        </button>
         <div className="orders-filter-saved-row">
           <p>{t('orders.filters.savedLabel')}</p>
           <div className="orders-filter-saved-list">

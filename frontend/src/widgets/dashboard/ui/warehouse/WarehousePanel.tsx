@@ -256,6 +256,7 @@ export const WarehousePanel: React.FC<WarehousePanelProps> = ({
   const [isColumnsMenuOpen, setIsColumnsMenuOpen] = useState(false);
   const [isSaveFilterDrawerOpen, setIsSaveFilterDrawerOpen] =
     useState(false);
+  const saveFilterDrawerSessionRef = useRef(0);
   const [visibleColumns, setVisibleColumns] =
     useState<WarehouseColumnVisibility>(() => {
       try {
@@ -1095,6 +1096,30 @@ export const WarehousePanel: React.FC<WarehousePanelProps> = ({
       document.removeEventListener('mousedown', handleDocumentClick);
   }, [isColumnsMenuOpen]);
   useEffect(() => {
+    if (!isFilterPanelOpen && !isSaveFilterDrawerOpen) return;
+
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        if (isSaveFilterDrawerOpen) {
+          setIsSaveFilterDrawerOpen(false);
+          return;
+        }
+        if (isReceiptStatusFilterOpen) {
+          setIsReceiptStatusFilterOpen(false);
+          return;
+        }
+        setIsFilterPanelOpen(false);
+      }
+    };
+
+    document.addEventListener('keydown', closeOnEscape);
+
+    return () => {
+      document.removeEventListener('keydown', closeOnEscape);
+    };
+  }, [isFilterPanelOpen, isSaveFilterDrawerOpen, isReceiptStatusFilterOpen]);
+
+  useEffect(() => {
     if (!isFilterPanelOpen) {
       setIsReceiptStatusFilterOpen(false);
     }
@@ -1578,6 +1603,7 @@ export const WarehousePanel: React.FC<WarehousePanelProps> = ({
   const saveCurrentFilter = () => {
     const filterName = newFilterName.trim();
     if (!filterName || !currentEmployeeId) return;
+    const saveSession = saveFilterDrawerSessionRef.current;
     const filters: WarehouseFilters = {
       ...draftFilters,
       name: draftFilters.name.trim(),
@@ -1609,9 +1635,11 @@ export const WarehousePanel: React.FC<WarehousePanelProps> = ({
           },
           ...current,
         ]);
-        setIsSaveFilterDrawerOpen(false);
-        setNewFilterName('');
-        setNewFilterIcon(warehouseFilterIconOptions[0]);
+        if (saveFilterDrawerSessionRef.current === saveSession) {
+          setIsSaveFilterDrawerOpen(false);
+          setNewFilterName('');
+          setNewFilterIcon(warehouseFilterIconOptions[0]);
+        }
         onSuccess(
           t('warehouse.messages.success.filterSaved', {
             defaultValue: 'Filter saved.',
@@ -2059,6 +2087,14 @@ export const WarehousePanel: React.FC<WarehousePanelProps> = ({
               : 'orders-filter-panel'
           }
         >
+          <button
+            type='button'
+            className='orders-filter-panel-close'
+            aria-label={t('orders.filters.closePanel')}
+            onClick={() => setIsFilterPanelOpen(false)}
+          >
+            &times;
+          </button>
           <div className='orders-filter-saved-row'>
             <strong>{t('orders.filters.savedLabel')}</strong>
             <div className='orders-filter-saved-list'>
@@ -2097,7 +2133,10 @@ export const WarehousePanel: React.FC<WarehousePanelProps> = ({
               type='button'
               className='toolbar-square-button'
               aria-label={t('orders.filters.saveFilter')}
-              onClick={() => setIsSaveFilterDrawerOpen(true)}
+              onClick={() => {
+                saveFilterDrawerSessionRef.current += 1;
+                setIsSaveFilterDrawerOpen(true);
+              }}
             >
               +
             </button>

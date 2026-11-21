@@ -805,6 +805,7 @@
       "createSale": "New sale"
     },
     "filters": {
+      "closePanel": "Close filters",
       "savedLabel": "Saved filters:",
       "noSaved": "No saved filters for this tab.",
       "saveFilter": "Save filter",
