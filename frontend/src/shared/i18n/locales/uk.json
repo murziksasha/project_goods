@@ -813,6 +813,7 @@
       "deleteFilter": "Видалити {{name}}",
       "status": "Статус",
       "all": "Усі",
+      "none": "Немає",
       "selectedCount": "Обрано: {{count}}",
       "orderNumber": "Номер замовлення",
       "orderNumberPlaceholder": "Замовлення №",
@@ -1234,6 +1235,7 @@
         "paymentStatus": "Статус оплати"
       },
       "filters": {
+        "noStatuses": "Без статусів",
         "dateFrom": "Дата від",
         "dateTo": "Дата до",
         "clearDates": "Очистити дати",

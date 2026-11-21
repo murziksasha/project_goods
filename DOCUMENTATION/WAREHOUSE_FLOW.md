@@ -453,7 +453,7 @@ Implementation references:
 ### 5.1) Receipts Filter Panel
 
 - `Warehouse -> Receipts` filter panel includes a multi-select receipt status filter with checkboxes: `new`, `approved`, `partially_stocked`, `received`, `cancelled`.
-- Empty status selection means all receipt statuses are shown.
+- Empty status selection matches nothing (zero rows). Default on first visit and Filter **Clear / Reset** presses every status.
 - Multiple selected statuses use OR logic. A row passes when its supplier-order header status (`orderStatus`) is in the allow-list for any selected chip. The match is header status, not item `receiptStatus`.
 - Chip to header-status map:
   - `new` — `request`, `ordered`
@@ -461,15 +461,19 @@ Implementation references:
   - `partially_stocked` — `partially_stocked` only (Status badge **Partially stocked**)
   - `received` (**Taken on charge**) — `stocked`, `partially_completed`, `overdue`. This chip does not include `partially_stocked`.
   - `cancelled` — `cancelled`, `unavailable`
-- The toolbar `Filter` button counts a non-empty status selection as one active filter.
+- Filter badge: the full status set does not count toward the Filter badge (0); a proper subset counts as 1; an empty status set counts as 1.
+- Panel summary: all pressed -> **All**; none -> **None**; otherwise the existing selected count. The select-all checkbox is checked only when every status is checked; unchecking it clears the list.
 - Filter panel close button `×` (`.orders-filter-panel-close`) hides the gray panel without applying, clearing, or resetting draft filters.
 - Escape closes in order: Save filter sheet, then receipt-status menu, then gray panel. The sheet placement stays as a sibling outside the panel. Reopening the save drawer while a save is in flight preserves the reopened drawer and its name when that save finishes.
 - Toolbar also has `Orders` / `Lines` view toggle (default `Orders`; persisted per browser) and a star toggle for starred supplier-order receipts.
-- Status chips under the toolbar use the same options, in this order: `All`, `New`, `Approved`, `Partially stocked`, `Taken on charge`, `Cancelled`. When a single receipt status is applied, that chip is active; `All` clears the status filter.
+- Receipts status buttons under the toolbar become a multi-select allow-list reusing `warehouse-mode-button` / `warehouse-status-chips` with `aria-pressed`. Options: `All`, `New`, `Approved`, `Partially stocked`, `Taken on charge`, `Cancelled`.
+  - **All** is pressed only while every status button is pressed. Click **All** when any are off -> press every status. Click **All** when all are on -> press none.
+  - Click one status to press or release it. Releasing one turns **All** off. Pressing the last missing status turns **All** on.
+  - Buttons and the Filter status checkboxes read and write the same list. A click on a button updates draft and applied at once and opens page 1. Other draft fields stay unapplied until **Apply**.
+  - While the Filter panel is open, the button row is hidden. Stock and Transfers do not show the buttons. Information uses the same applied status set (buttons hidden).
 - Saved filters may store `partially_stocked` in `statuses`. A saved `received` selection no longer includes partially stocked orders.
 - Header summary on this tab: `{lines} lines · {orders} orders · {unpaid} unpaid`. The summary moves with the shared toolbar search commit ([Toolbar search](#toolbar-search)), not on each character. Receipts has no search-mode dropdown.
-- Named saved warehouse filters persist the `statuses` array on the server (`/api/saved-filters`, scope `warehouse`); active/draft filter fields still live in this browser.
-- Legacy saved filters that still store a single `status` value are migrated to `statuses` on load.
+- Filters persist per employee in `localStorage` (`project-goods.warehouse-filters.<employeeId>`). Stored shape includes an explicit list plus `statusSelectionExplicit: true`. A legacy record with no flag and empty list is read as every status and rewritten as the full list on the next save; a legacy non-empty list is kept and marked explicit. Named saved warehouse filters on the server follow the same read rule on apply.
 
 ### 5.2) Receipts View Modes (`Orders` / `Lines`)
 
@@ -532,7 +536,7 @@ Implementation references:
   - keep order visible for partial outcomes (`partially_stocked`, `partially_completed`) and for paid / `without_payment` orders even when all items are cancelled
   - when operator explicitly filters `Order status = Cancelled`, fully-cancelled unpaid orders remain visible
 - Status filter matching (`matchesSupplierOrderStatusFilter`):
-  - empty selection → all statuses
+  - empty selection → no match (zero rows)
   - non-empty selection → exact allow-list match only (unchecking `partially_completed` / `partially_stocked` hides those orders even if open statuses remain selected)
 - Take-on-charge and cancel-item from any entry point (`Warehouse -> Receipts`, `Orders -> Supplier Order`, linked sale card) must invalidate/refetch the shared `supplierOrders` query cache so both tabs stay synchronized.
 

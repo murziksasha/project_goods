@@ -1587,6 +1587,10 @@
   flex-shrink: 0;
 }
 
+.orders-workspace .warehouse-status-chips {
+  padding: 0 0 12px;
+}
+
 .orders-filter-panel {
   position: relative;
   max-height: 0;

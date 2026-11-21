@@ -76,6 +76,7 @@ export const SupplierOrdersFilterPanel: React.FC<SupplierOrdersFilterPanelProps>
   const toggleStatus = (status: SupplierOrderStatus) => {
     setDraftFilters((current) => ({
       ...current,
+      statusSelectionExplicit: true,
       selectedStatuses: current.selectedStatuses.includes(status)
         ? current.selectedStatuses.filter((item) => item !== status)
         : [...current.selectedStatuses, status],
@@ -136,11 +137,14 @@ export const SupplierOrdersFilterPanel: React.FC<SupplierOrdersFilterPanelProps>
             aria-expanded={isStatusFilterOpen}
             onClick={() => setIsStatusFilterOpen((current) => !current)}
           >
-            {draftFilters.selectedStatuses.length > 0
-              ? t('orders.supplier.toolbar.orderStatusesCount', {
-                  count: draftFilters.selectedStatuses.length,
-                })
-              : t('orders.filters.all')}
+            {draftFilters.selectedStatuses.length ===
+            supplierOrderStatuses.length
+              ? t('orders.filters.all')
+              : draftFilters.selectedStatuses.length === 0
+                ? t('orders.filters.none')
+                : t('orders.supplier.toolbar.orderStatusesCount', {
+                    count: draftFilters.selectedStatuses.length,
+                  })}
           </button>
           {isStatusFilterOpen ? (
             <div className='orders-filter-status-menu'>
@@ -154,6 +158,7 @@ export const SupplierOrdersFilterPanel: React.FC<SupplierOrdersFilterPanelProps>
                   onChange={() =>
                     setDraftFilters((current) => ({
                       ...current,
+                      statusSelectionExplicit: true,
                       selectedStatuses:
                         current.selectedStatuses.length ===
                         supplierOrderStatuses.length
