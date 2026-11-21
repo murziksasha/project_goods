@@ -9,12 +9,12 @@ import { useTranslation } from 'react-i18next';
 import type { PrintForm } from '../../../../../entities/settings';
 import {
   customLabelSizePresetId,
-  defaultPrintForms,
   getOrientedLabelSize,
+  getPrintMenuForms,
   labelSizePresets,
   normalizeLabelSize,
-  normalizePrintFormsForView,
 } from '../../../../../entities/settings';
+import { isRepairOrder } from '../../../../../entities/sale';
 import { Modal } from '../../../../../shared/ui/Modal';
 import { Button } from '../../../../../shared/ui/Button';
 import { PrinterIcon } from './PrinterIcon';
@@ -93,9 +93,10 @@ export const OrderPrintDialog: React.FC<OrderPrintDialogProps> = ({
   onClose,
 }) => {
   const { t } = useTranslation();
-  const availablePrintForms = normalizePrintFormsForView(
-    printForms.length > 0 ? printForms : defaultPrintForms,
-  ).filter((form) => form.isActive);
+  const availablePrintForms = getPrintMenuForms(
+    printForms,
+    isRepairOrder(request.sale) ? 'repair' : 'sale',
+  );
   const [selectedFormIds, setSelectedFormIds] = useState<string[]>(
     [],
   );

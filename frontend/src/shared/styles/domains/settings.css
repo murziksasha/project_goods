@@ -790,6 +790,112 @@
   height: 11.6mm;
 }
 
+.settings-print-preview-page .print-columns-wide-left {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.settings-print-preview-page .print-document .print-text-size-large {
+  font-size: 18px;
+}
+
+.settings-print-preview-page .print-document .print-text-size-xlarge {
+  font-size: 26px;
+}
+
+.settings-print-preview-page .print-document .print-text-size-hero {
+  font-size: 40px;
+  line-height: 1;
+}
+
+.settings-print-preview-page .print-label .print-align-left {
+  text-align: left;
+}
+
+.settings-print-preview-page .print-label .print-align-right {
+  text-align: right;
+}
+
+.settings-print-preview-page .print-label .print-columns {
+  width: 100%;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1mm;
+  align-items: center;
+}
+
+.settings-print-preview-page .print-label .print-columns-wide-left {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.settings-print-preview-page .print-label .print-columns > div {
+  min-width: 0;
+}
+
+.settings-print-preview-page .print-label .print-divider {
+  width: 100%;
+  flex: 0 0 auto;
+  border: 0;
+  border-top: 0.5mm solid #000;
+  margin: 0.2mm 0;
+}
+
+.settings-print-preview-page .print-label .print-block-heading.print-text-size-large,
+.settings-print-preview-page .print-label .print-block-paragraph.print-text-size-large {
+  font-size: 3mm;
+  line-height: 1.05;
+}
+
+.settings-print-preview-page .print-label .print-block-heading.print-text-size-xlarge,
+.settings-print-preview-page .print-label .print-block-paragraph.print-text-size-xlarge {
+  font-size: 4.5mm;
+  line-height: 1;
+}
+
+.settings-print-preview-page .print-label .print-block-heading.print-text-size-hero,
+.settings-print-preview-page .print-label .print-block-paragraph.print-text-size-hero {
+  font-size: 7.5mm;
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+
+.settings-print-preview-page .print-label .print-block-heading.print-fit-text,
+.settings-print-preview-page .print-label .print-block-paragraph.print-fit-text {
+  white-space: nowrap;
+  overflow: visible;
+  text-overflow: clip;
+}
+
+.settings-print-preview-page .print-label .print-text-size-hero.print-fit-chars-5 {
+  font-size: 6.2mm;
+}
+
+.settings-print-preview-page .print-label .print-text-size-hero.print-fit-chars-6 {
+  font-size: 5.2mm;
+}
+
+.settings-print-preview-page .print-label .print-text-size-hero.print-fit-chars-7 {
+  font-size: 4.5mm;
+}
+
+.settings-print-preview-page .print-label .print-text-size-hero.print-fit-chars-8 {
+  font-size: 3.9mm;
+}
+
+.settings-print-preview-page .print-label .print-columns-wide-left > div:last-child .print-block-paragraph {
+  line-height: 0.95;
+}
+
+.settings-print-preview-page .print-label .print-code-row-slim {
+  margin-top: auto;
+}
+
+.settings-print-preview-page .print-label .print-code-row-slim .print-barcode {
+  display: block;
+  width: 75%;
+  max-width: 75%;
+  height: 5mm;
+  margin: 0 auto;
+}
+
 .settings-print-preview-page .print-label .print-code-value {
   width: 100%;
   overflow: hidden;

@@ -395,8 +395,10 @@ Client status localization rule: keep client status values in original English (
 - Sale/order responses include:
   - `note` — system-generated text (repair create flow, legacy data)
   - `userNote` — operator-editable note from the order/sale card (max 500 characters)
+  - `kit` — repair device kit, `string[]` (2026-11-18; `[]` when empty). Rules: [ORDER_FLOW.md → Device kit](./ORDER_FLOW.md#device-kit-2026-11-18)
 - `PATCH /sales/:saleId/workspace`
   - Supports `userNote` (string, trimmed, max 500). Updates only `userNote`; does not change system `note`.
+  - Supports `kit` (array of strings, max 20 unique items × 80 chars; invalid → 400). Omitted = unchanged. Kanban / away / chat-only shortcut permissions do not cover kit changes.
   - Supports `kanbanRank` (number) for card ordering within Kanban columns. Rank-only patches require `kanban.use` or `orders.manage`.
   - Manual `Live feed` comment-only saves require `orders.chat`.
   - Status-only change to `away` (repair or sale; timeline / `issuedById` clear allowed) requires any sale-read permission: `orders.view`, `sales.manage`, `repairs.execute`, `kanban.use`, `supplierOrders.view`, or `supplierOrders.manage`. Leaving `away` for another status uses the usual manage / `kanban.use` rules. Spec: [Permission_Flow.md](./Permission_Flow.md) · [ORDER_FLOW.md](./ORDER_FLOW.md#shared-status-away-2026-09-15).

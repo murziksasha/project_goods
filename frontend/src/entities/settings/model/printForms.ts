@@ -7,9 +7,14 @@ import type {
   PrintLayoutField,
   PrintLayoutTableColumn,
   PrintLayoutTableRow,
+  PrintLayoutTextSize,
+  PrintLayoutColumnsLayout,
+  PrintLayoutBarcodeSize,
+  PrintMenuDocumentType,
 } from './types';
 import { translatePrintBlock, translatePrintSource, translatePrintText } from './print-language';
 import { renderPrintInlineMarkup } from './printInlineMarkup';
+import { formatPhoneForPrint } from '../../../shared/lib/phoneFormatter';
 
 export type LabelSizePreset = {
   id: string;
@@ -143,11 +148,16 @@ export type PrintFormVariable =
   | 'labelContact'
   | 'date'
   | 'createdAt'
+  | 'acceptedDate'
+  | 'acceptedTime'
+  | 'orderNumberShort'
   | 'status'
   | 'clientName'
   | 'clientPhone'
   | 'deviceName'
   | 'serialNumber'
+  | 'kit'
+  | 'kitLabel'
   | 'article'
   | 'defect'
   | 'comment'
@@ -213,12 +223,15 @@ export const printFormVariableGroups: Array<{
     variables: [
       { key: 'id', label: 'Order ID' },
       { key: 'orderNumber', label: 'Order number' },
+      { key: 'orderNumberShort', label: 'Order number short (#124)' },
       { key: 'repair_order_reference', label: 'Repair order reference (repairs only)' },
       { key: 'labelCode', label: 'Label code' },
       { key: 'labelTitle', label: 'Label title' },
       { key: 'labelContact', label: 'Label contact' },
       { key: 'date', label: 'Created date' },
       { key: 'createdAt', label: 'Created date and time' },
+      { key: 'acceptedDate', label: 'Accepted date (dd.MM.yyyy)' },
+      { key: 'acceptedTime', label: 'Accepted time (HH:mm)' },
       { key: 'due_date', label: 'Due date' },
       { key: 'status', label: 'Status' },
     ],
@@ -238,6 +251,8 @@ export const printFormVariableGroups: Array<{
     variables: [
       { key: 'deviceName', label: 'Device' },
       { key: 'serialNumber', label: 'Serial number' },
+      { key: 'kit', label: 'Kit' },
+      { key: 'kitLabel', label: 'Kit for labels (a / b)' },
       { key: 'article', label: 'Article' },
       { key: 'defect', label: 'Defect' },
       { key: 'comment', label: 'Comment' },
@@ -312,8 +327,32 @@ const labelShell = (body: string) => `
 
 const makeBlockId = (prefix: string, index: number) => `${prefix}-${index}`;
 
-const alignClass = (align: 'left' | 'center' | 'right' | undefined) =>
-  align && align !== 'left' ? ` print-align-${align}` : '';
+// Labels centre their content by default, so an explicit `left` must be emitted
+// there; documents are left-aligned already and keep their historic markup.
+const alignClass = (
+  align: 'left' | 'center' | 'right' | undefined,
+  shell: PrintLayoutShell = 'document',
+) =>
+  align && (align !== 'left' || shell === 'label') ? ` print-align-${align}` : '';
+
+export type PrintLayoutShell = 'document' | 'label';
+
+export const printLayoutTextSizes: PrintLayoutTextSize[] = ['normal', 'large', 'xlarge', 'hero'];
+
+export const clampTextSize = (size: unknown): PrintLayoutTextSize | undefined =>
+  size === 'large' || size === 'xlarge' || size === 'hero' ? size : undefined;
+
+const sizeClass = (size: PrintLayoutTextSize | undefined) => {
+  const safe = clampTextSize(size);
+  return safe ? ` print-text-size-${safe}` : '';
+};
+
+export const printLayoutColumnsLayouts: PrintLayoutColumnsLayout[] = ['equal', 'wide-left'];
+
+export const clampColumnsLayout = (layout: unknown): PrintLayoutColumnsLayout | undefined =>
+  layout === 'wide-left' ? layout : undefined;
+
+export const printLayoutBarcodeSizes: PrintLayoutBarcodeSize[] = ['compact', 'standard', 'large', 'slim'];
 
 const weightClass = (weight: 'light' | 'normal' | 'bold' | undefined) =>
   weight ? ` print-block-weight-${weight}` : '';
@@ -329,31 +368,39 @@ export const clampTextWeight = (
 export const normalizePrintLayoutBlock = (block: PrintLayoutBlock): PrintLayoutBlock => {
   switch (block.type) {
     case 'heading': {
-      const { weight: rawWeight, ...rest } = block;
+      const { weight: rawWeight, size: rawSize, ...rest } = block;
       const weight = clampTextWeight(rawWeight);
+      const size = clampTextSize(rawSize);
       return {
         ...rest,
         level: clampTextLevel(block.level),
         ...(weight ? { weight } : {}),
+        ...(size ? { size } : {}),
       };
     }
     case 'paragraph': {
-      const { weight: rawWeight, ...rest } = block;
+      const { weight: rawWeight, size: rawSize, ...rest } = block;
       const weight = clampTextWeight(rawWeight);
+      const size = clampTextSize(rawSize);
       return {
         ...rest,
         level: clampTextLevel(block.level),
         ...(weight ? { weight } : {}),
+        ...(size ? { size } : {}),
       };
     }
-    case 'columns':
+    case 'columns': {
+      const { layout: rawLayout, ...rest } = block;
+      const layout = clampColumnsLayout(rawLayout);
       return {
-        ...block,
+        ...rest,
+        ...(layout ? { layout } : {}),
         columns: block.columns.map((column) => ({
           ...column,
           blocks: column.blocks.map(normalizePrintLayoutBlock),
         })),
       };
+    }
     default:
       return block;
   }
@@ -363,7 +410,7 @@ export const normalizePrintLayoutBlocks = (blocks: PrintLayoutBlock[]) =>
   blocks.map(normalizePrintLayoutBlock).map(translatePrintBlock);
 
 const codeSizeClass = (
-  size: 'compact' | 'standard' | 'large' | undefined,
+  size: PrintLayoutBarcodeSize | undefined,
 ) => (size && size !== 'standard' ? ` print-code-row-${size}` : '');
 
 // Authored text: `**bold**`, `*italic*`, `__underline__` become inline tags;
@@ -438,7 +485,10 @@ const renderBarcodeBlock = (
   return `<div class="print-code-row${codeSizeClass(block.size)}">${block.label ? `<span>${renderInlineTemplate(block.label)}</span>` : ''}${barcode}${visibleValue}</div>`;
 };
 
-export const renderPrintLayoutBlocks = (blocks: PrintLayoutBlock[]): string =>
+export const renderPrintLayoutBlocks = (
+  blocks: PrintLayoutBlock[],
+  shell: PrintLayoutShell = 'document',
+): string =>
   blocks
     .map((block) => {
       switch (block.type) {
@@ -447,12 +497,12 @@ export const renderPrintLayoutBlocks = (blocks: PrintLayoutBlock[]): string =>
           const weight = clampTextWeight(block.weight);
           const serialClass =
             block.text.trim() === '{{labelCode}}' ? ' print-label-serial' : '';
-          return `<h${level} class="print-block-heading${serialClass}${alignClass(block.align)}${weightClass(weight)}">${renderInlineTemplate(block.text)}</h${level}>`;
+          return `<h${level} class="print-block-heading${serialClass}${alignClass(block.align, shell)}${weightClass(weight)}${sizeClass(block.size)}">${renderInlineTemplate(block.text)}</h${level}>`;
         }
         case 'paragraph': {
           const level = clampTextLevel(block.level);
           const weight = clampTextWeight(block.weight);
-          return `<p class="print-block-paragraph print-block-paragraph-level-${level}${alignClass(block.align)}${weightClass(weight)}">${renderInlineTemplate(block.text)}</p>`;
+          return `<p class="print-block-paragraph print-block-paragraph-level-${level}${alignClass(block.align, shell)}${weightClass(weight)}${sizeClass(block.size)}">${renderInlineTemplate(block.text)}</p>`;
         }
         case 'fieldRow':
           return `<table class="print-details-table"><tbody>${renderFieldRows(block.fields, 2)}</tbody></table>`;
@@ -472,10 +522,12 @@ export const renderPrintLayoutBlocks = (blocks: PrintLayoutBlock[]): string =>
           return '<hr class="print-divider" />';
         case 'spacer':
           return `<div class="print-spacer print-spacer-${block.size}"></div>`;
-        case 'columns':
-          return `<div class="print-columns">${block.columns
-            .map((column) => `<div>${renderPrintLayoutBlocks(column.blocks)}</div>`)
+        case 'columns': {
+          const layout = clampColumnsLayout(block.layout);
+          return `<div class="print-columns${layout ? ` print-columns-${layout}` : ''}">${block.columns
+            .map((column) => `<div>${renderPrintLayoutBlocks(column.blocks, shell)}</div>`)
             .join('')}</div>`;
+        }
         default:
           return '';
       }
@@ -484,9 +536,9 @@ export const renderPrintLayoutBlocks = (blocks: PrintLayoutBlock[]): string =>
 
 export const renderPrintLayout = (
   blocks: PrintLayoutBlock[],
-  shell: 'document' | 'label' = 'document',
+  shell: PrintLayoutShell = 'document',
 ) => {
-  const body = renderPrintLayoutBlocks(blocks);
+  const body = renderPrintLayoutBlocks(blocks, shell);
   return shell === 'label' ? labelShell(body) : documentShell(body);
 };
 
@@ -717,9 +769,46 @@ export const defaultPrintForms: PrintForm[] = [
     isActive: true,
     sortOrder: 65,
   },
+  {
+    id: 'new-barcode-with-bar',
+    title: 'New Barcode (with bar)',
+    type: 'barcode',
+    content: '',
+    contentFormat: 'html',
+    pageSize: 'label',
+    labelSize: defaultBarcodeLabelSize,
+    contentMargins: { topMm: 0.45, rightMm: 1.5, bottomMm: 0.45, leftMm: 5 },
+    orientation: 'landscape',
+    isActive: true,
+    printMenuVisibility: ['repair'],
+    sortOrder: 66,
+  },
+  {
+    id: 'new-barcode-without-bar',
+    title: 'New Barcode (without bar)',
+    type: 'barcode',
+    content: '',
+    contentFormat: 'html',
+    pageSize: 'label',
+    labelSize: defaultBarcodeLabelSize,
+    contentMargins: { topMm: 0.45, rightMm: 1.5, bottomMm: 0.45, leftMm: 5 },
+    orientation: 'landscape',
+    isActive: true,
+    printMenuVisibility: ['repair'],
+    sortOrder: 67,
+  },
 ];
 
 export const warehouseBarcodePrintFormId = 'warehouse-barcode';
+
+/**
+ * Built-in templates that are seeded as one group: when at least one of them is
+ * present in saved settings, a missing sibling is treated as deleted by the user
+ * and is not re-added (see PRINT_FORMS_SPEC.md "New Barcode label").
+ */
+export const newBarcodePrintFormIds = ['new-barcode-with-bar', 'new-barcode-without-bar'];
+
+const seededAsGroupPrintFormIds = new Set(newBarcodePrintFormIds);
 
 export const legacyDefaultPrintFormIds = new Set([
   'receipt',
@@ -950,6 +1039,62 @@ const barcodeLayoutBlocks: PrintLayoutBlock[] = [
   { id: 'barcode-contact', type: 'paragraph', level: 3, text: '{{labelContact}}', align: 'center' },
 ];
 
+const newBarcodeLayoutBlocks = (prefix: string): PrintLayoutBlock[] => [
+  {
+    id: `${prefix}-top`,
+    type: 'columns',
+    layout: 'wide-left',
+    columns: [
+      {
+        id: `${prefix}-top-left`,
+        blocks: [
+          {
+            id: `${prefix}-top-left-text`,
+            type: 'paragraph',
+            level: 1,
+            size: 'hero',
+            weight: 'bold',
+            align: 'left',
+            text: '{{orderNumberShort}}',
+          },
+        ],
+      },
+      {
+        id: `${prefix}-top-right`,
+        blocks: [
+          {
+            id: `${prefix}-top-right-text`,
+            type: 'paragraph',
+            level: 2,
+            weight: 'bold',
+            align: 'right',
+            text: '{{acceptedDate}}\n{{acceptedTime}}',
+          },
+        ],
+      },
+    ],
+  },
+  { id: `${prefix}-divider`, type: 'divider' },
+  { id: `${prefix}-device`, type: 'paragraph', level: 2, weight: 'bold', align: 'left', text: '{{deviceName}}' },
+  { id: `${prefix}-kit`, type: 'paragraph', level: 3, align: 'left', text: '{{kitLabel}}' },
+  { id: `${prefix}-client`, type: 'paragraph', level: 3, align: 'left', text: '{{clientName}}' },
+  { id: `${prefix}-phone`, type: 'paragraph', level: 3, align: 'left', text: '{{clientPhone}}' },
+];
+
+const newBarcodeWithBarLayoutBlocks: PrintLayoutBlock[] = [
+  ...newBarcodeLayoutBlocks('new-barcode-with-bar'),
+  {
+    id: 'new-barcode-with-bar-code',
+    type: 'barcode',
+    value: '{{barcode}}',
+    showValue: false,
+    size: 'slim',
+  },
+];
+
+const newBarcodeWithoutBarLayoutBlocks: PrintLayoutBlock[] =
+  newBarcodeLayoutBlocks('new-barcode-without-bar');
+
 const warehouseBarcodeLayoutBlocks: PrintLayoutBlock[] = barcodeLayoutBlocks.map((block) => ({
   ...block,
   id: block.id.replace(/^barcode-/, 'warehouse-barcode-'),
@@ -964,10 +1109,14 @@ export const defaultPrintLayouts: Record<string, PrintLayoutBlock[]> = {
   'invoice-no-vat': invoiceWithoutVatLayoutBlocks,
   barcode: barcodeLayoutBlocks,
   'warehouse-barcode': warehouseBarcodeLayoutBlocks,
+  'new-barcode-with-bar': newBarcodeWithBarLayoutBlocks,
+  'new-barcode-without-bar': newBarcodeWithoutBarLayoutBlocks,
 };
 
 export const getDefaultPrintLayoutBlocks = (formType: string) =>
-  defaultPrintLayouts[formType]?.map((block) => ({ ...block })) ?? [
+  defaultPrintLayouts[formType]?.map(
+    (block) => JSON.parse(JSON.stringify(block)) as PrintLayoutBlock,
+  ) ?? [
     createPrintLayoutBlock('heading', 1),
     createPrintLayoutBlock('fieldGrid', 2),
     createPrintLayoutBlock('signatures', 3),
@@ -1083,12 +1232,60 @@ export const getWarehouseLabelTemplateData = (item: {
   labelContact: item.article ?? '',
 });
 
+export const printMenuDocumentTypes: PrintMenuDocumentType[] = ['sale', 'repair', 'warehouse'];
+
+const normalizePrintMenuVisibility = (
+  value: unknown,
+): PrintMenuDocumentType[] | undefined => {
+  if (!Array.isArray(value)) return undefined;
+  return printMenuDocumentTypes.filter((type) => value.includes(type));
+};
+
+/**
+ * Whether a template is offered in the print menu of a document type.
+ * Templates without `printMenuVisibility` keep the legacy behaviour (`true`);
+ * an empty list hides the template everywhere (it stays in the constructor).
+ */
+export const isPrintFormVisibleFor = (
+  form: Pick<PrintForm, 'printMenuVisibility'>,
+  documentType: PrintMenuDocumentType,
+) => {
+  const visibility = normalizePrintMenuVisibility(form.printMenuVisibility);
+  return visibility === undefined || visibility.includes(documentType);
+};
+
+export const hasExplicitPrintMenuVisibility = (
+  form: Pick<PrintForm, 'printMenuVisibility'>,
+) => normalizePrintMenuVisibility(form.printMenuVisibility) !== undefined;
+
+/** Active templates for the order/sale print menu of a document type. */
+export const getPrintMenuForms = (
+  printForms: PrintForm[],
+  documentType: PrintMenuDocumentType,
+) =>
+  normalizePrintFormsForView(printForms.length > 0 ? printForms : defaultPrintForms)
+    .filter((form) => form.isActive && isPrintFormVisibleFor(form, documentType));
+
+/**
+ * Warehouse stock labels print one template. Prefer the built-in Product
+ * barcode while it is visible for warehouse; otherwise the first active label
+ * template explicitly marked for warehouse; finally the built-in default.
+ */
 export const getWarehouseBarcodePrintForm = (printForms: PrintForm[]) => {
   const normalized = normalizePrintFormsForView(printForms);
   return (
     normalized.find(
       (form) =>
-        form.isActive && form.id === warehouseBarcodePrintFormId,
+        form.isActive &&
+        form.id === warehouseBarcodePrintFormId &&
+        isPrintFormVisibleFor(form, 'warehouse'),
+    ) ??
+    normalized.find(
+      (form) =>
+        form.isActive &&
+        form.pageSize === 'label' &&
+        hasExplicitPrintMenuVisibility(form) &&
+        isPrintFormVisibleFor(form, 'warehouse'),
     ) ??
     defaultPrintForms
       .map(createLayoutPrintForm)
@@ -1145,16 +1342,37 @@ export const createDefaultSettingsForm = (): AppSettingsFormValues => ({
   },
 });
 
+/**
+ * Saved copies of the New Barcode templates printed the kit comma-joined.
+ * Switch the untouched default kit block (`<id>-kit` with text `{{kit}}`) to
+ * the slash-joined `{{kitLabel}}`. Edited text is left alone.
+ */
+export const migrateNewBarcodeKitBlock = (form: PrintForm): PrintForm => {
+  if (!newBarcodePrintFormIds.includes(form.id) || !form.layoutBlocks?.length) return form;
+  const kitBlockId = `${form.id}-kit`;
+  let changed = false;
+  const layoutBlocks = form.layoutBlocks.map((block) => {
+    if (block.id !== kitBlockId || block.type !== 'paragraph' || block.text.trim() !== '{{kit}}') {
+      return block;
+    }
+    changed = true;
+    return { ...block, text: '{{kitLabel}}' };
+  });
+  return changed ? { ...form, layoutBlocks } : form;
+};
+
 export const normalizePrintFormsForView = (forms: PrintForm[]) => {
   const sourceForms = forms.length > 0 ? forms : defaultPrintForms;
   const sourceBarcodeForm = sourceForms.find((form) => form.id === 'barcode');
   const normalized = sourceForms.map(
     (sourceForm, index) => {
-      const form = sourceForm.id === 'invoice' && legacyDefaultPrintFormTitles.invoice.includes(sourceForm.title)
+      const form = migrateNewBarcodeKitBlock(
+        sourceForm.id === 'invoice' && legacyDefaultPrintFormTitles.invoice.includes(sourceForm.title)
         ? createLayoutPrintForm({ ...sourceForm, title: 'Invoice with VAT', layoutBlocks: invoiceLayoutBlocks })
         : (sourceForm.id === 'invoice-no-vat' || sourceForm.id === 'invoice') && sourceForm.layoutBlocks?.length
           ? { ...sourceForm, layoutBlocks: sourceForm.layoutBlocks.map(translatePrintBlock) }
-          : sourceForm;
+          : sourceForm,
+      );
       const shouldUseDefaultLayout =
         isPreviousDefaultBarcode(form) ||
         (!hasLayoutBlocks(form) &&
@@ -1195,10 +1413,17 @@ export const normalizePrintFormsForView = (forms: PrintForm[]) => {
   );
 
   const existingIds = new Set(normalized.map((form) => form.id));
+  const hasSeededGroupMember =
+    forms.length > 0 &&
+    forms.some((form) => seededAsGroupPrintFormIds.has(form.id));
   const withMissingDefaults = [
     ...normalized,
     ...defaultPrintForms
       .filter((form) => !existingIds.has(form.id))
+      .filter(
+        (form) =>
+          !(hasSeededGroupMember && seededAsGroupPrintFormIds.has(form.id)),
+      )
       .map((defaultForm) => {
         if (defaultForm.id === warehouseBarcodePrintFormId && sourceBarcodeForm) {
           return createLayoutPrintForm(
@@ -1263,6 +1488,17 @@ const unwrapEditorTokens = (html: string) =>
     '$1',
   );
 
+/**
+ * Phone variables printed in Ukrainian local format `050-556-70-90`
+ * (see formatPhoneForPrint). `labelContact` is not listed: on warehouse labels
+ * it holds the article, so order print data formats it at the source.
+ */
+export const printPhoneVariables: ReadonlySet<string> = new Set([
+  'clientPhone',
+  'service_center_phone',
+  'warehouse_phone',
+]);
+
 export const renderPrintTemplate = (
   template: string,
   values: PrintTemplateData,
@@ -1311,6 +1547,10 @@ export const renderPrintTemplate = (
       );
     }
 
+    if (printPhoneVariables.has(key)) {
+      return result.replaceAll(`{{${key}}}`, escapeHtml(formatPhoneForPrint(values[key] ?? '')));
+    }
+
     return result.replaceAll(`{{${key}}}`, escapeHtml(values[key] ?? ''));
   }, source);
 
@@ -1352,6 +1592,11 @@ export const printDocumentStyles = `
   .print-document .print-block-paragraph-level-2 { font-size: 18px; }
   .print-document .print-block-paragraph-level-3 { font-size: 13px; }
   .print-columns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+  .print-columns-wide-left { grid-template-columns: minmax(0, 1fr) auto; }
+  .print-document .print-text-size-large { font-size: 18px; }
+  .print-document .print-text-size-xlarge { font-size: 26px; }
+  .print-document .print-text-size-hero { font-size: 40px; line-height: 1; }
+  .print-code-row-slim .print-barcode { height: 24px; max-width: 160px; }
   .print-divider { border: 0; border-top: 1px solid #d1d5db; margin: 14px 0; }
   .print-spacer-small { height: 6px; }
   .print-spacer-medium { height: 14px; }
@@ -1420,6 +1665,24 @@ export const printLabelDocumentStyles = `
   .print-label .print-block-heading.print-label-serial { white-space: normal; overflow: visible; overflow-wrap: anywhere; word-break: break-word; text-overflow: clip; line-height: 1.15; }
   .print-label span { display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .print-label span:empty, .print-label .print-block-paragraph:empty { display: none; }
+  .print-label .print-align-left { text-align: left; }
+  .print-label .print-align-center { text-align: center; }
+  .print-label .print-align-right { text-align: right; }
+  .print-label .print-columns { width: 100%; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1mm; align-items: center; }
+  .print-label .print-columns-wide-left { grid-template-columns: minmax(0, 1fr) auto; }
+  .print-label .print-columns > div { min-width: 0; }
+  .print-label .print-divider { width: 100%; flex: 0 0 auto; border: 0; border-top: 0.5mm solid #000; margin: 0.2mm 0; }
+  .print-label .print-block-heading.print-text-size-large, .print-label .print-block-paragraph.print-text-size-large { font-size: 3mm; line-height: 1.05; }
+  .print-label .print-block-heading.print-text-size-xlarge, .print-label .print-block-paragraph.print-text-size-xlarge { font-size: 4.5mm; line-height: 1; }
+  .print-label .print-block-heading.print-text-size-hero, .print-label .print-block-paragraph.print-text-size-hero { font-size: 7.5mm; line-height: 1; letter-spacing: -0.02em; }
+  .print-label .print-block-heading.print-fit-text, .print-label .print-block-paragraph.print-fit-text { white-space: nowrap; overflow: visible; text-overflow: clip; }
+  .print-label .print-text-size-hero.print-fit-chars-5 { font-size: 6.2mm; }
+  .print-label .print-text-size-hero.print-fit-chars-6 { font-size: 5.2mm; }
+  .print-label .print-text-size-hero.print-fit-chars-7 { font-size: 4.5mm; }
+  .print-label .print-text-size-hero.print-fit-chars-8 { font-size: 3.9mm; }
+  .print-label .print-columns-wide-left > div:last-child .print-block-paragraph { line-height: 0.95; }
+  .print-label .print-code-row-slim { margin-top: auto; }
+  .print-label .print-code-row-slim .print-barcode { display: block; width: 75%; max-width: 75%; height: 5mm; margin: 0 auto; }
   @media print {
     body.print-screen-preview { padding: 0; background: #fff; }
     .print-form-label { padding: 0 !important; margin: 0 !important; }
