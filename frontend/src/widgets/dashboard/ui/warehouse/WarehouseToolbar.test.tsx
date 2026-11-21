@@ -370,4 +370,102 @@ describe('WarehouseToolbar search commit', () => {
     expect(setQuery).toHaveBeenCalledWith('cord');
     expect(setCurrentPage).toHaveBeenCalledWith(1);
   });
+
+  it('handles multi-status buttons on receipts tab: several pressed, All lights when complete', () => {
+    const onToggleReceiptStatus = vi.fn();
+    const onToggleAllReceiptStatuses = vi.fn();
+
+    // Partial selection: 'new' and 'approved' pressed
+    const { rerender } = render(
+      <WarehouseToolbar
+        activeTab='receipts'
+        stockSummaryText='Stock total'
+        headerActions={null}
+        selectedProductCount={0}
+        selectedSerialCount={0}
+        activeColumnsTab='receipts'
+        columnsMenuRef={{ current: null }}
+        isColumnsMenuOpen={false}
+        visibleColumnKeySet={new Set()}
+        activeFilterCount={1}
+        favoritesOnly={false}
+        query=''
+        searchMode='serial'
+        searchPlaceholder='Search receipts'
+        stockView='models'
+        receiptsView='orders'
+        appliedReceiptStatuses={['new', 'approved']}
+        showReceiptStatusChips={true}
+        onPrintSelectedSerials={vi.fn()}
+        onClearSelection={vi.fn()}
+        onToggleColumnsMenu={vi.fn()}
+        onToggleColumnVisibility={vi.fn()}
+        onToggleFilters={vi.fn()}
+        onToggleFavoritesOnly={vi.fn()}
+        onStockViewChange={vi.fn()}
+        onReceiptsViewChange={vi.fn()}
+        onToggleReceiptStatus={onToggleReceiptStatus}
+        onToggleAllReceiptStatuses={onToggleAllReceiptStatuses}
+        setQuery={vi.fn()}
+        setSearchMode={vi.fn()}
+        setCurrentPage={vi.fn()}
+      />,
+    );
+
+    const allBtn = screen.getByRole('button', { name: /^all$/i });
+    expect(allBtn).toHaveAttribute('aria-pressed', 'false');
+
+    const newBtn = screen.getByRole('button', { name: /new/i });
+    expect(newBtn).toHaveAttribute('aria-pressed', 'true');
+
+    fireEvent.click(allBtn);
+    expect(onToggleAllReceiptStatuses).toHaveBeenCalledTimes(1);
+
+    // When all statuses are pressed
+    rerender(
+      <WarehouseToolbar
+        activeTab='receipts'
+        stockSummaryText='Stock total'
+        headerActions={null}
+        selectedProductCount={0}
+        selectedSerialCount={0}
+        activeColumnsTab='receipts'
+        columnsMenuRef={{ current: null }}
+        isColumnsMenuOpen={false}
+        visibleColumnKeySet={new Set()}
+        activeFilterCount={0}
+        favoritesOnly={false}
+        query=''
+        searchMode='serial'
+        searchPlaceholder='Search receipts'
+        stockView='models'
+        receiptsView='orders'
+        appliedReceiptStatuses={[
+          'new',
+          'approved',
+          'partially_stocked',
+          'received',
+          'cancelled',
+        ]}
+        showReceiptStatusChips={true}
+        onPrintSelectedSerials={vi.fn()}
+        onClearSelection={vi.fn()}
+        onToggleColumnsMenu={vi.fn()}
+        onToggleColumnVisibility={vi.fn()}
+        onToggleFilters={vi.fn()}
+        onToggleFavoritesOnly={vi.fn()}
+        onStockViewChange={vi.fn()}
+        onReceiptsViewChange={vi.fn()}
+        onToggleReceiptStatus={onToggleReceiptStatus}
+        onToggleAllReceiptStatuses={onToggleAllReceiptStatuses}
+        setQuery={vi.fn()}
+        setSearchMode={vi.fn()}
+        setCurrentPage={vi.fn()}
+      />,
+    );
+
+    expect(allBtn).toHaveAttribute('aria-pressed', 'true');
+    fireEvent.click(allBtn);
+    expect(onToggleAllReceiptStatuses).toHaveBeenCalledTimes(2);
+  });
 });

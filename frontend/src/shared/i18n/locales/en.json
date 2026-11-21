@@ -813,6 +813,7 @@
       "deleteFilter": "Delete {{name}}",
       "status": "Status",
       "all": "All",
+      "none": "None",
       "selectedCount": "{{count}} selected",
       "orderNumber": "Order number",
       "orderNumberPlaceholder": "Order #",
@@ -1234,6 +1235,7 @@
         "paymentStatus": "Payment status"
       },
       "filters": {
+        "noStatuses": "No statuses",
         "dateFrom": "Date from",
         "dateTo": "Date to",
         "clearDates": "Clear dates",

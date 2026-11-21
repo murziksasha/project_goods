@@ -95,4 +95,67 @@ describe('SupplierOrdersFilterPanel', () => {
     expect(onClose).toHaveBeenCalledTimes(1);
     expect(onApply).not.toHaveBeenCalled();
   });
+
+  it('displays summary as All when full set, None when empty, or count', () => {
+    const { rerender } = render(
+      <SupplierOrdersFilterPanel
+        isOpen
+        isStatusFilterOpen={false}
+        isPaymentFilterOpen={false}
+        canManageSavedFilters
+        draftFilters={emptySupplierOrdersFilters}
+        savedFilters={[]}
+        suppliers={[]}
+        createdByOptions={[]}
+        newFilterName=''
+        newFilterIcon='?'
+        statusFilterRef={{ current: null }}
+        paymentFilterRef={{ current: null }}
+        setDraftFilters={vi.fn()}
+        setIsStatusFilterOpen={vi.fn()}
+        setIsPaymentFilterOpen={vi.fn()}
+        setNewFilterName={vi.fn()}
+        setNewFilterIcon={vi.fn()}
+        onApplyFilters={vi.fn()}
+        onResetFilters={vi.fn()}
+        onSaveCurrentFilter={vi.fn()}
+        onApplySavedFilter={vi.fn()}
+        onRemoveSavedFilter={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+
+    // All selected -> button text is "All"
+    expect(screen.getAllByRole('button', { name: 'All' }).length).toBeGreaterThan(0);
+
+    // Empty selected -> button text is "None"
+    rerender(
+      <SupplierOrdersFilterPanel
+        isOpen
+        isStatusFilterOpen={false}
+        isPaymentFilterOpen={false}
+        canManageSavedFilters
+        draftFilters={{ ...emptySupplierOrdersFilters, selectedStatuses: [] }}
+        savedFilters={[]}
+        suppliers={[]}
+        createdByOptions={[]}
+        newFilterName=''
+        newFilterIcon='?'
+        statusFilterRef={{ current: null }}
+        paymentFilterRef={{ current: null }}
+        setDraftFilters={vi.fn()}
+        setIsStatusFilterOpen={vi.fn()}
+        setIsPaymentFilterOpen={vi.fn()}
+        setNewFilterName={vi.fn()}
+        setNewFilterIcon={vi.fn()}
+        onApplyFilters={vi.fn()}
+        onResetFilters={vi.fn()}
+        onSaveCurrentFilter={vi.fn()}
+        onApplySavedFilter={vi.fn()}
+        onRemoveSavedFilter={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+    expect(screen.getByRole('button', { name: 'None' })).toBeTruthy();
+  });
 });
