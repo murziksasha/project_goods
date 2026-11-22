@@ -2,6 +2,10 @@
   min-width: 0;
 }
 
+.employees-panel .warehouse-information {
+  padding: 0;
+}
+
 .employees-management {
   min-width: 0;
 }

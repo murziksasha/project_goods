@@ -36,3 +36,11 @@ Canonical rules: [UI_DESIGN_SYSTEM.md — Hover copy icon](./UI_DESIGN_SYSTEM.md
 - Product creation is performed only through `Product` modal opened by `+` button in the product input.
 - Creating a catalog product does **not** create a warehouse stock item.
 - Until receipt workflow is implemented, stock balance view must show only items with `quantity > 0`.
+
+## Page layout and tabs
+
+- Products & Services (`page=catalog`) uses the `.orders-page` shell with `.orders-tabs` and `.orders-tab`.
+- The page tab row (`Client devices`, `Products`, `Services`, `Suppliers`) sits flush on the top edge of the `.orders-page` card.
+- `PageHeader` (title and subtitle) sits **below** the tab row with a 12px gap.
+- Catalog toolbar padding aligns with the 12px card inset (no double padding).
+

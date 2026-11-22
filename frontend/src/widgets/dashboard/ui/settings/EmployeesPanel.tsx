@@ -78,7 +78,7 @@ export const EmployeesPanel: React.FC<EmployeesPanelProps> = ({
   ];
 
   return (
-    <section className="employees-panel">
+    <section className="employees-panel orders-page">
       <div className="orders-tabs" role="tablist" aria-label={t('employees.tabs.ariaLabel')}>
         {tabs.map((tab) => (
           <button

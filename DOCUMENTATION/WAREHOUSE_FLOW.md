@@ -7,6 +7,7 @@ This document defines current warehouse requirements for stock balances, receipt
 ## Navigation
 
 - Warehouse tabs: `Stock balances`, `Receipts`, `Transfers`, `Information`, `Settings`
+- Layout: Warehouse page tabs use `.orders-tab` on the gray `.orders-page` card shell, matching Orders and Catalog. Count badges stay in normal flow inside the folder tab (`.warehouse-tab-badge`). Toolbar and receipts padding align with the 12px card inset.
 - Active tab, search, current page, stock view, and receipts view are restored per browser via `localStorage` (`project-goods.warehouse-filters`). The stored search is the committed toolbar query, not characters still inside the 300ms wait ([Toolbar search](#toolbar-search)). Page size leaves the filter blob and is managed in the device-level `project-goods.page-sizes` map (under key `warehouse`). On first run, if `warehouse` is absent from the device map, `pageSize` is seeded once from `project-goods.warehouse-filters.<employeeId>` or unscoped `project-goods.warehouse-filters` if valid (`10 | 30 | 50 | 100 | 200`); subsequent filter writes omit `pageSize`.
 - Related: [ORDER_CARD.md](./ORDER_CARD.md) · [SALE_CARD.md](./SALE_CARD.md) · [SERIAL_NUMBER_SEQUENCE_SPEC.md](./SERIAL_NUMBER_SEQUENCE_SPEC.md) · [PRINT_FORMS_SPEC.md](./PRINT_FORMS_SPEC.md) · [ORDER_FLOW.md](./ORDER_FLOW.md) · [SALE_FLOW.md](./SALE_FLOW.md) · [ACCOUNTING.md](./ACCOUNTING.md) · [index](./README.md)
 

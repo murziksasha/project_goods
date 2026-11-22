@@ -827,7 +827,29 @@ export const ProductCatalogPanel: React.FC<
   }, [services, selectedService]);
 
   return (
-    <section className='panel catalog-table-panel'>
+    <section className='orders-page catalog-table-panel'>
+      <div
+        className='orders-tabs'
+        role='tablist'
+        aria-label={t('catalog.tabsAriaLabel')}
+      >
+        {tabs.map((tab) => (
+          <button
+            key={tab.key}
+            type='button'
+            aria-selected={tab.key === activeTab}
+            className={
+              tab.key === activeTab
+                ? 'orders-tab orders-tab-active'
+                : 'orders-tab'
+            }
+            onClick={() => setActiveTab(tab.key)}
+          >
+            {t(tab.labelKey)}
+          </button>
+        ))}
+      </div>
+
       <PageHeader
         title={t('catalog.pageTitle')}
         subtitle={t('catalog.pageSubtitle', {
@@ -840,27 +862,6 @@ export const ProductCatalogPanel: React.FC<
                 : filteredServices.length,
         })}
       />
-      <div
-        className='catalog-tabs'
-        role='tablist'
-        aria-label={t('catalog.tabsAriaLabel')}
-      >
-        {tabs.map((tab) => (
-          <button
-            key={tab.key}
-            type='button'
-            aria-selected={tab.key === activeTab}
-            className={
-              tab.key === activeTab
-                ? 'catalog-tab catalog-tab-active'
-                : 'catalog-tab'
-            }
-            onClick={() => setActiveTab(tab.key)}
-          >
-            {t(tab.labelKey)}
-          </button>
-        ))}
-      </div>
 
       <div className='catalog-toolbar'>
         {isProductsTab ? (

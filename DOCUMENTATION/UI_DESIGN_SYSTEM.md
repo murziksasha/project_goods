@@ -39,6 +39,16 @@ Semantic aliases (`--accent-blue`, `--line-soft`) remain for backward compatibil
 3. Never use `color: var(--bg-card)` as white text — use `--color-on-accent`.
 4. Bulk helper: `frontend/scripts/replace-theme-tokens.mjs` (does not rewrite `base.css`).
 
+## Page tabs and shell
+
+Every sidebar page that has tabs shares the same folder-tab lid as Orders / Kanban / Sales / Supplier Order:
+- **Rule:** Page tabs of a sidebar section are `.orders-tab` on the gray `.orders-page` card shell (`background: var(--bg-workspace); border: 1px solid var(--color-line-panel); border-radius: 10px; padding: 12px;`).
+- The tab row sits on the top edge of the `.orders-page` card at the same distance under the topbar across all tabbed pages (Orders, Information, Reports, Employees, Clients, Warehouse, Catalog, Settings, and Accounting). Switching tabs does not move that row.
+- `.orders-tabs` and `.orders-tabs-row` use negative margins (`margin: -12px -12px 12px`) to cancel `.orders-page` padding and align with the card's top and side borders. When the child is a grid (e.g. Clients, Settings, Accounting), bottom margin is adjusted so the space under the tab row remains 12px. Container rows (`.orders-tabs-row`, `.finance-tabs-row`) do not set an opaque background and use `border-top-left-radius: 9px; border-top-right-radius: 9px;` so they preserve the shell's 10px rounded top corners.
+- Titles (e.g. Catalog `PageHeader`, Settings `PageHeader` including the Save button) sit **below** the tab row, never above or inside the tab strip.
+- Warehouse count badges remain in normal flow inside the folder tab (`.warehouse-tab-badge`). Orders visibility gear and Finance settings button stay on the right of the tab row; no trailing buttons are added to pages that do not have them.
+- Inner white cards (`.panel`, `.settings-group`, `.report-upgrade-shell`) live inside the gray shell without being flattened.
+
 ## Typography
 
 - **UI:** `Bahnschrift`, `Trebuchet MS`, `Segoe UI`

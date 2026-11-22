@@ -2041,9 +2041,9 @@ export const WarehousePanel: React.FC<WarehousePanelProps> = ({
   };
 
   return (
-    <section className='panel warehouse-panel'>
+    <section className='orders-page warehouse-panel'>
       <div
-        className='warehouse-tabs'
+        className='orders-tabs'
         role='tablist'
         aria-label={t('warehouse.tabs.ariaLabel')}
       >
@@ -2053,13 +2053,13 @@ export const WarehousePanel: React.FC<WarehousePanelProps> = ({
             type='button'
             className={
               tab.key === activeTab
-                ? 'warehouse-tab warehouse-tab-active'
-                : 'warehouse-tab'
+                ? 'orders-tab orders-tab-active'
+                : 'orders-tab'
             }
             onClick={() => setActiveTab(tab.key)}
           >
             <span>{t(tab.labelKey)}</span>
-            {tab.badge ? <strong>{tab.badge}</strong> : null}
+            {tab.badge ? <strong className='warehouse-tab-badge'>{tab.badge}</strong> : null}
           </button>
         ))}
       </div>

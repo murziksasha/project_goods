@@ -1064,7 +1064,7 @@ export const OrdersInformationWorkspace: React.FC<
     : [];
 
   return (
-    <section className="orders-workspace">
+    <section className="orders-workspace orders-page">
       <OrdersWorkspaceTabList
         activeTab={activeTab}
         visibleTabs={visibleTabs}

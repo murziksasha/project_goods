@@ -215,6 +215,12 @@ a later feature explicitly adds phone selection per order.
 - Use `backend/src/scripts/backfill-client-phones.ts` with dry-run before
   applying legacy phone backfill in production.
 
+## Page Layout and Tabs
+
+- The Clients & suppliers section (`page=clients`) uses the `.orders-page` shell with `.orders-tabs` and `.orders-tab`.
+- The page tab row sits flush on the top edge of the `.orders-page` card at the same distance under the topbar as Orders.
+- The space under the tab row is 12px (`.clients-workspace > .orders-tabs { margin-bottom: 0; }` cancels double-spacing against the 12px grid gap).
+
 ### Tests
 
 - Backend parser tests:
