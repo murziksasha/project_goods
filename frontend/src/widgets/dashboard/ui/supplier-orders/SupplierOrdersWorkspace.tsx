@@ -33,6 +33,10 @@ import type {
 import { getWarehouseSettings } from '../../../../entities/warehouse-settings';
 import { applySupplierOrderStatusChange } from '../../model/apply-supplier-order-status-change';
 import {
+  toggleAllStatuses,
+  toggleSingleStatus,
+} from '../../model/status-selection';
+import {
   buildSupplierOrderAnalytics,
   getPreviousDeliveryDateRange,
   resolveSupplierOrderErrorMessage,
@@ -42,14 +46,16 @@ import {
   emptySupplierOrdersFilters,
   filterSupplierOrders,
   getActiveSupplierOrdersFiltersCount,
+  getSupplierOrdersFiltersStorageKey,
   normalizeSupplierOrdersColumns,
   paginateSupplierOrders,
   parseSupplierOrdersFilters,
+  readStoredSupplierOrdersFilters,
   supplierOrdersAllColumns,
   supplierOrdersColumnsStorageKey,
   supplierOrdersDefaultColumns,
-  supplierOrdersFiltersStorageKey,
   supplierOrdersLockedColumns,
+  supplierOrderStatuses,
   summarizeFilteredSupplierOrders,
   type OrdersTab,
   type SupplierOrdersColumnKey,
@@ -68,6 +74,7 @@ import {
 } from '../orders/modals/SupplierOrderModal';
 import { SupplierOrdersActiveFilterChips } from './SupplierOrdersActiveFilterChips';
 import { SupplierOrdersFilterPanel } from './SupplierOrdersFilterPanel';
+import { StatusFilterButtons } from '../status-filter-buttons';
 import {
   CatalogProductEditModal,
   SupplierEditModal,
@@ -150,16 +157,19 @@ export const SupplierOrdersWorkspace: React.FC<
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useStoredPageSize('supplierOrders');
   const initialFilters = useMemo(
-    () =>
-      parseSupplierOrdersFilters(
-        window.localStorage.getItem(supplierOrdersFiltersStorageKey),
-      ),
-    [],
+    () => readStoredSupplierOrdersFilters(currentEmployeeId),
+    [currentEmployeeId],
   );
   const [appliedFilters, setAppliedFilters] =
     useState<SupplierOrdersFilters>(initialFilters);
   const [draftFilters, setDraftFilters] =
     useState<SupplierOrdersFilters>(initialFilters);
+
+  useEffect(() => {
+    const loaded = readStoredSupplierOrdersFilters(currentEmployeeId);
+    setDraftFilters(loaded);
+    setAppliedFilters(loaded);
+  }, [currentEmployeeId]);
   const [isFilterBarOpen, setIsFilterBarOpen] = useState(false);
   const [isStatusFilterOpen, setIsStatusFilterOpen] = useState(false);
   const [isPaymentFilterOpen, setIsPaymentFilterOpen] =
@@ -454,11 +464,16 @@ export const SupplierOrdersWorkspace: React.FC<
   );
 
   useEffect(() => {
-    window.localStorage.setItem(
-      supplierOrdersFiltersStorageKey,
-      JSON.stringify(appliedFilters),
-    );
-  }, [appliedFilters]);
+    const storageKey = getSupplierOrdersFiltersStorageKey(currentEmployeeId);
+    try {
+      window.localStorage.setItem(
+        storageKey,
+        JSON.stringify(appliedFilters),
+      );
+    } catch {
+      // Ignore localStorage write errors.
+    }
+  }, [appliedFilters, currentEmployeeId]);
 
   useEffect(() => {
     window.localStorage.setItem(
@@ -534,6 +549,45 @@ export const SupplierOrdersWorkspace: React.FC<
     });
     setIsStatusFilterOpen(false);
     setIsPaymentFilterOpen(false);
+  };
+
+  const toggleStatusFilterButton = (status: SupplierOrderStatus) => {
+    const nextStatuses = toggleSingleStatus(
+      appliedFilters.selectedStatuses,
+      status,
+    );
+    const nextApplied: SupplierOrdersFilters = {
+      ...appliedFilters,
+      selectedStatuses: nextStatuses,
+      statusSelectionExplicit: true,
+    };
+    setDraftFilters((current) => ({
+      ...current,
+      selectedStatuses: nextStatuses,
+      statusSelectionExplicit: true,
+    }));
+    setAppliedFilters(nextApplied);
+    setPage(1);
+  };
+
+  const toggleAllStatusFilterButtons = () => {
+    const allKeys = supplierOrderStatuses.map((item) => item.key);
+    const nextStatuses = toggleAllStatuses(
+      appliedFilters.selectedStatuses,
+      allKeys,
+    );
+    const nextApplied: SupplierOrdersFilters = {
+      ...appliedFilters,
+      selectedStatuses: nextStatuses,
+      statusSelectionExplicit: true,
+    };
+    setDraftFilters((current) => ({
+      ...current,
+      selectedStatuses: nextStatuses,
+      statusSelectionExplicit: true,
+    }));
+    setAppliedFilters(nextApplied);
+    setPage(1);
   };
 
   const toggleColumnVisibility = (
@@ -862,6 +916,19 @@ export const SupplierOrdersWorkspace: React.FC<
         onResetColumns={resetColumns}
         onOpenSingleMatch={openSingleMatch}
       />
+
+      {activeTab === 'supplierOrders' && !isFilterBarOpen ? (
+        <StatusFilterButtons
+          selectedStatuses={appliedFilters.selectedStatuses}
+          options={supplierOrderStatuses.map((item) => ({
+            key: item.key,
+            label: t(item.labelKey),
+          }))}
+          allLabel={t('orders.filters.all')}
+          onToggleStatus={toggleStatusFilterButton}
+          onToggleAll={toggleAllStatusFilterButtons}
+        />
+      ) : null}
 
       <SupplierOrdersFilterPanel
         isOpen={isFilterBarOpen}

@@ -26,6 +26,7 @@ import {
   type WarehouseTab,
 } from '../../model/warehouse-panel';
 import { PrinterIcon } from '../orders/modals/PrinterIcon';
+import { StatusFilterButtons } from '../status-filter-buttons';
 
 export const WAREHOUSE_SEARCH_COMMIT_MS = 300;
 
@@ -142,7 +143,9 @@ export interface WarehouseToolbarProps {
   onToggleFavoritesOnly: () => void;
   onStockViewChange: (view: StockViewMode) => void;
   onReceiptsViewChange: (view: ReceiptsViewMode) => void;
-  onReceiptStatusChip: (status: ReceiptStatus | 'all') => void;
+  onToggleReceiptStatus?: (status: ReceiptStatus) => void;
+  onToggleAllReceiptStatuses?: () => void;
+  onReceiptStatusChip?: (status: ReceiptStatus | 'all') => void;
   setQuery: Dispatch<SetStateAction<string>>;
   setSearchMode: Dispatch<SetStateAction<WarehouseSearchMode>>;
   setCurrentPage: Dispatch<SetStateAction<number>>;
@@ -175,6 +178,8 @@ export const WarehouseToolbar: React.FC<WarehouseToolbarProps> = ({
   onToggleFavoritesOnly,
   onStockViewChange,
   onReceiptsViewChange,
+  onToggleReceiptStatus,
+  onToggleAllReceiptStatuses,
   onReceiptStatusChip,
   setQuery,
   setSearchMode,
@@ -202,8 +207,6 @@ export const WarehouseToolbar: React.FC<WarehouseToolbarProps> = ({
   };
 
   const showSearchModes = activeTab !== 'receipts';
-  const receiptChipValue =
-    appliedReceiptStatuses.length === 1 ? appliedReceiptStatuses[0] : 'all';
 
   return (
     <div className='warehouse-toolbar-shell'>
@@ -419,33 +422,28 @@ export const WarehouseToolbar: React.FC<WarehouseToolbarProps> = ({
         </div>
       </div>
       {activeTab === 'receipts' && showReceiptStatusChips ? (
-        <div className='warehouse-status-chips' role='group'>
-          <button
-            type='button'
-            className={
-              receiptChipValue === 'all'
-                ? 'warehouse-mode-button warehouse-mode-button-active'
-                : 'warehouse-mode-button'
+        <StatusFilterButtons
+          selectedStatuses={appliedReceiptStatuses}
+          options={receiptStatusFilterOptions.map((status) => ({
+            key: status,
+            label: t(`warehouse.tables.receipts.status.${status}`),
+          }))}
+          allLabel={t('warehouse.toolbar.statusAll')}
+          onToggleStatus={(status) => {
+            if (onToggleReceiptStatus) {
+              onToggleReceiptStatus(status);
+            } else if (onReceiptStatusChip) {
+              onReceiptStatusChip(status);
             }
-            onClick={() => onReceiptStatusChip('all')}
-          >
-            {t('warehouse.toolbar.statusAll')}
-          </button>
-          {receiptStatusFilterOptions.map((status) => (
-            <button
-              key={status}
-              type='button'
-              className={
-                receiptChipValue === status
-                  ? 'warehouse-mode-button warehouse-mode-button-active'
-                  : 'warehouse-mode-button'
-              }
-              onClick={() => onReceiptStatusChip(status)}
-            >
-              {t(`warehouse.tables.receipts.status.${status}`)}
-            </button>
-          ))}
-        </div>
+          }}
+          onToggleAll={() => {
+            if (onToggleAllReceiptStatuses) {
+              onToggleAllReceiptStatuses();
+            } else if (onReceiptStatusChip) {
+              onReceiptStatusChip('all');
+            }
+          }}
+        />
       ) : null}
     </div>
   );

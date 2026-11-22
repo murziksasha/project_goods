@@ -107,6 +107,14 @@ describe('warehouse-panel receipts filtering', () => {
       'receipt-received',
       'receipt-cancelled',
     ]);
+
+    expect(
+      filterReceiptRows({
+        receipts,
+        query: '',
+        filters: { ...initialWarehouseFilters, statuses: [] },
+      }),
+    ).toEqual([]);
   });
 
   it('filters receipts by multiple selected statuses', () => {

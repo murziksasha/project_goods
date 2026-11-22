@@ -81,6 +81,11 @@ import { StockTable, ReceiptsTable } from './WarehouseTables';
 import { TransferWorkspace } from './WarehouseTransferWorkspace';
 import { WarehouseToolbar } from './WarehouseToolbar';
 import {
+  resolveStatusSelectionWithLegacyFallback,
+  toggleAllStatuses,
+  toggleSingleStatus,
+} from '../../model/status-selection';
+import {
   availableWarehouseColumns,
   defaultWarehouseVisibleColumns,
   emptySupplierOrders,
@@ -95,7 +100,6 @@ import {
   initialWarehouses,
   lockedWarehouseColumns,
   normalizeProductName,
-  normalizeReceiptStatuses,
   readStoredWarehouseFilters,
   receiptStatusFilterOptions,
   savedWarehouseFiltersStorageKey,
@@ -184,12 +188,25 @@ export const WarehousePanel: React.FC<WarehousePanelProps> = ({
     filters?: Partial<WarehouseFilters> & {
       status?: ReceiptStatus | '';
     },
-  ): WarehouseFilters => ({
-    ...initialWarehouseFilters,
-    ...(filters ?? {}),
-    statuses: normalizeReceiptStatuses(filters),
-    favoritesOnly: filters?.favoritesOnly === true,
-  });
+  ): WarehouseFilters => {
+    const resolvedStatuses =
+      filters && ('statuses' in filters || 'status' in filters)
+        ? resolveStatusSelectionWithLegacyFallback({
+            statuses: filters.statuses,
+            statusSelectionExplicit: filters.statusSelectionExplicit,
+            allOptions: receiptStatusFilterOptions,
+            legacySingleStatus: filters.status,
+          }).statuses
+        : [...receiptStatusFilterOptions];
+
+    return {
+      ...initialWarehouseFilters,
+      ...(filters ?? {}),
+      statuses: resolvedStatuses,
+      favoritesOnly: filters?.favoritesOnly === true,
+      statusSelectionExplicit: true,
+    };
+  };
   const [
     selectedProductModelContext,
     setSelectedProductModelContext,
@@ -292,24 +309,18 @@ export const WarehousePanel: React.FC<WarehousePanelProps> = ({
     () => {
       const parsed = readStoredWarehouseFilters(currentEmployeeId);
       const statuses = parsed.receiptStatuses ?? parsed.statuses;
-      if (Array.isArray(statuses)) {
-        return normalizeWarehouseFilters({
-          statuses: normalizeReceiptStatuses({ statuses }),
-          favoritesOnly: parsed.favoritesOnly === true,
-        });
-      }
-      if (parsed.receiptStatus) {
-        return normalizeWarehouseFilters({
-          statuses:
-            parsed.receiptStatus === 'all'
-              ? []
-              : normalizeReceiptStatuses({
-                  statuses: [parsed.receiptStatus],
-                }),
-          favoritesOnly: parsed.favoritesOnly === true,
-        });
-      }
-      return normalizeWarehouseFilters();
+      const resolved = resolveStatusSelectionWithLegacyFallback({
+        statuses,
+        statusSelectionExplicit: parsed.statusSelectionExplicit,
+        allOptions: receiptStatusFilterOptions,
+        legacySingleStatus: parsed.receiptStatus,
+      });
+      return normalizeWarehouseFilters({
+        ...parsed,
+        statuses: resolved.statuses,
+        favoritesOnly: parsed.favoritesOnly === true,
+        statusSelectionExplicit: resolved.statusSelectionExplicit,
+      });
     },
   );
   const [appliedFilters, setAppliedFilters] =
@@ -333,23 +344,23 @@ export const WarehousePanel: React.FC<WarehousePanelProps> = ({
   useEffect(() => {
     const parsed = readStoredWarehouseFilters(currentEmployeeId);
     const statuses = parsed.receiptStatuses ?? parsed.statuses;
-    let loadedStatuses: ReceiptStatus[] = [];
-    if (Array.isArray(statuses)) {
-      loadedStatuses = normalizeReceiptStatuses({ statuses });
-    } else if (parsed.receiptStatus && parsed.receiptStatus !== 'all') {
-      loadedStatuses = normalizeReceiptStatuses({
-        statuses: [parsed.receiptStatus],
-      });
-    }
+    const resolved = resolveStatusSelectionWithLegacyFallback({
+      statuses,
+      statusSelectionExplicit: parsed.statusSelectionExplicit,
+      allOptions: receiptStatusFilterOptions,
+      legacySingleStatus: parsed.receiptStatus,
+    });
     const favoritesOnly = parsed.favoritesOnly === true;
     setDraftFilters((current) => ({
       ...current,
-      statuses: loadedStatuses,
+      statuses: resolved.statuses,
+      statusSelectionExplicit: resolved.statusSelectionExplicit,
       favoritesOnly,
     }));
     setAppliedFilters((current) => ({
       ...current,
-      statuses: loadedStatuses,
+      statuses: resolved.statuses,
+      statusSelectionExplicit: resolved.statusSelectionExplicit,
       favoritesOnly,
     }));
   }, [currentEmployeeId]);
@@ -956,8 +967,14 @@ export const WarehousePanel: React.FC<WarehousePanelProps> = ({
     activeTab === 'receipts'
       ? t('warehouse.search.receipts')
       : t(`warehouse.search.${searchMode}`);
+  const receiptStatusBadgeCount =
+    activeTab === 'receipts'
+      ? appliedFilters.statuses.length === receiptStatusFilterOptions.length
+        ? 0
+        : 1
+      : 0;
   const activeFilterCount =
-    (appliedFilters.statuses.length > 0 ? 1 : 0) +
+    receiptStatusBadgeCount +
     (appliedFilters.favoritesOnly ? 1 : 0) +
     [
       appliedFilters.name,
@@ -1266,7 +1283,9 @@ export const WarehousePanel: React.FC<WarehousePanelProps> = ({
           receiptsView,
           receiptStatus,
           receiptStatuses: appliedFilters.statuses,
+          statuses: appliedFilters.statuses,
           favoritesOnly: appliedFilters.favoritesOnly,
+          statusSelectionExplicit: true,
         }),
       );
     } catch {
@@ -1540,13 +1559,36 @@ export const WarehousePanel: React.FC<WarehousePanelProps> = ({
     setAppliedFilters(nextFilters);
     setCurrentPage(1);
   };
-  const applyReceiptStatusChip = (status: ReceiptStatus | 'all') => {
-    const statuses = status === 'all' ? [] : [status];
-    const nextFilters = {
+  const toggleReceiptStatusChip = (status: ReceiptStatus) => {
+    const nextStatuses = toggleSingleStatus(appliedFilters.statuses, status);
+    const nextFilters: WarehouseFilters = {
       ...appliedFilters,
-      statuses,
+      statuses: nextStatuses,
+      statusSelectionExplicit: true,
     };
-    setDraftFilters(nextFilters);
+    setDraftFilters((current) => ({
+      ...current,
+      statuses: nextStatuses,
+      statusSelectionExplicit: true,
+    }));
+    setAppliedFilters(nextFilters);
+    setCurrentPage(1);
+  };
+  const toggleAllReceiptStatusChips = () => {
+    const nextStatuses = toggleAllStatuses(
+      appliedFilters.statuses,
+      receiptStatusFilterOptions,
+    );
+    const nextFilters: WarehouseFilters = {
+      ...appliedFilters,
+      statuses: nextStatuses,
+      statusSelectionExplicit: true,
+    };
+    setDraftFilters((current) => ({
+      ...current,
+      statuses: nextStatuses,
+      statusSelectionExplicit: true,
+    }));
     setAppliedFilters(nextFilters);
     setCurrentPage(1);
   };
@@ -1612,7 +1654,9 @@ export const WarehousePanel: React.FC<WarehousePanelProps> = ({
       warehouse: draftFilters.warehouse.trim(),
       supplier: draftFilters.supplier.trim(),
       buyer: draftFilters.buyer.trim(),
+      statuses: draftFilters.statuses,
       favoritesOnly: draftFilters.favoritesOnly,
+      statusSelectionExplicit: true,
     };
     void (async () => {
       try {
@@ -1685,27 +1729,21 @@ export const WarehousePanel: React.FC<WarehousePanelProps> = ({
     })();
   };
   const toggleReceiptStatusFilter = (status: ReceiptStatus) => {
-    setDraftFilters((current) => {
-      const hasStatus = current.statuses.includes(status);
-      return {
-        ...current,
-        statuses: hasStatus
-          ? current.statuses.filter((key) => key !== status)
-          : [...current.statuses, status],
-      };
-    });
+    setDraftFilters((current) => ({
+      ...current,
+      statuses: toggleSingleStatus(current.statuses, status),
+      statusSelectionExplicit: true,
+    }));
   };
   const toggleAllReceiptStatuses = () => {
-    setDraftFilters((current) => {
-      const isAllSelected =
-        current.statuses.length === receiptStatusFilterOptions.length;
-      return {
-        ...current,
-        statuses: isAllSelected
-          ? []
-          : [...receiptStatusFilterOptions],
-      };
-    });
+    setDraftFilters((current) => ({
+      ...current,
+      statuses: toggleAllStatuses(
+        current.statuses,
+        receiptStatusFilterOptions,
+      ),
+      statusSelectionExplicit: true,
+    }));
   };
   const toggleColumnVisibility = (
     columnKey: StockColumnKey | ReceiptsColumnKey,
@@ -2073,7 +2111,8 @@ export const WarehousePanel: React.FC<WarehousePanelProps> = ({
           onToggleFavoritesOnly={toggleReceiptFavoritesOnly}
           onStockViewChange={changeStockView}
           onReceiptsViewChange={changeReceiptsView}
-          onReceiptStatusChip={applyReceiptStatusChip}
+          onToggleReceiptStatus={toggleReceiptStatusChip}
+          onToggleAllReceiptStatuses={toggleAllReceiptStatusChips}
           setQuery={setQuery}
           setSearchMode={setSearchMode}
           setCurrentPage={setCurrentPage}
@@ -2293,11 +2332,14 @@ export const WarehousePanel: React.FC<WarehousePanelProps> = ({
                     )
                   }
                 >
-                  {draftFilters.statuses.length > 0
-                    ? t('orders.filters.selectedCount', {
-                        count: draftFilters.statuses.length,
-                      })
-                    : t('orders.filters.all')}
+                  {draftFilters.statuses.length ===
+                  receiptStatusFilterOptions.length
+                    ? t('orders.filters.all')
+                    : draftFilters.statuses.length === 0
+                      ? t('orders.filters.none')
+                      : t('orders.filters.selectedCount', {
+                          count: draftFilters.statuses.length,
+                        })}
                 </button>
                 {isReceiptStatusFilterOpen ? (
                   <div className='orders-filter-status-menu'>

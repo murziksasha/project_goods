@@ -27,6 +27,9 @@ export const SupplierOrdersActiveFilterChips: React.FC<SupplierOrdersActiveFilte
     () =>
       buildSupplierOrdersFilterChips(filters, {
         status: getSupplierOrderStatusLabel,
+        noStatuses: t('orders.supplier.filters.noStatuses', {
+          defaultValue: 'No statuses',
+        }),
         payment: getSupplierPaymentStatusLabel,
         supplier: (id) =>
           `${t('orders.supplier.filters.supplier')}: ${
