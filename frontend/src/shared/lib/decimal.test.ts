@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
+  formatMoneyAmount,
+  formatMoneyRemainder,
   normalizeDecimalInput,
   parseDecimal,
   parseMoney,
@@ -24,5 +26,17 @@ describe('decimal helpers', () => {
 
   it('rounds money to cents', () => {
     expect(parseMoney('10,239')).toBe(10.24);
+  });
+
+  it('formats money amount with two decimals and dot', () => {
+    expect(formatMoneyAmount(888.3)).toBe('888.30');
+  });
+
+  it('formats money remainder with two decimals and comma', () => {
+    expect(formatMoneyRemainder(888.3, '888')).toBe('0,30');
+    expect(formatMoneyRemainder(0.3)).toBe('0,30');
+    expect(formatMoneyRemainder(888.3, '888.30')).toBe('0,00');
+    expect(formatMoneyRemainder(888.3, '887.30')).toBe('1,00');
+    expect(formatMoneyRemainder(888.3, '')).toBe('888,30');
   });
 });

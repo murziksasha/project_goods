@@ -170,6 +170,8 @@ Updated 2026-11-18 (chips UX; the earlier pencil / Cancel / Save editor is remov
 - `To pay` formula:
   - `max((Repair cost - Discount) - Paid, 0)`
 - Discount is persisted in sale/order workspace and reused across card and payment modal views. Changing discount in the modal updates `To pay` and the payment amount immediately.
+- In `Accept payment` modal, `Amount` stepper uses a 1 UAH step that preserves kopiykas (`step={1}`, `precision={2}`, trailing zeros kept). From `888.30`, minus steps to `887.30` and plus returns to `888.30`.
+- The live remainder next to `Amount` (`To pay`): calculates `roundMoney(remaining) - roundMoney(entered amount)`, floored at 0, and displays as two digits and a comma without currency suffix (`0,30`, `1,00`, `0,00`). Empty or unfinished input counts as 0, showing the full balance.
 - `Refund to client` availability for repair orders:
   - NOT allowed when status is `issued`, `client rejected`, or `issued without repair`.
   - For all other repair statuses, refund modal can be opened.

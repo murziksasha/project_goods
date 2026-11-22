@@ -14,6 +14,11 @@ This document defines financial behavior in the `Accounting` workspace (cashboxe
 - Tab changes go through the shared dashboard navigator (`DashboardPage.navigateTo`); `useAccountingPreferences` persists the tab to `localStorage` but does not own a separate `popstate` listener.
 - On history navigation, `DashboardPage` passes `syncedAccountingTab` into `AccountingPanel` to keep the UI aligned with the URL.
 
+## Page Shell and Tabs
+
+- Accounting uses the `.orders-page` shell (`.finance-page.orders-page`) with `.orders-tab` and `.finance-tabs-row`.
+- `.finance-tabs-row` aligns with `.orders-tabs-row` (`margin: -12px -12px -6px; border-bottom: 1px solid var(--color-line); align-items: stretch; border-top-left-radius: 9px; border-top-right-radius: 9px;`) so tabs and the trailing settings gear button meet card edges at the exact reference height and preserve the rounded top corners of the `.orders-page` shell.
+
 ## Mobile layout (phone, e.g. ~400px / Xiaomi-class)
 
 - Target: no horizontal page overflow in Accounting (topbar service name, tab strip, cashboxes content).

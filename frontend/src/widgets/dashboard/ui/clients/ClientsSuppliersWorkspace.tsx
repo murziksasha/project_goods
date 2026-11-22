@@ -635,7 +635,7 @@ export const ClientsSuppliersWorkspace: React.FC<
   }, [appliedSupplierFilters]);
 
   return (
-    <section className='panel clients-workspace'>
+    <section className='orders-page clients-workspace'>
       <ClientsSuppliersTabs
         activeTab={activeTab}
         clientsCount={clients.length}

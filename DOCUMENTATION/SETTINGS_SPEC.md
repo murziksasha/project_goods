@@ -52,7 +52,7 @@ Invoice data sources and shared empty-table visibility rules are specified in
 
 Active tab is stored in `localStorage` (`project-goods.settings-tab`). If the stored tab is hidden by permission, the first visible tab is selected.
 
-Tablist uses `role="tab"` / `aria-selected` / `aria-controls`. Arrow Left/Right moves the active tab.
+Tablist uses `role="tab"` / `aria-selected` / `aria-controls`. Arrow Left/Right moves the active tab. Settings page tabs use `.orders-tab` on the `.orders-page` shell. `PageHeader` (title, subtitle, and Save button) is located below the tab row, with a 12px gap under the tabs. Inner settings cards (`.settings-group`) remain inside the shell.
 
 ## Company
 

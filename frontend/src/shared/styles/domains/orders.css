@@ -1506,7 +1506,8 @@
   align-items: stretch;
   border-bottom: 1px solid var(--color-line);
   margin: -12px -12px 12px;
-  background: var(--bg-workspace);
+  border-top-left-radius: 9px;
+  border-top-right-radius: 9px;
 }
 
 .orders-tabs-row .orders-tabs {

@@ -164,21 +164,9 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
   };
 
   return (
-    <section className="panel settings-page">
-      <PageHeader
-        title={t('settings.panel.title')}
-        subtitle={t('settings.panel.subtitle')}
-        actions={
-          canSaveActiveTab ? (
-            <Button onClick={onSubmit} disabled={isSaveDisabled}>
-              {isSaving ? t('settings.panel.saving') : t('settings.panel.saveSettings')}
-            </Button>
-          ) : null
-        }
-      />
-
+    <section className="orders-page settings-page">
       <div
-        className="settings-tabs"
+        className="orders-tabs"
         role="tablist"
         aria-label={t('settings.tabsAriaLabel')}
         onKeyDown={handleTabKeyDown}
@@ -194,8 +182,8 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
             tabIndex={tab.key === activeTab ? 0 : -1}
             className={
               tab.key === activeTab
-                ? 'settings-tab settings-tab-active'
-                : 'settings-tab'
+                ? 'orders-tab orders-tab-active'
+                : 'orders-tab'
             }
             onClick={() => setActiveTab(tab.key)}
           >
@@ -203,6 +191,18 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
           </button>
         ))}
       </div>
+
+      <PageHeader
+        title={t('settings.panel.title')}
+        subtitle={t('settings.panel.subtitle')}
+        actions={
+          canSaveActiveTab ? (
+            <Button onClick={onSubmit} disabled={isSaveDisabled}>
+              {isSaving ? t('settings.panel.saving') : t('settings.panel.saveSettings')}
+            </Button>
+          ) : null
+        }
+      />
 
       {activeTab === 'company' && canEditSettings ? (
         <div

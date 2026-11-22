@@ -7,7 +7,12 @@ import type { Cashbox } from '../../../../../entities/finance';
 import type { WarehouseItem } from '../../../../../entities/warehouse-settings';
 import type { PrintForm } from '../../../../../entities/settings';
 import { formatCurrency } from '../../../../../shared/lib/format';
-import { parseDecimal } from '../../../../../shared/lib/decimal';
+import {
+  formatMoneyRemainder,
+  parseDecimal,
+  parseMoney,
+  roundMoney,
+} from '../../../../../shared/lib/decimal';
 import {
   PRICE_STEPPER_PRECISION,
   PRICE_STEPPER_STEP,
@@ -130,11 +135,11 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
     sale,
     sale.lineItems ?? [],
   );
-  const numericAmount = parseDecimal(amount);
-  const nextPaymentRemaining = Math.max(
-    currentPaymentRemaining -
-      (Number.isFinite(numericAmount) ? numericAmount : 0),
-    0,
+  const parsedAmount = parseMoney(amount);
+  const roundedRemaining = roundMoney(currentPaymentRemaining);
+  const nextPaymentRemaining = formatMoneyRemainder(
+    currentPaymentRemaining,
+    amount,
   );
   const submitWithStatusLabel =
     paymentTargetStatus === 'paid'
@@ -151,9 +156,9 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
     isLoading ||
     isSaving ||
     !selectedCashboxId ||
-    !Number.isFinite(numericAmount) ||
-    numericAmount <= 0 ||
-    numericAmount > currentPaymentRemaining;
+    !Number.isFinite(parsedAmount) ||
+    parsedAmount <= 0 ||
+    parsedAmount > roundedRemaining;
   const isIssueDisabled =
     isLoading || isSaving || isIssueWithoutPaymentBlocked;
   const isDiscountDisabled =
@@ -321,8 +326,9 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
           <NumberStepper
             min={0}
             max={currentPaymentRemaining}
-            step={PRICE_STEPPER_STEP}
-            precision={PRICE_STEPPER_PRECISION}
+            step={1}
+            precision={2}
+            keepTrailingZeros
             value={amount}
             onChange={onAmountChange}
             disabled={isLoading || isSaving}
@@ -330,7 +336,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
         </label>
         <label className="field">
           <span>{t('orders.payment.toPay')}</span>
-          <input value={String(nextPaymentRemaining)} disabled readOnly />
+          <input value={nextPaymentRemaining} disabled readOnly />
         </label>
       </div>
     </Modal>
