@@ -60,6 +60,48 @@ describe('NumberStepper', () => {
     expect(onChange).toHaveBeenNthCalledWith(2, '834.47');
   });
 
+  it('handles keepTrailingZeros with precision 2 and step 1', () => {
+    const onChange = vi.fn();
+    const { container, rerender } = render(
+      <NumberStepper
+        value='888.30'
+        onChange={onChange}
+        min={0}
+        max={888.3}
+        step={1}
+        precision={2}
+        keepTrailingZeros
+      />,
+    );
+
+    const buttons = container.querySelectorAll('button');
+    // plus button is disabled at max
+    expect(buttons[0]).toBeDisabled();
+    fireEvent.click(buttons[0]);
+    expect(onChange).not.toHaveBeenCalled();
+
+    // minus button emits 887.30 (preserving trailing zero)
+    expect(buttons[1]).not.toBeDisabled();
+    fireEvent.click(buttons[1]);
+    expect(onChange).toHaveBeenCalledWith('887.30');
+
+    // Without keepTrailingZeros, trailing zeros are stripped
+    const onChangeDefault = vi.fn();
+    rerender(
+      <NumberStepper
+        value='888.30'
+        onChange={onChangeDefault}
+        min={0}
+        max={888.3}
+        step={1}
+        precision={2}
+      />,
+    );
+    const updatedButtons = container.querySelectorAll('button');
+    fireEvent.click(updatedButtons[1]);
+    expect(onChangeDefault).toHaveBeenCalledWith('887.3');
+  });
+
   it('forwards blur from the text input', () => {
     const onBlur = vi.fn();
     const { container } = render(

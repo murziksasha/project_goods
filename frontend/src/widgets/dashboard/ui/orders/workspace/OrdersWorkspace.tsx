@@ -29,7 +29,11 @@ import {
 } from '../../../../../entities/sale';
 import { formatCurrency } from '../../../../../shared/lib/format';
 import { scrollDashboardMainToTop } from '../../../../../shared/lib/scrollDashboardMain';
-import { parseMoney } from '../../../../../shared/lib/decimal';
+import {
+  formatMoneyAmount,
+  parseMoney,
+  roundMoney,
+} from '../../../../../shared/lib/decimal';
 import { getSaleClientPhones } from '../../../../../entities/client';
 import type { ClientStatus } from '../../../../../entities/client';
 import {
@@ -1486,15 +1490,15 @@ export const OrdersWorkspace: React.FC<OrdersWorkspaceProps> = ({
       getPaidAmount(paymentSale),
       getLineItems(paymentSale),
     );
-    const normalizedRemaining =
-      Math.round(remainingPayment * 100) / 100;
+    const normalizedRemaining = roundMoney(remainingPayment);
+    const formattedRemaining = formatMoneyAmount(normalizedRemaining);
     setPaymentAmount((current) => {
-      const numericCurrent = Math.round(Number(current) * 100) / 100;
-      if (!Number.isFinite(numericCurrent) || numericCurrent < 0) {
-        return String(normalizedRemaining);
+      const parsedCurrent = parseMoney(current);
+      if (!Number.isFinite(parsedCurrent) || parsedCurrent < 0) {
+        return formattedRemaining;
       }
-      if (numericCurrent > normalizedRemaining) {
-        return String(normalizedRemaining);
+      if (parsedCurrent > normalizedRemaining) {
+        return formattedRemaining;
       }
       return current;
     });
@@ -2292,7 +2296,7 @@ export const OrdersWorkspace: React.FC<OrdersWorkspaceProps> = ({
 
       setPaymentSale(sale);
       setPaymentTargetStatus(targetStatus);
-      setPaymentAmount(String(remainingPayment));
+      setPaymentAmount(formatMoneyAmount(remainingPayment));
       const initialMethod = getLatestDepositPaymentMethod(sale) ?? 'cash';
       setIsPaymentModalLoading(true);
 
@@ -2820,15 +2824,19 @@ export const OrdersWorkspace: React.FC<OrdersWorkspaceProps> = ({
 
     const currentPaidAmount = getPaidAmount(paymentSale);
     const currentLineItems = getLineItems(paymentSale);
-    const currentPaymentRemaining = getRemainingPayment(
-      paymentSale,
-      currentPaidAmount,
-      currentLineItems,
+    const currentPaymentRemaining = roundMoney(
+      getRemainingPayment(
+        paymentSale,
+        currentPaidAmount,
+        currentLineItems,
+      ),
     );
     const normalizedAmount = parseMoney(paymentAmount);
     const nextPaymentRemaining = Math.max(
-      currentPaymentRemaining -
-        (action === 'issueWithoutPayment' ? 0 : normalizedAmount),
+      roundMoney(
+        currentPaymentRemaining -
+          (action === 'issueWithoutPayment' ? 0 : normalizedAmount),
+      ),
       0,
     );
 

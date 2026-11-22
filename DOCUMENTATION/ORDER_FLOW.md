@@ -183,6 +183,7 @@ The Orders, Sales, and Supplier Order tabs show the same count chip as the Kanba
 - `Cash` badge in payment modal is clickable and toggles payment method: `Cash` <-> `Non-cash`.
 - In `Non-cash` mode, badge background changes to light red.
 - Selected method is saved into `paymentHistory` deposit entries as `paymentMethod`.
+- `Amount` stepper 1 UAH step with kopiyka preservation and live remainder display rules follow [SALE_FLOW.md §Price Stepper](./SALE_FLOW.md#price-stepper-2026-07-11) and [ORDER_CARD.md §Payment And Discount](./ORDER_CARD.md#payment-and-discount).
 - `Discount` in the payment modal is the same editable control as the order card `Payment` panel (default `%`). Spec: [ORDER_CARD.md → Payment And Discount](./ORDER_CARD.md#payment-and-discount).
 - Partial deposits are allowed for repair orders while the order remains in its current non-final status.
 - A repair order may receive several payments at different times and into different cashboxes.

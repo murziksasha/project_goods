@@ -517,3 +517,94 @@ describe('ReturnSaleModal layout and behavior', () => {
   });
 });
 
+describe('PaymentModal live remainder', () => {
+  it('shows two decimals and comma remainder for kopiykas', () => {
+    const { rerender } = render(
+      <PaymentModal
+        sale={sale()}
+        paymentTargetStatus="issued"
+        printForms={defaultPrintForms}
+        cashboxes={[cashbox]}
+        selectedCashboxId={cashbox.id}
+        paymentMethod="cash"
+        amount="888"
+        paidAmount={0}
+        total={900}
+        discount={{ mode: 'percent', value: 1.3 }}
+        currentPaymentRemaining={888.30}
+        isRepairTargetStatusBlockedByStock={false}
+        isIssueWithoutPaymentBlocked={false}
+        isLoading={false}
+        isSaving={false}
+        onCashboxChange={vi.fn()}
+        onPaymentMethodChange={vi.fn()}
+        onAmountChange={vi.fn()}
+        onDiscountChange={vi.fn()}
+        onClose={vi.fn()}
+        onOpenPrint={vi.fn()}
+        onSubmit={vi.fn()}
+      />,
+    );
+
+    const toPayField = screen.getByLabelText('To pay');
+    expect(toPayField).toHaveValue('0,30');
+
+    rerender(
+      <PaymentModal
+        sale={sale()}
+        paymentTargetStatus="issued"
+        printForms={defaultPrintForms}
+        cashboxes={[cashbox]}
+        selectedCashboxId={cashbox.id}
+        paymentMethod="cash"
+        amount="888.30"
+        paidAmount={0}
+        total={900}
+        discount={{ mode: 'percent', value: 1.3 }}
+        currentPaymentRemaining={888.30}
+        isRepairTargetStatusBlockedByStock={false}
+        isIssueWithoutPaymentBlocked={false}
+        isLoading={false}
+        isSaving={false}
+        onCashboxChange={vi.fn()}
+        onPaymentMethodChange={vi.fn()}
+        onAmountChange={vi.fn()}
+        onDiscountChange={vi.fn()}
+        onClose={vi.fn()}
+        onOpenPrint={vi.fn()}
+        onSubmit={vi.fn()}
+      />,
+    );
+    expect(toPayField).toHaveValue('0,00');
+
+    rerender(
+      <PaymentModal
+        sale={sale()}
+        paymentTargetStatus="issued"
+        printForms={defaultPrintForms}
+        cashboxes={[cashbox]}
+        selectedCashboxId={cashbox.id}
+        paymentMethod="cash"
+        amount="887.30"
+        paidAmount={0}
+        total={900}
+        discount={{ mode: 'percent', value: 1.3 }}
+        currentPaymentRemaining={888.30}
+        isRepairTargetStatusBlockedByStock={false}
+        isIssueWithoutPaymentBlocked={false}
+        isLoading={false}
+        isSaving={false}
+        onCashboxChange={vi.fn()}
+        onPaymentMethodChange={vi.fn()}
+        onAmountChange={vi.fn()}
+        onDiscountChange={vi.fn()}
+        onClose={vi.fn()}
+        onOpenPrint={vi.fn()}
+        onSubmit={vi.fn()}
+      />,
+    );
+    expect(toPayField).toHaveValue('1,00');
+  });
+});
+
+

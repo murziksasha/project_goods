@@ -294,6 +294,7 @@ When selecting a warehouse stock suggestion **without** a bound serial in `Creat
 - Default price `+/-` step across the project is **1 UAH** (`PRICE_STEPPER_STEP` / `PRICE_STEPPER_PRECISION` in `frontend/src/shared/lib/price-stepper.ts`).
 - Applies to create-order sales, `Rapid sale`, opened cards, catalog/product forms, payments, accounting cashboxes, and legacy `SaleForm` via `ProductSalePriceField` defaults and shared `NumberStepper` price fields.
 - Manual decimal typing may still be entered in the input; only the `+/-` buttons use the configured step.
+- **Payment `Amount` exception:** In the `Accept payment` modal, the `Amount` stepper is an exception to `PRICE_STEPPER_PRECISION = 0`: it uses `step={1}`, `precision={2}`, and opts into keeping trailing zeros (`keepTrailingZeros`). Stepping `-1` or `+1` from a decimal balance (e.g. `888.30` -> `887.30` -> `888.30`) preserves kopiykas and trailing zeros without snapping to an integer. Manual decimal typing remains allowed. Refund and return modals stay on the standard whole-hryvnia stepper (`PRICE_STEPPER_PRECISION = 0`).
 
 Suggestion rows may show the resolved retail price before click when matching stock exists.
 
