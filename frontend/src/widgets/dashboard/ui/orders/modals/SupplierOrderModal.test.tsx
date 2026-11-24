@@ -12,7 +12,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { CatalogProduct } from '../../../../../entities/catalog-product';
 import type { Supplier } from '../../../../../entities/supplier';
 import type { SupplierOrder } from '../../../../../entities/supplier-order';
+import { defaultPrintForms } from '../../../../../entities/settings';
 import { SupplierOrderModal } from './SupplierOrderModal';
+import * as ordersWorkspaceShared from '../workspace/orders-workspace-shared';
 import { STOCK_RECEIPT_STORAGE_KEY } from '../../../model/stock-receipt-preferences';
 
 const { getWarehouseSettingsMock, getCatalogProductsMock } =
@@ -85,6 +87,7 @@ const warehouseOptions = [
 
 const baseProps = () => ({
   isOpen: true,
+  printForms: defaultPrintForms,
   suppliers: [supplier()],
   warehouseOptions,
   onClose: vi.fn(),
@@ -1231,3 +1234,64 @@ describe('SupplierOrderModal stock receipt localStorage preferences', () => {
   });
 });
 
+describe('SupplierOrderModal print after receipt', () => {
+  const stockedProducts = [
+    { id: 'p-1', name: 'iPhone 13 Pro', article: 'ART-1', serialNumber: 'S000101' },
+  ];
+  const customForms = defaultPrintForms.map((form) => ({ ...form, title: `${form.title} (custom)` }));
+
+  beforeEach(() => {
+    window.localStorage.clear();
+  });
+
+  afterEach(() => {
+    cleanup();
+    document.body.style.overflow = '';
+    vi.restoreAllMocks();
+  });
+
+  const receive = async (printForms: typeof defaultPrintForms | null, onError = vi.fn()) => {
+    const onTakeOnCharge = vi.fn().mockResolvedValue({ stockedProducts });
+    renderModal(
+      <SupplierOrderModal
+        {...baseProps()}
+        printForms={printForms}
+        onError={onError}
+        onTakeOnCharge={onTakeOnCharge}
+        editingOrder={editingOrder({ status: 'approved' })}
+      />,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Receive to stock' }));
+    expect(screen.getByLabelText('Auto-generate serial numbers')).toBeChecked();
+    expect(screen.getByLabelText('Print serial numbers after receipt')).toBeChecked();
+    fireEvent.click(screen.getAllByRole('button', { name: 'Receive to stock' })[1]!);
+    await waitFor(() => expect(onTakeOnCharge).toHaveBeenCalledTimes(1));
+    return onError;
+  };
+
+  it('prints received auto serials with the passed print forms, not the built-in ones', async () => {
+    const printSpy = vi
+      .spyOn(ordersWorkspaceShared, 'printSerialNumbers')
+      .mockResolvedValue('printed');
+
+    await receive(customForms);
+
+    await waitFor(() => expect(printSpy).toHaveBeenCalledTimes(1));
+    expect(printSpy).toHaveBeenCalledWith(
+      [{ name: 'iPhone 13 Pro', article: 'ART-1', serialNumber: 'S000101' }],
+      customForms,
+      expect.any(String),
+    );
+  });
+
+  it('reports that settings are loading when print forms are not loaded', async () => {
+    const openSpy = vi.spyOn(window, 'open').mockReturnValue(null);
+
+    const onError = await receive(null);
+
+    await waitFor(() =>
+      expect(onError).toHaveBeenCalledWith('Please wait, settings are loading'),
+    );
+    expect(openSpy).not.toHaveBeenCalled();
+  });
+});

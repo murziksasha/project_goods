@@ -321,6 +321,19 @@ export const DashboardPage: React.FC = () => {
     currentEmployee,
     activePage,
   );
+  // Stock labels print only with the saved forms (plus local overrides):
+  // `null` until settings are loaded, so printing is blocked instead of
+  // silently using the built-in templates.
+  const labelPrintForms = useMemo(
+    () =>
+      state.settings
+        ? applyPrintFormLocalOverrides(
+            state.settings.printForms,
+            currentEmployee?.id,
+          )
+        : null,
+    [currentEmployee?.id, state.settings],
+  );
   const [cachedServiceName] = useState(
     () => readCachedServiceName() ?? '',
   );
@@ -1709,6 +1722,7 @@ export const DashboardPage: React.FC = () => {
               ) : activePage === 'orders' &&
                 effectiveOrdersTab === 'supplierOrders' ? (
                 <SupplierOrdersWorkspace
+                  printForms={labelPrintForms}
                   activeTab={effectiveOrdersTab}
                   onActiveTabChange={changeOrdersTab}
                   onToggleTabVisibility={toggleOrdersTabVisibility}
@@ -1768,6 +1782,7 @@ export const DashboardPage: React.FC = () => {
                   clientDevices={state.clientDevices}
                   catalogProducts={state.catalogProducts}
                   printForms={effectivePrintForms}
+                  labelPrintForms={labelPrintForms}
                   printCompanySettings={{
                     serviceName:
                       state.settings?.serviceName ??
@@ -1875,6 +1890,7 @@ export const DashboardPage: React.FC = () => {
               />
             ) : activePage === 'accounting' && canViewAccounting ? (
               <AccountingPanel
+                printForms={labelPrintForms}
                 currentEmployee={currentEmployee}
                 onError={actions.showError}
                 onSuccess={actions.showSuccessMessage}
@@ -1944,7 +1960,7 @@ export const DashboardPage: React.FC = () => {
               />
             ) : activePage === 'warehouse' && canManageInventory ? (
               <WarehousePanel
-                printForms={effectivePrintForms}
+                printForms={labelPrintForms}
                 products={state.allProducts}
                 sales={state.sales}
                 catalogProducts={state.catalogProducts}

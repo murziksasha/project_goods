@@ -32,6 +32,7 @@ import { OrderCostAuditModal } from '../orders/order-detail/OrderCostAuditModal'
 import type { Sale } from '../../../../entities/sale';
 import { useServicesQuery } from '../../../../entities/service-catalog';
 import type { SupplierOrder } from '../../../../entities/supplier-order';
+import type { PrintForm } from '../../../../entities/settings';
 import { PaginationPanel } from '../../../../shared/ui/PaginationPanel';
 import { useStoredPageSize } from '../../../../shared/lib/page-size-preference';
 import { CopyableValue } from '../../../../shared/ui/CopyableValue';
@@ -93,6 +94,8 @@ const signedClass = (value: number | null) => {
 };
 
 export interface AccountingProfitReportsViewProps {
+  /** Saved print forms for stock labels; `null` while settings are loading. */
+  printForms?: PrintForm[] | null;
   currentEmployee?: Employee | null;
   sales?: Sale[];
   supplierOrders?: SupplierOrder[];
@@ -102,6 +105,7 @@ export interface AccountingProfitReportsViewProps {
 };
 
 export const AccountingProfitReportsView: React.FC<AccountingProfitReportsViewProps> = ({
+  printForms = null,
   currentEmployee = null,
   sales = [],
   supplierOrders = [],
@@ -1481,6 +1485,7 @@ export const AccountingProfitReportsView: React.FC<AccountingProfitReportsViewPr
       {catalogRow ? (
         <ProfitReportCatalogModalHost
           row={catalogRow}
+          printForms={printForms}
           services={services}
           sales={sales}
           supplierOrders={supplierOrders}

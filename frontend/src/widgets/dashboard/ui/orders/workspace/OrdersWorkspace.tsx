@@ -230,6 +230,7 @@ export const OrdersWorkspace: React.FC<OrdersWorkspaceProps> = ({
   clientDevices,
   catalogProducts,
   printForms,
+  labelPrintForms,
   printCompanySettings,
   onCreateClientDevice,
   onUpdateClientDevice,
@@ -3326,7 +3327,7 @@ export const OrdersWorkspace: React.FC<OrdersWorkspaceProps> = ({
             comments={selectedSale.timeline ?? []}
             lineItems={getLineItems(selectedSale)}
             products={products}
-            printForms={printForms}
+            printForms={labelPrintForms}
             clientDevices={clientDevices}
             catalogProducts={catalogProducts}
             paidAmount={getPaidAmount(selectedSale)}

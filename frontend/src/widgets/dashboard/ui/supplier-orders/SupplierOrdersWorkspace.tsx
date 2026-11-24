@@ -67,6 +67,7 @@ import {
   listSavedFilters,
 } from '../../../../entities/saved-filter';
 import type { SavedFilterRecord } from '../../../../entities/saved-filter';
+import type { PrintForm } from '../../../../entities/settings';
 import { filterIconOptions } from '../orders/workspace/orders-workspace-shared';
 import {
   SupplierOrderModal,
@@ -89,6 +90,8 @@ const notifyFinanceUpdated = () => {
 };
 
 export interface SupplierOrdersWorkspaceProps {
+  /** Saved print forms for stock labels; `null` while settings are loading. */
+  printForms: PrintForm[] | null;
   activeTab: OrdersTab;
   onActiveTabChange: (tab: OrdersTab) => void;
   onToggleTabVisibility?: (tab: OrdersTab) => void;
@@ -116,6 +119,7 @@ export interface SupplierOrdersWorkspaceProps {
 export const SupplierOrdersWorkspace: React.FC<
   SupplierOrdersWorkspaceProps
 > = ({
+  printForms,
   activeTab,
   onActiveTabChange,
   onToggleTabVisibility,
@@ -1034,6 +1038,7 @@ export const SupplierOrdersWorkspace: React.FC<
 
       <SupplierOrderModal
         isOpen={isModalOpen}
+        printForms={printForms}
         suppliers={suppliers}
         editingOrder={editingOrder}
         forceReadOnly={!canManageSupplierOrders}

@@ -374,7 +374,8 @@ Warehouse serial labels use the dedicated print form **`Product barcode`** (`for
 
 1. **Bulk print from toolbar** — `Stock balances` tab, printer icon in the warehouse toolbar.
 2. **Single print from product model modal** — click `Serial #` in the stock table to open the modal with a print action for that exact stock row.
-3. **Optional print after take-on-charge** — `SupplierOrderModal` checkbox `Print serial numbers after receipt` (uses the same print pipeline).
+3. **Optional print after take-on-charge** — `SupplierOrderModal` checkbox `Print serial numbers after receipt` (uses the same print pipeline) on `Orders -> Supplier orders`, in the order card related supplier order, and in the warehouse receipt.
+4. **Serial history / profit report** — the product model modal opened from serial history (client card, create order) or from the profit report.
 
 Take-on-charge stocks and prints **saved** order lines only. If the modal has unsaved item changes, the operator must **Save** first; the UI blocks take-on-charge with `saveBeforeTakeOnCharge`.
 
@@ -396,12 +397,12 @@ Each printed label is built from one stock `Product` row:
 | ------------------------------- | ------------------------------------------------------------ |
 | `{{barcode}}` / `{{labelCode}}` | `product.serialNumber` (CODE128 value and visible code line) |
 | `{{labelTitle}}`                | `product.name`                                               |
-| `{{labelContact}}`              | `product.article` (empty string when absent)                 |
+| `{{labelContact}}`              | `product.article` (empty string when absent); not in the default layout |
 
 #### Print Form And Settings Source
 
-1. `WarehousePanel` receives merged `printForms` from dashboard settings (`applyPrintFormLocalOverrides` per employee).
-2. Warehouse printing resolves the active form by `warehouse-barcode`.
+1. Every entry point receives the saved forms merged with local overrides (`applyPrintFormLocalOverrides` per employee). `DashboardPage` builds `labelPrintForms` only from loaded settings and passes them to `WarehousePanel`, `SupplierOrdersWorkspace`, `OrdersWorkspace` (order card) and `AccountingPanel` (profit report). `HistorySerialModal` reads the same settings query cache.
+2. Warehouse printing resolves the active form by `warehouse-barcode`. `SupplierOrderModal` and `ProductModelModal` require `printForms: PrintForm[] | null`; there is no built-in default. While settings are not loaded (`null`), nothing is printed and the operator sees `Please wait, settings are loading` (uk: `Зачекайте, налаштування завантажуються`). Stock received meanwhile can be reprinted from `Stock balances`.
 3. On first load after rollout, if `warehouse-barcode` is missing in stored settings, the frontend creates it by copying layout settings from the current `barcode` form (margins, label size, orientation, layout blocks, active flag).
 4. Operators tune warehouse labels in `Settings -> Print -> Product barcode` without changing order labels.
 
@@ -432,12 +433,16 @@ Implementation references:
 1. Selecting 30 rows with serial numbers must produce 30 label pages in the browser print preview.
 2. Each page must scan the correct serial; barcode value equals the stock row serial, not article or product id.
 3. Changing `Product barcode` size/orientation/margins in Settings must affect the next warehouse print without redeploy.
-4. Order-card product model printing uses the same `warehouse-barcode` form when `printForms` are passed from `OrdersWorkspace`; otherwise it falls back to built-in defaults.
+4. Labels printed after take-on-charge (`Supplier orders`, order card), from the order card product model and from serial history use the same saved `warehouse-barcode` form as the warehouse. Auto serials (`S000…`) and manual serials print identically.
+5. The `Text` block with `{{labelTitle}}` applies its Level / Weight / Size / Align. Long titles shrink down to 6 px, then end with an ellipsis.
 
 #### Regression Tests
 
 - `orders-workspace-shared.test.tsx`: batch HTML classes and one `print-form-label` section per item.
-- `printForms.test.ts`: `warehouse-barcode` migration copies settings from `barcode`.
+- `printForms.test.ts`: `warehouse-barcode` migration copies settings from `barcode` (without `{{labelContact}}`); the built-in form is block based; untouched legacy HTML migrates to blocks, edited HTML stays; title weight/size classes reach the label.
+- `printLabelFit.test.ts`: normal-size label paragraphs shrink to fit, then get `print-fit-ellipsis` at 6 px.
+- `orders-workspace-shared.test.tsx`: `printWarehouseSerialLabels(..., null)` returns `settings-loading` and opens no window; an `S000…` label carries the configured title classes and no article.
+- `SupplierOrderModal.test.tsx`, `SupplierOrdersWorkspace.test.tsx`, `OrderDetailCard.test.tsx`: print after receipt uses the passed saved forms; `null` reports `settings-loading`.
 - `ProductModelModal.test.tsx`: single-item print calls `printWarehouseSerialLabels` with one payload row; reserved serials show the red `Reserved` badge from occupancy API and from in-memory sales fallback.
 - `product-model.test.ts`: `getReservedProductIdsOnOtherSales` skips the current sale and issued sales; `getReservedProductIdsFromOccupiedSerials` maps occupied serials; serial purchase rows carry `isReserved`.
 

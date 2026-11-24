@@ -3000,6 +3000,7 @@
     },
     "print": {
       "serialNumbersTitle": "Серійні номери",
+      "settingsLoading": "Зачекайте, налаштування завантажуються",
       "productFallback": "Товар",
       "barcodeAriaLabel": "Штрих-код {{index}}"
     },

@@ -352,6 +352,12 @@ benefit without being recreated:
 - Fallback when the DOM is not laid out (tests, hidden preview): hero texts get
   a static step by length — 5 chars 6.2 mm, 6 chars 5.2 mm, 7 chars 4.5 mm,
   8+ chars 3.9 mm (`print-fit-chars-N`).
+- Normal-size label paragraphs (for example the `Product barcode` title
+  `{{labelTitle}}`) are auto-fitted too (2026-11-24): the configured size is the
+  start/maximum, the font shrinks until the text fits (minimum 6 px). Serial
+  lines (`print-label-serial`) keep wrapping instead.
+- Any fitted label text that still overflows at 6 px gets `print-fit-ellipsis`
+  (single line, `text-overflow: ellipsis`). The class is reset on every fit run.
 
 ## Print menu visibility (2026-11-18)
 
@@ -388,7 +394,16 @@ labels for **warehouse stock units** by serial number. It is used from:
 
 - `Warehouse -> Stock balances` toolbar bulk print
 - product model modal print action (opened from `Serial #`)
-- optional print after supplier-order take-on-charge
+- optional print after supplier-order take-on-charge (`Supplier orders` tab,
+  order card, warehouse receipt)
+- product model modal opened from serial history (client card, create order)
+  and from the profit report
+
+Every entry point prints with the **saved** forms of the settings, merged with
+the employee's local overrides (`applyPrintFormLocalOverrides`). There is no
+built-in fallback: while settings are not loaded (`printForms === null`)
+`printWarehouseSerialLabels` returns `settings-loading`, opens nothing, and the
+UI shows `warehouse.print.settingsLoading` ("Please wait, settings are loading").
 
 Warehouse flow rules: [WAREHOUSE_FLOW.md](./WAREHOUSE_FLOW.md#45-serial-label-printing-stock-balances).
 
@@ -401,9 +416,22 @@ Warehouse flow rules: [WAREHOUSE_FLOW.md](./WAREHOUSE_FLOW.md#45-serial-label-pr
    - `labelSize`
    - `orientation`
    - `pageSize`
-   - `layoutBlocks`
+   - `layoutBlocks` (except a `{{labelContact}}` paragraph, see below)
    - `isActive`
 3. After migration, the two forms evolve independently in Settings.
+
+### Built-in Layout (2026-11-24)
+
+1. The built-in `warehouse-barcode` is block based: `warehouse-barcode-code`
+   (barcode), `warehouse-barcode-number` (heading `{{labelCode}}`),
+   `warehouse-barcode-title` (paragraph `{{labelTitle}}`). The article line
+   (`{{labelContact}}`) is not part of the default; the label prints only the
+   blocks configured in Settings. Users may add a `{{labelContact}}` block.
+2. A saved `warehouse-barcode` without `layoutBlocks` whose HTML equals the old
+   built-in template (`<span>{{labelTitle}}</span>` …, compared with collapsed
+   whitespace) is migrated to the built-in blocks on load. Title, label size,
+   orientation, margins, active flag and print menu visibility are kept.
+   Manually edited HTML is left untouched.
 
 ### Page Setup
 
@@ -418,7 +446,8 @@ Warehouse flow rules: [WAREHOUSE_FLOW.md](./WAREHOUSE_FLOW.md#45-serial-label-pr
 
 - `barcode` and `labelCode`: stock `Product.serialNumber`
 - `labelTitle`: stock `Product.name`
-- `labelContact`: stock `Product.article` (may be empty)
+- `labelContact`: stock `Product.article` (may be empty); printed only when the
+  form has a block with `{{labelContact}}`
 
 ### Single vs Batch Print
 

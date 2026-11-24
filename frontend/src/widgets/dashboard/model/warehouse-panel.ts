@@ -214,7 +214,8 @@ export type TransferHistoryRow = {
 };
 
 export type WarehousePanelProps = {
-  printForms: PrintForm[];
+  /** Saved print forms; `null` while settings are loading (printing is blocked). */
+  printForms: PrintForm[] | null;
   products: Product[];
   sales: Sale[];
   catalogProducts: CatalogProduct[];

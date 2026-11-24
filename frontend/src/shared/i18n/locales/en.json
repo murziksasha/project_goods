@@ -3000,6 +3000,7 @@
     },
     "print": {
       "serialNumbersTitle": "Serial numbers",
+      "settingsLoading": "Please wait, settings are loading",
       "productFallback": "Product",
       "barcodeAriaLabel": "Barcode {{index}}"
     },

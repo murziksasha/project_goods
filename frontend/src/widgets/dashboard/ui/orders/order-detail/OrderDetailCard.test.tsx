@@ -23,6 +23,7 @@ import * as productApi from '../../../../../entities/product';
 import type { Product } from '../../../../../entities/product';
 import type { ServiceCatalogItem } from '../../../../../entities/service-catalog';
 import { defaultPrintForms } from '../../../../../entities/settings';
+import type { PrintForm } from '../../../../../entities/settings';
 import type { Sale } from '../../../../../entities/sale';
 import type { SupplierOrder } from '../../../../../entities/supplier-order';
 import * as warehouseSettingsApi from '../../../../../entities/warehouse-settings';
@@ -83,6 +84,27 @@ const {
   paySupplierOrderMock: vi.fn(async () => undefined),
   issueSupplierOrderWithoutPaymentMock: vi.fn(async () => undefined),
 }));
+
+const { supplierOrderModalPrintForms } = vi.hoisted(() => ({
+  supplierOrderModalPrintForms: [] as Array<{
+    printForms: unknown;
+    canTakeOnCharge: boolean;
+  }>,
+}));
+
+// Records the print forms each SupplierOrderModal receives; renders the real modal.
+vi.mock('../modals/SupplierOrderModal', async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import('../modals/SupplierOrderModal')>();
+  const RecordingSupplierOrderModal: typeof actual.SupplierOrderModal = (props) => {
+    supplierOrderModalPrintForms.push({
+      printForms: props.printForms,
+      canTakeOnCharge: Boolean(props.onTakeOnCharge),
+    });
+    return <actual.SupplierOrderModal {...props} />;
+  };
+  return { ...actual, SupplierOrderModal: RecordingSupplierOrderModal };
+});
 
 vi.mock(
   '../../../../../entities/product/api/productApi',
@@ -350,6 +372,7 @@ const sale = (patch: Partial<Sale> = {}): Sale => ({
 });
 
 const buildCardElement = ({
+  printForms = defaultPrintForms,
   products = [product()],
   catalogProducts = [catalogProduct()],
   clientDevices = [],
@@ -387,6 +410,7 @@ const buildCardElement = ({
   employees = [],
   currentEmployee,
 }: {
+  printForms?: PrintForm[] | null;
   products?: Product[];
   catalogProducts?: CatalogProduct[];
   clientDevices?: ClientDevice[];
@@ -470,7 +494,7 @@ const buildCardElement = ({
       comments={comments}
       lineItems={lineItems}
       products={products}
-      printForms={defaultPrintForms}
+      printForms={printForms}
       clientDevices={clientDevices}
       catalogProducts={catalogProducts}
       paidAmount={paidAmount}
@@ -4661,5 +4685,36 @@ describe('OrderDetailCard product purchase cost audit', () => {
       }),
     );
     expect(screen.queryByRole('button', { name: 'Audit' })).not.toBeInTheDocument();
+  });
+});
+
+describe('OrderDetailCard stock label print forms', () => {
+  beforeEach(() => {
+    supplierOrderModalPrintForms.length = 0;
+  });
+
+  afterEach(() => {
+    cleanup();
+  });
+
+  it('passes its print forms to the related supplier order receipt modal', () => {
+    const savedForms = defaultPrintForms.map((form) => ({ ...form }));
+    renderCard({ printForms: savedForms });
+
+    const receiptModals = supplierOrderModalPrintForms.filter(
+      (entry) => entry.canTakeOnCharge,
+    );
+    expect(receiptModals.length).toBeGreaterThan(0);
+    expect(receiptModals.every((entry) => entry.printForms === savedForms)).toBe(true);
+  });
+
+  it('passes null while settings are loading (no built-in fallback)', () => {
+    renderCard({ printForms: null });
+
+    const receiptModals = supplierOrderModalPrintForms.filter(
+      (entry) => entry.canTakeOnCharge,
+    );
+    expect(receiptModals.length).toBeGreaterThan(0);
+    expect(receiptModals.every((entry) => entry.printForms === null)).toBe(true);
   });
 });
