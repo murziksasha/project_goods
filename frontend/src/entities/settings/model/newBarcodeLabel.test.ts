@@ -245,6 +245,9 @@ describe('print menu visibility', () => {
   it('uses Product barcode for warehouse labels unless it is hidden there', () => {
     const defaults = normalizePrintFormsForView(defaultPrintForms);
     expect(getWarehouseBarcodePrintForm(defaults).id).toBe('warehouse-barcode');
+    // Built from layout blocks: the title is a styled paragraph, not a bare <span>.
+    expect(getWarehouseBarcodePrintForm(defaults).layoutBlocks?.length).toBeGreaterThan(0);
+    expect(getWarehouseBarcodePrintForm(defaults).content).not.toContain('<span>{{labelTitle}}</span>');
 
     const custom = form({
       id: 'my-stock-label',

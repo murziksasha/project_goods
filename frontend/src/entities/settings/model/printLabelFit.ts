@@ -8,10 +8,17 @@ const fitTextSelector = [
   '.print-label .print-text-size-large',
 ].join(', ');
 
+// Normal-size label paragraphs (for example the Product barcode title) shrink
+// too, but keep their ellipsis as the last resort. Serial lines wrap instead.
+const shrinkTextSelector =
+  '.print-label .print-block-paragraph:not(.print-label-serial)';
+
 const wideLeftRightColumnSelector =
   '.print-label .print-columns-wide-left > div:last-child';
 
 const fitCharsClassPrefix = 'print-fit-chars-';
+const fitTextClass = 'print-fit-text';
+const fitEllipsisClass = 'print-fit-ellipsis';
 const datePattern = /(\d{2}\.\d{2}\.)(\d{4})/g;
 const minFitFontSizePx = 6;
 const maxFitSteps = 60;
@@ -97,48 +104,67 @@ const removeFitCharsClasses = (element: HTMLElement) => {
     .forEach((name) => element.classList.remove(name));
 };
 
+const shrinkToFit = (element: HTMLElement, charsClass: string) => {
+  const view = element.ownerDocument.defaultView;
+  const available = measureAvailableWidth(element);
+  if (!view || !(available > 0) || !(element.clientWidth > 0)) {
+    if (charsClass) element.classList.add(charsClass);
+    return;
+  }
+
+  // Laid out: measure from the full CSS size and shrink only as needed.
+  let size = Number.parseFloat(view.getComputedStyle(element).fontSize);
+  if (!Number.isFinite(size) || size <= 0) {
+    if (charsClass) element.classList.add(charsClass);
+    return;
+  }
+  let content = measureContentWidth(element);
+  if (content > available + 0.5) {
+    size = Math.max(minFitFontSizePx, size * (available / content) * 0.98);
+    element.style.fontSize = `${size}px`;
+    content = measureContentWidth(element);
+  }
+  for (
+    let step = 0;
+    step < maxFitSteps && content > available + 0.5 && size > minFitFontSizePx;
+    step += 1
+  ) {
+    size = Math.max(minFitFontSizePx, size * 0.96);
+    element.style.fontSize = `${size}px`;
+    content = measureContentWidth(element);
+  }
+  // Still too wide at the minimum size: fall back to an ellipsis.
+  if (content > available + 0.5) element.classList.add(fitEllipsisClass);
+};
+
+const resetFit = (element: HTMLElement) => {
+  removeFitCharsClasses(element);
+  element.classList.remove(fitEllipsisClass);
+  element.style.removeProperty('font-size');
+};
+
 /**
- * Makes large label texts (hero / xlarge / large) always print in full:
- * no ellipsis, and the font shrinks until the text fits its column.
+ * Label texts shrink until they fit their column (minimum 6 px); only then an
+ * ellipsis is used. Large texts (hero / xlarge / large) are single-line and
+ * never truncated before the minimum; normal paragraphs shrink the same way.
  */
 export const fitPrintLabelText = (root: FitRoot) => {
+  const fitted = new Set<HTMLElement>();
   root.querySelectorAll<HTMLElement>(fitTextSelector).forEach((element) => {
-    element.classList.add('print-fit-text');
-    removeFitCharsClasses(element);
-    element.style.removeProperty('font-size');
+    fitted.add(element);
+    element.classList.add(fitTextClass);
+    resetFit(element);
 
     const charsClass = element.classList.contains('print-text-size-hero')
       ? getPrintFitCharsClass(element.textContent ?? '')
       : '';
+    shrinkToFit(element, charsClass);
+  });
 
-    const view = element.ownerDocument.defaultView;
-    const available = measureAvailableWidth(element);
-    if (!view || !(available > 0) || !(element.clientWidth > 0)) {
-      if (charsClass) element.classList.add(charsClass);
-      return;
-    }
-
-    // Laid out: measure from the full CSS size and shrink only as needed.
-    let size = Number.parseFloat(view.getComputedStyle(element).fontSize);
-    if (!Number.isFinite(size) || size <= 0) {
-      if (charsClass) element.classList.add(charsClass);
-      return;
-    }
-    let content = measureContentWidth(element);
-    if (content > available + 0.5) {
-      size = Math.max(minFitFontSizePx, size * (available / content) * 0.98);
-      element.style.fontSize = `${size}px`;
-      content = measureContentWidth(element);
-    }
-    for (
-      let step = 0;
-      step < maxFitSteps && content > available + 0.5 && size > minFitFontSizePx;
-      step += 1
-    ) {
-      size = Math.max(minFitFontSizePx, size * 0.96);
-      element.style.fontSize = `${size}px`;
-      content = measureContentWidth(element);
-    }
+  root.querySelectorAll<HTMLElement>(shrinkTextSelector).forEach((element) => {
+    if (fitted.has(element)) return;
+    resetFit(element);
+    shrinkToFit(element, '');
   });
 };
 

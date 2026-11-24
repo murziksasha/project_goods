@@ -140,3 +140,75 @@ describe('label fit styles', () => {
     );
   });
 });
+
+describe('fitPrintLabelText normal paragraphs (Product barcode title)', () => {
+  const renderTitle = (text: string) => {
+    const root = document.createElement('div');
+    root.innerHTML = `<div class="print-label"><h3 class="print-block-heading print-label-serial">S000101</h3><p class="print-block-paragraph print-block-paragraph-level-3 print-align-center">${text}</p></div>`;
+    document.body.append(root);
+    return root;
+  };
+
+  const mockParagraphLayout = (
+    paragraph: HTMLElement,
+    available: number,
+    widthAt: (px: number) => number,
+  ) => {
+    Object.defineProperty(paragraph, 'clientWidth', { configurable: true, value: available });
+    vi.spyOn(paragraph, 'getBoundingClientRect').mockReturnValue({ width: available } as DOMRect);
+    vi.spyOn(window, 'getComputedStyle').mockImplementation(
+      (element) => ({ fontSize: (element as HTMLElement).style.fontSize || '11px' }) as CSSStyleDeclaration,
+    );
+    const originalCreateRange = document.createRange.bind(document);
+    vi.spyOn(document, 'createRange').mockImplementation(() => {
+      const range = originalCreateRange();
+      range.getBoundingClientRect = () => {
+        const px = Number.parseFloat(paragraph.style.fontSize || '11');
+        return { width: widthAt(px) } as DOMRect;
+      };
+      return range;
+    });
+  };
+
+  it('shrinks a long title until it fits, without an ellipsis', () => {
+    const root = renderTitle('iPhone 13 Pro Max 256GB');
+    const paragraph = root.querySelector<HTMLElement>('p')!;
+    // 23 chars ~0.5em each: 126px at 11px, column is 100px.
+    mockParagraphLayout(paragraph, 100, (px) => 23 * 0.5 * px);
+    fitPrintLabelText(root);
+    const size = Number.parseFloat(paragraph.style.fontSize);
+    expect(size).toBeLessThan(11);
+    expect(size).toBeGreaterThanOrEqual(6);
+    expect(23 * 0.5 * size).toBeLessThanOrEqual(100.5);
+    expect(paragraph.classList.contains('print-fit-ellipsis')).toBe(false);
+    expect(paragraph.classList.contains('print-fit-text')).toBe(false);
+  });
+
+  it('stops at 6px and falls back to an ellipsis; a repeated fit resets it', () => {
+    const root = renderTitle('Very long product name that never fits a 40 mm label');
+    const paragraph = root.querySelector<HTMLElement>('p')!;
+    mockParagraphLayout(paragraph, 100, (px) => 60 * 0.5 * px);
+    fitPrintLabelText(root);
+    expect(paragraph.style.fontSize).toBe('6px');
+    expect(paragraph.classList.contains('print-fit-ellipsis')).toBe(true);
+
+    vi.restoreAllMocks();
+    mockParagraphLayout(paragraph, 100, (px) => 5 * 0.5 * px);
+    fitPrintLabelText(root);
+    expect(paragraph.style.fontSize).toBe('');
+    expect(paragraph.classList.contains('print-fit-ellipsis')).toBe(false);
+  });
+
+  it('keeps a short title at its configured size and leaves serial lines alone', () => {
+    const root = renderTitle('iPhone');
+    const paragraph = root.querySelector<HTMLElement>('p')!;
+    mockParagraphLayout(paragraph, 100, (px) => 6 * 0.5 * px);
+    fitPrintLabelText(root);
+    expect(paragraph.style.fontSize).toBe('');
+    expect(root.querySelector('h3')!.className).toBe('print-block-heading print-label-serial');
+  });
+
+  it('has an ellipsis style for texts that still overflow at the minimum size', () => {
+    expect(printLabelDocumentStyles).toContain('.print-label .print-block-paragraph.print-fit-ellipsis');
+  });
+});
