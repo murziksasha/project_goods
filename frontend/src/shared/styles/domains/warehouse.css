@@ -438,6 +438,19 @@
   min-width: 130px;
 }
 
+.warehouse-stock-cell-article .copyable-value {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.warehouse-stock-cell-article .copyable-value-content {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+}
+
 .warehouse-stock-cell-date {
   width: 100px;
   min-width: 100px;

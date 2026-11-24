@@ -165,6 +165,7 @@ Shared control: [`frontend/src/shared/ui/CopyableValue.tsx`](../frontend/src/sha
 | Sales Product serial | Each icon copies its own trimmed current serial without `S/N:` or adjacent serials |
 | Client card Sale item | That product's name only, without the visible `xN` |
 | Client card serial | Trimmed serial without `S/N:` |
+| Article (Stock balances / product-model modal) | Trimmed article, case preserved (including unsaved modal field draft) |
 
 ### Surfaces
 
@@ -176,8 +177,8 @@ Shared control: [`frontend/src/shared/ui/CopyableValue.tsx`](../frontend/src/sha
 | Opened sale card | Number, Client, Phone, Created order, Issued order; rapid sales use the stored client snapshot | `OrderDetailCard.tsx` |
 | `Supplier Order` table | Order number (parent and child), Product, Supplier (not collapsed `N items` / child `—`) | `SupplierOrdersWorkspaceSections.tsx` |
 | Warehouse `Receipts` | Order number (lines + grouped parent) | `WarehouseTables.tsx` |
-| Warehouse `Stock balances` | Name, Serial #, Client order, Supplier order (**not** Article / Note) | `WarehouseTables.tsx` |
-| Product model modal `Purchase by serial` | Serial #, Supplier order number (order click still opens `SupplierOrderModal`; Latest/Reserved stay outside the serial copy target), Client order number (order click still opens the sale/repair card; the icon copies the visible number) | `ProductModelModal.tsx` |
+| Warehouse `Stock balances` | Name, Serial #, Article, Client order, Supplier order (**not** Note) | `WarehouseTables.tsx` |
+| Product model modal | Article field (on the label; whole-row `:hover` / `:focus-within` reveal; copies current draft including unsaved edits and read-only/disabled states), plus `Purchase by serial`: Serial #, Supplier order number (order click still opens `SupplierOrderModal`; Latest/Reserved stay outside the serial copy target), Client order number (order click still opens the sale/repair card; the icon copies the visible number) | `ProductModelModal.tsx` |
 | Serial bind modal candidate rows | Supplier order number (order click still opens `SupplierOrderModal`; bind modal stays open; serial toggle is separate). Spec: [WAREHOUSE_FLOW.md §4.3.2](./WAREHOUSE_FLOW.md#432-bind-modal-candidate-row-purchase-price--supplier-order) | `SerialBindModal.tsx` |
 | `Clients & suppliers` → Clients / Suppliers | Name, primary phone, and a matched additional phone when shown; each phone keeps an independent copy icon and `tel:` link | `ClientsTable.tsx`, `ClientsSuppliersWorkspace.tsx` |
 | Client card header | Blue `tel:` phone | `ClientCardModal.tsx` |
@@ -199,7 +200,7 @@ Opened-card copy controls and `tel:` links remain available in read-only mode. C
 ### Out of scope
 
 - Product model modal title copy (separate `.product-model-copy-button` control)
-- Warehouse Stock `Article` / `Note`
+- Warehouse Stock `Note`
 - Employee phones
 - Kanban card phone, total, and master menu
 - Opened-card Created date, Master selection, and payment amounts

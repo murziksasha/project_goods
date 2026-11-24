@@ -292,7 +292,8 @@ Canonical UI for `Serials x/y` → `SerialBindModal` on **opened sale and repair
 ### 4.4) Product Model Detail Modal
 
 - In `Warehouse -> Stock balances`, clicking `Name`, `Serial #`, `Article`, or `Note` opens the shared product model modal for the row's exact product name.
-- Hover on `Name`, `Serial #`, `Client order`, and `Supplier order` shows a copy icon. Only the icon copies; name/serial clicks still open the model/serial card, and order badges still open the sale/order or supplier-order modal. `Article` and `Note` have no copy icon. Spec: [UI_DESIGN_SYSTEM.md — Hover copy icon](./UI_DESIGN_SYSTEM.md#hover-copy-icon).
+- Hover on `Name`, `Serial #`, `Article`, `Client order`, and `Supplier order` shows a copy icon. Only the icon copies; name/serial/article clicks still open the model/serial card, and order badges still open the sale/order or supplier-order modal. `Note` has no copy icon. Spec: [UI_DESIGN_SYSTEM.md — Hover copy icon](./UI_DESIGN_SYSTEM.md#hover-copy-icon).
+- In `MAIN INFORMATION`, hovering or focusing anywhere on the `Article` field row (label or input) reveals a copy icon on the `Article` label that copies the trimmed current draft (including unsaved edits, and in read-only/disabled states when non-empty). Spec: [UI_DESIGN_SYSTEM.md — Hover copy icon](./UI_DESIGN_SYSTEM.md#hover-copy-icon).
 - `Note` click opens the same modal so the operator can view or edit the full note in `MAIN INFORMATION -> Note`.
 - The modal aggregates only `Product` rows whose normalized name exactly equals the opened name (trim + lowercase); similar names such as `Mi Box S Gen 3` and `Mi Box S Gen 3 Pro` must stay separate.
 - The modal shows:

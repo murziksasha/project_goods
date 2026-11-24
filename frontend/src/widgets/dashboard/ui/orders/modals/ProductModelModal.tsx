@@ -488,8 +488,10 @@ export const ProductModelModal: React.FC<ProductModelModalProps> = ({
                 <span>{t('catalog.productModel.name')}</span>
                 <input value={name} readOnly />
               </label>
-              <label className='field'>
-                <span>{t('catalog.productModel.article')}</span>
+              <label className='field product-model-article-field'>
+                <CopyableValue value={form.article}>
+                  <span>{t('catalog.productModel.article')}</span>
+                </CopyableValue>
                 <input
                   value={form.article}
                   onChange={(event) =>

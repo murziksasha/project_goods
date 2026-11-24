@@ -991,6 +991,16 @@
   padding: 18px 0;
 }
 
+.product-model-article-field:hover .copyable-value-copy,
+.product-model-article-field:focus-within .copyable-value-copy {
+  width: 22px;
+  min-width: 22px;
+  opacity: 1;
+  overflow: visible;
+  pointer-events: auto;
+  border-color: var(--color-line-panel);
+}
+
 .product-model-summary {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));

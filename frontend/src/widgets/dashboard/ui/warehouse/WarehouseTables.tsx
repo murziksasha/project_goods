@@ -1108,14 +1108,16 @@ export const StockTable = ({
     }
     if (columnKey === 'article') {
       return (
-        <SelectableActionLink
-          className='settings-link-button warehouse-cell-truncate'
-          onAction={() => onOpenModel(product)}
-        >
-          <TruncatedCell text={product.article}>
-            {product.article}
-          </TruncatedCell>
-        </SelectableActionLink>
+        <CopyableValue value={product.article}>
+          <SelectableActionLink
+            className='settings-link-button warehouse-cell-truncate'
+            onAction={() => onOpenModel(product)}
+          >
+            <TruncatedCell text={product.article}>
+              {product.article}
+            </TruncatedCell>
+          </SelectableActionLink>
+        </CopyableValue>
       );
     }
     if (columnKey === 'date') {

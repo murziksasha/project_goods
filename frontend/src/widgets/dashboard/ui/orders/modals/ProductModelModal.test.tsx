@@ -978,4 +978,89 @@ describe('ProductModelModal serial printing', () => {
       document.querySelector('.product-model-serial-row-reserved'),
     ).toHaveTextContent('S000114');
   });
+
+  it('copies initial and edited article draft from the field label icon', async () => {
+    const copySpy = vi
+      .spyOn(clipboard, 'copyTextToClipboard')
+      .mockResolvedValue(true);
+    const products = [createProduct({ article: '  Art-123  ' })];
+
+    render(
+      <ProductModelModal
+        name='БЖ Meanwell 9V 1.66A'
+        products={products}
+        warehouses={[]}
+        printForms={defaultPrintForms}
+        onClose={vi.fn()}
+        onSave={vi.fn(async () => true)}
+      />,
+    );
+
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: i18n.t('catalog.productModel.sections.main'),
+      }),
+    );
+
+    const articleField = document.querySelector('.product-model-article-field');
+    expect(articleField).not.toBeNull();
+    const copyButton = articleField?.querySelector('.copyable-value-copy');
+    expect(copyButton).not.toBeNull();
+
+    fireEvent.click(copyButton as HTMLButtonElement);
+    await waitFor(() => {
+      expect(copySpy).toHaveBeenCalledWith('Art-123');
+    });
+
+    const input = articleField?.querySelector('input') as HTMLInputElement;
+    fireEvent.change(input, { target: { value: '  New-Draft-45  ' } });
+
+    fireEvent.click(
+      articleField?.querySelector('.copyable-value-copy') as HTMLButtonElement,
+    );
+    await waitFor(() => {
+      expect(copySpy).toHaveBeenCalledWith('New-Draft-45');
+    });
+
+    fireEvent.change(input, { target: { value: '   ' } });
+    expect(articleField?.querySelector('.copyable-value-copy')).toBeNull();
+
+    copySpy.mockRestore();
+  });
+
+  it('copies article from the field label icon in read-only mode', async () => {
+    const copySpy = vi
+      .spyOn(clipboard, 'copyTextToClipboard')
+      .mockResolvedValue(true);
+    const products = [createProduct({ article: 'RO-900' })];
+
+    render(
+      <ProductModelModal
+        name='БЖ Meanwell 9V 1.66A'
+        products={products}
+        warehouses={[]}
+        printForms={defaultPrintForms}
+        readOnly
+        onClose={vi.fn()}
+        onSave={vi.fn(async () => true)}
+      />,
+    );
+
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: i18n.t('catalog.productModel.sections.main'),
+      }),
+    );
+
+    const articleField = document.querySelector('.product-model-article-field');
+    const copyButton = articleField?.querySelector('.copyable-value-copy');
+    expect(copyButton).not.toBeNull();
+
+    fireEvent.click(copyButton as HTMLButtonElement);
+    await waitFor(() => {
+      expect(copySpy).toHaveBeenCalledWith('RO-900');
+    });
+
+    copySpy.mockRestore();
+  });
 });
