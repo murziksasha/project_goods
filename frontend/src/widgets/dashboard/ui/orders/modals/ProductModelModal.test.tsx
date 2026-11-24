@@ -162,6 +162,7 @@ describe('ProductModelModal selected historical serial', () => {
         sales={[saleBindingProduct('issued-sale', sold, 'issued')]}
         supplierOrders={[createSupplierOrder()]}
         warehouses={[]}
+        printForms={defaultPrintForms}
         selectedSerial={{ serialNumber: sold.serialNumber, product: sold }}
         readOnly
         onClose={vi.fn()}
@@ -210,6 +211,7 @@ describe('ProductModelModal selected historical serial', () => {
         products={[sold]}
         sales={[saleBindingProduct('issued-sale', sold, 'issued')]}
         warehouses={[]}
+        printForms={defaultPrintForms}
         selectedSerial={{ serialNumber: sold.serialNumber, product: sold }}
         readOnly
         onClose={vi.fn()}
@@ -234,6 +236,7 @@ describe('ProductModelModal selected historical serial', () => {
         name='Historical product'
         products={[]}
         warehouses={[]}
+        printForms={defaultPrintForms}
         selectedSerial={{ serialNumber: 'S-MISSING', product: null }}
         readOnly
         onClose={vi.fn()}
@@ -275,7 +278,7 @@ describe('ProductModelModal serial printing', () => {
   it('pre-selects the clicked serial and prints it by default', () => {
     const printSpy = vi
       .spyOn(ordersWorkspaceShared, 'printWarehouseSerialLabels')
-      .mockResolvedValue();
+      .mockResolvedValue('printed');
 
     const clickedProduct = createProduct({
       id: 'clicked-product',
@@ -335,7 +338,7 @@ describe('ProductModelModal serial printing', () => {
   it('prints all checked serials and updates badge count', () => {
     const printSpy = vi
       .spyOn(ordersWorkspaceShared, 'printWarehouseSerialLabels')
-      .mockResolvedValue();
+      .mockResolvedValue('printed');
 
     const first = createProduct({
       id: 'product-a',
@@ -978,4 +981,117 @@ describe('ProductModelModal serial printing', () => {
       document.querySelector('.product-model-serial-row-reserved'),
     ).toHaveTextContent('S000114');
   });
+
+  it('copies initial and edited article draft from the field label icon', async () => {
+    const copySpy = vi
+      .spyOn(clipboard, 'copyTextToClipboard')
+      .mockResolvedValue(true);
+    const products = [createProduct({ article: '  Art-123  ' })];
+
+    render(
+      <ProductModelModal
+        name='БЖ Meanwell 9V 1.66A'
+        products={products}
+        warehouses={[]}
+        printForms={defaultPrintForms}
+        onClose={vi.fn()}
+        onSave={vi.fn(async () => true)}
+      />,
+    );
+
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: i18n.t('catalog.productModel.sections.main'),
+      }),
+    );
+
+    const articleField = document.querySelector('.product-model-article-field');
+    expect(articleField).not.toBeNull();
+    const copyButton = articleField?.querySelector('.copyable-value-copy');
+    expect(copyButton).not.toBeNull();
+
+    fireEvent.click(copyButton as HTMLButtonElement);
+    await waitFor(() => {
+      expect(copySpy).toHaveBeenCalledWith('Art-123');
+    });
+
+    const input = articleField?.querySelector('input') as HTMLInputElement;
+    fireEvent.change(input, { target: { value: '  New-Draft-45  ' } });
+
+    fireEvent.click(
+      articleField?.querySelector('.copyable-value-copy') as HTMLButtonElement,
+    );
+    await waitFor(() => {
+      expect(copySpy).toHaveBeenCalledWith('New-Draft-45');
+    });
+
+    fireEvent.change(input, { target: { value: '   ' } });
+    expect(articleField?.querySelector('.copyable-value-copy')).toBeNull();
+
+    copySpy.mockRestore();
+  });
+
+  it('copies article from the field label icon in read-only mode', async () => {
+    const copySpy = vi
+      .spyOn(clipboard, 'copyTextToClipboard')
+      .mockResolvedValue(true);
+    const products = [createProduct({ article: 'RO-900' })];
+
+    render(
+      <ProductModelModal
+        name='БЖ Meanwell 9V 1.66A'
+        products={products}
+        warehouses={[]}
+        printForms={defaultPrintForms}
+        readOnly
+        onClose={vi.fn()}
+        onSave={vi.fn(async () => true)}
+      />,
+    );
+
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: i18n.t('catalog.productModel.sections.main'),
+      }),
+    );
+
+    const articleField = document.querySelector('.product-model-article-field');
+    const copyButton = articleField?.querySelector('.copyable-value-copy');
+    expect(copyButton).not.toBeNull();
+
+    fireEvent.click(copyButton as HTMLButtonElement);
+    await waitFor(() => {
+      expect(copySpy).toHaveBeenCalledWith('RO-900');
+    });
+
+    copySpy.mockRestore();
+  });
 });
+
+describe('ProductModelModal stock label print without loaded settings', () => {
+  it('does not print and shows that settings are loading', async () => {
+    const openSpy = vi.spyOn(window, 'open').mockReturnValue(null);
+    const unit = createProduct({ id: 'unit-1', serialNumber: 'S000101' });
+
+    render(
+      <ProductModelModal
+        name={unit.name}
+        products={[unit]}
+        warehouses={[]}
+        printForms={null}
+        printProduct={unit}
+        onClose={vi.fn()}
+        onSave={vi.fn(async () => true)}
+      />,
+    );
+
+    fireEvent.click(getPrintButton());
+
+    expect(await screen.findByRole('status')).toHaveTextContent(
+      i18n.t('warehouse.print.settingsLoading'),
+    );
+    expect(openSpy).not.toHaveBeenCalled();
+    openSpy.mockRestore();
+  });
+});
+

@@ -315,7 +315,7 @@ describe('StockTable selectable links', () => {
     expect(onOpenSerial).not.toHaveBeenCalled();
   });
 
-  it('copies name and serial from the hover icon without opening cards', async () => {
+  it('copies name, serial, and article from the hover icon without opening cards', async () => {
     const onOpenModel = vi.fn();
     const onOpenSerial = vi.fn();
     const copySpy = vi
@@ -333,7 +333,7 @@ describe('StockTable selectable links', () => {
     const copyButtons = screen.getAllByRole('button', {
       name: 'Copy',
     });
-    expect(copyButtons).toHaveLength(2);
+    expect(copyButtons).toHaveLength(3);
 
     fireEvent.click(copyButtons[0]);
     await waitFor(() => {
@@ -344,8 +344,28 @@ describe('StockTable selectable links', () => {
     await waitFor(() => {
       expect(copySpy).toHaveBeenCalledWith('SN-12345');
     });
+
+    fireEvent.click(copyButtons[2]);
+    await waitFor(() => {
+      expect(copySpy).toHaveBeenCalledWith('ART-001');
+    });
     expect(onOpenModel).not.toHaveBeenCalled();
     expect(onOpenSerial).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByText('ART-001'));
+    expect(onOpenModel).toHaveBeenCalledWith(product);
+  });
+
+  it('hides the copy icon when article is blank or whitespace-only', () => {
+    render(
+      <StockTable
+        {...stockTableProps}
+        products={[{ ...product, article: '   ' }]}
+        visibleColumns={['article']}
+      />,
+    );
+
+    expect(screen.queryByRole('button', { name: 'Copy' })).toBeNull();
   });
 });
 
@@ -526,6 +546,45 @@ describe('StockTable models view', () => {
       'product-1',
       'product-2',
     ]);
+  });
+
+  it('copies article on the group row without opening the model', async () => {
+    const onOpenModel = vi.fn();
+    const copySpy = vi
+      .spyOn(clipboard, 'copyTextToClipboard')
+      .mockResolvedValue(true);
+    const second: Product = {
+      ...product,
+      id: 'product-2',
+      serialNumber: 'SN-99999',
+    };
+
+    render(
+      <StockTable
+        {...stockTableProps}
+        products={[product, second]}
+        groups={[
+          {
+            id: 'iphone-15::art-001',
+            name: 'iPhone 15',
+            article: 'ART-001',
+            products: [product, second],
+          },
+        ]}
+        view='models'
+        visibleColumns={['article']}
+        onOpenModel={onOpenModel}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Copy' }));
+    await waitFor(() => {
+      expect(copySpy).toHaveBeenCalledWith('ART-001');
+    });
+    expect(onOpenModel).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByText('ART-001'));
+    expect(onOpenModel).toHaveBeenCalledWith(product);
   });
 
   it('resizes the name column from the header handle', () => {

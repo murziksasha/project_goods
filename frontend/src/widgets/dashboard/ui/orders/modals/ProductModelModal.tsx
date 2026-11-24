@@ -5,7 +5,6 @@ import type { Product, ProductModelUpdatePayload } from '../../../../../entities
 import type { Sale, StockOrderLink } from '../../../../../entities/sale';
 import { getStockOrderLinks } from '../../../../../entities/sale';
 import type { PrintForm } from '../../../../../entities/settings';
-import { defaultPrintForms } from '../../../../../entities/settings';
 import type { SupplierOrder } from '../../../../../entities/supplier-order';
 import type { WarehouseItem } from '../../../../../entities/warehouse-settings';
 import { formatCurrency, formatDate } from '../../../../../shared/lib/format';
@@ -45,7 +44,8 @@ export interface ProductModelModalProps {
   supplierOrders?: SupplierOrder[];
   currentSaleId?: string;
   warehouses: WarehouseItem[];
-  printForms?: PrintForm[];
+  /** Saved print forms; `null` while settings are loading (printing is blocked). */
+  printForms: PrintForm[] | null;
   printProduct?: Product | null;
   selectedSerial?: { serialNumber: string; product: Product | null };
   usePortal?: boolean;
@@ -79,7 +79,7 @@ export const ProductModelModal: React.FC<ProductModelModalProps> = ({
   supplierOrders = EMPTY_SUPPLIER_ORDERS,
   currentSaleId,
   warehouses,
-  printForms = defaultPrintForms,
+  printForms,
   printProduct = null,
   selectedSerial,
   usePortal = false,
@@ -126,6 +126,7 @@ export const ProductModelModal: React.FC<ProductModelModalProps> = ({
     'prices',
   ]);
   const [copyStatus, setCopyStatus] = useState('');
+  const [printStatus, setPrintStatus] = useState('');
   const stockSummary = useMemo(
     () => aggregateProductModelStock(matchingProducts, warehouses),
     [matchingProducts, warehouses],
@@ -268,6 +269,13 @@ export const ProductModelModal: React.FC<ProductModelModalProps> = ({
     return () => window.clearTimeout(timeoutId);
   }, [copyStatus]);
 
+  useEffect(() => {
+    if (!printStatus) return;
+
+    const timeoutId = window.setTimeout(() => setPrintStatus(''), 3000);
+    return () => window.clearTimeout(timeoutId);
+  }, [printStatus]);
+
   const isSectionOpen = (section: ProductModelSection) =>
     openSections.includes(section);
 
@@ -340,7 +348,11 @@ export const ProductModelModal: React.FC<ProductModelModalProps> = ({
       items,
       printForms,
       t('catalog.productModel.printSerialTitle'),
-    );
+    ).then((result) => {
+      if (result === 'settings-loading') {
+        setPrintStatus(t('warehouse.print.settingsLoading'));
+      }
+    });
   };
 
   const renderSectionHeader = (section: ProductModelSection) => {
@@ -390,6 +402,11 @@ export const ProductModelModal: React.FC<ProductModelModalProps> = ({
           </button>
           {copyStatus ? (
             <span className="product-model-copy-tooltip">{copyStatus}</span>
+          ) : null}
+          {printStatus ? (
+            <span className="product-model-copy-tooltip" role="status">
+              {printStatus}
+            </span>
           ) : null}
           {printableSerialRows.length > 0 ? (
             <button
@@ -488,8 +505,10 @@ export const ProductModelModal: React.FC<ProductModelModalProps> = ({
                 <span>{t('catalog.productModel.name')}</span>
                 <input value={name} readOnly />
               </label>
-              <label className='field'>
-                <span>{t('catalog.productModel.article')}</span>
+              <label className='field product-model-article-field'>
+                <CopyableValue value={form.article}>
+                  <span>{t('catalog.productModel.article')}</span>
+                </CopyableValue>
                 <input
                   value={form.article}
                   onChange={(event) =>

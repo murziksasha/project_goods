@@ -352,6 +352,16 @@ benefit without being recreated:
 - Fallback when the DOM is not laid out (tests, hidden preview): hero texts get
   a static step by length — 5 chars 6.2 mm, 6 chars 5.2 mm, 7 chars 4.5 mm,
   8+ chars 3.9 mm (`print-fit-chars-N`).
+- Normal-size label paragraphs (for example the `Product barcode` title
+  `{{labelTitle}}`) are auto-fitted too (2026-11-24): the configured size is the
+  start/maximum, the font shrinks until the text fits (minimum 6 px). Serial
+  lines (`print-label-serial`) keep wrapping instead. Normal paragraphs do not
+  get `print-fit-text`, so their CSS ellipsis stays.
+- Any fitted label text that still overflows at 6 px gets `print-fit-ellipsis`
+  (single line, `overflow: hidden`, `text-overflow: ellipsis`). The class and the
+  inline font size are reset on every fit run.
+- Applies to **all label forms** (`warehouse-barcode`, `barcode`,
+  `new-barcode-*`, custom label templates): texts that already fit are unchanged.
 
 ## Print menu visibility (2026-11-18)
 
@@ -384,11 +394,49 @@ Stored as `printForms[].printMenuVisibility: Array<'sale' | 'repair' | 'warehous
 ### Purpose
 
 The `Product barcode` form (`formId: warehouse-barcode`) prints identification
-labels for **warehouse stock units** by serial number. It is used from:
+labels for **warehouse stock units** by serial number. Auto serials (`S000…`)
+and manually entered serials print identically: nothing in the print pipeline
+depends on the serial format.
 
-- `Warehouse -> Stock balances` toolbar bulk print
-- product model modal print action (opened from `Serial #`)
-- optional print after supplier-order take-on-charge
+### Saved Forms Only (2026-11-24)
+
+Stock labels print **only** with the saved print forms of the settings
+(`GET /api/settings` → `printForms`) merged with the employee's local layout
+overrides (`applyPrintFormLocalOverrides`, `project-goods.print-form-overrides.{employeeId}`).
+There is **no built-in fallback anywhere**: `SupplierOrderModal` and
+`ProductModelModal` require `printForms: PrintForm[] | null` and have no
+`defaultPrintForms` default.
+
+`DashboardPage` builds `labelPrintForms` only from loaded settings
+(`state.settings ? applyPrintFormLocalOverrides(state.settings.printForms, employeeId) : null`);
+the unsaved builder state (`settingsForm`) is never used for stock labels.
+
+| Print point | UI path | Forms source |
+|---|---|---|
+| Warehouse bulk print | `Warehouse -> Stock balances`, toolbar printer | `DashboardPage` → `WarehousePanel` |
+| Warehouse receipt | `Warehouse` → `SupplierOrderModal` (Receive to stock) | `WarehousePanel` → `SupplierOrderModal` |
+| Supplier orders receipt | `Orders -> Supplier orders` → order → `Receive to stock` | `DashboardPage` → `SupplierOrdersWorkspace` → `SupplierOrderModal` |
+| Order card receipt | order card → related supplier order → `Receive to stock` | `DashboardPage` → `OrdersWorkspace` (`labelPrintForms`) → `OrderDetailCard` (`printForms`) → `SupplierOrderModal` |
+| Order line items | order card → product line → product model card | `OrderDetailCard` → `OrderDetailLineItemsPanel` → `ProductModelModal` (its create-only `SupplierOrderModal` gets the same forms but has no receipt) |
+| Product model card | `Serial #` in warehouse / order card | `WarehousePanel` / `OrderDetailLineItemsPanel` → `ProductModelModal` |
+| Serial history | client card history, create order side panel | `HistorySerialModal` reads `useSettingsQuery` (shared settings cache) + local overrides |
+| Profit report | `Accounting -> Reports` → product row | `AccountingPanel` → `AccountingProfitReportsView` (optional prop, default `null`) → `ProfitReportCatalogModalHost` → `ProductModelModal` |
+
+Settings not loaded (`printForms === null`):
+
+1. `printWarehouseSerialLabels` / `printSerialNumbers` return `'settings-loading'`
+   and open no print window (result type `WarehouseLabelPrintResult`:
+   `'printed' | 'empty' | 'settings-loading'`).
+2. The UI shows i18n key `warehouse.print.settingsLoading`:
+   uk `Зачекайте, налаштування завантажуються`, en `Please wait, settings are loading`.
+   Warehouse and receipt use `onError`; the product model card shows it as a
+   short status (`role="status"`) next to the print button.
+3. Print after receipt: the stock is **still received**, the receipt modal
+   closes as usual and the message comes through `onError`. The labels can be
+   reprinted later from `Warehouse -> Stock balances`.
+4. A profit report without `printForms` is blocked the same way (never falls
+   back to built-in forms). The read-only `SupplierOrderModal` in
+   `AccountingPanel` receives the same forms; it has no receipt action.
 
 Warehouse flow rules: [WAREHOUSE_FLOW.md](./WAREHOUSE_FLOW.md#45-serial-label-printing-stock-balances).
 
@@ -401,9 +449,31 @@ Warehouse flow rules: [WAREHOUSE_FLOW.md](./WAREHOUSE_FLOW.md#45-serial-label-pr
    - `labelSize`
    - `orientation`
    - `pageSize`
-   - `layoutBlocks`
+   - `layoutBlocks` (except a `{{labelContact}}` paragraph, see below)
    - `isActive`
 3. After migration, the two forms evolve independently in Settings.
+
+### Built-in Layout (2026-11-24)
+
+The built-in form is the default for new installs and the builder; it is not a
+print fallback (see [Saved Forms Only](#saved-forms-only-2026-11-24)).
+
+1. The built-in `warehouse-barcode` is block based: `warehouse-barcode-code`
+   (barcode), `warehouse-barcode-number` (heading `{{labelCode}}`),
+   `warehouse-barcode-title` (paragraph `{{labelTitle}}`). The article line
+   (`{{labelContact}}`) is not part of the default; the label prints only the
+   blocks configured in Settings. Users may add a `{{labelContact}}` block.
+2. A saved `warehouse-barcode` without `layoutBlocks` whose HTML equals the old
+   built-in template (`<span>{{labelTitle}}</span>` …, compared with collapsed
+   whitespace) is migrated to the built-in blocks on load. Title, label size,
+   orientation, margins, active flag and print menu visibility are kept.
+   Manually edited HTML is left untouched.
+3. The title block (`Text`, `{{labelTitle}}`) renders as
+   `<p class="print-block-paragraph print-block-paragraph-level-N …">` with the
+   configured `print-block-weight-*`, `print-text-size-*` and `print-align-*`
+   classes, so Level / Weight / Size / Align always apply. Long titles are
+   auto-fitted (see [Order number always prints in full](#order-number-always-prints-in-full-2026-11-18-fix)):
+   down to 6 px, then `print-fit-ellipsis`.
 
 ### Page Setup
 
@@ -418,7 +488,8 @@ Warehouse flow rules: [WAREHOUSE_FLOW.md](./WAREHOUSE_FLOW.md#45-serial-label-pr
 
 - `barcode` and `labelCode`: stock `Product.serialNumber`
 - `labelTitle`: stock `Product.name`
-- `labelContact`: stock `Product.article` (may be empty)
+- `labelContact`: stock `Product.article` (may be empty); printed only when the
+  form has a block with `{{labelContact}}`
 
 ### Single vs Batch Print
 
@@ -449,6 +520,10 @@ Implementation:
    when `N > 1`.
 3. Single warehouse print still uses one-page single-label container behavior.
 4. Settings changes to `Product barcode` apply to warehouse prints on next run.
+5. Every print point in [Saved Forms Only](#saved-forms-only-2026-11-24) uses the
+   same saved form; `S000…` and manual serials look identical.
+6. Without loaded settings nothing is printed and the operator sees
+   `warehouse.print.settingsLoading`.
 
 ## Barcode Label (Order)
 

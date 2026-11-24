@@ -876,7 +876,7 @@ export const WarehousePanel: React.FC<WarehousePanelProps> = ({
   const printSelectedStockSerials = useCallback(() => {
     if (selectedStockProductsWithSerials.length === 0) return;
 
-    printSerialNumbers(
+    void printSerialNumbers(
       selectedStockProductsWithSerials.map((product) => ({
         name: product.name,
         article: product.article,
@@ -884,8 +884,12 @@ export const WarehousePanel: React.FC<WarehousePanelProps> = ({
       })),
       printForms,
       i18n.t('warehouse.print.serialNumbersTitle'),
-    );
-  }, [i18n, printForms, selectedStockProductsWithSerials]);
+    ).then((result) => {
+      if (result === 'settings-loading') {
+        onError(i18n.t('warehouse.print.settingsLoading'));
+      }
+    });
+  }, [i18n, onError, printForms, selectedStockProductsWithSerials]);
 
   useEffect(() => {
     setSelectedStockProductIds((current) => {

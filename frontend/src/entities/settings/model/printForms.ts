@@ -561,6 +561,25 @@ const lineItemsSections = `
   {{products_table}}
 `;
 
+// Built-in Product barcode stock label: barcode, serial and product name.
+// The article (`{{labelContact}}`) is not printed unless the user adds a block.
+const warehouseBarcodeLayoutBlocks: PrintLayoutBlock[] = [
+  { id: 'warehouse-barcode-code', type: 'barcode', value: '{{barcode}}', showValue: false, size: 'large' },
+  { id: 'warehouse-barcode-number', type: 'heading', level: 3, text: '{{labelCode}}', align: 'center' },
+  { id: 'warehouse-barcode-title', type: 'paragraph', level: 3, text: '{{labelTitle}}', align: 'center' },
+];
+
+// Legacy built-in Product barcode HTML (before layout blocks). Saved forms that
+// still match it exactly are migrated to `warehouseBarcodeLayoutBlocks`.
+const legacyWarehouseBarcodeContent = `
+      <div class="print-label">
+        <div class="print-label-code">{{barcode}}</div>
+        <strong class="print-label-serial">{{labelCode}}</strong>
+        <span>{{labelTitle}}</span>
+        <span>{{labelContact}}</span>
+      </div>
+    `;
+
 export const defaultPrintForms: PrintForm[] = [
   {
     id: 'receipt',
@@ -754,15 +773,10 @@ export const defaultPrintForms: PrintForm[] = [
     id: 'warehouse-barcode',
     title: 'Product barcode',
     type: 'barcode',
-    content: `
-      <div class="print-label">
-        <div class="print-label-code">{{barcode}}</div>
-        <strong class="print-label-serial">{{labelCode}}</strong>
-        <span>{{labelTitle}}</span>
-        <span>{{labelContact}}</span>
-      </div>
-    `,
+    content: renderPrintLayout(warehouseBarcodeLayoutBlocks, 'label'),
     contentFormat: 'html',
+    layoutVersion: 1,
+    layoutBlocks: warehouseBarcodeLayoutBlocks.map((block) => ({ ...block })),
     pageSize: 'label',
     labelSize: defaultBarcodeLabelSize,
     orientation: 'landscape',
@@ -1095,10 +1109,6 @@ const newBarcodeWithBarLayoutBlocks: PrintLayoutBlock[] = [
 const newBarcodeWithoutBarLayoutBlocks: PrintLayoutBlock[] =
   newBarcodeLayoutBlocks('new-barcode-without-bar');
 
-const warehouseBarcodeLayoutBlocks: PrintLayoutBlock[] = barcodeLayoutBlocks.map((block) => ({
-  ...block,
-  id: block.id.replace(/^barcode-/, 'warehouse-barcode-'),
-}));
 
 export const defaultPrintLayouts: Record<string, PrintLayoutBlock[]> = {
   receipt: receiptLayoutBlocks,
@@ -1193,11 +1203,26 @@ const isLegacyStandardPrintForm = (form: PrintForm) => {
     !form.content.includes('{{services_table}}');
 };
 
+const normalizeTemplateWhitespace = (value: string) => value.replace(/\s+/g, ' ').trim();
+
+/**
+ * Saved Product barcode that is still the untouched legacy built-in HTML
+ * (no layout blocks). Edited HTML never matches and is kept as is.
+ */
+const isLegacyBuiltInWarehouseBarcode = (form: PrintForm) =>
+  form.id === warehouseBarcodePrintFormId &&
+  !form.layoutBlocks?.length &&
+  normalizeTemplateWhitespace(form.content ?? '') ===
+    normalizeTemplateWhitespace(legacyWarehouseBarcodeContent);
+
 const isRecognizableDefaultPrintForm = (form: PrintForm) => {
   if (form.id === 'barcode' || form.id === warehouseBarcodePrintFormId) return false;
   const defaultForm = defaultPrintForms.find((item) => item.id === form.id);
   return Boolean(defaultForm) && hasBuiltInDefaultTitle(form);
 };
+
+const isLabelContactBlock = (block: PrintLayoutBlock) =>
+  block.type === 'paragraph' && block.text.trim() === '{{labelContact}}';
 
 const cloneBarcodeFormLayoutSettings = (
   source: PrintForm,
@@ -1206,12 +1231,16 @@ const cloneBarcodeFormLayoutSettings = (
   ...target,
   layoutBlocks: source.layoutBlocks?.length
     ? normalizePrintLayoutBlocks(
-        source.layoutBlocks.map((block) => ({
-          ...block,
-          id: block.id.startsWith('barcode-')
-            ? block.id.replace(/^barcode-/, 'warehouse-barcode-')
-            : block.id,
-        })),
+        source.layoutBlocks
+          // Product barcode prints only what is configured: the order label
+          // contact line (`{{labelContact}}` = article here) is not copied.
+          .filter((block) => !isLabelContactBlock(block))
+          .map((block) => ({
+            ...block,
+            id: block.id.startsWith('barcode-')
+              ? block.id.replace(/^barcode-/, 'warehouse-barcode-')
+              : block.id,
+          })),
       )
     : target.layoutBlocks,
   contentMargins: source.contentMargins,
@@ -1379,7 +1408,14 @@ export const normalizePrintFormsForView = (forms: PrintForm[]) => {
           (isPreviousDefaultInvoice(form) ||
             isLegacyStandardPrintForm(form) ||
             isRecognizableDefaultPrintForm(form)));
-      const normalizedForm = shouldUseDefaultLayout
+      const normalizedForm = isLegacyBuiltInWarehouseBarcode(form)
+        ? // Keep the user's label size, margins, title and visibility; swap only the layout.
+          createLayoutPrintForm({
+            ...form,
+            contentFormat: 'html',
+            layoutBlocks: getDefaultPrintLayoutBlocks(warehouseBarcodePrintFormId),
+          })
+        : shouldUseDefaultLayout
         ? createLayoutPrintForm(defaultPrintForms.find((defaultForm) => defaultForm.id === form.id) ?? form)
         : hasLayoutBlocks(form)
           ? withGeneratedContent({
@@ -1676,6 +1712,7 @@ export const printLabelDocumentStyles = `
   .print-label .print-block-heading.print-text-size-xlarge, .print-label .print-block-paragraph.print-text-size-xlarge { font-size: 4.5mm; line-height: 1; }
   .print-label .print-block-heading.print-text-size-hero, .print-label .print-block-paragraph.print-text-size-hero { font-size: 7.5mm; line-height: 1; letter-spacing: -0.02em; }
   .print-label .print-block-heading.print-fit-text, .print-label .print-block-paragraph.print-fit-text { white-space: nowrap; overflow: visible; text-overflow: clip; }
+  .print-label .print-block-heading.print-fit-ellipsis, .print-label .print-block-paragraph.print-fit-ellipsis { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .print-label .print-text-size-hero.print-fit-chars-5 { font-size: 6.2mm; }
   .print-label .print-text-size-hero.print-fit-chars-6 { font-size: 5.2mm; }
   .print-label .print-text-size-hero.print-fit-chars-7 { font-size: 4.5mm; }

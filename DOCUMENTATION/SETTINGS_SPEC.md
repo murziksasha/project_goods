@@ -81,6 +81,8 @@ Each template has **Show in print menu** checkboxes (Sale / Repair / Warehouse (
 
 Phone variables print in Ukrainian local format `050-556-70-90` (country code removed, 3-3-2-2); foreign or unparsable numbers print as-is. Rules: [PRINT_FORMS_SPEC.md → Phone Print Format](./PRINT_FORMS_SPEC.md#phone-print-format-2026-11-18).
 
+Stock labels (`Product barcode`) print only with the **saved** forms plus the employee's local overrides; there is no built-in fallback, and printing is blocked with `warehouse.print.settingsLoading` until settings are loaded. Unsaved builder changes do not affect printing. Rules: [PRINT_FORMS_SPEC.md → Saved Forms Only](./PRINT_FORMS_SPEC.md#saved-forms-only-2026-11-24).
+
 Save writes template **content** to the API. Per-employee layout (margins, page/label size, orientation) is written to `project-goods.print-form-overrides.{employeeId}` only on **Save settings**.
 
 ## Backups

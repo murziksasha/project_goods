@@ -30,7 +30,6 @@ import type {
 } from '../../../../../entities/supplier-order';
 import { getWarehouseSettings } from '../../../../../entities/warehouse-settings';
 import type { PrintForm } from '../../../../../entities/settings';
-import { defaultPrintForms } from '../../../../../entities/settings';
 import { printSerialNumbers } from '../workspace/orders-workspace-shared';
 import {
   normalizeDecimalInput,
@@ -75,7 +74,8 @@ export type SupplierOrderModalSubmitPayload = {
 
 export interface SupplierOrderModalProps {
   isOpen: boolean;
-  printForms?: PrintForm[];
+  /** Saved print forms; `null` while settings are loading (printing is blocked). */
+  printForms: PrintForm[] | null;
   suppliers: Supplier[];
   initialProductName?: string;
   initialQuantity?: number;
@@ -153,7 +153,7 @@ export const SupplierOrderModal: React.FC<
   SupplierOrderModalProps
 > = ({
   isOpen,
-  printForms = defaultPrintForms,
+  printForms,
   suppliers,
   initialProductName = '',
   initialQuantity = 1,
@@ -1804,7 +1804,9 @@ export const SupplierOrderModal: React.FC<
                       shouldPrintSerials &&
                       result?.stockedProducts?.length
                     ) {
-                      printSerialNumbers(
+                      // Stock is already received; when print forms are not
+                      // loaded yet the labels can be reprinted from Warehouse.
+                      void printSerialNumbers(
                         result.stockedProducts.map((product) => ({
                           name: product.name,
                           article: product.article,
@@ -1814,7 +1816,11 @@ export const SupplierOrderModal: React.FC<
                         t(
                           'orders.supplier.modal.receivedSerialNumbers',
                         ),
-                      );
+                      ).then((printResult) => {
+                        if (printResult === 'settings-loading') {
+                          onError(t('warehouse.print.settingsLoading'));
+                        }
+                      });
                     }
                     setIsSerialModalOpen(false);
                     onClose();

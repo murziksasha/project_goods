@@ -31,7 +31,8 @@ export type OrderDetailCardProps = {
   comments: TimelineEntry[];
   lineItems: OrderLineItem[];
   products: Product[];
-  printForms: PrintForm[];
+  /** Saved print forms for stock labels; `null` while settings are loading. */
+  printForms: PrintForm[] | null;
   clientDevices: ClientDevice[];
   catalogProducts: CatalogProduct[];
   paidAmount: number;
