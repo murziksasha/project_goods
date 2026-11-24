@@ -162,6 +162,7 @@ describe('ProductModelModal selected historical serial', () => {
         sales={[saleBindingProduct('issued-sale', sold, 'issued')]}
         supplierOrders={[createSupplierOrder()]}
         warehouses={[]}
+        printForms={defaultPrintForms}
         selectedSerial={{ serialNumber: sold.serialNumber, product: sold }}
         readOnly
         onClose={vi.fn()}
@@ -210,6 +211,7 @@ describe('ProductModelModal selected historical serial', () => {
         products={[sold]}
         sales={[saleBindingProduct('issued-sale', sold, 'issued')]}
         warehouses={[]}
+        printForms={defaultPrintForms}
         selectedSerial={{ serialNumber: sold.serialNumber, product: sold }}
         readOnly
         onClose={vi.fn()}
@@ -234,6 +236,7 @@ describe('ProductModelModal selected historical serial', () => {
         name='Historical product'
         products={[]}
         warehouses={[]}
+        printForms={defaultPrintForms}
         selectedSerial={{ serialNumber: 'S-MISSING', product: null }}
         readOnly
         onClose={vi.fn()}
@@ -275,7 +278,7 @@ describe('ProductModelModal serial printing', () => {
   it('pre-selects the clicked serial and prints it by default', () => {
     const printSpy = vi
       .spyOn(ordersWorkspaceShared, 'printWarehouseSerialLabels')
-      .mockResolvedValue();
+      .mockResolvedValue('printed');
 
     const clickedProduct = createProduct({
       id: 'clicked-product',
@@ -335,7 +338,7 @@ describe('ProductModelModal serial printing', () => {
   it('prints all checked serials and updates badge count', () => {
     const printSpy = vi
       .spyOn(ordersWorkspaceShared, 'printWarehouseSerialLabels')
-      .mockResolvedValue();
+      .mockResolvedValue('printed');
 
     const first = createProduct({
       id: 'product-a',
@@ -1064,3 +1067,31 @@ describe('ProductModelModal serial printing', () => {
     copySpy.mockRestore();
   });
 });
+
+describe('ProductModelModal stock label print without loaded settings', () => {
+  it('does not print and shows that settings are loading', async () => {
+    const openSpy = vi.spyOn(window, 'open').mockReturnValue(null);
+    const unit = createProduct({ id: 'unit-1', serialNumber: 'S000101' });
+
+    render(
+      <ProductModelModal
+        name={unit.name}
+        products={[unit]}
+        warehouses={[]}
+        printForms={null}
+        printProduct={unit}
+        onClose={vi.fn()}
+        onSave={vi.fn(async () => true)}
+      />,
+    );
+
+    fireEvent.click(getPrintButton());
+
+    expect(await screen.findByRole('status')).toHaveTextContent(
+      i18n.t('warehouse.print.settingsLoading'),
+    );
+    expect(openSpy).not.toHaveBeenCalled();
+    openSpy.mockRestore();
+  });
+});
+

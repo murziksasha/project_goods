@@ -731,3 +731,137 @@ describe('normalizePrintFormsForView', () => {
     expect(invoice?.content).toContain('{{customer_iban}}');
   });
 });
+
+describe('Product barcode (warehouse-barcode) layout', () => {
+  const legacyWarehouseBarcodeHtml = `
+      <div class="print-label">
+        <div class="print-label-code">{{barcode}}</div>
+        <strong class="print-label-serial">{{labelCode}}</strong>
+        <span>{{labelTitle}}</span>
+        <span>{{labelContact}}</span>
+      </div>
+    `;
+  const findWarehouseBarcode = (forms: ReturnType<typeof normalizePrintFormsForView>) =>
+    forms.find((form) => form.id === 'warehouse-barcode')!;
+
+  it('built-in form is block based: barcode, serial, title; no article line', () => {
+    const builtIn = defaultPrintForms.find((form) => form.id === 'warehouse-barcode')!;
+    expect(builtIn.layoutVersion).toBe(1);
+    expect(builtIn.layoutBlocks?.map((block) => block.id)).toEqual([
+      'warehouse-barcode-code',
+      'warehouse-barcode-number',
+      'warehouse-barcode-title',
+    ]);
+    const normalized = findWarehouseBarcode(normalizePrintFormsForView(defaultPrintForms));
+    expect(normalized.content).toContain('print-block-paragraph');
+    expect(normalized.content).toContain('{{labelTitle}}');
+    expect(normalized.content).not.toContain('<span>{{labelTitle}}</span>');
+    expect(normalized.content).not.toContain('{{labelContact}}');
+  });
+
+  it('migrates an untouched legacy HTML form to blocks and keeps its settings', () => {
+    const normalized = findWarehouseBarcode(
+      normalizePrintFormsForView([
+        {
+          id: 'warehouse-barcode',
+          title: 'Наклейка складу',
+          type: 'barcode',
+          content: legacyWarehouseBarcodeHtml.replace(/\n\s*/g, ' '),
+          contentFormat: 'html',
+          pageSize: 'label',
+          labelSize: { presetId: '58x40', widthMm: 58, heightMm: 40 },
+          orientation: 'portrait',
+          contentMargins: { topMm: 1, rightMm: 2, bottomMm: 1, leftMm: 2 },
+          isActive: true,
+          printMenuVisibility: ['warehouse'],
+          sortOrder: 65,
+        },
+      ]),
+    );
+
+    expect(normalized.layoutBlocks?.map((block) => block.id)).toEqual([
+      'warehouse-barcode-code',
+      'warehouse-barcode-number',
+      'warehouse-barcode-title',
+    ]);
+    expect(normalized.title).toBe('Наклейка складу');
+    expect(normalized.labelSize).toEqual({ presetId: '58x40', widthMm: 58, heightMm: 40 });
+    expect(normalized.orientation).toBe('portrait');
+    expect(normalized.contentMargins).toEqual({ topMm: 1, rightMm: 2, bottomMm: 1, leftMm: 2 });
+    expect(normalized.printMenuVisibility).toEqual(['warehouse']);
+    expect(normalized.content).not.toContain('{{labelContact}}');
+  });
+
+  it('keeps a manually edited legacy HTML form untouched', () => {
+    const edited = legacyWarehouseBarcodeHtml.replace(
+      '<span>{{labelContact}}</span>',
+      '<span>Art: {{labelContact}}</span>',
+    );
+    const normalized = findWarehouseBarcode(
+      normalizePrintFormsForView([
+        {
+          id: 'warehouse-barcode',
+          title: 'Product barcode',
+          type: 'barcode',
+          content: edited,
+          contentFormat: 'html',
+          pageSize: 'label',
+          orientation: 'landscape',
+          isActive: true,
+          sortOrder: 65,
+        },
+      ]),
+    );
+
+    expect(normalized.layoutBlocks).toBeUndefined();
+    expect(normalized.content).toBe(edited);
+  });
+
+  it('does not copy the order label contact line when created from the Barcode form', () => {
+    const normalized = findWarehouseBarcode(
+      normalizePrintFormsForView([
+        createLayoutPrintForm({
+          ...defaultPrintForms.find((form) => form.id === 'barcode')!,
+          layoutBlocks: undefined,
+        }),
+      ]),
+    );
+
+    expect(normalized.layoutBlocks?.map((block) => block.id)).toEqual([
+      'warehouse-barcode-code',
+      'warehouse-barcode-number',
+      'warehouse-barcode-title',
+    ]);
+    expect(normalized.content).not.toContain('{{labelContact}}');
+  });
+
+  it('applies the title block weight and size on the printed label', () => {
+    const blocks = normalizePrintLayoutBlocks([
+      { id: 'warehouse-barcode-code', type: 'barcode', value: '{{barcode}}', showValue: false, size: 'large' },
+      { id: 'warehouse-barcode-number', type: 'heading', level: 3, text: '{{labelCode}}', align: 'center' },
+      {
+        id: 'warehouse-barcode-title',
+        type: 'paragraph',
+        level: 3,
+        weight: 'bold',
+        size: 'large',
+        text: '{{labelTitle}}',
+        align: 'center',
+      },
+    ]);
+    const html = renderPrintTemplate(
+      renderPrintLayout(blocks, 'label'),
+      getWarehouseLabelTemplateData({ name: 'iPhone 13 Pro', article: 'ART-1', serialNumber: 'S000101' }),
+      'html',
+    );
+
+    const root = document.createElement('div');
+    root.innerHTML = html;
+    const title = Array.from(root.querySelectorAll('p.print-block-paragraph')).find(
+      (element) => element.textContent === 'iPhone 13 Pro',
+    );
+    expect(title?.classList.contains('print-block-weight-bold')).toBe(true);
+    expect(title?.classList.contains('print-text-size-large')).toBe(true);
+    expect(html).not.toContain('ART-1');
+  });
+});

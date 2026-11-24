@@ -21,12 +21,15 @@ import type {
 } from '../../../../entities/service-catalog';
 import type { SupplierOrder } from '../../../../entities/supplier-order';
 import { useWarehouseSettingsQuery } from '../../../../entities/warehouse-settings';
+import type { PrintForm } from '../../../../entities/settings';
 import { queryClient, queryKeys } from '../../../../shared/api/queryClient';
 import { ProductModelModal } from '../orders/modals/ProductModelModal';
 import { CatalogServiceModal } from '../product-catalog/ProductCatalogModals';
 import { resolveProfitReportCatalogTarget } from '../../model/profit-report';
 
 export interface ProfitReportCatalogModalHostProps {
+  /** Saved print forms for stock labels; `null` while settings are loading. */
+  printForms: PrintForm[] | null;
   row: ProfitMarginRow | null;
   services: ServiceCatalogItem[];
   sales: Sale[];
@@ -47,6 +50,7 @@ const invalidateCatalogQueries = async () => {
 
 export const ProfitReportCatalogModalHost: React.FC<ProfitReportCatalogModalHostProps> = ({
   row,
+  printForms,
   services,
   sales,
   supplierOrders,
@@ -86,6 +90,7 @@ export const ProfitReportCatalogModalHost: React.FC<ProfitReportCatalogModalHost
         sales={sales}
         supplierOrders={supplierOrders}
         warehouses={warehouseSettingsQuery.data?.warehouses ?? []}
+        printForms={printForms}
         isSaving={isSaving}
         readOnly={!canWrite}
         onClose={onClose}

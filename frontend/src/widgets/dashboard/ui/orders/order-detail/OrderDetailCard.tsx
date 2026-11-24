@@ -2145,6 +2145,7 @@ export const OrderDetailCard: React.FC<OrderDetailCardProps> = ({
       />
       <SupplierOrderModal
         isOpen={isRelatedSupplierOrderModalOpen}
+        printForms={printForms}
         suppliers={relatedSuppliers}
         editingOrder={selectedRelatedSupplierOrder}
         warehouseOptions={relatedWarehouseOptions}

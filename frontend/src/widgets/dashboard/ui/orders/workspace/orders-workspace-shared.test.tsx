@@ -1534,3 +1534,74 @@ describe('print phone format', () => {
     expect(getPrintTemplateData(sale, [], 0, 'r000124', printCompanySettings).clientPhone).toBe('+48123456789');
   });
 });
+
+describe('printWarehouseSerialLabels uses only the saved Product barcode form', () => {
+  const stubPrintWindow = () => {
+    const written: string[] = [];
+    const printWindow = {
+      document: {
+        write: (html: string) => {
+          written.push(html);
+        },
+        close: vi.fn(),
+        querySelectorAll: () => [],
+      },
+      focus: vi.fn(),
+      print: vi.fn(),
+      addEventListener: vi.fn(),
+      close: vi.fn(),
+    };
+    const openMock = vi.fn(() => printWindow);
+    vi.stubGlobal('open', openMock);
+    return { written, openMock };
+  };
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('blocks printing while settings are loading (null forms)', async () => {
+    const { openMock } = stubPrintWindow();
+
+    await expect(
+      printWarehouseSerialLabels(
+        [{ name: 'iPhone 13 Pro', article: 'ART-1', serialNumber: 'S000101' }],
+        null,
+        'Warehouse serial numbers',
+      ),
+    ).resolves.toBe('settings-loading');
+    expect(openMock).not.toHaveBeenCalled();
+  });
+
+  it('prints an auto serial with the configured title weight and size, without the article', async () => {
+    const { written } = stubPrintWindow();
+    const savedForms = defaultPrintForms.map((form) =>
+      form.id === 'warehouse-barcode'
+        ? {
+            ...form,
+            layoutBlocks: form.layoutBlocks?.map((block) =>
+              block.id === 'warehouse-barcode-title' && block.type === 'paragraph'
+                ? { ...block, weight: 'bold' as const, size: 'large' as const }
+                : block,
+            ),
+          }
+        : form,
+    );
+
+    await expect(
+      printWarehouseSerialLabels(
+        [{ name: 'iPhone 13 Pro', article: 'ART-1', serialNumber: 'S000101' }],
+        savedForms,
+        'Warehouse serial numbers',
+      ),
+    ).resolves.toBe('printed');
+
+    const html = written.join('');
+    expect(html).toContain('data-barcode-value="S000101"');
+    expect(html).toMatch(
+      /<p class="print-block-paragraph print-block-paragraph-level-3 print-align-center print-block-weight-bold print-text-size-large">iPhone 13 Pro<\/p>/,
+    );
+    expect(html).not.toContain('<span>iPhone 13 Pro</span>');
+    expect(html).not.toContain('ART-1');
+  });
+});

@@ -48,6 +48,13 @@ vi.mock('../../../../entities/warehouse-settings', async (importOriginal) => {
   };
 });
 
+vi.mock('../../../../entities/settings', async (importOriginal) => {
+  const actual = await importOriginal<
+    typeof import('../../../../entities/settings')
+  >();
+  return { ...actual, useSettingsQuery: () => idleQuery() };
+});
+
 vi.mock('../../../../entities/supplier-order', async (importOriginal) => {
   const actual = await importOriginal<
     typeof import('../../../../entities/supplier-order')

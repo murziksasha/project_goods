@@ -598,6 +598,7 @@ const renderPanel = (
     },
   });
   const panelProps: ComponentProps<typeof AccountingPanel> = {
+    printForms: [],
     currentEmployee: employee(),
     onError: vi.fn(),
     onSuccess: vi.fn(),
