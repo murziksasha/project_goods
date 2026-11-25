@@ -177,7 +177,7 @@ Shared control: [`frontend/src/shared/ui/CopyableValue.tsx`](../frontend/src/sha
 | Opened sale card | Number, Client, Phone, Created order, Issued order; rapid sales use the stored client snapshot | `OrderDetailCard.tsx` |
 | `Supplier Order` table | Order number (parent and child), Product, Supplier (not collapsed `N items` / child `—`) | `SupplierOrdersWorkspaceSections.tsx` |
 | Warehouse `Receipts` | Order number (lines + grouped parent) | `WarehouseTables.tsx` |
-| Warehouse `Stock balances` | Name, Serial #, Article, Client order, Supplier order (**not** Note) | `WarehouseTables.tsx` |
+| Warehouse `Stock balances` | Name, Serial #, Article (inline-flex icon spacing matching Serial #), Client order, Supplier order (**not** Note) | `WarehouseTables.tsx` |
 | Product model modal | Article field (on the label; whole-row `:hover` / `:focus-within` reveal; copies current draft including unsaved edits and read-only/disabled states), plus `Purchase by serial`: Serial #, Supplier order number (order click still opens `SupplierOrderModal`; Latest/Reserved stay outside the serial copy target), Client order number (order click still opens the sale/repair card; the icon copies the visible number) | `ProductModelModal.tsx` |
 | Serial bind modal candidate rows | Supplier order number (order click still opens `SupplierOrderModal`; bind modal stays open; serial toggle is separate). Spec: [WAREHOUSE_FLOW.md §4.3.2](./WAREHOUSE_FLOW.md#432-bind-modal-candidate-row-purchase-price--supplier-order) | `SerialBindModal.tsx` |
 | `Clients & suppliers` → Clients / Suppliers | Name, primary phone, and a matched additional phone when shown; each phone keeps an independent copy icon and `tel:` link | `ClientsTable.tsx`, `ClientsSuppliersWorkspace.tsx` |

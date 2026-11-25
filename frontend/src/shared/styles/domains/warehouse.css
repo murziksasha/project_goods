@@ -439,14 +439,11 @@
 }
 
 .warehouse-stock-cell-article .copyable-value {
-  display: flex;
-  align-items: center;
-  min-width: 0;
   max-width: 100%;
+  min-width: 0;
 }
 
 .warehouse-stock-cell-article .copyable-value-content {
-  flex: 1 1 auto;
   min-width: 0;
   overflow: hidden;
 }
