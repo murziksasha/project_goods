@@ -5,7 +5,8 @@ export type CreateOrderRequestPayload = {
   deviceName: string;
   deviceSerialNumber: string;
   deviceColor: string;
-  deviceKit: string;
+  /** Kit items accepted with the device (repair only). */
+  deviceKit: string[];
   serviceName: string;
   repairType: string;
   issueFromClient: string;

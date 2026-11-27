@@ -9,6 +9,9 @@ import type {
 } from '../../../../../entities/sale';
 import { isRepairOrder } from '../../../../../entities/sale';
 import {
+  formatSaleKit,
+  formatSaleKitLabel,
+  getSaleKit,
   getSaleListItemSerial,
   getSaleListLineItems,
   getSaleListPrimaryItem,
@@ -24,6 +27,7 @@ import {
 import { sanitizePrintHtml } from '../../../../../shared/lib/sanitizeHtml';
 import i18n from '../../../../../shared/i18n/config';
 import { formatAmountInWords, formatPrintAmount, printT } from '../../../../../shared/lib/printFormatting';
+import { formatPhoneForPrint } from '../../../../../shared/lib/phoneFormatter';
 import { getSaleClientDisplayName } from '../../../model/sale-client-display';
 import { groupPrintProductLineItems } from '../../../model/order-line-item-groups';
 import type { SupplierOrder } from '../../../../../entities/supplier-order';
@@ -39,6 +43,9 @@ import type {
 } from '../../../../../entities/client-device';
 import type { PrintForm } from '../../../../../entities/settings';
 import {
+  formatOrderNumberShort,
+  formatPrintAcceptedDate,
+  formatPrintAcceptedTime,
   getOrientedLabelSize,
   getIncludedVatAmounts,
   getPrintFormTemplateData,
@@ -49,6 +56,7 @@ import {
   normalizeLabelSize,
   printDocumentStyles,
   printLabelDocumentStyles,
+  fitPrintLabelLayout,
   renderPrintTemplate as renderSettingsPrintTemplate,
   type PrintTemplateData,
 } from '../../../../../entities/settings';
@@ -845,6 +853,28 @@ export const buildUpdatedMainInfoTimelineMessage = (author: string) =>
 export const buildUpdatedUserNoteTimelineMessage = (author: string) =>
   i18n.t('orders.timeline.updatedUserNote', { author });
 
+/** Order history line for a kit edit, e.g. `Олена оновив комплект: ЗП → ЗП, сумка.` */
+export type SaleKitChange = {
+  type: 'add' | 'remove';
+  items: readonly string[];
+};
+
+/** One order-history line per kit add / remove in the order card. */
+export const buildKitChangeTimelineMessage = (
+  author: string,
+  change: SaleKitChange,
+) =>
+  i18n.t(
+    change.type === 'add'
+      ? 'orders.timeline.addedKitItems'
+      : 'orders.timeline.removedKitItems',
+    {
+      author,
+      items: formatSaleKit(change.items),
+      interpolation: { escapeValue: false },
+    },
+  );
+
 export const readSavedOrderFilters = () => {
   try {
     const raw = JSON.parse(
@@ -1515,7 +1545,7 @@ export const getPrintTemplateData = (
   const repairLabelData = {
     labelCode: orderNumber,
     labelTitle: getSaleProductName(sale),
-    labelContact: sale.client.phone,
+    labelContact: formatPhoneForPrint(sale.client.phone),
   };
   const saleLabelData = getLabelProductData(lineItems, orderNumber);
   const labelData = isRepairLabel ? repairLabelData : saleLabelData;
@@ -1525,13 +1555,18 @@ export const getPrintTemplateData = (
     id: sale.id,
     orderNumber,
     repair_order_reference: isRepair ? `Ремонтне замовлення №${orderNumber}` : '',
-    service_center_phone: serviceCenter?.phone ?? '',
+    service_center_phone: formatPhoneForPrint(serviceCenter?.phone ?? ''),
     date: createdAt.split(',')[0] ?? createdAt,
     status: statusOption ? printT(statusOption.labelKey) : sale.status,
     clientName: getSaleClientDisplayName(sale, printT),
-    clientPhone: sale.isRapidSale ? '' : sale.client.phone,
+    clientPhone: sale.isRapidSale ? '' : formatPhoneForPrint(sale.client.phone),
     deviceName: isRepair ? getSaleProductName(sale) : '',
     serialNumber: isRepair ? getSaleProductSerialNumber(sale) : '',
+    kit: isRepair ? formatSaleKit(getSaleKit(sale)) : '',
+    kitLabel: isRepair ? formatSaleKitLabel(getSaleKit(sale)) : '',
+    orderNumberShort: formatOrderNumberShort(orderNumber),
+    acceptedDate: formatPrintAcceptedDate(sale.createdAt),
+    acceptedTime: formatPrintAcceptedTime(sale.createdAt),
     article: isRepair ? getSaleProductArticle(sale) : '',
     defect: sale.note || '-',
     comment: sale.note || '-',
@@ -1691,10 +1726,15 @@ export const renderOrderPrintCodes = async (
           height: isLabelBarcode ? 52 : 44,
           margin: 0,
         });
+        // Slim label barcodes are stretched to a fixed ~5 mm box.
+        if (node.closest('.print-code-row-slim')) {
+          node.setAttribute('preserveAspectRatio', 'none');
+        }
       } catch {
         node.replaceWith(node.ownerDocument.createTextNode(value));
       }
     });
+  fitPrintLabelLayout(root);
 };
 
 export const buildOrderPrintBody = (

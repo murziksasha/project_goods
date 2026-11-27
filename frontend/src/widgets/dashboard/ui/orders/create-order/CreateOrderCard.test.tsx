@@ -1284,6 +1284,31 @@ describe('CreateOrderCard', () => {
     expect(createClientMock).not.toHaveBeenCalled();
   });
 
+  it('adds kit chips with + / Enter and saves leftover kit text as the last item', async () => {
+    const onSave = vi.fn(async () => null);
+    renderCreateOrderCard('repair', onSave);
+
+    const kitInput = screen.getByRole('textbox', { name: 'Kit' });
+    fireEvent.change(kitInput, { target: { value: 'ЗП' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Add kit item' }));
+    fireEvent.change(kitInput, { target: { value: 'зп' } });
+    fireEvent.keyDown(kitInput, { key: 'Enter' });
+    fireEvent.change(kitInput, { target: { value: 'чохол' } });
+    fireEvent.keyDown(kitInput, { key: 'Enter' });
+    expect(screen.getByText('ЗП')).toBeInTheDocument();
+    expect(screen.getByText('чохол')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Remove чохол' }));
+    fireEvent.change(kitInput, { target: { value: ' сумка ' } });
+
+    fireEvent.click(screen.getByText('Save order'));
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalled();
+    });
+    expect(onSave).toHaveBeenCalledWith(
+      expect.objectContaining({ deviceKit: ['ЗП', 'сумка'] }),
+    );
+  });
+
   it('shows a soft phone length hint for a new client incomplete phone without blocking save', async () => {
     const onSave = vi.fn(async () => null);
     renderCreateOrderCard('repair', onSave);

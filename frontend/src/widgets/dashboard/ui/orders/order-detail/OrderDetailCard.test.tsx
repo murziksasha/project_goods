@@ -363,6 +363,7 @@ const buildCardElement = ({
   onDeleteClientDevice = vi.fn(async () => true),
   onSaveMainInfo = vi.fn(async () => undefined),
   onSaveUserNote = vi.fn(async () => undefined),
+  onChangeKit = vi.fn(async () => undefined),
   onError = vi.fn(),
   canAddComment = true,
   isReadOnly = false,
@@ -421,6 +422,7 @@ const buildCardElement = ({
   onDeleteClientDevice?: OrderDetailCardProps['onDeleteClientDevice'];
   onSaveMainInfo?: OrderDetailCardProps['onSaveMainInfo'];
   onSaveUserNote?: OrderDetailCardProps['onSaveUserNote'];
+  onChangeKit?: OrderDetailCardProps['onChangeKit'];
   onError?: (message: string) => void;
   canAddComment?: boolean;
   isReadOnly?: boolean;
@@ -506,6 +508,7 @@ const buildCardElement = ({
       onSuccess={onSuccess}
       onSaveMainInfo={onSaveMainInfo}
       onSaveUserNote={onSaveUserNote}
+      onChangeKit={onChangeKit}
     />
   );
 };
@@ -3500,6 +3503,7 @@ describe('OrderDetailCard product entry', () => {
         onSuccess={vi.fn()}
         onSaveMainInfo={vi.fn(async () => undefined)}
         onSaveUserNote={vi.fn(async () => undefined)}
+        onChangeKit={vi.fn(async () => undefined)}
       />,
     );
 

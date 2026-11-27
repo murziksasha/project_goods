@@ -10,6 +10,7 @@ import { useTranslation } from 'react-i18next';
 import { formatPhoneForDial } from '../../../../../shared/lib/phoneFormatter';
 import { hasEmployeePermission } from '../../../../../entities/employee';
 import {
+  getSaleKit,
   getSaleProductName,
   isLineItemEligibleForCostAudit,
   isRepairOrder,
@@ -116,6 +117,7 @@ import { UnboundSerialIssueModal } from '../modals/UnboundSerialIssueModal';
 import { OrderDetailDeviceModal } from './OrderDetailDeviceModal';
 import { OrderDetailLineItemsPanel } from './OrderDetailLineItemsPanel';
 import { OrderDetailNoteSection } from './OrderDetailNoteSection';
+import { OrderDetailKitField } from './OrderDetailKitField';
 import {
   orderDetailRelatedTabs,
   type OrderDetailCardProps,
@@ -190,6 +192,7 @@ export const OrderDetailCard: React.FC<OrderDetailCardProps> = ({
   onSuccess,
   onSaveMainInfo,
   onSaveUserNote,
+  onChangeKit,
 }) => {
   const { t, i18n } = useTranslation();
   const isSaleCard = !isRepairOrder(sale);
@@ -1412,6 +1415,12 @@ export const OrderDetailCard: React.FC<OrderDetailCardProps> = ({
                       </CopyableValue>
                     </dd>
                   </div>
+                  <OrderDetailKitField
+                    saleId={sale.id}
+                    kit={getSaleKit(sale)}
+                    canEdit={!isContentLocked}
+                    onChangeKit={onChangeKit}
+                  />
                 </>
               )}
               <div>

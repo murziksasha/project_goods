@@ -6,10 +6,12 @@ import type { Product } from '../../../../../entities/product';
 import { defaultPrintForms } from '../../../../../entities/settings';
 import i18n from '../../../../../shared/i18n/config';
 import {
+  renderOrderPrintCodes,
   allOrdersColumnKeys,
   buildOrderPrintBody,
   buildOrderPrintHtml,
   buildSupplierOrderLinkNote,
+  buildKitChangeTimelineMessage,
   computeOrderExtraLinesMenuPosition,
   computeOrderStatusMenuPosition,
   EMPTY_LINE_ITEM_SERIAL,
@@ -124,6 +126,56 @@ const printCompanySettings = {
   companySite: '',
 };
 
+describe('New Barcode label print data', () => {
+  it('provides orderNumberShort, Kyiv accepted date/time and the kit field', () => {
+    const sale = repairSale({
+      createdAt: '2026-11-10T14:00:00.000Z',
+      kit: ['ЗП', 'сумка'],
+      note: '(kits: old)',
+    });
+    const data = getPrintTemplateData(sale, [], 0, 'r000124', printCompanySettings);
+    expect(data.orderNumberShort).toBe('#124');
+    expect(data.acceptedDate).toBe('10.11.2026');
+    expect(data.acceptedTime).toBe('16:00');
+    expect(data.kit).toBe('ЗП, сумка');
+    expect(data.barcode).toBe('r000124');
+  });
+
+  it('falls back to the legacy (kits: ...) note for old orders', () => {
+    const sale = repairSale({ note: '(kits: ЗП, сумка)\nType: repair' });
+    expect(getPrintTemplateData(sale, [], 0, 'r000003', printCompanySettings).kit).toBe('ЗП, сумка');
+  });
+
+  it('leaves the kit empty for sales', () => {
+    const sale = repairSale({ kind: 'sale', kit: ['ЗП'] });
+    expect(getPrintTemplateData(sale, [], 0, 's000003', printCompanySettings).kit).toBe('');
+  });
+
+  it('builds one order-history line per kit add / remove', async () => {
+    const initialLanguage = i18n.language;
+    await i18n.changeLanguage('uk');
+    expect(buildKitChangeTimelineMessage('Олена', { type: 'add', items: ['сумка'] })).toBe(
+      'Олена додав комплект: сумка.',
+    );
+    expect(buildKitChangeTimelineMessage('Олена', { type: 'remove', items: ['ЗП'] })).toBe(
+      'Олена видалив з комплекту: ЗП.',
+    );
+    await i18n.changeLanguage('en');
+    expect(buildKitChangeTimelineMessage('Olena', { type: 'add', items: ['bag', 'cable'] })).toBe(
+      'Olena added to kit: bag, cable.',
+    );
+    await i18n.changeLanguage(initialLanguage);
+  });
+
+  it('provides a slash-joined kitLabel next to the comma-joined kit', () => {
+    const sale = repairSale({ kit: ['ЗП', 'сумка'] });
+    const data = getPrintTemplateData(sale, [], 0, 'r000124', printCompanySettings);
+    expect(data.kit).toBe('ЗП, сумка');
+    expect(data.kitLabel).toBe('ЗП / сумка');
+    expect(getPrintTemplateData(repairSale({ kind: 'sale', kit: ['ЗП'] }), [], 0, 's1', printCompanySettings).kitLabel).toBe('');
+  });
+});
+
 describe('invoice source record and service center', () => {
   it('uses identical Ukrainian print data in English and Ukrainian interfaces', async () => {
     const lineItems = [{ ...repairProductLineItems[0], name: 'Products', price: 950 }];
@@ -179,7 +231,7 @@ describe('invoice source record and service center', () => {
     const data = getPrintTemplateData(record, repairProductLineItems, 0, record.recordNumber!, { ...printCompanySettings, warehouseSettings: settings, products });
     expect(data.orderNumber).toBe(record.recordNumber);
     expect(data.clientName).toBe('Client');
-    expect(data.service_center_phone).toBe('+380502222222');
+    expect(data.service_center_phone).toBe('050-222-22-22');
     expect(data.repair_order_reference).toBe(kind === 'repair' ? 'Ремонтне замовлення №r000003' : '');
     expect(data.products_table).toContain('Wireless mouse M22');
     expect(data.services_table).toBe('');
@@ -450,7 +502,7 @@ describe('order print labels', () => {
     expect(data.barcode).toBe('r000777');
     expect(data.labelCode).toBe('r000777');
     expect(data.labelTitle).toBe('iPhone 13 Pro');
-    expect(data.labelContact).toBe('+380000000000');
+    expect(data.labelContact).toBe('000-000-00-00');
   });
 
   it('uses repair label data for legacy r-prefixed records even when kind is sale', () => {
@@ -473,7 +525,7 @@ describe('order print labels', () => {
 
     expect(data.barcode).toBe('r000778');
     expect(data.labelTitle).toBe('Legacy repair device');
-    expect(data.labelContact).toBe('+380000000000');
+    expect(data.labelContact).toBe('000-000-00-00');
   });
 
   it('uses the first product serial and hides phone for sale labels', () => {
@@ -1446,5 +1498,39 @@ describe('getLatestDepositPaymentMethod and hasNonCashPayment', () => {
     });
     expect(getLatestDepositPaymentMethod(sale)).toBe('non-cash');
     expect(hasNonCashPayment(sale)).toBe(false);
+  });
+});
+
+describe('order print label fitting', () => {
+  it('splits the date year and keeps long order numbers whole when codes render', async () => {
+    const root = document.createElement('div');
+    root.innerHTML =
+      '<div class="print-label"><div class="print-columns print-columns-wide-left">' +
+      '<div><p class="print-block-paragraph print-text-size-hero">#124000</p></div>' +
+      '<div><p class="print-block-paragraph">18.11.2026<br>11:25</p></div></div></div>';
+    await renderOrderPrintCodes(root, 'r124000');
+    const hero = root.querySelector('.print-text-size-hero')!;
+    expect(hero.textContent).toBe('#124000');
+    expect(hero.classList.contains('print-fit-text')).toBe(true);
+    expect(hero.classList.contains('print-fit-chars-7')).toBe(true);
+    expect(root.querySelector('.print-columns-wide-left > div:last-child p')!.innerHTML).toBe(
+      '18.11.<br>2026<br>11:25',
+    );
+  });
+});
+
+describe('print phone format', () => {
+  it('prints client phone and label contact as 050-556-70-90', () => {
+    const base = repairSale();
+    const sale = repairSale({ client: { ...base.client, phone: '+380974122235' } });
+    const data = getPrintTemplateData(sale, [], 0, 'r000124', printCompanySettings);
+    expect(data.clientPhone).toBe('097-412-22-35');
+    expect(data.labelContact).toBe('097-412-22-35');
+  });
+
+  it('keeps non-Ukrainian phones as they are', () => {
+    const base = repairSale();
+    const sale = repairSale({ client: { ...base.client, phone: '+48123456789' } });
+    expect(getPrintTemplateData(sale, [], 0, 'r000124', printCompanySettings).clientPhone).toBe('+48123456789');
   });
 });

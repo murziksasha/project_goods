@@ -46,6 +46,37 @@ Related: [ORDER_FLOW.md](./ORDER_FLOW.md) · [SALE_CARD.md](./SALE_CARD.md) · [
 - `S/N` is stored in order card snapshot/history and used as suggestion for repeat requests of the same client/device.
 - Empty `S/N` is a valid value and must not block `Save changes` (including status-only updates).
 
+### Kit (2026-11-18)
+
+Updated 2026-11-18 (chips UX; the earlier pencil / Cancel / Save editor is removed).
+
+- Repair cards show a **Kit** row under `S/N`: one chip per item. Editable cards
+  show `×` on each chip and a small input with a `+` button at the end of the row;
+  Enter in the input also adds. Chips wrap onto new lines; the row stays inside
+  the two-column card grid (the markup has no nested `<div>`, because
+  `.order-detail-list div` turns every nested div into a 120 px / 1fr grid —
+  that was the cause of the squashed Save button and missing `+` / `×`).
+- Adding: typed text is trimmed and split by commas; empty items and
+  case-insensitive duplicates are ignored. Max 20 items × 80 characters; the
+  input and `+` are disabled at the limit or when the input is empty.
+- **Each add / remove saves immediately**: `PATCH /sales/:id/workspace` with the
+  whole `kit` list plus ONE system timeline entry (Live feed / order history):
+  - add: `"{author} added to kit: X."` (uk: `"{author} додав комплект: X."`; several
+    items typed at once → `X, Y` in one entry);
+  - remove: `"{author} removed from kit: X."` (uk: `"{author} видалив з комплекту: X."`).
+- The change is optimistic. While the request runs the controls are disabled; on
+  failure the chips revert, typed text returns to the input and the error toast
+  is shown (`orders.messages.errors.failedSaveKit` or the server message).
+- Read-only cards (`isContentLocked`: not editable status or read-only access)
+  show chips without `×` and without the input, or `No kit` (uk:
+  `Без комплекту`). Hover copy copies the comma-joined text.
+- Legacy data, display only (no migration): kit items containing commas (one
+  string such as `"ЗП, сумка"`) and, when the `kit` field is empty, `(kits: …)`
+  from the system note are split by commas into chips. The list is stored in
+  `kit` only after the user adds or removes an item.
+- Kit changes need the normal order-manage permission; kanban, away-status and
+  chat-only shortcuts reject patches that change `kit`.
+
 ## Status And Issued
 
 - Status in card is draft-only until `Save changes`.
@@ -156,7 +187,7 @@ Related: [ORDER_FLOW.md](./ORDER_FLOW.md) · [SALE_CARD.md](./SALE_CARD.md) · [
 ### System note (`note`)
 
 - Written automatically on repair order creation from `Create order` fields. Typical lines (non-empty only):
-  - `(kits: …)` — from `Kit`
+  - `(kits: …)` — legacy only: orders created before 2026-11-18 stored the kit here; new orders store it in the `kit` field ([Kit](#kit-2026-11-18))
   - free-text issue from client
   - external view (repair only)
   - `Service: …`

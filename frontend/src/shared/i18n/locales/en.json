@@ -391,8 +391,30 @@
         "barcode": "Barcode",
         "products_table": "Products table",
         "services_table": "Services table",
-        "invoice_items_table": "Invoice items table"
-      }
+        "invoice_items_table": "Invoice items table",
+        "acceptedDate": "Accepted date (dd.MM.yyyy)",
+        "acceptedTime": "Accepted time (HH:mm)",
+        "orderNumberShort": "Order number short (#124)",
+        "kit": "Kit",
+        "kitLabel": "Kit for labels (a / b)"
+      },
+      "printMenuTypes": {
+        "sale": "Sale",
+        "repair": "Repair",
+        "warehouse": "Warehouse (product)"
+      },
+      "barcodeSizeSlim": "slim (~5 mm)",
+      "textSize": "Size",
+      "textSizeNormal": "Normal",
+      "textSizeLarge": "Large",
+      "textSizeXlarge": "Extra large",
+      "textSizeHero": "Huge",
+      "columnsLayout": "Column widths",
+      "columnsLayoutEqual": "Equal",
+      "columnsLayoutWideLeft": "Wide left, right fits content",
+      "printMenuVisibility": "Show in print menu",
+      "printMenuVisibilityLegacy": "Not configured: shown as before",
+      "printMenuVisibilityHidden": "Hidden from print menus, kept in the constructor"
     },
     "backups": {
       "noPermission": "Current employee cannot manage backups.",
@@ -692,7 +714,10 @@
           "warrantyCardIssued": "Warranty card issued",
           "deliveryRequired": "Delivery required"
         }
-      }
+      },
+      "addKitItem": "Add kit item",
+      "removeKitItem": "Remove {{item}}",
+      "kitItemPlaceholder": "e.g. charger"
     },
     "rapidSale": {
       "title": "Rapid sale",
@@ -1174,7 +1199,10 @@
         "product": "Product",
         "retailPrice": "Retail price",
         "note": "Note"
-      }
+      },
+      "kit": "Kit",
+      "kitEmpty": "No kit",
+      "kitInputPlaceholder": "Add item"
     },
     "supplier": {
       "toolbar": {
@@ -1501,7 +1529,8 @@
         "serialAlreadyLinked": "Serial already linked to another order: {{serials}}.",
         "serialNotInStock": "Serial was not found in stock: {{serials}}.",
         "serialNoFreeStock": "Serial has no free stock: {{serials}}.",
-        "operationFailed": "Operation failed."
+        "operationFailed": "Operation failed.",
+        "failedSaveKit": "Failed to save kit."
       },
       "success": {
         "filterSaved": "Filter saved.",
@@ -1522,7 +1551,8 @@
         "serviceSaved": "Service saved to catalog.",
         "serviceUpdated": "Service updated.",
         "productWithSerialAdded": "Product \"{{name}}\" with S/N {{serial}} added.",
-        "serialsUpdated": "Serial numbers updated."
+        "serialsUpdated": "Serial numbers updated.",
+        "kitUpdated": "Kit updated."
       }
     },
     "serialAvailability": {
@@ -1566,7 +1596,9 @@
       "removedService": "{{author}} removed service \"{{name}}\" from order.",
       "boundSerials": "{{author}} bound serial numbers for \"{{name}}\".",
       "updatedMainInfo": "{{author}} updated order main information.",
-      "updatedUserNote": "{{author}} updated note."
+      "updatedUserNote": "{{author}} updated note.",
+      "addedKitItems": "{{author}} added to kit: {{items}}.",
+      "removedKitItems": "{{author}} removed from kit: {{items}}."
     },
     "fallbacks": {
       "recordNumber": "r------",

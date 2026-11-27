@@ -389,6 +389,7 @@ export const formatSale = (
     isRapidSale: sale.isRapidSale ?? false,
     note: sale.note,
     userNote: sale.userNote ?? '',
+    kit: Array.isArray(sale.kit) ? [...sale.kit] : [],
     timeline: (sale.timeline ?? []).map((entry) => ({
       id: entry.id,
       kind: entry.kind,

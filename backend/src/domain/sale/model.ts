@@ -107,6 +107,20 @@ export const saleSchema = new mongoose.Schema(
       ],
       default: '',
     },
+    kit: {
+      type: [
+        {
+          type: String,
+          trim: true,
+          maxlength: [80, 'Kit item must contain no more than 80 characters'],
+        },
+      ],
+      default: [],
+      validate: {
+        validator: (items: unknown[]) => !Array.isArray(items) || items.length <= 20,
+        message: 'Kit must contain no more than 20 items',
+      },
+    },
     timeline: [
       {
         _id: false,

@@ -79,6 +79,28 @@ Related: [ORDER_CARD.md](./ORDER_CARD.md) · [SALE_FLOW.md](./SALE_FLOW.md) · [
 - Dismissing the suggestion list does **not** enable `Create new`. Active catalog matches still block it. Save still accepts the typed device name.
 - New device is created in `client-devices` collection, not in warehouse products.
 
+## Device kit (2026-11-18)
+
+- `Create order → Repair` has a **Kit** field: an input with a `+` button on the
+  right; Enter also adds. Added items show as chips with `×`. Typed text is
+  trimmed and split by commas; empty items and case-insensitive duplicates are
+  ignored. Limits: 20 items, 80 characters each.
+- On **Save order**, text left in the input (not added with `+` / Enter) becomes
+  the last item(s).
+- Selecting an existing client device pre-fills the chips from the device note
+  (split by commas).
+- The kit is sent as `kit: string[]` and is no longer written into the system
+  note as `(kits: …)`.
+- Old orders keep `(kits: …)` in `note`, and kits saved as one comma string are
+  split by commas for display; the card and print forms fall back to them.
+- Backend (`POST /sales`, `PUT /sales/:id`, `PATCH /sales/:id/workspace`):
+  `kit` must be an array of strings, otherwise 400; more than 20 unique items
+  or an item over 80 characters → 400. Omitted `kit` on update keeps the stored
+  value.
+- Editing in the order card: [ORDER_CARD.md → Kit](./ORDER_CARD.md#kit-2026-11-18).
+- Printing: `{{kit}}` (comma-joined) and `{{kitLabel}}` (slash-joined, New Barcode
+  labels) — [PRINT_FORMS_SPEC.md](./PRINT_FORMS_SPEC.md#new-barcode-label-2026-11-18).
+
 ## Urgent Term
 
 - If `Urgent repair` flag is selected during repair order creation, order term is shown as `Urgent` in light red.
