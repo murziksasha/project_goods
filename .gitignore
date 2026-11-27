@@ -22,7 +22,8 @@ backups/
 backend/backups/
 backend/backend-dev.log
 frontend/frontend-dev.log
-.grill/
+.grill/*
+!.grill/orders-filter-panel-close.md
 .env
 .env.*
 !.env.example

@@ -643,7 +643,7 @@ export const OrdersReportsWorkspace: React.FC<OrdersReportsWorkspaceProps> = ({
   };
 
   return (
-    <section className="orders-workspace">
+    <section className="orders-workspace orders-page">
       <OrdersWorkspaceTabList
         activeTab={activeTab}
         visibleTabs={visibleTabs}

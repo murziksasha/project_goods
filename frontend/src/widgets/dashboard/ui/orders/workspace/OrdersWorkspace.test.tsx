@@ -369,6 +369,7 @@ const renderWorkspace = (
         clientDevices={[]}
         catalogProducts={[]}
         printForms={[]}
+        labelPrintForms={[]}
         printCompanySettings={{
           serviceName: 'Service CRM',
           company: 'Service CRM',
@@ -1033,6 +1034,7 @@ describe('OrdersWorkspace', () => {
           clientDevices={[]}
           catalogProducts={[]}
           printForms={[]}
+          labelPrintForms={[]}
           printCompanySettings={{
             serviceName: 'Service CRM',
             company: 'Service CRM',

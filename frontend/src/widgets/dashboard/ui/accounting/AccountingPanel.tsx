@@ -30,6 +30,7 @@ import { hasEmployeePermission } from '../../../../entities/employee';
 import type { Employee } from '../../../../entities/employee';
 import type { Sale } from '../../../../entities/sale';
 import type { SupplierOrder } from '../../../../entities/supplier-order';
+import type { PrintForm } from '../../../../entities/settings';
 import {
   canCancelAccountingTransaction,
   getAccountingCashboxCurrencyRows,
@@ -60,6 +61,8 @@ import { Modal } from '../../../../shared/ui/Modal';
 import { Button } from '../../../../shared/ui/Button';
 
 export interface AccountingPanelProps {
+  /** Saved print forms for stock labels; `null` while settings are loading. */
+  printForms: PrintForm[] | null;
   currentEmployee: Employee | null;
   onError: (message: string) => void;
   onSuccess: (message: string) => void;
@@ -72,6 +75,7 @@ export interface AccountingPanelProps {
 };
 
 export const AccountingPanel: React.FC<AccountingPanelProps> = ({
+  printForms,
   currentEmployee,
   onError,
   onSuccess,
@@ -929,6 +933,7 @@ export const AccountingPanel: React.FC<AccountingPanelProps> = ({
         />
       ) : activeTab === 'reports' ? (
         <AccountingProfitReportsView
+          printForms={printForms}
           currentEmployee={currentEmployee}
           sales={sales}
           supplierOrders={supplierOrders}
@@ -967,6 +972,7 @@ export const AccountingPanel: React.FC<AccountingPanelProps> = ({
       )}
       <SupplierOrderModal
         key={selectedSupplierOrder?.id ?? 'closed'}
+        printForms={printForms}
         isOpen={Boolean(selectedSupplierOrder)}
         suppliers={[]}
         editingOrder={selectedSupplierOrder}

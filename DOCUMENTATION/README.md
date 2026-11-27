@@ -14,13 +14,14 @@ One topic → one source of truth. Other files **link**, they do not copy the ru
 | Product model client order / issued stock outside the loaded sales list (2026-11-15) | [WAREHOUSE_FLOW.md](./WAREHOUSE_FLOW.md#client-order-and-issued-stock-2026-11-15) | API: `POST /sales/stock-links` in [API.md](./API.md); query: [STATE_MANAGEMENT.md](./STATE_MANAGEMENT.md#stock-order-links-2026-11-15) |
 | Bind serial candidate row | [WAREHOUSE_FLOW.md §4.3.2](./WAREHOUSE_FLOW.md#432-bind-modal-candidate-row-purchase-price--supplier-order) | Purchase price + supplier-order number (copy/click) |
 | Lookup / autocomplete | [SPEC_SUGGESTIONS_BEHAVIOR.md](./SPEC_SUGGESTIONS_BEHAVIOR.md) | select, dismiss-without-select, create-order / cards / Rapid Sale / supplier / merge |
-| Print | [PRINT_FORMS_SPEC.md](./PRINT_FORMS_SPEC.md) | warehouse serial labels in WAREHOUSE_FLOW §4.5; builder inline B / I / U formatting in [§ Inline Text Formatting](./PRINT_FORMS_SPEC.md#inline-text-formatting-2026-11-10); collapsible picker in [§ Collapsible Template Variables](./PRINT_FORMS_SPEC.md#collapsible-template-variables-2026-11-11); New Barcode repair label in [§ New Barcode label](./PRINT_FORMS_SPEC.md#new-barcode-label-2026-11-18) ([plan](./NEW_BARCODE_LABEL_PLAN.md)); per-template menu visibility in [§ Print menu visibility](./PRINT_FORMS_SPEC.md#print-menu-visibility-2026-11-18) |
+| Print | [PRINT_FORMS_SPEC.md](./PRINT_FORMS_SPEC.md) | warehouse serial labels in WAREHOUSE_FLOW §4.5; builder inline B / I / U formatting in [§ Inline Text Formatting](./PRINT_FORMS_SPEC.md#inline-text-formatting-2026-11-10); collapsible picker in [§ Collapsible Template Variables](./PRINT_FORMS_SPEC.md#collapsible-template-variables-2026-11-11); New Barcode repair label in [§ New Barcode label](./PRINT_FORMS_SPEC.md#new-barcode-label-2026-11-18) ([plan](./NEW_BARCODE_LABEL_PLAN.md)); per-template menu visibility in [§ Print menu visibility](./PRINT_FORMS_SPEC.md#print-menu-visibility-2026-11-18); stock labels print only with saved forms in [§ Saved Forms Only](./PRINT_FORMS_SPEC.md#saved-forms-only-2026-11-24) |
 | Finance | [ACCOUNTING.md](./ACCOUNTING.md) | — |
 | Supplier orders | [SUPPLIER_ORDER_FLOW.md](./SUPPLIER_ORDER_FLOW.md) | — |
 | Clients | [CLIENTS_RULES.md](./CLIENTS_RULES.md) | — |
 | Employees / RBAC | [EMPLOYEES_SPEC.md](./EMPLOYEES_SPEC.md) | [Permission_Flow.md](./Permission_Flow.md) |
 | Settings | [SETTINGS_SPEC.md](./SETTINGS_SPEC.md) | [PRINT_FORMS_SPEC.md](./PRINT_FORMS_SPEC.md), [BUSINESS_DASHBOARD.md](./BUSINESS_DASHBOARD.md) |
 | Hover copy icon (tables) | [UI_DESIGN_SYSTEM.md — Hover copy icon](./UI_DESIGN_SYSTEM.md#hover-copy-icon) | Orders, Sales, Supplier Order, warehouse, clients, catalog Suppliers phone, serial bind supplier-order number |
+| Page tabs and shell | [UI_DESIGN_SYSTEM.md — Page tabs and shell](./UI_DESIGN_SYSTEM.md#page-tabs-and-shell) | .orders-tab on .orders-page across Orders, Information, Reports, Employees, Clients, Warehouse, Catalog, Settings, Accounting |
 | Table horizontal scroll / resizable columns | [UI_DESIGN_SYSTEM.md — Tables](./UI_DESIGN_SYSTEM.md#tables) | Fixed bottom bar only on desktop; native bar on small/coarse screens and `data-global-scrollbar="off"`; echo guard; colgroup track sizing; sticky pinned columns; WAREHOUSE_FLOW §4.4.2 & §15 |
 
 ## 1. Start here
@@ -42,7 +43,7 @@ One topic → one source of truth. Other files **link**, they do not copy the ru
 - [Permission_Flow.md](./Permission_Flow.md) — roles and permission keys
 - [BROWSER_NAVIGATION.md](./BROWSER_NAVIGATION.md) — History API, URL params
 - [BUILD_VERSION_SPEC.md](./BUILD_VERSION_SPEC.md) — build SHA
-- [UI_DESIGN_SYSTEM.md](./UI_DESIGN_SYSTEM.md) — tokens, breakpoints, [hover copy icon](./UI_DESIGN_SYSTEM.md#hover-copy-icon)
+- [UI_DESIGN_SYSTEM.md](./UI_DESIGN_SYSTEM.md) — tokens, breakpoints, [page tabs and shell](./UI_DESIGN_SYSTEM.md#page-tabs-and-shell), [hover copy icon](./UI_DESIGN_SYSTEM.md#hover-copy-icon)
 - [DATA_RETENTION.md](./DATA_RETENTION.md) — hot/cold sales, finance snapshots
 
 ## 3. Orders and sales
@@ -58,7 +59,7 @@ One topic → one source of truth. Other files **link**, they do not copy the ru
 
 - [WAREHOUSE_FLOW.md](./WAREHOUSE_FLOW.md) — stock models/units, receipts, transfers, information, occupancy, bind-modal candidate row, labels, [toolbar search commit](./WAREHOUSE_FLOW.md#toolbar-search), [client order and issued stock](./WAREHOUSE_FLOW.md#client-order-and-issued-stock-2026-11-15)
 - [SERIAL_NUMBER_SEQUENCE_SPEC.md](./SERIAL_NUMBER_SEQUENCE_SPEC.md) — `S000001` assignment on receipt
-- [PRINT_FORMS_SPEC.md](./PRINT_FORMS_SPEC.md) — print templates, block builder, inline B / I / U (Ж / К / П) text formatting, collapsible Template variables, New Barcode label, print menu visibility, phone print format `050-556-70-90`
+- [PRINT_FORMS_SPEC.md](./PRINT_FORMS_SPEC.md) — print templates, block builder, inline B / I / U (Ж / К / П) text formatting, collapsible Template variables, New Barcode label, print menu visibility, phone print format `050-556-70-90`, stock labels with saved forms only (no built-in fallback) and label auto-fit
 - [NEW_BARCODE_LABEL_PLAN.md](./NEW_BARCODE_LABEL_PLAN.md) — New Barcode repair label: decisions, plan, manual check
 - [CATALOG_PRODUCT_CREATE_MODAL_SPEC.md](./CATALOG_PRODUCT_CREATE_MODAL_SPEC.md) — Product List modal (not stock); catalog list hover-copy (Suppliers phone)
 

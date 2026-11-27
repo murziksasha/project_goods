@@ -1,4 +1,5 @@
 import type React from 'react';
+import { useEffect, useRef } from 'react';
 
 export interface ChipListInputProps {
   /** Items shown as chips. */
@@ -45,11 +46,73 @@ export const ChipListInput: React.FC<ChipListInputProps> = ({
   maxItemLength = 80,
   className,
 }) => {
+  const rootRef = useRef<HTMLSpanElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const retainFocusRef = useRef(false);
+
   const isFull = items.length >= maxItems;
   const canAdd = !disabled && !readOnly && !isFull && inputValue.trim() !== '';
 
+  const handleAdd = () => {
+    if (!canAdd) return;
+    retainFocusRef.current = true;
+    onAdd();
+  };
+
+  useEffect(() => {
+    const handleFocus = (event: FocusEvent) => {
+      if (!retainFocusRef.current) return;
+      const target = event.target as Node | null;
+      if (!target) return;
+      if (rootRef.current?.contains(target)) return;
+      if (target === document.body || target === document.documentElement) return;
+      retainFocusRef.current = false;
+    };
+
+    document.addEventListener('focusin', handleFocus);
+    document.addEventListener('focus', handleFocus, true);
+    return () => {
+      document.removeEventListener('focusin', handleFocus);
+      document.removeEventListener('focus', handleFocus, true);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!retainFocusRef.current) return;
+
+    if (disabled) {
+      return;
+    }
+
+    if (isFull || readOnly) {
+      retainFocusRef.current = false;
+      return;
+    }
+
+    const active = document.activeElement;
+    const isFocusInsideOrBody =
+      !active ||
+      active === document.body ||
+      active === document.documentElement ||
+      rootRef.current?.contains(active);
+
+    if (!isFocusInsideOrBody) {
+      retainFocusRef.current = false;
+      return;
+    }
+
+    const input = inputRef.current;
+    if (input) {
+      input.focus();
+      const length = input.value.length;
+      input.setSelectionRange(length, length);
+    }
+    retainFocusRef.current = false;
+  });
+
   return (
     <span
+      ref={rootRef}
       className={['chip-list-input', className].filter(Boolean).join(' ')}
       aria-busy={disabled || undefined}
     >
@@ -79,6 +142,7 @@ export const ChipListInput: React.FC<ChipListInputProps> = ({
       {readOnly ? null : (
         <span className="chip-list-input-entry">
           <input
+            ref={inputRef}
             type="text"
             value={inputValue}
             maxLength={maxItemLength}
@@ -89,7 +153,7 @@ export const ChipListInput: React.FC<ChipListInputProps> = ({
             onKeyDown={(event) => {
               if (event.key !== 'Enter') return;
               event.preventDefault();
-              if (canAdd) onAdd();
+              if (canAdd) handleAdd();
             }}
           />
           <button
@@ -98,7 +162,7 @@ export const ChipListInput: React.FC<ChipListInputProps> = ({
             aria-label={addLabel}
             title={addLabel}
             disabled={!canAdd}
-            onClick={onAdd}
+            onClick={handleAdd}
           >
             +
           </button>

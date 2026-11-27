@@ -40,9 +40,10 @@ export interface SupplierOrdersFilterPanelProps {
   setNewFilterIcon: Dispatch<SetStateAction<string>>;
   onApplyFilters: () => void;
   onResetFilters: () => void;
-  onSaveCurrentFilter: () => void;
+  onSaveCurrentFilter: () => boolean | Promise<boolean>;
   onApplySavedFilter: (filterId: string) => void;
   onRemoveSavedFilter: (filterId: string) => void;
+  onClose: () => void;
 };
 
 export const SupplierOrdersFilterPanel: React.FC<SupplierOrdersFilterPanelProps> = ({
@@ -68,12 +69,14 @@ export const SupplierOrdersFilterPanel: React.FC<SupplierOrdersFilterPanelProps>
   onSaveCurrentFilter,
   onApplySavedFilter,
   onRemoveSavedFilter,
+  onClose,
 }) => {
   const { t } = useTranslation();
 
   const toggleStatus = (status: SupplierOrderStatus) => {
     setDraftFilters((current) => ({
       ...current,
+      statusSelectionExplicit: true,
       selectedStatuses: current.selectedStatuses.includes(status)
         ? current.selectedStatuses.filter((item) => item !== status)
         : [...current.selectedStatuses, status],
@@ -96,6 +99,14 @@ export const SupplierOrdersFilterPanel: React.FC<SupplierOrdersFilterPanelProps>
       }
       aria-hidden={!isOpen}
     >
+      <button
+        type='button'
+        className='orders-filter-panel-close'
+        aria-label={t('orders.filters.closePanel')}
+        onClick={onClose}
+      >
+        &times;
+      </button>
       <SavedFiltersPanel
         canSave={canManageSavedFilters}
         items={savedFilters}
@@ -126,11 +137,14 @@ export const SupplierOrdersFilterPanel: React.FC<SupplierOrdersFilterPanelProps>
             aria-expanded={isStatusFilterOpen}
             onClick={() => setIsStatusFilterOpen((current) => !current)}
           >
-            {draftFilters.selectedStatuses.length > 0
-              ? t('orders.supplier.toolbar.orderStatusesCount', {
-                  count: draftFilters.selectedStatuses.length,
-                })
-              : t('orders.filters.all')}
+            {draftFilters.selectedStatuses.length ===
+            supplierOrderStatuses.length
+              ? t('orders.filters.all')
+              : draftFilters.selectedStatuses.length === 0
+                ? t('orders.filters.none')
+                : t('orders.supplier.toolbar.orderStatusesCount', {
+                    count: draftFilters.selectedStatuses.length,
+                  })}
           </button>
           {isStatusFilterOpen ? (
             <div className='orders-filter-status-menu'>
@@ -144,6 +158,7 @@ export const SupplierOrdersFilterPanel: React.FC<SupplierOrdersFilterPanelProps>
                   onChange={() =>
                     setDraftFilters((current) => ({
                       ...current,
+                      statusSelectionExplicit: true,
                       selectedStatuses:
                         current.selectedStatuses.length ===
                         supplierOrderStatuses.length

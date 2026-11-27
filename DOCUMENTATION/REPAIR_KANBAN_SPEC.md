@@ -45,6 +45,7 @@ Hidden (no column): `issued`, `issuedWithoutRepair`, `clientRejected`, `notPicke
 - The same chip style is reused on the Orders, Sales, and Supplier Order tabs (after the pager, left of Filter) with `Orders: N` (Orders and Supplier Order) and `Sales: N` (Sales). See [ORDER_FLOW.md](./ORDER_FLOW.md#toolbar-record-count-chip-2026-10-28).
 - Search + favorites star.
 - Simplified Filter panel fields: **Master** ([multi-choice menu](#master-filter-kanban-toolbar-only)), **Date from/to** (+ inline **Save filter** after Date to).
+- The same top-right close `×` (`.orders-filter-panel-close`) is present on Orders, Kanban, and Sales filter panels; clicking it only hides the panel without applying, clearing, or resetting draft filters.
 - **Saved filters** reuse the same per-employee Orders saved-filter API (`scope=orders`, `tab=kanban`): list / save drawer / delete. Applying a saved Kanban filter runs `toKanbanFilters`, including the legacy `assigneeId` migration below.
 - No table columns gear.
 

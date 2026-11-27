@@ -210,8 +210,16 @@ a later feature explicitly adds phone selection per order.
 - Apply this rule to primary and additional phones in Clients and Suppliers list search, their filters, `GET /clients?query=` / `GET /suppliers?query=`, order and sale list `q` and client filters (including legacy snapshots), and client/supplier merge search. Existing create-order client lookup also uses the client phone matcher. Other domain lookups keep their existing query behavior.
 - A list row keeps the primary phone visible and shows the first matching additional phone when a phone query or filter is active. Each shown number has its own copy control; Clients and Suppliers numbers retain their `tel:` links ([UI_DESIGN_SYSTEM.md — Hover copy icon](./UI_DESIGN_SYSTEM.md#hover-copy-icon)). Matching notes remain inside the card.
 - Clients list text search covers ID, name, email, address, registration ID, IBAN, and note; Suppliers covers name, note, and supplier order. Status remains in its dedicated filter.
+- Filter panels on Clients and the Suppliers tab include the top-right close `×` (`.orders-filter-panel-close`), hiding the panel without resetting draft filters. Escape closes Save filter sheet first, then the panel.
+- The shared Save filter sheet portals to `document.body` (z-index 120), closes only after a successful save or on `×` / Cancel / Escape, and choosing a preset from inside the sheet applies it and closes the sheet while leaving the gray panel open. Reopening the sheet during an in-flight save preserves the reopened sheet on completion.
 - Use `backend/src/scripts/backfill-client-phones.ts` with dry-run before
   applying legacy phone backfill in production.
+
+## Page Layout and Tabs
+
+- The Clients & suppliers section (`page=clients`) uses the `.orders-page` shell with `.orders-tabs` and `.orders-tab`.
+- The page tab row sits flush on the top edge of the `.orders-page` card at the same distance under the topbar as Orders.
+- The space under the tab row is 12px (`.clients-workspace > .orders-tabs { margin-bottom: 0; }` cancels double-spacing against the 12px grid gap).
 
 ### Tests
 

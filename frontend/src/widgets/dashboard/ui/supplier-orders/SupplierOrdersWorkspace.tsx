@@ -33,6 +33,10 @@ import type {
 import { getWarehouseSettings } from '../../../../entities/warehouse-settings';
 import { applySupplierOrderStatusChange } from '../../model/apply-supplier-order-status-change';
 import {
+  toggleAllStatuses,
+  toggleSingleStatus,
+} from '../../model/status-selection';
+import {
   buildSupplierOrderAnalytics,
   getPreviousDeliveryDateRange,
   resolveSupplierOrderErrorMessage,
@@ -42,14 +46,16 @@ import {
   emptySupplierOrdersFilters,
   filterSupplierOrders,
   getActiveSupplierOrdersFiltersCount,
+  getSupplierOrdersFiltersStorageKey,
   normalizeSupplierOrdersColumns,
   paginateSupplierOrders,
   parseSupplierOrdersFilters,
+  readStoredSupplierOrdersFilters,
   supplierOrdersAllColumns,
   supplierOrdersColumnsStorageKey,
   supplierOrdersDefaultColumns,
-  supplierOrdersFiltersStorageKey,
   supplierOrdersLockedColumns,
+  supplierOrderStatuses,
   summarizeFilteredSupplierOrders,
   type OrdersTab,
   type SupplierOrdersColumnKey,
@@ -61,6 +67,7 @@ import {
   listSavedFilters,
 } from '../../../../entities/saved-filter';
 import type { SavedFilterRecord } from '../../../../entities/saved-filter';
+import type { PrintForm } from '../../../../entities/settings';
 import { filterIconOptions } from '../orders/workspace/orders-workspace-shared';
 import {
   SupplierOrderModal,
@@ -68,6 +75,7 @@ import {
 } from '../orders/modals/SupplierOrderModal';
 import { SupplierOrdersActiveFilterChips } from './SupplierOrdersActiveFilterChips';
 import { SupplierOrdersFilterPanel } from './SupplierOrdersFilterPanel';
+import { StatusFilterButtons } from '../status-filter-buttons';
 import {
   CatalogProductEditModal,
   SupplierEditModal,
@@ -82,6 +90,8 @@ const notifyFinanceUpdated = () => {
 };
 
 export interface SupplierOrdersWorkspaceProps {
+  /** Saved print forms for stock labels; `null` while settings are loading. */
+  printForms: PrintForm[] | null;
   activeTab: OrdersTab;
   onActiveTabChange: (tab: OrdersTab) => void;
   onToggleTabVisibility?: (tab: OrdersTab) => void;
@@ -109,6 +119,7 @@ export interface SupplierOrdersWorkspaceProps {
 export const SupplierOrdersWorkspace: React.FC<
   SupplierOrdersWorkspaceProps
 > = ({
+  printForms,
   activeTab,
   onActiveTabChange,
   onToggleTabVisibility,
@@ -150,16 +161,19 @@ export const SupplierOrdersWorkspace: React.FC<
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useStoredPageSize('supplierOrders');
   const initialFilters = useMemo(
-    () =>
-      parseSupplierOrdersFilters(
-        window.localStorage.getItem(supplierOrdersFiltersStorageKey),
-      ),
-    [],
+    () => readStoredSupplierOrdersFilters(currentEmployeeId),
+    [currentEmployeeId],
   );
   const [appliedFilters, setAppliedFilters] =
     useState<SupplierOrdersFilters>(initialFilters);
   const [draftFilters, setDraftFilters] =
     useState<SupplierOrdersFilters>(initialFilters);
+
+  useEffect(() => {
+    const loaded = readStoredSupplierOrdersFilters(currentEmployeeId);
+    setDraftFilters(loaded);
+    setAppliedFilters(loaded);
+  }, [currentEmployeeId]);
   const [isFilterBarOpen, setIsFilterBarOpen] = useState(false);
   const [isStatusFilterOpen, setIsStatusFilterOpen] = useState(false);
   const [isPaymentFilterOpen, setIsPaymentFilterOpen] =
@@ -284,6 +298,37 @@ export const SupplierOrdersWorkspace: React.FC<
     isStatusFilterOpen,
     openStatusOrder,
   ]);
+
+  useEffect(() => {
+    if (!isFilterBarOpen) return;
+
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        if (isStatusFilterOpen) {
+          setIsStatusFilterOpen(false);
+          return;
+        }
+        if (isPaymentFilterOpen) {
+          setIsPaymentFilterOpen(false);
+          return;
+        }
+        setIsFilterBarOpen(false);
+      }
+    };
+
+    document.addEventListener('keydown', closeOnEscape);
+
+    return () => {
+      document.removeEventListener('keydown', closeOnEscape);
+    };
+  }, [isFilterBarOpen, isStatusFilterOpen, isPaymentFilterOpen]);
+
+  useEffect(() => {
+    if (!isFilterBarOpen) {
+      setIsStatusFilterOpen(false);
+      setIsPaymentFilterOpen(false);
+    }
+  }, [isFilterBarOpen]);
 
   useEffect(() => {
     if (!openStatusOrder) {
@@ -423,11 +468,16 @@ export const SupplierOrdersWorkspace: React.FC<
   );
 
   useEffect(() => {
-    window.localStorage.setItem(
-      supplierOrdersFiltersStorageKey,
-      JSON.stringify(appliedFilters),
-    );
-  }, [appliedFilters]);
+    const storageKey = getSupplierOrdersFiltersStorageKey(currentEmployeeId);
+    try {
+      window.localStorage.setItem(
+        storageKey,
+        JSON.stringify(appliedFilters),
+      );
+    } catch {
+      // Ignore localStorage write errors.
+    }
+  }, [appliedFilters, currentEmployeeId]);
 
   useEffect(() => {
     window.localStorage.setItem(
@@ -505,6 +555,45 @@ export const SupplierOrdersWorkspace: React.FC<
     setIsPaymentFilterOpen(false);
   };
 
+  const toggleStatusFilterButton = (status: SupplierOrderStatus) => {
+    const nextStatuses = toggleSingleStatus(
+      appliedFilters.selectedStatuses,
+      status,
+    );
+    const nextApplied: SupplierOrdersFilters = {
+      ...appliedFilters,
+      selectedStatuses: nextStatuses,
+      statusSelectionExplicit: true,
+    };
+    setDraftFilters((current) => ({
+      ...current,
+      selectedStatuses: nextStatuses,
+      statusSelectionExplicit: true,
+    }));
+    setAppliedFilters(nextApplied);
+    setPage(1);
+  };
+
+  const toggleAllStatusFilterButtons = () => {
+    const allKeys = supplierOrderStatuses.map((item) => item.key);
+    const nextStatuses = toggleAllStatuses(
+      appliedFilters.selectedStatuses,
+      allKeys,
+    );
+    const nextApplied: SupplierOrdersFilters = {
+      ...appliedFilters,
+      selectedStatuses: nextStatuses,
+      statusSelectionExplicit: true,
+    };
+    setDraftFilters((current) => ({
+      ...current,
+      selectedStatuses: nextStatuses,
+      statusSelectionExplicit: true,
+    }));
+    setAppliedFilters(nextApplied);
+    setPage(1);
+  };
+
   const toggleColumnVisibility = (
     columnKey: SupplierOrdersColumnKey,
   ) => {
@@ -550,15 +639,15 @@ export const SupplierOrdersWorkspace: React.FC<
     };
   }, [currentEmployeeId, onError, t]);
 
-  const saveCurrentFilter = () => {
+  const saveCurrentFilter = async (): Promise<boolean> => {
     if (!currentEmployeeId) {
       onError(t('orders.messages.errors.employeeRequiredForFilters'));
-      return;
+      return false;
     }
     const name = newFilterName.trim();
     if (!name) {
       onError(t('orders.messages.errors.enterFilterName'));
-      return;
+      return false;
     }
     const payload: SupplierOrdersFilters = {
       ...draftFilters,
@@ -567,26 +656,25 @@ export const SupplierOrdersWorkspace: React.FC<
       product: draftFilters.product.trim(),
       createdBy: draftFilters.createdBy.trim(),
     };
-    void (async () => {
-      try {
-        const created = await createSavedFilterRequest({
-          scope: 'orders',
-          tab: 'supplierOrders',
-          name,
-          icon: newFilterIcon,
-          filters: payload,
-        });
-        setSavedFilters((current) => [created, ...current]);
-        setNewFilterName('');
-        onSuccess(t('orders.messages.success.filterSaved'));
-      } catch (error) {
-        onError(
-          error instanceof Error
-            ? error.message
-            : t('orders.supplier.messages.errors.failedLoad'),
-        );
-      }
-    })();
+    try {
+      const created = await createSavedFilterRequest({
+        scope: 'orders',
+        tab: 'supplierOrders',
+        name,
+        icon: newFilterIcon,
+        filters: payload,
+      });
+      setSavedFilters((current) => [created, ...current]);
+      onSuccess(t('orders.messages.success.filterSaved'));
+      return true;
+    } catch (error) {
+      onError(
+        error instanceof Error
+          ? error.message
+          : t('orders.supplier.messages.errors.failedLoad'),
+      );
+      return false;
+    }
   };
 
   const applySavedFilter = (filterId: string) => {
@@ -833,8 +921,22 @@ export const SupplierOrdersWorkspace: React.FC<
         onOpenSingleMatch={openSingleMatch}
       />
 
+      {activeTab === 'supplierOrders' && !isFilterBarOpen ? (
+        <StatusFilterButtons
+          selectedStatuses={appliedFilters.selectedStatuses}
+          options={supplierOrderStatuses.map((item) => ({
+            key: item.key,
+            label: t(item.labelKey),
+          }))}
+          allLabel={t('orders.filters.all')}
+          onToggleStatus={toggleStatusFilterButton}
+          onToggleAll={toggleAllStatusFilterButtons}
+        />
+      ) : null}
+
       <SupplierOrdersFilterPanel
         isOpen={isFilterBarOpen}
+        onClose={() => setIsFilterBarOpen(false)}
         isStatusFilterOpen={isStatusFilterOpen}
         isPaymentFilterOpen={isPaymentFilterOpen}
         canManageSavedFilters={canManageSavedFilters}
@@ -936,6 +1038,7 @@ export const SupplierOrdersWorkspace: React.FC<
 
       <SupplierOrderModal
         isOpen={isModalOpen}
+        printForms={printForms}
         suppliers={suppliers}
         editingOrder={editingOrder}
         forceReadOnly={!canManageSupplierOrders}

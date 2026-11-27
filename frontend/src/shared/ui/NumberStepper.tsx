@@ -9,6 +9,7 @@ export interface NumberStepperProps {
   max?: number;
   step?: number;
   precision?: number;
+  keepTrailingZeros?: boolean;
   placeholder?: string;
   disabled?: boolean;
   ariaLabel?: string;
@@ -23,8 +24,16 @@ const getDecimalLength = (value: string) => {
   return decimals.length;
 };
 
-const formatNumber = (value: number, decimals: number) => {
+const formatNumber = (
+  value: number,
+  decimals: number,
+  keepTrailingZeros = false,
+) => {
   const fixedValue = value.toFixed(decimals);
+
+  if (keepTrailingZeros) {
+    return fixedValue;
+  }
 
   return fixedValue.includes('.')
     ? fixedValue.replace(/\.?0+$/, '')
@@ -44,6 +53,7 @@ export const NumberStepper: React.FC<NumberStepperProps> = ({
   max,
   step,
   precision,
+  keepTrailingZeros = false,
   placeholder,
   disabled = false,
   ariaLabel,
@@ -72,7 +82,7 @@ export const NumberStepper: React.FC<NumberStepperProps> = ({
       max,
     );
 
-    onChange(formatNumber(nextValue, decimalLength));
+    onChange(formatNumber(nextValue, decimalLength, keepTrailingZeros));
   };
   const parsedValue = parseDecimal(value || '0');
 

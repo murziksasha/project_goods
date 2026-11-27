@@ -39,6 +39,16 @@ Semantic aliases (`--accent-blue`, `--line-soft`) remain for backward compatibil
 3. Never use `color: var(--bg-card)` as white text — use `--color-on-accent`.
 4. Bulk helper: `frontend/scripts/replace-theme-tokens.mjs` (does not rewrite `base.css`).
 
+## Page tabs and shell
+
+Every sidebar page that has tabs shares the same folder-tab lid as Orders / Kanban / Sales / Supplier Order:
+- **Rule:** Page tabs of a sidebar section are `.orders-tab` on the gray `.orders-page` card shell (`background: var(--bg-workspace); border: 1px solid var(--color-line-panel); border-radius: 10px; padding: 12px;`).
+- The tab row sits on the top edge of the `.orders-page` card at the same distance under the topbar across all tabbed pages (Orders, Information, Reports, Employees, Clients, Warehouse, Catalog, Settings, and Accounting). Switching tabs does not move that row.
+- `.orders-tabs` and `.orders-tabs-row` use negative margins (`margin: -12px -12px 12px`) to cancel `.orders-page` padding and align with the card's top and side borders. When the child is a grid (e.g. Clients, Settings, Accounting), bottom margin is adjusted so the space under the tab row remains 12px. Container rows (`.orders-tabs-row`, `.finance-tabs-row`) do not set an opaque background and use `border-top-left-radius: 9px; border-top-right-radius: 9px;` so they preserve the shell's 10px rounded top corners.
+- Titles (e.g. Catalog `PageHeader`, Settings `PageHeader` including the Save button) sit **below** the tab row, never above or inside the tab strip.
+- Warehouse count badges remain in normal flow inside the folder tab (`.warehouse-tab-badge`). Orders visibility gear and Finance settings button stay on the right of the tab row; no trailing buttons are added to pages that do not have them.
+- Inner white cards (`.panel`, `.settings-group`, `.report-upgrade-shell`) live inside the gray shell without being flattened.
+
 ## Typography
 
 - **UI:** `Bahnschrift`, `Trebuchet MS`, `Segoe UI`
@@ -73,8 +83,12 @@ React wrappers: [`frontend/src/shared/ui/Button.tsx`](../frontend/src/shared/ui/
     - Summary action: `.payment-cash-badge.payment-cash-button` button labeled `Full amount` (`Повна сума`) sets the refund amount to the full paid sum (`paidAmount`), including both products and services.
     - Mobile (<= 720px): `.return-sale-form` collapses to single column with all fields stacked full-width; `.payment-cash-button` has touch-target min-height of 38px.
 - **Save-filter drawer** (orders / warehouse / clients shared classes in `domains/orders.css`):
-  - `.orders-filter-drawer-backdrop` is `position: fixed; inset: 0` with **`z-index: 120`** so it stacks **above** sticky `.topbar` (`z-index: 90`) and the filter name field is not clipped under the site header
-  - Used by `OrdersWorkspaceFilterPanel`, `SavedFiltersPanel`, and warehouse save-filter UI
+  - `.orders-filter-drawer-backdrop` is `position: fixed; inset: 0` with **`z-index: 120`** so it stacks **above** sticky `.topbar` (`z-index: 90`) and the filter name field is not clipped under the site header.
+  - Used by `OrdersWorkspaceFilterPanel`, `SavedFiltersPanel`, and warehouse save-filter UI.
+  - `SavedFiltersPanel` portals its open drawer to `document.body` to break out of `.orders-filter-panel` CSS `transform` context, attaching full-height to the viewport above tables and toolbars.
+- **Filter panel close control** (`.orders-filter-panel-close` in `domains/orders.css`):
+  - Gray filter panel (`.orders-filter-panel-open`) reserves 48px right padding (`padding: 14px 48px 14px 14px;`) for the top-right `×` (`right: 10px; width: 28px`), preventing overlap on narrow viewports down to 500px.
+  - Used across Orders, Kanban, Sales, Supplier Order, Information, Clients, Suppliers, Catalog, and Warehouse. Clicking `×` only hides the panel without applying, clearing, or resetting draft filters.
 
 ## Status badges
 
@@ -151,6 +165,7 @@ Shared control: [`frontend/src/shared/ui/CopyableValue.tsx`](../frontend/src/sha
 | Sales Product serial | Each icon copies its own trimmed current serial without `S/N:` or adjacent serials |
 | Client card Sale item | That product's name only, without the visible `xN` |
 | Client card serial | Trimmed serial without `S/N:` |
+| Article (Stock balances / product-model modal) | Trimmed article, case preserved (including unsaved modal field draft) |
 
 ### Surfaces
 
@@ -162,8 +177,8 @@ Shared control: [`frontend/src/shared/ui/CopyableValue.tsx`](../frontend/src/sha
 | Opened sale card | Number, Client, Phone, Created order, Issued order; rapid sales use the stored client snapshot | `OrderDetailCard.tsx` |
 | `Supplier Order` table | Order number (parent and child), Product, Supplier (not collapsed `N items` / child `—`) | `SupplierOrdersWorkspaceSections.tsx` |
 | Warehouse `Receipts` | Order number (lines + grouped parent) | `WarehouseTables.tsx` |
-| Warehouse `Stock balances` | Name, Serial #, Client order, Supplier order (**not** Article / Note) | `WarehouseTables.tsx` |
-| Product model modal `Purchase by serial` | Serial #, Supplier order number (order click still opens `SupplierOrderModal`; Latest/Reserved stay outside the serial copy target), Client order number (order click still opens the sale/repair card; the icon copies the visible number) | `ProductModelModal.tsx` |
+| Warehouse `Stock balances` | Name, Serial #, Article (inline-flex icon spacing matching Serial #), Client order, Supplier order (**not** Note) | `WarehouseTables.tsx` |
+| Product model modal | Article field (on the label; whole-row `:hover` / `:focus-within` reveal; copies current draft including unsaved edits and read-only/disabled states), plus `Purchase by serial`: Serial #, Supplier order number (order click still opens `SupplierOrderModal`; Latest/Reserved stay outside the serial copy target), Client order number (order click still opens the sale/repair card; the icon copies the visible number) | `ProductModelModal.tsx` |
 | Serial bind modal candidate rows | Supplier order number (order click still opens `SupplierOrderModal`; bind modal stays open; serial toggle is separate). Spec: [WAREHOUSE_FLOW.md §4.3.2](./WAREHOUSE_FLOW.md#432-bind-modal-candidate-row-purchase-price--supplier-order) | `SerialBindModal.tsx` |
 | `Clients & suppliers` → Clients / Suppliers | Name, primary phone, and a matched additional phone when shown; each phone keeps an independent copy icon and `tel:` link | `ClientsTable.tsx`, `ClientsSuppliersWorkspace.tsx` |
 | Client card header | Blue `tel:` phone | `ClientCardModal.tsx` |
@@ -185,7 +200,7 @@ Opened-card copy controls and `tel:` links remain available in read-only mode. C
 ### Out of scope
 
 - Product model modal title copy (separate `.product-model-copy-button` control)
-- Warehouse Stock `Article` / `Note`
+- Warehouse Stock `Note`
 - Employee phones
 - Kanban card phone, total, and master menu
 - Opened-card Created date, Master selection, and payment amounts

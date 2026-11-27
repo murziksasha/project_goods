@@ -138,7 +138,8 @@ export interface OrderDetailLineItemsPanelProps {
   allItems: OrderLineItem[];
   products: Product[];
   supplierOrders?: SupplierOrder[];
-  printForms: PrintForm[];
+  /** Saved print forms for stock labels; `null` while settings are loading. */
+  printForms: PrintForm[] | null;
   catalogProducts: CatalogProduct[];
   onOpenSupplierOrder?: (
     supplierOrderId: string,
@@ -2810,6 +2811,7 @@ export const OrderDetailLineItemsPanel: React.FC<
       {isProductKind ? (
         <SupplierOrderModal
           isOpen={isSupplierOrderModalOpen}
+          printForms={printForms}
           suppliers={suppliers}
           initialProductName={supplierOrderProductName}
           initialQuantity={supplierOrderInitialQuantity}

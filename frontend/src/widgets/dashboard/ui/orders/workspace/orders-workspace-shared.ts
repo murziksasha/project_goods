@@ -88,6 +88,8 @@ export type OrdersWorkspaceProps = {
   clientDevices: ClientDevice[];
   catalogProducts: CatalogProduct[];
   printForms: PrintForm[];
+  /** Saved print forms for stock labels; `null` while settings are loading. */
+  labelPrintForms: PrintForm[] | null;
   printCompanySettings: PrintCompanySettings;
   onCreateClientDevice: (
     payload: ClientDeviceFormValues,
@@ -1651,15 +1653,23 @@ export type WarehouseSerialPrintItem = {
   serialNumber: string;
 };
 
+/**
+ * Result of a warehouse label print request. `settings-loading`: the saved
+ * print forms are not loaded yet, nothing is printed (no built-in fallback).
+ */
+export type WarehouseLabelPrintResult = 'printed' | 'empty' | 'settings-loading';
+
+/** `null` print forms mean the settings are not loaded yet. */
 export const printWarehouseSerialLabels = async (
   items: WarehouseSerialPrintItem[],
-  printForms: PrintForm[],
+  printForms: PrintForm[] | null,
   title: string,
-) => {
+): Promise<WarehouseLabelPrintResult> => {
+  if (printForms === null) return 'settings-loading';
   const printableItems = items.filter((item) =>
     item.serialNumber.trim(),
   );
-  if (printableItems.length === 0) return;
+  if (printableItems.length === 0) return 'empty';
 
   const barcodeForm = getWarehouseBarcodePrintForm(printForms);
   const pageSize = barcodeForm.pageSize ?? 'label';
@@ -1689,17 +1699,16 @@ export const printWarehouseSerialLabels = async (
     autoClose: true,
     batchLabels: printableItems.length > 1,
   });
+  return 'printed';
 };
 
 export type SerialPrintItem = WarehouseSerialPrintItem;
 
 export const printSerialNumbers = (
   items: SerialPrintItem[],
-  printForms: PrintForm[],
+  printForms: PrintForm[] | null,
   title = printT('warehouse.print.serialNumbersTitle'),
-) => {
-  void printWarehouseSerialLabels(items, printForms, title);
-};
+) => printWarehouseSerialLabels(items, printForms, title);
 
 export const renderOrderPrintCodes = async (
   root: HTMLElement | Document,

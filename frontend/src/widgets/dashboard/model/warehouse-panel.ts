@@ -105,6 +105,7 @@ export type WarehouseFilters = {
   location: string;
   statuses: ReceiptStatus[];
   favoritesOnly: boolean;
+  statusSelectionExplicit?: boolean;
 };
 export type SavedWarehouseFilter = {
   id: string;
@@ -213,7 +214,8 @@ export type TransferHistoryRow = {
 };
 
 export type WarehousePanelProps = {
-  printForms: PrintForm[];
+  /** Saved print forms; `null` while settings are loading (printing is blocked). */
+  printForms: PrintForm[] | null;
   products: Product[];
   sales: Sale[];
   catalogProducts: CatalogProduct[];
@@ -354,6 +356,7 @@ export interface StoredWarehouseFilters {
   receiptStatuses?: ReceiptStatus[];
   statuses?: ReceiptStatus[];
   favoritesOnly?: boolean;
+  statusSelectionExplicit?: boolean;
 }
 
 export const readStoredWarehouseFilters = (
@@ -479,8 +482,9 @@ export const initialWarehouseFilters: WarehouseFilters = {
   supplier: '',
   buyer: '',
   location: '',
-  statuses: [],
+  statuses: [...receiptStatusFilterOptions],
   favoritesOnly: false,
+  statusSelectionExplicit: true,
 };
 
 export const normalizeReceiptStatuses = (
@@ -704,8 +708,11 @@ export const filterReceiptRows = ({
       return false;
     }
 
+    if (filters.statuses.length === 0) {
+      return false;
+    }
+
     if (
-      filters.statuses.length > 0 &&
       !filters.statuses.some((chip) =>
         receiptChipToOrderStatuses[chip].includes(receipt.orderStatus),
       )

@@ -52,7 +52,7 @@ Invoice data sources and shared empty-table visibility rules are specified in
 
 Active tab is stored in `localStorage` (`project-goods.settings-tab`). If the stored tab is hidden by permission, the first visible tab is selected.
 
-Tablist uses `role="tab"` / `aria-selected` / `aria-controls`. Arrow Left/Right moves the active tab.
+Tablist uses `role="tab"` / `aria-selected` / `aria-controls`. Arrow Left/Right moves the active tab. Settings page tabs use `.orders-tab` on the `.orders-page` shell. `PageHeader` (title, subtitle, and Save button) is located below the tab row, with a 12px gap under the tabs. Inner settings cards (`.settings-group`) remain inside the shell.
 
 ## Company
 
@@ -80,6 +80,8 @@ The shared **Template variables** picker in Heading, Text, and Barcode editors d
 Each template has **Show in print menu** checkboxes (Sale / Repair / Warehouse (product)) stored server-side as `printMenuVisibility`; absent = legacy (shown everywhere), empty = hidden from menus but kept in the constructor. Built-in **New Barcode (with bar)** / **(without bar)** default to Repair only. Rules: [PRINT_FORMS_SPEC.md → Print menu visibility](./PRINT_FORMS_SPEC.md#print-menu-visibility-2026-11-18), [→ New Barcode label](./PRINT_FORMS_SPEC.md#new-barcode-label-2026-11-18).
 
 Phone variables print in Ukrainian local format `050-556-70-90` (country code removed, 3-3-2-2); foreign or unparsable numbers print as-is. Rules: [PRINT_FORMS_SPEC.md → Phone Print Format](./PRINT_FORMS_SPEC.md#phone-print-format-2026-11-18).
+
+Stock labels (`Product barcode`) print only with the **saved** forms plus the employee's local overrides; there is no built-in fallback, and printing is blocked with `warehouse.print.settingsLoading` until settings are loaded. Unsaved builder changes do not affect printing. Rules: [PRINT_FORMS_SPEC.md → Saved Forms Only](./PRINT_FORMS_SPEC.md#saved-forms-only-2026-11-24).
 
 Save writes template **content** to the API. Per-employee layout (margins, page/label size, orientation) is written to `project-goods.print-form-overrides.{employeeId}` only on **Save settings**.
 

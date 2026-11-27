@@ -9,16 +9,20 @@ import {
   filterSupplierOrders,
   getActiveSupplierOrderItems,
   getActiveSupplierOrdersFiltersCount,
+  getSupplierOrdersFiltersStorageKey,
   isSupplierOrderDeliveryOverdue,
   isSupplierOrderHiddenFromList,
   isSupplierOrderPaidAmountUnpaid,
   matchesSupplierOrderStatusFilter,
   normalizeSupplierOrdersColumns,
   parseSupplierOrdersFilters,
+  readStoredSupplierOrdersFilters,
   summarizeFilteredSupplierOrders,
   summarizeSupplierOrderItems,
   supplierOrdersAllColumns,
   supplierOrdersDefaultColumns,
+  supplierOrdersFiltersStorageKey,
+  supplierOrderStatuses,
   type SupplierOrdersFilters,
 } from './supplier-orders-workspace';
 
@@ -296,7 +300,7 @@ describe('supplier-orders-workspace', () => {
     ).toBe(true);
     expect(
       matchesSupplierOrderStatusFilter('partially_completed', []),
-    ).toBe(true);
+    ).toBe(false);
   });
 
   it('filters to starred supplier orders only', () => {
@@ -609,6 +613,114 @@ describe('supplier-orders-workspace', () => {
       'favoritesOnly',
     ]);
     expect(chips[0]?.clear(applied).selectedStatuses).toEqual(['ordered']);
+  });
+
+  it('does not count all statuses toward badge and emits no status chips for full set', () => {
+    const allStatuses = supplierOrderStatuses.map((s) => s.key);
+    const applied = filters({
+      selectedStatuses: allStatuses,
+    });
+
+    expect(getActiveSupplierOrdersFiltersCount(applied)).toBe(0);
+
+    const chips = buildSupplierOrdersFilterChips(applied, {
+      status: (status) => status,
+      noStatuses: 'No statuses',
+      payment: (status) => status,
+      supplier: (id) => `Supplier ${id}`,
+      createdBy: 'Created by',
+      product: 'Product',
+      orderNumber: 'No.',
+      dateFrom: 'From',
+      dateTo: 'To',
+      dateFieldCreated: 'By order date',
+      query: 'Search',
+      favorites: 'Starred',
+    });
+
+    expect(chips).toEqual([]);
+  });
+
+  it('counts empty status selection as 1 on badge and emits no-statuses chip whose clear restores all', () => {
+    const applied = filters({
+      selectedStatuses: [],
+    });
+
+    expect(getActiveSupplierOrdersFiltersCount(applied)).toBe(1);
+
+    const chips = buildSupplierOrdersFilterChips(applied, {
+      status: (status) => status,
+      noStatuses: 'No statuses',
+      payment: (status) => status,
+      supplier: (id) => `Supplier ${id}`,
+      createdBy: 'Created by',
+      product: 'Product',
+      orderNumber: 'No.',
+      dateFrom: 'From',
+      dateTo: 'To',
+      dateFieldCreated: 'By order date',
+      query: 'Search',
+      favorites: 'Starred',
+    });
+
+    expect(chips.map((c) => c.id)).toEqual(['status-none']);
+    expect(chips[0]?.label).toBe('No statuses');
+
+    const restored = chips[0]?.clear(applied);
+    expect(restored?.selectedStatuses).toEqual(
+      supplierOrderStatuses.map((s) => s.key),
+    );
+  });
+
+  it('handles per-employee storage keys and legacy migration', () => {
+    expect(getSupplierOrdersFiltersStorageKey('emp-123')).toBe(
+      'project-goods.supplier-orders-filters.emp-123',
+    );
+    expect(getSupplierOrdersFiltersStorageKey(undefined)).toBe(
+      'project-goods.supplier-orders-filters',
+    );
+
+    window.localStorage.clear();
+
+    // Legacy shared key with empty list and no statusSelectionExplicit flag
+    window.localStorage.setItem(
+      supplierOrdersFiltersStorageKey,
+      JSON.stringify({
+        query: 'test',
+        selectedStatuses: [],
+      }),
+    );
+
+    // Reading with employeeId should read legacy shared key, default to all statuses, and write employee key
+    const loaded = readStoredSupplierOrdersFilters('emp-1');
+    expect(loaded.query).toBe('test');
+    expect(loaded.selectedStatuses).toEqual(
+      supplierOrderStatuses.map((s) => s.key),
+    );
+    expect(loaded.statusSelectionExplicit).toBe(true);
+
+    // Check that employee key was written
+    const employeeStored = window.localStorage.getItem(
+      'project-goods.supplier-orders-filters.emp-1',
+    );
+    expect(employeeStored).toBeTruthy();
+    expect(JSON.parse(employeeStored!).selectedStatuses).toEqual(
+      supplierOrderStatuses.map((s) => s.key),
+    );
+    // Shared key remains in place
+    expect(window.localStorage.getItem(supplierOrdersFiltersStorageKey)).toBeTruthy();
+
+    // Now test explicit empty selection
+    window.localStorage.setItem(
+      'project-goods.supplier-orders-filters.emp-2',
+      JSON.stringify({
+        selectedStatuses: [],
+        statusSelectionExplicit: true,
+      }),
+    );
+    const loaded2 = readStoredSupplierOrdersFilters('emp-2');
+    expect(loaded2.selectedStatuses).toEqual([]);
+    expect(loaded2.statusSelectionExplicit).toBe(true);
   });
 
   it('summarizes filtered orders without double-counting items', () => {

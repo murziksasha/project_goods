@@ -28,9 +28,27 @@ const baseProps = {
   onSaveCurrentFilter: vi.fn(),
   onApplySavedFilter: vi.fn(),
   onRemoveSavedFilter: vi.fn(),
+  onClose: vi.fn(),
 };
 
 describe('OrdersWorkspaceFilterPanel', () => {
+  it('calls onClose when close button is clicked without calling onApplyFilters', () => {
+    const onClose = vi.fn();
+    const onApplyFilters = vi.fn();
+    render(
+      <OrdersWorkspaceFilterPanel
+        {...baseProps}
+        onClose={onClose}
+        onApplyFilters={onApplyFilters}
+      />,
+    );
+
+    const closeBtn = screen.getByRole('button', { name: 'Close filters' });
+    fireEvent.click(closeBtn);
+
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(onApplyFilters).not.toHaveBeenCalled();
+  });
   it('hides repair type and shows sale type on the sales variant', () => {
     render(
       <OrdersWorkspaceFilterPanel {...baseProps} variant="sales" />,

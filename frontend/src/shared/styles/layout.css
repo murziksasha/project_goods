@@ -69,6 +69,24 @@
   overflow: hidden;
 }
 
+.catalog-table-panel.orders-page {
+  padding: 12px;
+}
+
+.catalog-table-panel.orders-page .page-header {
+  margin: 0 0 12px 0;
+}
+
+.catalog-table-panel.orders-page .catalog-toolbar {
+  padding: 0;
+  border-bottom: 0;
+  margin-bottom: 12px;
+}
+
+.catalog-table-panel.orders-page .catalog-inline-form {
+  padding: 0 0 12px 0;
+}
+
 .catalog-tabs {
   display: flex;
   gap: 0;
@@ -971,6 +989,16 @@
 
 .product-model-section-body {
   padding: 18px 0;
+}
+
+.product-model-article-field:hover .copyable-value-copy,
+.product-model-article-field:focus-within .copyable-value-copy {
+  width: 22px;
+  min-width: 22px;
+  opacity: 1;
+  overflow: visible;
+  pointer-events: auto;
+  border-color: var(--color-line-panel);
 }
 
 .product-model-summary {

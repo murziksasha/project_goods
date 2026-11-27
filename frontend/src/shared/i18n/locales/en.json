@@ -805,6 +805,7 @@
       "createSale": "New sale"
     },
     "filters": {
+      "closePanel": "Close filters",
       "savedLabel": "Saved filters:",
       "noSaved": "No saved filters for this tab.",
       "saveFilter": "Save filter",
@@ -812,6 +813,7 @@
       "deleteFilter": "Delete {{name}}",
       "status": "Status",
       "all": "All",
+      "none": "None",
       "selectedCount": "{{count}} selected",
       "orderNumber": "Order number",
       "orderNumberPlaceholder": "Order #",
@@ -1233,6 +1235,7 @@
         "paymentStatus": "Payment status"
       },
       "filters": {
+        "noStatuses": "No statuses",
         "dateFrom": "Date from",
         "dateTo": "Date to",
         "clearDates": "Clear dates",
@@ -2997,6 +3000,7 @@
     },
     "print": {
       "serialNumbersTitle": "Serial numbers",
+      "settingsLoading": "Please wait, settings are loading",
       "productFallback": "Product",
       "barcodeAriaLabel": "Barcode {{index}}"
     },

@@ -534,37 +534,50 @@ export const ClientsSuppliersWorkspace: React.FC<
     };
   }, [currentEmployee?.id]);
 
-  const saveSupplierFilter = () => {
-    const filterName = newSupplierFilterName.trim();
-    if (!currentEmployee?.id || !filterName) return;
-    const filters = normalizeSupplierFilters(appliedSupplierFilters);
-    void (async () => {
-      try {
-        const created = await createSavedFilterRequest({
-          scope: 'clients',
-          tab: 'suppliers',
-          name: filterName,
-          icon: newSupplierFilterIcon,
-          filters,
-        });
-        setSavedFilters((current) => [
-          {
-            id: created.id,
-            employeeId: created.employeeId,
-            name: created.name,
-            icon: created.icon,
-            tab: 'suppliers',
-            filters: created.filters as SupplierFilters,
-            createdAt: created.createdAt,
-          },
-          ...current,
-        ]);
-        setNewSupplierFilterName('');
-        setNewSupplierFilterIcon(filterIconOptions[0]);
-      } catch {
-        // ignore
+  useEffect(() => {
+    if (!isSupplierFilterOpen) return;
+
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsSupplierFilterOpen(false);
       }
-    })();
+    };
+
+    document.addEventListener('keydown', closeOnEscape);
+
+    return () => {
+      document.removeEventListener('keydown', closeOnEscape);
+    };
+  }, [isSupplierFilterOpen]);
+
+  const saveSupplierFilter = async (): Promise<boolean> => {
+    const filterName = newSupplierFilterName.trim();
+    if (!currentEmployee?.id || !filterName) return false;
+    const filters = normalizeSupplierFilters(appliedSupplierFilters);
+    try {
+      const created = await createSavedFilterRequest({
+        scope: 'clients',
+        tab: 'suppliers',
+        name: filterName,
+        icon: newSupplierFilterIcon,
+        filters,
+      });
+      setSavedFilters((current) => [
+        {
+          id: created.id,
+          employeeId: created.employeeId,
+          name: created.name,
+          icon: created.icon,
+          tab: 'suppliers',
+          filters: created.filters as SupplierFilters,
+          createdAt: created.createdAt,
+        },
+        ...current,
+      ]);
+      return true;
+    } catch {
+      return false;
+    }
   };
 
   const applySupplierSavedFilter = (filterId: string) => {
@@ -622,7 +635,7 @@ export const ClientsSuppliersWorkspace: React.FC<
   }, [appliedSupplierFilters]);
 
   return (
-    <section className='panel clients-workspace'>
+    <section className='orders-page clients-workspace'>
       <ClientsSuppliersTabs
         activeTab={activeTab}
         clientsCount={clients.length}
@@ -701,6 +714,7 @@ export const ClientsSuppliersWorkspace: React.FC<
           onToggleFilters={() =>
             setIsSupplierFilterOpen((current) => !current)
           }
+          onCloseFilter={() => setIsSupplierFilterOpen(false)}
           onUpdateFilters={setDraftSupplierFilters}
         />
       )}
@@ -845,6 +859,7 @@ const SuppliersWorkspace = ({
   onOpenMergeModal,
   onSaveFilter,
   onToggleFilters,
+  onCloseFilter,
   onUpdateFilters,
 }: {
   activeFiltersCount: number;
@@ -876,8 +891,9 @@ const SuppliersWorkspace = ({
   onOpenImport: () => void;
   onOpenExport: () => void;
   onOpenMergeModal: () => void;
-  onSaveFilter: () => void;
+  onSaveFilter: () => boolean | Promise<boolean>;
   onToggleFilters: () => void;
+  onCloseFilter: () => void;
   onUpdateFilters: (filters: SupplierFilters) => void;
 }) => (
   <section className='panel clients-workspace'>
@@ -914,6 +930,7 @@ const SuppliersWorkspace = ({
       onFilterIconChange={onFilterIconChange}
       onFilterNameChange={onFilterNameChange}
       onSaveFilter={onSaveFilter}
+      onClose={onCloseFilter}
     />
     <SuppliersTable
       suppliers={suppliers}
@@ -1084,6 +1101,7 @@ const SuppliersFilterPanel = ({
   onFilterIconChange,
   onFilterNameChange,
   onSaveFilter,
+  onClose,
 }: {
   canSaveFilter: boolean;
   draftFilters: SupplierFilters;
@@ -1098,7 +1116,8 @@ const SuppliersFilterPanel = ({
   onDeleteSavedFilter: (id: string) => void;
   onFilterIconChange: (icon: string) => void;
   onFilterNameChange: (name: string) => void;
-  onSaveFilter: () => void;
+  onSaveFilter: () => boolean | Promise<boolean>;
+  onClose: () => void;
 }) => {
   const { t } = useTranslation();
   const updateFilter = <K extends keyof SupplierFilters>(
@@ -1114,6 +1133,14 @@ const SuppliersFilterPanel = ({
           : 'orders-filter-panel'
       }
     >
+      <button
+        type='button'
+        className='orders-filter-panel-close'
+        aria-label={t('orders.filters.closePanel')}
+        onClick={onClose}
+      >
+        &times;
+      </button>
       <SavedFiltersPanel
         canSave={canSaveFilter}
         items={savedFilters}

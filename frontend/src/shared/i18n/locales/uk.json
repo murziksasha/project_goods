@@ -805,6 +805,7 @@
       "createSale": "Новий продаж"
     },
     "filters": {
+      "closePanel": "Закрити фільтри",
       "savedLabel": "Збережені фільтри:",
       "noSaved": "Немає збережених фільтрів для цієї вкладки.",
       "saveFilter": "Зберегти фільтр",
@@ -812,6 +813,7 @@
       "deleteFilter": "Видалити {{name}}",
       "status": "Статус",
       "all": "Усі",
+      "none": "Немає",
       "selectedCount": "Обрано: {{count}}",
       "orderNumber": "Номер замовлення",
       "orderNumberPlaceholder": "Замовлення №",
@@ -1233,6 +1235,7 @@
         "paymentStatus": "Статус оплати"
       },
       "filters": {
+        "noStatuses": "Без статусів",
         "dateFrom": "Дата від",
         "dateTo": "Дата до",
         "clearDates": "Очистити дати",
@@ -2997,6 +3000,7 @@
     },
     "print": {
       "serialNumbersTitle": "Серійні номери",
+      "settingsLoading": "Зачекайте, налаштування завантажуються",
       "productFallback": "Товар",
       "barcodeAriaLabel": "Штрих-код {{index}}"
     },

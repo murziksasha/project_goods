@@ -5,7 +5,9 @@ import {
   useMemo,
   useRef,
   useState,
+  type Dispatch,
   type ReactNode,
+  type SetStateAction,
 } from 'react';
 import { useTranslation } from 'react-i18next';
 import i18n from '../../../../../shared/i18n/config';
@@ -27,7 +29,11 @@ import {
 } from '../../../../../entities/sale';
 import { formatCurrency } from '../../../../../shared/lib/format';
 import { scrollDashboardMainToTop } from '../../../../../shared/lib/scrollDashboardMain';
-import { parseMoney } from '../../../../../shared/lib/decimal';
+import {
+  formatMoneyAmount,
+  parseMoney,
+  roundMoney,
+} from '../../../../../shared/lib/decimal';
 import { getSaleClientPhones } from '../../../../../entities/client';
 import type { ClientStatus } from '../../../../../entities/client';
 import {
@@ -224,6 +230,7 @@ export const OrdersWorkspace: React.FC<OrdersWorkspaceProps> = ({
   clientDevices,
   catalogProducts,
   printForms,
+  labelPrintForms,
   printCompanySettings,
   onCreateClientDevice,
   onUpdateClientDevice,
@@ -348,6 +355,18 @@ export const OrdersWorkspace: React.FC<OrdersWorkspaceProps> = ({
   const [isStatusFilterOpen, setIsStatusFilterOpen] = useState(false);
   const [isSaveFilterDrawerOpen, setIsSaveFilterDrawerOpen] =
     useState(false);
+  const saveFilterDrawerSessionRef = useRef(0);
+  const handleSetIsSaveFilterDrawerOpen: Dispatch<SetStateAction<boolean>> = (
+    action,
+  ) => {
+    setIsSaveFilterDrawerOpen((prev) => {
+      const next = typeof action === 'function' ? action(prev) : action;
+      if (next && !prev) {
+        saveFilterDrawerSessionRef.current += 1;
+      }
+      return next;
+    });
+  };
   const [savedFilters, setSavedFilters] = useState<
     SavedOrdersFilter[]
   >([]);
@@ -1050,6 +1069,7 @@ export const OrdersWorkspace: React.FC<OrdersWorkspaceProps> = ({
             product: draftFilters.product.trim(),
             service: draftFilters.service.trim(),
           };
+    const saveSession = saveFilterDrawerSessionRef.current;
     void (async () => {
       try {
         const created = await createSavedFilterRequest({
@@ -1069,9 +1089,11 @@ export const OrdersWorkspace: React.FC<OrdersWorkspaceProps> = ({
           createdAt: created.createdAt,
         };
         setSavedFilters((current) => [nextFilter, ...current]);
-        setIsSaveFilterDrawerOpen(false);
-        setNewFilterName('');
-        setNewFilterIcon(filterIconOptions[0]);
+        if (saveFilterDrawerSessionRef.current === saveSession) {
+          setIsSaveFilterDrawerOpen(false);
+          setNewFilterName('');
+          setNewFilterIcon(filterIconOptions[0]);
+        }
         onSuccess(t('orders.messages.success.filterSaved'));
       } catch (error) {
         onError(
@@ -1469,15 +1491,15 @@ export const OrdersWorkspace: React.FC<OrdersWorkspaceProps> = ({
       getPaidAmount(paymentSale),
       getLineItems(paymentSale),
     );
-    const normalizedRemaining =
-      Math.round(remainingPayment * 100) / 100;
+    const normalizedRemaining = roundMoney(remainingPayment);
+    const formattedRemaining = formatMoneyAmount(normalizedRemaining);
     setPaymentAmount((current) => {
-      const numericCurrent = Math.round(Number(current) * 100) / 100;
-      if (!Number.isFinite(numericCurrent) || numericCurrent < 0) {
-        return String(normalizedRemaining);
+      const parsedCurrent = parseMoney(current);
+      if (!Number.isFinite(parsedCurrent) || parsedCurrent < 0) {
+        return formattedRemaining;
       }
-      if (numericCurrent > normalizedRemaining) {
-        return String(normalizedRemaining);
+      if (parsedCurrent > normalizedRemaining) {
+        return formattedRemaining;
       }
       return current;
     });
@@ -2275,7 +2297,7 @@ export const OrdersWorkspace: React.FC<OrdersWorkspaceProps> = ({
 
       setPaymentSale(sale);
       setPaymentTargetStatus(targetStatus);
-      setPaymentAmount(String(remainingPayment));
+      setPaymentAmount(formatMoneyAmount(remainingPayment));
       const initialMethod = getLatestDepositPaymentMethod(sale) ?? 'cash';
       setIsPaymentModalLoading(true);
 
@@ -2803,15 +2825,19 @@ export const OrdersWorkspace: React.FC<OrdersWorkspaceProps> = ({
 
     const currentPaidAmount = getPaidAmount(paymentSale);
     const currentLineItems = getLineItems(paymentSale);
-    const currentPaymentRemaining = getRemainingPayment(
-      paymentSale,
-      currentPaidAmount,
-      currentLineItems,
+    const currentPaymentRemaining = roundMoney(
+      getRemainingPayment(
+        paymentSale,
+        currentPaidAmount,
+        currentLineItems,
+      ),
     );
     const normalizedAmount = parseMoney(paymentAmount);
     const nextPaymentRemaining = Math.max(
-      currentPaymentRemaining -
-        (action === 'issueWithoutPayment' ? 0 : normalizedAmount),
+      roundMoney(
+        currentPaymentRemaining -
+          (action === 'issueWithoutPayment' ? 0 : normalizedAmount),
+      ),
       0,
     );
 
@@ -3301,7 +3327,7 @@ export const OrdersWorkspace: React.FC<OrdersWorkspaceProps> = ({
             comments={selectedSale.timeline ?? []}
             lineItems={getLineItems(selectedSale)}
             products={products}
-            printForms={printForms}
+            printForms={labelPrintForms}
             clientDevices={clientDevices}
             catalogProducts={catalogProducts}
             paidAmount={getPaidAmount(selectedSale)}
@@ -3445,6 +3471,7 @@ export const OrdersWorkspace: React.FC<OrdersWorkspaceProps> = ({
         isFilterPanelOpen={isFilterPanelOpen}
         isStatusFilterOpen={isStatusFilterOpen}
         isSaveFilterDrawerOpen={isSaveFilterDrawerOpen}
+        onClose={() => setIsFilterPanelOpen(false)}
         canManageSavedFilters={canManageSavedFilters}
         visibleSavedFilters={visibleSavedFilters}
         employeeSavedFilters={employeeSavedFilters}
@@ -3463,7 +3490,7 @@ export const OrdersWorkspace: React.FC<OrdersWorkspaceProps> = ({
         }
         setDraftFilters={setDraftFilters}
         setIsStatusFilterOpen={setIsStatusFilterOpen}
-        setIsSaveFilterDrawerOpen={setIsSaveFilterDrawerOpen}
+        setIsSaveFilterDrawerOpen={handleSetIsSaveFilterDrawerOpen}
         setNewFilterName={setNewFilterName}
         setNewFilterIcon={setNewFilterIcon}
         onToggleStatusFilter={toggleStatusFilter}

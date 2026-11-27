@@ -105,6 +105,10 @@
   gap: 22px;
 }
 
+.settings-page > .orders-tabs {
+  margin: -12px -12px -10px;
+}
+
 .settings-tabs {
   display: flex;
   flex-wrap: wrap;

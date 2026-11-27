@@ -22,6 +22,10 @@ The Employees section (`page=employees`) is available to `owner` and employees w
 
 Active tab is persisted in browser `localStorage` (`project-goods.employees-active-tab`).
 
+### Layout
+
+The Employees section uses the `.orders-page` shell with `.orders-tabs` and `.orders-tab`. The Team management tab renders as an inner `.panel` white card inside this shell. Outer padding of `.warehouse-information` is zeroed specifically under `.employees-panel` (`.employees-panel .warehouse-information { padding: 0; }`) so its first block lines up with the Team card edge while retaining inner KPI padding and gaps.
+
 ## Employee list
 
 `EmployeeManagementPanel` is a header + filtered card list. Create/edit lives in `EmployeeFormModal` (not an inline form below the list).

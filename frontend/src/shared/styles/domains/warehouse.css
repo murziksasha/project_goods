@@ -39,6 +39,46 @@
   overflow: visible;
 }
 
+.warehouse-panel.orders-page {
+  padding: 12px;
+}
+
+.warehouse-panel.orders-page .warehouse-toolbar-shell {
+  padding: 0 0 8px;
+}
+
+.warehouse-panel.orders-page .warehouse-status-chips {
+  padding-left: 0;
+  padding-right: 0;
+}
+
+.warehouse-panel.orders-page .warehouse-receipt {
+  padding-left: 0;
+  padding-right: 0;
+}
+
+.warehouse-panel.orders-page .warehouse-receipt-header {
+  padding-left: 0;
+  padding-right: 0;
+}
+
+.warehouse-tab-badge,
+.warehouse-panel .orders-tab strong {
+  position: static;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 6px;
+  min-width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  background: #118fd0;
+  color: var(--color-on-accent);
+  font-size: 0.72rem;
+  padding: 0 5px;
+  vertical-align: middle;
+}
+
 .warehouse-toolbar-shell {
   padding: 14px 18px 8px;
 }
@@ -396,6 +436,16 @@
 .warehouse-stock-cell-article {
   width: 130px;
   min-width: 130px;
+}
+
+.warehouse-stock-cell-article .copyable-value {
+  max-width: 100%;
+  min-width: 0;
+}
+
+.warehouse-stock-cell-article .copyable-value-content {
+  min-width: 0;
+  overflow: hidden;
 }
 
 .warehouse-stock-cell-date {

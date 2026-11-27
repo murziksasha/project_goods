@@ -276,7 +276,7 @@ test.describe('Warehouse group mass actions', () => {
     await expect(submitTransferBtn).toBeDisabled();
 
     // Navigate back to Stock balances tab
-    await page.locator('button.warehouse-tab', { hasText: 'Stock balances' }).click();
+    await page.locator('button.orders-tab', { hasText: 'Stock balances' }).click();
 
     // The group row is collapsed on tab mount: re-expand to inspect children
     await page.locator('tr.warehouse-group-row .warehouse-expand-button').click();
