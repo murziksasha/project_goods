@@ -180,6 +180,78 @@ describe('WarehouseToolbar serial printing', () => {
       screen.getByRole('button', { name: 'Taken on charge' }),
     ).toBeInTheDocument();
   });
+
+  it('renders stock status chips on Stock balances and keeps search editable during checking', () => {
+    const onToggleStockStatus = vi.fn();
+    const onToggleAllStockStatuses = vi.fn();
+
+    render(
+      <WarehouseToolbar
+        activeTab='stock'
+        stockSummaryText='Checking stock...'
+        selectedProductCount={0}
+        selectedSerialCount={0}
+        activeColumnsTab='stock'
+        columnsMenuRef={createRef<HTMLDivElement>()}
+        isColumnsMenuOpen={false}
+        visibleColumnKeySet={new Set(['select', 'name', 'serial'])}
+        activeFilterCount={0}
+        favoritesOnly={false}
+        query='terra'
+        searchMode='serial'
+        searchPlaceholder='Search by serial number'
+        stockView='models'
+        receiptsView='orders'
+        appliedReceiptStatuses={[]}
+        showReceiptStatusChips={false}
+        appliedStockStatuses={['free', 'in_order']}
+        showStockStatusChips={true}
+        onPrintSelectedSerials={vi.fn()}
+        onClearSelection={vi.fn()}
+        onToggleColumnsMenu={vi.fn()}
+        onToggleColumnVisibility={vi.fn()}
+        onToggleFilters={vi.fn()}
+        onToggleFavoritesOnly={vi.fn()}
+        onStockViewChange={vi.fn()}
+        onReceiptsViewChange={vi.fn()}
+        onToggleStockStatus={onToggleStockStatus}
+        onToggleAllStockStatuses={onToggleAllStockStatuses}
+        setQuery={vi.fn()}
+        setSearchMode={vi.fn()}
+        setCurrentPage={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText('Checking stock...')).toBeInTheDocument();
+    expect(searchInput()).toHaveValue('terra');
+    expect(searchInput()).toBeEnabled();
+
+    expect(screen.getByRole('button', { name: 'All' })).toHaveAttribute(
+      'aria-pressed',
+      'false',
+    );
+    expect(screen.getByRole('button', { name: 'Free' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    expect(screen.getByRole('button', { name: 'In order' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    expect(screen.getByRole('button', { name: 'Sold' })).toHaveAttribute(
+      'aria-pressed',
+      'false',
+    );
+    expect(
+      screen.getByRole('button', { name: 'Issued repair' }),
+    ).toHaveAttribute('aria-pressed', 'false');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Sold' }));
+    expect(onToggleStockStatus).toHaveBeenCalledWith('sold');
+
+    fireEvent.click(screen.getByRole('button', { name: 'All' }));
+    expect(onToggleAllStockStatuses).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe('WarehouseToolbar search commit', () => {

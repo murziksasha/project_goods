@@ -21,6 +21,7 @@ const DEFAULT_MAX_BACKOFF_MS = 30_000;
 const invalidateForPath = (path: string) => {
   if (path.includes('/sales')) {
     void queryClient.invalidateQueries({ queryKey: queryKeys.sales });
+    void queryClient.invalidateQueries({ queryKey: ['stockOrderLinks'] });
     void queryClient.invalidateQueries({ queryKey: queryKeys.warehouseReportRoot });
     void queryClient.invalidateQueries({ queryKey: queryKeys.ordersRepairsReportRoot });
     void queryClient.invalidateQueries({ queryKey: queryKeys.ordersSalesReportRoot });

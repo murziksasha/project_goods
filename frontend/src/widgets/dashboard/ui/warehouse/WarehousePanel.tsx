@@ -53,14 +53,26 @@ import {
 } from '../../model/supplier-order-utils';
 import {
   buildSalesByProductId,
+  buildStockSaleLinksByProductId,
   buildSupplierOrdersByProductId,
   buildProductWarehouseMetaById,
+  defaultStockStatusFilters,
   filterStockProducts,
   groupStockProductsByModel,
   getStockModelGroupId,
+  isDefaultStockStatusFilter,
+  matchesStockStatusChips,
   mergeSalesWithStockOrderLinks,
+  normalizeStockStatusFilters,
+  stockStatusChipOptions,
+  toggleAllStockStatusFilters,
+  toggleStockStatusFilter,
+  type StockStatusChip,
 } from '../../model/stock-balance';
-import { useStockOrderLinksQuery } from '../../../../entities/sale';
+import {
+  useStockOrderLinksQuery,
+  type StockOrderLink,
+} from '../../../../entities/sale';
 import {
   classifyTransferProducts,
   getActiveBatchProducts,
@@ -198,11 +210,16 @@ export const WarehousePanel: React.FC<WarehousePanelProps> = ({
             legacySingleStatus: filters.status,
           }).statuses
         : [...receiptStatusFilterOptions];
+    const resolvedStockStatuses =
+      filters && 'stockStatuses' in filters
+        ? normalizeStockStatusFilters(filters.stockStatuses)
+        : [...defaultStockStatusFilters];
 
     return {
       ...initialWarehouseFilters,
       ...(filters ?? {}),
       statuses: resolvedStatuses,
+      stockStatuses: resolvedStockStatuses,
       favoritesOnly: filters?.favoritesOnly === true,
       statusSelectionExplicit: true,
     };
@@ -270,6 +287,8 @@ export const WarehousePanel: React.FC<WarehousePanelProps> = ({
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
   const [isReceiptStatusFilterOpen, setIsReceiptStatusFilterOpen] =
     useState(false);
+  const [isStockStatusFilterOpen, setIsStockStatusFilterOpen] =
+    useState(false);
   const [isColumnsMenuOpen, setIsColumnsMenuOpen] = useState(false);
   const [isSaveFilterDrawerOpen, setIsSaveFilterDrawerOpen] =
     useState(false);
@@ -318,6 +337,10 @@ export const WarehousePanel: React.FC<WarehousePanelProps> = ({
       return normalizeWarehouseFilters({
         ...parsed,
         statuses: resolved.statuses,
+        stockStatuses:
+          'stockStatuses' in parsed
+            ? normalizeStockStatusFilters(parsed.stockStatuses)
+            : [...defaultStockStatusFilters],
         favoritesOnly: parsed.favoritesOnly === true,
         statusSelectionExplicit: resolved.statusSelectionExplicit,
       });
@@ -350,16 +373,22 @@ export const WarehousePanel: React.FC<WarehousePanelProps> = ({
       allOptions: receiptStatusFilterOptions,
       legacySingleStatus: parsed.receiptStatus,
     });
+    const stockStatuses =
+      'stockStatuses' in parsed
+        ? normalizeStockStatusFilters(parsed.stockStatuses)
+        : [...defaultStockStatusFilters];
     const favoritesOnly = parsed.favoritesOnly === true;
     setDraftFilters((current) => ({
       ...current,
       statuses: resolved.statuses,
+      stockStatuses,
       statusSelectionExplicit: resolved.statusSelectionExplicit,
       favoritesOnly,
     }));
     setAppliedFilters((current) => ({
       ...current,
       statuses: resolved.statuses,
+      stockStatuses,
       statusSelectionExplicit: resolved.statusSelectionExplicit,
       favoritesOnly,
     }));
@@ -394,6 +423,7 @@ export const WarehousePanel: React.FC<WarehousePanelProps> = ({
   ] = useState<number | null>(null);
   const columnsMenuRef = useRef<HTMLDivElement | null>(null);
   const receiptStatusFilterRef = useRef<HTMLDivElement | null>(null);
+  const stockStatusFilterRef = useRef<HTMLDivElement | null>(null);
   const didInitPaginationRef = useRef(false);
   const [selectedSupplierForEdit, setSelectedSupplierForEdit] =
     useState<Supplier | null>(null);
@@ -785,26 +815,123 @@ export const WarehousePanel: React.FC<WarehousePanelProps> = ({
   const stockLinkRequest = useMemo(() => {
     const productIds: string[] = [];
     const serials: string[] = [];
+    const unitKeys: string[] = [];
     products.forEach((product) => {
       if (product.quantity <= 0) return;
       productIds.push(product.id);
       const serial = product.serialNumber.trim();
       if (serial) serials.push(serial);
+      unitKeys.push(`${product.id}\u0000${serial}`);
     });
-    return { productIds, serials };
+    return {
+      productIds,
+      serials,
+      unitKeys,
+      requestKey: [...unitKeys].sort().join('\u0001'),
+    };
   }, [products]);
+  const needsStockLinks = activeTab === 'stock' || activeTab === 'transfers';
   const stockOrderLinksQuery = useStockOrderLinksQuery(
     stockLinkRequest.productIds,
     stockLinkRequest.serials,
-    activeTab === 'stock',
+    !isLoading && needsStockLinks,
   );
+  const [lastProvenStockFrame, setLastProvenStockFrame] = useState<{
+    requestKey: string;
+    provenUnitKeys: ReadonlySet<string>;
+    links: StockOrderLink[];
+  } | null>(null);
+
+  useEffect(() => {
+    if (isLoading || !needsStockLinks) return;
+    if (
+      stockLinkRequest.productIds.length === 0 &&
+      stockLinkRequest.serials.length === 0
+    ) {
+      setLastProvenStockFrame((current) => {
+        if (
+          current &&
+          current.requestKey === stockLinkRequest.requestKey &&
+          current.links.length === 0
+        ) {
+          return current;
+        }
+        return {
+          requestKey: stockLinkRequest.requestKey,
+          provenUnitKeys: new Set(),
+          links: [],
+        };
+      });
+      return;
+    }
+    const nextLinks = stockOrderLinksQuery.data?.links;
+    if (nextLinks !== undefined) {
+      setLastProvenStockFrame((current) => {
+        if (
+          current &&
+          current.requestKey === stockLinkRequest.requestKey &&
+          current.links === nextLinks
+        ) {
+          return current;
+        }
+        return {
+          requestKey: stockLinkRequest.requestKey,
+          provenUnitKeys: new Set(stockLinkRequest.unitKeys),
+          links: nextLinks,
+        };
+      });
+    }
+  }, [
+    isLoading,
+    needsStockLinks,
+    stockLinkRequest,
+    stockOrderLinksQuery.data,
+  ]);
+
+  const hasStockLinkCandidates =
+    stockLinkRequest.productIds.length > 0 ||
+    stockLinkRequest.serials.length > 0;
+  const isStockColdPending =
+    isLoading ||
+    (needsStockLinks &&
+      hasStockLinkCandidates &&
+      stockOrderLinksQuery.data === undefined &&
+      !stockOrderLinksQuery.isError &&
+      lastProvenStockFrame === null);
+
+  const effectiveStockLinks = useMemo(() => {
+    if (stockOrderLinksQuery.data !== undefined) {
+      return stockOrderLinksQuery.data.links;
+    }
+    return lastProvenStockFrame?.links ?? [];
+  }, [lastProvenStockFrame, stockOrderLinksQuery.data]);
+
+  const stockCandidateProducts = useMemo(() => {
+    if (isLoading) return [];
+    if (!hasStockLinkCandidates) return products;
+    if (stockOrderLinksQuery.data !== undefined) {
+      return products;
+    }
+    if (lastProvenStockFrame !== null) {
+      return products.filter((product) =>
+        lastProvenStockFrame.provenUnitKeys.has(
+          `${product.id}\u0000${product.serialNumber.trim()}`,
+        ),
+      );
+    }
+    return stockOrderLinksQuery.isError ? products : [];
+  }, [
+    hasStockLinkCandidates,
+    isLoading,
+    lastProvenStockFrame,
+    products,
+    stockOrderLinksQuery.data,
+    stockOrderLinksQuery.isError,
+  ]);
+
   const salesForStock = useMemo(
-    () =>
-      mergeSalesWithStockOrderLinks(
-        sales,
-        stockOrderLinksQuery.data?.links ?? [],
-      ),
-    [sales, stockOrderLinksQuery.data?.links],
+    () => mergeSalesWithStockOrderLinks(sales, effectiveStockLinks),
+    [effectiveStockLinks, sales],
   );
   const salesByProductId = useMemo(
     () => buildSalesByProductId(products, salesForStock),
@@ -816,14 +943,33 @@ export const WarehousePanel: React.FC<WarehousePanelProps> = ({
       supplierOrders,
     });
   }, [products, supplierOrders]);
-  const filteredProducts = useMemo(
+  const onHandProducts = useMemo(() => {
+    const saleLinksByProductId = buildStockSaleLinksByProductId(
+      stockCandidateProducts,
+      salesForStock,
+    );
+    return stockCandidateProducts.filter(
+      (product) =>
+        product.quantity > 0 &&
+        matchesStockStatusChips(
+          saleLinksByProductId.get(product.id) ?? [],
+          defaultStockStatusFilters,
+        ),
+    );
+  }, [salesForStock, stockCandidateProducts]);
+  const movableProductIdSet = useMemo(
+    () => new Set(onHandProducts.map((product) => product.id)),
+    [onHandProducts],
+  );
+  const transferFilteredProducts = useMemo(
     () =>
       filterStockProducts({
-        products,
+        products: stockCandidateProducts,
         sales: salesForStock,
         query,
         searchMode,
         filters: appliedFilters,
+        stockStatuses: defaultStockStatusFilters,
         productWarehouseMetaById,
         supplierOrdersByProductId,
         buyersByProductName,
@@ -832,10 +978,34 @@ export const WarehousePanel: React.FC<WarehousePanelProps> = ({
       appliedFilters,
       buyersByProductName,
       productWarehouseMetaById,
-      products,
       query,
       salesForStock,
       searchMode,
+      stockCandidateProducts,
+      supplierOrdersByProductId,
+    ],
+  );
+  const filteredProducts = useMemo(
+    () =>
+      filterStockProducts({
+        products: stockCandidateProducts,
+        sales: salesForStock,
+        query,
+        searchMode,
+        filters: appliedFilters,
+        stockStatuses: appliedFilters.stockStatuses,
+        productWarehouseMetaById,
+        supplierOrdersByProductId,
+        buyersByProductName,
+      }),
+    [
+      appliedFilters,
+      buyersByProductName,
+      productWarehouseMetaById,
+      query,
+      salesForStock,
+      searchMode,
+      stockCandidateProducts,
       supplierOrdersByProductId,
     ],
   );
@@ -897,24 +1067,29 @@ export const WarehousePanel: React.FC<WarehousePanelProps> = ({
   }, [products]);
   const paginatedTransferProducts = useMemo(() => {
     const start = (currentPage - 1) * transferPageSize;
-    return filteredProducts.slice(start, start + transferPageSize);
-  }, [currentPage, filteredProducts]);
+    return transferFilteredProducts.slice(start, start + transferPageSize);
+  }, [currentPage, transferFilteredProducts]);
   const activeTransferProduct = useMemo(
     () =>
-      filteredProducts.find(
+      transferFilteredProducts.find(
         (product) => product.id === transferForm.productId,
       ) ?? null,
-    [filteredProducts, transferForm.productId],
+    [transferFilteredProducts, transferForm.productId],
   );
   const batchResolution = useMemo(
     () =>
       getActiveBatchProducts(
         transferBatch,
-        products,
-        filteredProducts,
+        onHandProducts,
+        transferFilteredProducts,
         selectedStockProductIds,
       ),
-    [transferBatch, products, filteredProducts, selectedStockProductIds],
+    [
+      transferBatch,
+      onHandProducts,
+      transferFilteredProducts,
+      selectedStockProductIds,
+    ],
   );
 
   useEffect(() => {
@@ -973,8 +1148,15 @@ export const WarehousePanel: React.FC<WarehousePanelProps> = ({
         ? 0
         : 1
       : 0;
+  const stockStatusBadgeCount =
+    activeTab === 'stock'
+      ? isDefaultStockStatusFilter(appliedFilters.stockStatuses)
+        ? 0
+        : 1
+      : 0;
   const activeFilterCount =
     receiptStatusBadgeCount +
+    stockStatusBadgeCount +
     (appliedFilters.favoritesOnly ? 1 : 0) +
     [
       appliedFilters.name,
@@ -1001,21 +1183,23 @@ export const WarehousePanel: React.FC<WarehousePanelProps> = ({
     [receiptOrderGroups],
   );
   const stockSummaryText =
-    activeTab === 'stock'
-      ? t('warehouse.summary.unitsModelsValue', {
-          units: filteredProducts.length,
-          models: stockModelGroups.length,
-          value: formatCurrency(stockPurchaseValue),
-        })
-      : activeTab === 'transfers'
-        ? t('warehouse.summary.movableRows', {
-            count: filteredProducts.length,
+    (activeTab === 'stock' || activeTab === 'transfers') && isStockColdPending
+      ? t('warehouse.summary.checkingStock')
+      : activeTab === 'stock'
+        ? t('warehouse.summary.unitsModelsValue', {
+            units: filteredProducts.length,
+            models: stockModelGroups.length,
+            value: formatCurrency(stockPurchaseValue),
           })
-        : t('warehouse.summary.linesOrdersUnpaid', {
-            lines: filteredReceipts.length,
-            orders: receiptOrderGroups.length,
-            unpaid: formatCurrency(receiptsUnpaidValue),
-          });
+        : activeTab === 'transfers'
+          ? t('warehouse.summary.movableRows', {
+              count: transferFilteredProducts.length,
+            })
+          : t('warehouse.summary.linesOrdersUnpaid', {
+              lines: filteredReceipts.length,
+              orders: receiptOrderGroups.length,
+              unpaid: formatCurrency(receiptsUnpaidValue),
+            });
   const paginatedReceipts = useMemo(() => {
     const start = (currentPage - 1) * pageSize;
     return filteredReceipts.slice(start, start + pageSize);
@@ -1056,15 +1240,23 @@ export const WarehousePanel: React.FC<WarehousePanelProps> = ({
   );
 
   useEffect(() => {
-    if (isLoading) return;
+    if (
+      isLoading ||
+      ((activeTab === 'stock' || activeTab === 'transfers') &&
+        isStockColdPending)
+    ) {
+      return;
+    }
     const totalItems =
       activeTab === 'receipts'
         ? receiptsView === 'orders'
           ? receiptOrderGroups.length
           : filteredReceipts.length
-        : activeTab === 'stock' && stockView === 'models'
-          ? stockModelGroups.length
-          : filteredProducts.length;
+        : activeTab === 'transfers'
+          ? transferFilteredProducts.length
+          : activeTab === 'stock' && stockView === 'models'
+            ? stockModelGroups.length
+            : filteredProducts.length;
     const activePageSize =
       activeTab === 'transfers' ? transferPageSize : pageSize;
     const pageCount = Math.max(
@@ -1078,11 +1270,13 @@ export const WarehousePanel: React.FC<WarehousePanelProps> = ({
     filteredProducts.length,
     filteredReceipts.length,
     isLoading,
+    isStockColdPending,
     pageSize,
     receiptOrderGroups.length,
     receiptsView,
     stockModelGroups.length,
     stockView,
+    transferFilteredProducts.length,
   ]);
 
   useEffect(() => {
@@ -1125,6 +1319,10 @@ export const WarehousePanel: React.FC<WarehousePanelProps> = ({
           setIsReceiptStatusFilterOpen(false);
           return;
         }
+        if (isStockStatusFilterOpen) {
+          setIsStockStatusFilterOpen(false);
+          return;
+        }
         setIsFilterPanelOpen(false);
       }
     };
@@ -1134,11 +1332,17 @@ export const WarehousePanel: React.FC<WarehousePanelProps> = ({
     return () => {
       document.removeEventListener('keydown', closeOnEscape);
     };
-  }, [isFilterPanelOpen, isSaveFilterDrawerOpen, isReceiptStatusFilterOpen]);
+  }, [
+    isFilterPanelOpen,
+    isSaveFilterDrawerOpen,
+    isReceiptStatusFilterOpen,
+    isStockStatusFilterOpen,
+  ]);
 
   useEffect(() => {
     if (!isFilterPanelOpen) {
       setIsReceiptStatusFilterOpen(false);
+      setIsStockStatusFilterOpen(false);
     }
   }, [isFilterPanelOpen]);
   useEffect(() => {
@@ -1155,6 +1359,20 @@ export const WarehousePanel: React.FC<WarehousePanelProps> = ({
     return () =>
       document.removeEventListener('mousedown', handleDocumentClick);
   }, [isReceiptStatusFilterOpen]);
+  useEffect(() => {
+    if (!isStockStatusFilterOpen) return;
+    const handleDocumentClick = (event: MouseEvent) => {
+      if (
+        stockStatusFilterRef.current &&
+        !stockStatusFilterRef.current.contains(event.target as Node)
+      ) {
+        setIsStockStatusFilterOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleDocumentClick);
+    return () =>
+      document.removeEventListener('mousedown', handleDocumentClick);
+  }, [isStockStatusFilterOpen]);
   useEffect(() => {
     if (!draftFilters.warehouse || !draftFilters.location) return;
     const hasLocation = availableLocationOptions.some(
@@ -1284,6 +1502,7 @@ export const WarehousePanel: React.FC<WarehousePanelProps> = ({
           receiptStatus,
           receiptStatuses: appliedFilters.statuses,
           statuses: appliedFilters.statuses,
+          stockStatuses: appliedFilters.stockStatuses,
           favoritesOnly: appliedFilters.favoritesOnly,
           statusSelectionExplicit: true,
         }),
@@ -1295,6 +1514,7 @@ export const WarehousePanel: React.FC<WarehousePanelProps> = ({
     activeTab,
     appliedFilters.favoritesOnly,
     appliedFilters.statuses,
+    appliedFilters.stockStatuses,
     currentEmployeeId,
     currentPage,
     query,
@@ -1592,6 +1812,35 @@ export const WarehousePanel: React.FC<WarehousePanelProps> = ({
     setAppliedFilters(nextFilters);
     setCurrentPage(1);
   };
+  const toggleStockStatusChip = (status: StockStatusChip) => {
+    const nextStockStatuses = toggleStockStatusFilter(
+      appliedFilters.stockStatuses,
+      status,
+    );
+    setDraftFilters((current) => ({
+      ...current,
+      stockStatuses: nextStockStatuses,
+    }));
+    setAppliedFilters((current) => ({
+      ...current,
+      stockStatuses: nextStockStatuses,
+    }));
+    setCurrentPage(1);
+  };
+  const toggleAllStockStatusChips = () => {
+    const nextStockStatuses = toggleAllStockStatusFilters(
+      appliedFilters.stockStatuses,
+    );
+    setDraftFilters((current) => ({
+      ...current,
+      stockStatuses: nextStockStatuses,
+    }));
+    setAppliedFilters((current) => ({
+      ...current,
+      stockStatuses: nextStockStatuses,
+    }));
+    setCurrentPage(1);
+  };
   const changeStockView = (view: StockViewMode) => {
     setStockView(view);
     setCurrentPage(1);
@@ -1655,6 +1904,7 @@ export const WarehousePanel: React.FC<WarehousePanelProps> = ({
       supplier: draftFilters.supplier.trim(),
       buyer: draftFilters.buyer.trim(),
       statuses: draftFilters.statuses,
+      stockStatuses: draftFilters.stockStatuses,
       favoritesOnly: draftFilters.favoritesOnly,
       statusSelectionExplicit: true,
     };
@@ -1995,6 +2245,7 @@ export const WarehousePanel: React.FC<WarehousePanelProps> = ({
 
   const handleStockTransfer = (productOrProducts: Product | Product[]) => {
     if (!Array.isArray(productOrProducts)) {
+      if (!movableProductIdSet.has(productOrProducts.id)) return;
       setTransferBatch({ type: 'unit', productId: productOrProducts.id });
       setTransferForm({
         productId: productOrProducts.id,
@@ -2006,8 +2257,11 @@ export const WarehousePanel: React.FC<WarehousePanelProps> = ({
       return;
     }
 
-    if (productOrProducts.length === 0) return;
-    const groupId = getStockModelGroupId(productOrProducts[0]);
+    const movableProducts = productOrProducts.filter((product) =>
+      movableProductIdSet.has(product.id),
+    );
+    if (movableProducts.length === 0) return;
+    const groupId = getStockModelGroupId(movableProducts[0]);
     const isSameGroup =
       transferBatch?.type === 'group' && transferBatch.groupId === groupId;
 
@@ -2099,6 +2353,8 @@ export const WarehousePanel: React.FC<WarehousePanelProps> = ({
           receiptsView={receiptsView}
           appliedReceiptStatuses={appliedFilters.statuses}
           showReceiptStatusChips={!isFilterPanelOpen}
+          appliedStockStatuses={appliedFilters.stockStatuses}
+          showStockStatusChips={!isFilterPanelOpen}
           onPrintSelectedSerials={printSelectedStockSerials}
           onClearSelection={() => setSelectedStockProductIds([])}
           onToggleColumnsMenu={() =>
@@ -2113,6 +2369,8 @@ export const WarehousePanel: React.FC<WarehousePanelProps> = ({
           onReceiptsViewChange={changeReceiptsView}
           onToggleReceiptStatus={toggleReceiptStatusChip}
           onToggleAllReceiptStatuses={toggleAllReceiptStatusChips}
+          onToggleStockStatus={toggleStockStatusChip}
+          onToggleAllStockStatuses={toggleAllStockStatusChips}
           setQuery={setQuery}
           setSearchMode={setSearchMode}
           setCurrentPage={setCurrentPage}
@@ -2315,6 +2573,56 @@ export const WarehousePanel: React.FC<WarehousePanelProps> = ({
                   ))}
                 </select>
               </label>
+            ) : null}
+            {activeTab === 'stock' ? (
+              <div
+                className='orders-filter-field orders-filter-status-field'
+                ref={stockStatusFilterRef}
+              >
+                <span>{t('warehouse.filters.status')}</span>
+                <button
+                  type='button'
+                  className='orders-filter-status-toggle'
+                  aria-expanded={isStockStatusFilterOpen}
+                  onClick={() =>
+                    setIsStockStatusFilterOpen((current) => !current)
+                  }
+                >
+                  {appliedFilters.stockStatuses.includes('all')
+                    ? t('orders.filters.all')
+                    : appliedFilters.stockStatuses.length === 0
+                      ? t('orders.filters.none')
+                      : t('orders.filters.selectedCount', {
+                          count: stockStatusChipOptions.filter((status) =>
+                            appliedFilters.stockStatuses.includes(status),
+                          ).length,
+                        })}
+                </button>
+                {isStockStatusFilterOpen ? (
+                  <div className='orders-filter-status-menu'>
+                    <label className='orders-filter-status-all'>
+                      <input
+                        type='checkbox'
+                        checked={appliedFilters.stockStatuses.includes('all')}
+                        onChange={toggleAllStockStatusChips}
+                      />
+                      <strong>{t('warehouse.toolbar.statusAll')}</strong>
+                    </label>
+                    {stockStatusChipOptions.map((status) => (
+                      <label key={status}>
+                        <input
+                          type='checkbox'
+                          checked={appliedFilters.stockStatuses.includes(
+                            status,
+                          )}
+                          onChange={() => toggleStockStatusChip(status)}
+                        />
+                        <span>{t(`warehouse.stockStatus.${status}`)}</span>
+                      </label>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
             ) : null}
             {activeTab === 'receipts' ? (
               <div
@@ -2582,9 +2890,10 @@ export const WarehousePanel: React.FC<WarehousePanelProps> = ({
                 : undefined
             }
             view={stockView}
-            isLoading={isLoading}
+            isLoading={isLoading || isStockColdPending}
             visibleColumns={visibleColumns.stock}
             selectedProductIds={selectedStockProductIds}
+            movableProductIds={movableProductIdSet}
             warehouses={warehouses}
             serviceCenters={serviceCenters}
             salesByProductId={salesByProductId}
@@ -2636,25 +2945,28 @@ export const WarehousePanel: React.FC<WarehousePanelProps> = ({
             onOpenSaleCard={onOpenSaleCard}
             onOpenSupplierOrder={openSupplierOrderById}
           />
-          <PaginationPanel
-            totalItems={
-              stockView === 'models'
-                ? stockModelGroups.length
-                : filteredProducts.length
-            }
-            page={currentPage}
-            pageSize={pageSize}
-            onPageChange={setCurrentPage}
-            onPageSizeChange={(nextPageSize) => {
-              setPageSize(nextPageSize);
-              setCurrentPage(1);
-            }}
-          />
+          {!(isLoading || isStockColdPending) ? (
+            <PaginationPanel
+              totalItems={
+                stockView === 'models'
+                  ? stockModelGroups.length
+                  : filteredProducts.length
+              }
+              page={currentPage}
+              pageSize={pageSize}
+              onPageChange={setCurrentPage}
+              onPageSizeChange={(nextPageSize) => {
+                setPageSize(nextPageSize);
+                setCurrentPage(1);
+              }}
+            />
+          ) : null}
           {selectedProductModelContext ? (
             <ProductModelModal
               name={selectedProductModelContext.name}
               products={products}
               sales={salesForStock}
+              stockStatuses={appliedFilters.stockStatuses}
               onOpenSaleCard={onOpenSaleCard}
               supplierOrders={supplierOrders}
               warehouses={warehouses}
@@ -2764,8 +3076,10 @@ export const WarehousePanel: React.FC<WarehousePanelProps> = ({
         </>
       ) : activeTab === 'transfers' ? (
         <TransferWorkspace
-          products={paginatedTransferProducts}
-          selectableProducts={filteredProducts}
+          products={isStockColdPending ? [] : paginatedTransferProducts}
+          selectableProducts={
+            isStockColdPending ? [] : transferFilteredProducts
+          }
           warehouses={warehouses.filter(
             (warehouse) => warehouse.isActive,
           )}
@@ -2775,6 +3089,7 @@ export const WarehousePanel: React.FC<WarehousePanelProps> = ({
           targetLocations={transferLocationOptions}
           history={transferHistory}
           isSaving={isProductSaving}
+          isCheckingStock={isStockColdPending}
           onFormChange={setTransferForm}
           onSubmit={transferBatch ? submitBatchTransfer : submitTransfer}
           batchMode={transferBatch}

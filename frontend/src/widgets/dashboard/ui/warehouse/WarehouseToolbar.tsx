@@ -11,6 +11,12 @@ import {
 import { useTranslation } from 'react-i18next';
 import { PageHeader } from '../../../../shared/ui/PageHeader';
 import {
+  defaultStockStatusFilters,
+  stockStatusChipOptions,
+  type StockStatusChip,
+  type StockStatusFilter,
+} from '../../model/stock-balance';
+import {
   availableWarehouseColumns,
   getWarehouseColumnLabelKey,
   lockedWarehouseColumns,
@@ -133,6 +139,8 @@ export interface WarehouseToolbarProps {
   receiptsView: ReceiptsViewMode;
   appliedReceiptStatuses: ReceiptStatus[];
   showReceiptStatusChips: boolean;
+  appliedStockStatuses?: readonly StockStatusFilter[];
+  showStockStatusChips?: boolean;
   onPrintSelectedSerials: () => void;
   onClearSelection: () => void;
   onToggleColumnsMenu: () => void;
@@ -146,6 +154,8 @@ export interface WarehouseToolbarProps {
   onToggleReceiptStatus?: (status: ReceiptStatus) => void;
   onToggleAllReceiptStatuses?: () => void;
   onReceiptStatusChip?: (status: ReceiptStatus | 'all') => void;
+  onToggleStockStatus?: (status: StockStatusChip) => void;
+  onToggleAllStockStatuses?: () => void;
   setQuery: Dispatch<SetStateAction<string>>;
   setSearchMode: Dispatch<SetStateAction<WarehouseSearchMode>>;
   setCurrentPage: Dispatch<SetStateAction<number>>;
@@ -170,6 +180,8 @@ export const WarehouseToolbar: React.FC<WarehouseToolbarProps> = ({
   receiptsView,
   appliedReceiptStatuses,
   showReceiptStatusChips,
+  appliedStockStatuses = defaultStockStatusFilters,
+  showStockStatusChips = false,
   onPrintSelectedSerials,
   onClearSelection,
   onToggleColumnsMenu,
@@ -181,6 +193,8 @@ export const WarehouseToolbar: React.FC<WarehouseToolbarProps> = ({
   onToggleReceiptStatus,
   onToggleAllReceiptStatuses,
   onReceiptStatusChip,
+  onToggleStockStatus,
+  onToggleAllStockStatuses,
   setQuery,
   setSearchMode,
   setCurrentPage,
@@ -421,6 +435,23 @@ export const WarehouseToolbar: React.FC<WarehouseToolbarProps> = ({
           </div>
         </div>
       </div>
+      {activeTab === 'stock' && showStockStatusChips ? (
+        <StatusFilterButtons
+          selectedStatuses={appliedStockStatuses}
+          isAllSelected={appliedStockStatuses.includes('all')}
+          options={stockStatusChipOptions.map((status) => ({
+            key: status,
+            label: t(`warehouse.stockStatus.${status}`),
+          }))}
+          allLabel={t('warehouse.toolbar.statusAll')}
+          onToggleStatus={(status) => {
+            onToggleStockStatus?.(status as StockStatusChip);
+          }}
+          onToggleAll={() => {
+            onToggleAllStockStatuses?.();
+          }}
+        />
+      ) : null}
       {activeTab === 'receipts' && showReceiptStatusChips ? (
         <StatusFilterButtons
           selectedStatuses={appliedReceiptStatuses}

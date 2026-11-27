@@ -29,7 +29,9 @@ import {
 } from '../../../model/product-model';
 import {
   buildSupplierOrdersByProductId,
+  defaultStockStatusFilters,
   mergeSalesWithStockOrderLinks,
+  type StockStatusFilter,
 } from '../../../model/stock-balance';
 
 type ProductModelSection = 'main' | 'prices' | 'stock';
@@ -48,6 +50,7 @@ export interface ProductModelModalProps {
   printForms?: PrintForm[];
   printProduct?: Product | null;
   selectedSerial?: { serialNumber: string; product: Product | null };
+  stockStatuses?: readonly StockStatusFilter[];
   usePortal?: boolean;
   isSaving?: boolean;
   readOnly?: boolean;
@@ -82,6 +85,7 @@ export const ProductModelModal: React.FC<ProductModelModalProps> = ({
   printForms = defaultPrintForms,
   printProduct = null,
   selectedSerial,
+  stockStatuses,
   usePortal = false,
   isSaving = false,
   readOnly = false,
@@ -116,8 +120,26 @@ export const ProductModelModal: React.FC<ProductModelModalProps> = ({
     [sales, stockLinks],
   );
   const matchingProducts = useMemo(
-    () => getActiveStockProductsByExactModelName(products, salesForModel, name),
-    [name, products, salesForModel],
+    () =>
+      getActiveStockProductsByExactModelName(
+        products,
+        salesForModel,
+        name,
+        stockStatuses,
+      ),
+    [name, products, salesForModel, stockStatuses],
+  );
+  const latestBatchSource = useMemo(
+    () =>
+      stockStatuses !== undefined
+        ? getActiveStockProductsByExactModelName(
+            products,
+            salesForModel,
+            name,
+            defaultStockStatusFilters,
+          )
+        : matchingProducts,
+    [matchingProducts, name, products, salesForModel, stockStatuses],
   );
   const [form, setForm] = useState(() =>
     getProductModelInitialForm(matchingProducts),
@@ -154,8 +176,10 @@ export const ProductModelModal: React.FC<ProductModelModalProps> = ({
         reservedProductIds,
         supplierOrdersByProductId,
         salesForModel,
+        latestBatchSource,
       ),
     [
+      latestBatchSource,
       matchingProducts,
       reservedProductIds,
       salesForModel,
@@ -217,8 +241,8 @@ export const ProductModelModal: React.FC<ProductModelModalProps> = ({
   >(() => getInitialSelectedPrintIds(serialPurchases, printProduct));
   const selectAllCheckboxRef = useRef<HTMLInputElement | null>(null);
   const latestBatchProduct = useMemo(
-    () => getLatestBatchProduct(matchingProducts),
-    [matchingProducts],
+    () => getLatestBatchProduct(latestBatchSource),
+    [latestBatchSource],
   );
   const matchingProductsById = useMemo(
     () => new Map(matchingProducts.map((product) => [product.id, product])),

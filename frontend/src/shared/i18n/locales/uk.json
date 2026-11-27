@@ -3051,8 +3051,15 @@
       "stockRows": "{{count}} рядків залишків",
       "movableRows": "{{count}} рядків для переміщення",
       "receiptRows": "{{count}} рядків надходжень",
+      "checkingStock": "Перевірка залишків...",
       "unitsModelsValue": "{{units}} одиниць · {{models}} моделей · {{value}}",
       "linesOrdersUnpaid": "{{lines}} рядків · {{orders}} прийомів · {{unpaid}} до сплати"
+    },
+    "stockStatus": {
+      "free": "Вільні",
+      "in_order": "У замовленні",
+      "sold": "Продані",
+      "issued_repair": "Видані з ремонту"
     },
     "view": {
       "units": "Одиниці",

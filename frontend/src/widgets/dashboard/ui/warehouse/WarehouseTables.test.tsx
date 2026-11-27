@@ -1012,4 +1012,48 @@ describe('StockTable models view group actions', () => {
     fireEvent.click(transferBtn);
     expect(onTransfer).toHaveBeenCalledWith(p2);
   });
+
+  it('hides Transfer for non-movable units and passes only movable units from mixed group checks', () => {
+    const onDelete = vi.fn();
+    const onTransfer = vi.fn();
+
+    render(
+      <StockTable
+        {...stockTableProps}
+        products={[p1, p2, p3]}
+        groups={[group]}
+        view='models'
+        visibleColumns={['select', 'name', 'action']}
+        selectedProductIds={['prod-1', 'prod-2']}
+        movableProductIds={new Set(['prod-1', 'prod-3'])}
+        onDelete={onDelete}
+        onTransfer={onTransfer}
+      />,
+    );
+
+    const expandBtn = screen.getByRole('button', {
+      name: /show serials for terrae 30e/i,
+    });
+    fireEvent.click(expandBtn);
+
+    const kebabs = screen.getAllByRole('button', {
+      name: /more actions|більше дій/i,
+    });
+
+    // Group row kebab passes only movable checked unit (prod-1, not prod-2)
+    fireEvent.click(kebabs[0]);
+    fireEvent.click(
+      screen.getByRole('button', { name: /transfer|перемістити/i }),
+    );
+    expect(onTransfer).toHaveBeenCalledWith([p1]);
+
+    // Non-movable child row (prod-2) omits Transfer in kebab
+    fireEvent.click(kebabs[2]);
+    expect(
+      screen.queryByRole('button', { name: /transfer|перемістити/i }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: /delete|видалити/i }),
+    ).toBeInTheDocument();
+  });
 });

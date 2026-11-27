@@ -978,4 +978,220 @@ describe('ProductModelModal serial printing', () => {
       document.querySelector('.product-model-serial-row-reserved'),
     ).toHaveTextContent('S000114');
   });
+
+  it('shows sold serials when opened from Stock balances with Sold chip active', async () => {
+    const sold = createProduct({
+      id: 'sold-unit',
+      serialNumber: 'S000113',
+      quantity: 1,
+      purchaseDate: '2026-01-02',
+      createdAt: '2026-01-02T00:00:00.000Z',
+    });
+    getStockOrderLinksMock.mockResolvedValue({
+      links: [
+        {
+          productId: sold.id,
+          serialNumber: 'S000113',
+          saleId: 'sale-issued',
+          recordNumber: 'r000255',
+          kind: 'sale',
+          status: 'issued',
+        },
+      ],
+    });
+
+    render(
+      <ProductModelModal
+        name='БЖ Meanwell 9V 1.66A'
+        products={[sold]}
+        sales={[]}
+        stockStatuses={['free', 'in_order', 'sold']}
+        warehouses={[]}
+        printForms={defaultPrintForms}
+        onClose={vi.fn()}
+        onSave={vi.fn(async () => true)}
+      />,
+    );
+
+    expect(await screen.findByRole('link', { name: 'r000255' })).toBeInTheDocument();
+    expect(screen.getByText('S000113')).toBeInTheDocument();
+  });
+
+  it('keeps latest batch header and badge on on-hand units when opened from Stock balances with Sold active', async () => {
+    const onHand = createProduct({
+      id: 'onhand-unit',
+      serialNumber: 'S-ONHAND',
+      price: 200,
+      purchaseDate: '2026-02-01',
+      createdAt: '2026-02-01T00:00:00.000Z',
+    });
+    const soldSibling = createProduct({
+      id: 'sold-sibling',
+      serialNumber: 'S-SOLD-SIBLING',
+      price: 200,
+      purchaseDate: '2026-02-01',
+      createdAt: '2026-02-01T01:00:00.000Z',
+    });
+    const soldNewer = createProduct({
+      id: 'sold-newer',
+      serialNumber: 'S-SOLD-NEW',
+      price: 350,
+      purchaseDate: '2026-04-01',
+      createdAt: '2026-04-01T00:00:00.000Z',
+    });
+    getStockOrderLinksMock.mockResolvedValue({
+      links: [
+        {
+          productId: soldSibling.id,
+          serialNumber: soldSibling.serialNumber,
+          saleId: 'sale-issued-1',
+          recordNumber: 'r000301',
+          kind: 'sale',
+          status: 'issued',
+        },
+        {
+          productId: soldNewer.id,
+          serialNumber: soldNewer.serialNumber,
+          saleId: 'sale-issued-2',
+          recordNumber: 'r000302',
+          kind: 'sale',
+          status: 'issued',
+        },
+      ],
+    });
+
+    render(
+      <ProductModelModal
+        name='БЖ Meanwell 9V 1.66A'
+        products={[onHand, soldSibling, soldNewer]}
+        sales={[]}
+        stockStatuses={['free', 'in_order', 'sold']}
+        warehouses={[]}
+        printForms={defaultPrintForms}
+        onClose={vi.fn()}
+        onSave={vi.fn(async () => true)}
+      />,
+    );
+
+    expect(await screen.findByRole('link', { name: 'r000302' })).toBeInTheDocument();
+    expect(screen.getByText('S-SOLD-NEW')).toBeInTheDocument();
+    expect(screen.getByText('S-SOLD-SIBLING')).toBeInTheDocument();
+    expect(screen.getByText('S-ONHAND')).toBeInTheDocument();
+
+    expect(
+      screen.getByText(
+        i18n.t('catalog.productModel.latestBatchSummary', {
+          price: formatCurrency(onHand.price),
+          date: formatDate(onHand.purchaseDate),
+        }),
+        { normalizer: (text) => text },
+      ),
+    ).toBeInTheDocument();
+
+    const latestBadge = i18n.t('catalog.productModel.latestBatchBadge');
+    expect(screen.getAllByText(latestBadge)).toHaveLength(1);
+    expect(screen.getByText('S-ONHAND').closest('tr')).toHaveTextContent(latestBadge);
+    expect(screen.getByText('S-SOLD-NEW').closest('tr')).not.toHaveTextContent(latestBadge);
+    expect(screen.getByText('S-SOLD-SIBLING').closest('tr')).not.toHaveTextContent(latestBadge);
+  });
+
+  it('shows on-hand latest batch summary without badging sold rows when only Sold chip is active', async () => {
+    const onHand = createProduct({
+      id: 'onhand-unit',
+      serialNumber: 'S-ONHAND',
+      price: 200,
+      purchaseDate: '2026-02-01',
+      createdAt: '2026-02-01T00:00:00.000Z',
+    });
+    const soldNewer = createProduct({
+      id: 'sold-newer',
+      serialNumber: 'S-SOLD-NEW',
+      price: 350,
+      purchaseDate: '2026-04-01',
+      createdAt: '2026-04-01T00:00:00.000Z',
+    });
+    getStockOrderLinksMock.mockResolvedValue({
+      links: [
+        {
+          productId: soldNewer.id,
+          serialNumber: soldNewer.serialNumber,
+          saleId: 'sale-issued-2',
+          recordNumber: 'r000302',
+          kind: 'sale',
+          status: 'issued',
+        },
+      ],
+    });
+
+    render(
+      <ProductModelModal
+        name='БЖ Meanwell 9V 1.66A'
+        products={[onHand, soldNewer]}
+        sales={[]}
+        stockStatuses={['sold']}
+        warehouses={[]}
+        printForms={defaultPrintForms}
+        onClose={vi.fn()}
+        onSave={vi.fn(async () => true)}
+      />,
+    );
+
+    expect(await screen.findByRole('link', { name: 'r000302' })).toBeInTheDocument();
+    expect(screen.getByText('S-SOLD-NEW')).toBeInTheDocument();
+    expect(screen.queryByText('S-ONHAND')).not.toBeInTheDocument();
+    expect(
+      screen.getByText(
+        i18n.t('catalog.productModel.latestBatchSummary', {
+          price: formatCurrency(onHand.price),
+          date: formatDate(onHand.purchaseDate),
+        }),
+        { normalizer: (text) => text },
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText(i18n.t('catalog.productModel.latestBatchBadge')),
+    ).not.toBeInTheDocument();
+  });
+
+  it('omits latest batch summary and badges when no on-hand unit exists', async () => {
+    const sold = createProduct({
+      id: 'sold-only',
+      serialNumber: 'S-SOLD-ONLY',
+      price: 350,
+      purchaseDate: '2026-04-01',
+      createdAt: '2026-04-01T00:00:00.000Z',
+    });
+    getStockOrderLinksMock.mockResolvedValue({
+      links: [
+        {
+          productId: sold.id,
+          serialNumber: sold.serialNumber,
+          saleId: 'sale-issued-only',
+          recordNumber: 'r000303',
+          kind: 'sale',
+          status: 'issued',
+        },
+      ],
+    });
+
+    render(
+      <ProductModelModal
+        name='БЖ Meanwell 9V 1.66A'
+        products={[sold]}
+        sales={[]}
+        stockStatuses={['free', 'in_order', 'sold']}
+        warehouses={[]}
+        printForms={defaultPrintForms}
+        onClose={vi.fn()}
+        onSave={vi.fn(async () => true)}
+      />,
+    );
+
+    expect(await screen.findByRole('link', { name: 'r000303' })).toBeInTheDocument();
+    expect(screen.getByText('S-SOLD-ONLY')).toBeInTheDocument();
+    expect(document.querySelector('.product-model-purchase-meta')).toBeNull();
+    expect(
+      screen.queryByText(i18n.t('catalog.productModel.latestBatchBadge')),
+    ).not.toBeInTheDocument();
+  });
 });
