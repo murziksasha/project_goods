@@ -109,32 +109,45 @@ The warehouse toolbar search box (`WarehouseToolbar`) is shared by `Stock balanc
 - When product is unlinked from order and returned to stock, it must return to original warehouse/location.
 - Source of truth: stored product warehouse metadata, not transient modal selection.
 
-### 4.1) Issued Sale Visibility Rule
+### 4.1) Issued Sale Visibility Rule & Stock Status Chips (2026-11-26)
 
-- Product linked to `Sales order` with status `issued` must not be shown in `Stock balances`.
-- Issued linkage is read from `POST /sales/stock-links` for the stock units on screen (`productIds` and `serials`), so a sale outside the loaded `GET /sales?limit=500` (or warehouse `limit=2000`) list still hides the unit. The loaded sales list is only the fallback when that request fails. The request does not change `Product.quantity`.
+- `Stock balances` and `Transfers` share `POST /sales/stock-links` gating (`useStockOrderLinksQuery`):
+  - Cold hold: until `POST /sales/stock-links` settles on first load, `Stock balances` paints no rows and no units/models/value totals (a short `Checking stock...` line stands in for the summary, and pagination is withheld). `Transfers` similarly withholds rows and the movable-rows summary until links settle. A real empty result still shows zeros and the empty list. The search field remains editable immediately during the cold hold; restored text is the committed query.
+  - Failure fallback: a pending stock-links response is not treated as an empty link list; on request failure, the first paint uses the loaded `sales` list.
+  - Refetch gating: a refetch keeps the last proven frame. Units not in that proven frame stay out until the new links settle, then swap atomically. Typing does not restart the wait.
+- `Product.quantity` is not rewritten when a unit is issued. Only units with `quantity > 0` appear in `Stock balances` (including `All` and `Sold`; `quantity = 0` history is outside this screen).
+- `Stock balances` status chips (`StatusFilterButtons` under the toolbar, hidden while the Filter panel is open) and the matching single-list status checkboxes in the Filter panel:
+  - Options: `All`, `Free`, `In order`, `Sold`, `Issued repair`.
+  - Default, first visit, and Filter `Clear` select only `Free` and `In order` (the on-hand set). Filter badge is quiet (`0`) only for `Free` + `In order`; an empty set or any other departure counts `1`.
+  - Exact mapping (`matchesStockStatusChips` in `stock-balance.ts`):
+    - `Free`: no order/sale binding.
+    - `Sold`: sale `issued` (handoff binding).
+    - `Issued repair`: repair `issued` or `issuedWithoutRepair` (handoff binding).
+    - `In order`: sale `new`, `reserved`, `paid`, `returned`, `away`, and every repair status except `issued`, `issuedWithoutRepair`, `clientRejected`, and `notPickedUp`.
+    - `All`: every unit with `quantity > 0`, including `clientRejected` and `notPickedUp`. Selecting the four individual chips by hand does not turn `All` on and does not show `clientRejected` or `notPickedUp`. A second click on `All` clears every chip (`[]`) and yields zero rows.
+  - Multi-binding rule: a handoff binding (`Sold` or `Issued repair`) hides the row even when another binding matches a selected chip, until the matching handoff chip (`Sold` or `Issued repair`) or `All` is on. Two ordinary statuses show the row if either matches.
+  - Both toolbar chips and Filter panel status checkboxes apply immediately and open page 1. Other Filter panel fields still apply on `Apply`.
+  - Persistence: live `stockStatuses` persist per employee in `localStorage` (`project-goods.warehouse-filters.<employeeId>`) and in saved warehouse presets (`SavedFilter`). A preset without `stockStatuses` opens as `Free` and `In order`; applying a preset replaces the live set.
+- `Transfers` always uses the on-hand set (`Free` + `In order`) and ignores stock status chips. Checking a sold/issued row allows serial label printing from `Stock balances`, never enters a transfer (row/group `Transfer` action is withheld for non-movable units, and batch resolution ignores them), and changing chips does not clear checks.
 - Matching is resolved only by strict linkage identifiers:
 
 1. `productId` (from `sale.product.id` or `sale.lineItems[].productId`)
 2. `serial` (from `sale.product.serialNumber` or `sale.lineItems[].serialNumbers[]`)
 
-- After customer return flow is completed (refund + stock receive), sale status becomes `returned` and product may appear in stock balances again by regular stock rules.
+- After customer return flow is completed (refund + stock receive), sale status becomes `returned` (`In order`) and product appears in the on-hand set again by regular stock rules.
 
 ### 4.2) Free vs Linked Stock Display
 
-- `Stock balances` must clearly separate free stock units from linked units by data rules (not by product name/article similarity).
-- `Free` unit:
-
-1. product has `quantity > 0`
-2. product is not matched to any `issued` sale by strict linkage (`productId` or `serial`)
-
-- `Linked` unit:
-
-1. product is matched to an `issued` sale by strict linkage (`productId` or `serial`)
-2. such product is hidden from `Stock balances` until return is completed and sale status changes from `issued` to `returned`
-
+- `Stock balances` must clearly separate free stock units from linked/issued units by strict linkage rules (`productId` or `serial`), not by product name/article similarity.
+- Status chip classes for units with `quantity > 0`:
+  - `Free`: not matched to any sale or repair order by strict linkage (`productId` or `serial`).
+  - `In order`: matched to a non-handoff sale (`new`, `reserved`, `paid`, `returned`, `away`) or open repair (all repair statuses except `issued`, `issuedWithoutRepair`, `clientRejected`, `notPickedUp`).
+  - `Sold`: matched to a sale with status `issued` (handoff binding). Hidden under the default `Free` + `In order` chips (and on `Transfers` / card `Purchase by serial`) until `Sold` or `All` is selected.
+  - `Issued repair`: matched to a repair with status `issued` or `issuedWithoutRepair` (handoff binding). Hidden under the default `Free` + `In order` chips until `Issued repair` or `All` is selected.
+  - `All`: every unit with `quantity > 0`, including `clientRejected` and `notPickedUp` repairs.
+- When a sold unit completes the customer return flow (refund + stock receive), sale status becomes `returned` (`In order`) and it appears in the default on-hand set again.
 - Order/Sale records without assigned serial must not auto-link to all goods with same name/article in stock list.
-- Stock balance filtering logic is kept in a pure frontend helper (`src/widgets/dashboard/model/stock-balance.ts`) and must remain covered by unit tests for strict product/serial matching, warehouse fallback, and supplier fallback.
+- Stock balance filtering logic is kept in a pure frontend helper (`src/widgets/dashboard/model/stock-balance.ts`) and must remain covered by unit tests for strict product/serial matching, status-chip classification, warehouse fallback, and supplier fallback.
 
 ### 4.4) Stock Balance Working Register UI
 
@@ -304,8 +317,8 @@ Canonical UI for `Serials x/y` → `SerialBindModal` on **opened sale and repair
 4. wholesale price from `salePriceOptions[1]`
 5. purchase prices in `PRICES` (**read-only**, per serialized stock unit):
    - section title `Purchase by serial` lists every **active in-stock** matching row as `Serial # | Purchase | Receipt date | Supplier order | Client order`
-   - active row rule matches `Stock balances` visibility: `quantity > 0` and not linked to a sale with status `issued`
-   - issued linkage for this table and for `Stock balances` comes from `POST /sales/stock-links` (status included). A sale outside the loaded sales list still removes the row. `Product.quantity` is not rewritten. If the request fails, the loaded sales list remains the fallback
+   - active row rule matches `Stock balances` when opened from `Stock balances` (using the active stock chip selection); when opened from a sale or repair card (or other non-stock views), it ignores chips and keeps the default issued-hiding rule (`quantity > 0` and not linked to an `issued` sale/repair)
+   - link and status data for this table and for `Stock balances` comes from `POST /sales/stock-links` (status included). A binding outside the loaded sales list hides an issued unit under the default `Free` + `In order` chips and on sale/repair cards, and surfaces it when `Sold`, `Issued repair`, or `All` is selected in `Stock balances`. `Product.quantity` is not rewritten. On first-paint failure, the loaded sales list remains the fallback; on `Stock balances` refetch failure, the last proven frame stays and unverified units stay out.
    - `Client order` shows every bound sale/order number for that active unit, including the opened card. The visible number is `recordNumber`, otherwise the sale id's first 8 characters. Left click opens that card through `getOrderLink` / `onOpenSaleCard` (same route as Stock balances). The hover copy icon copies only the visible number. Several bindings render as separate badges. An empty cell is `—`
    - each row uses that unit's own `Product.price` and `purchaseDate` (fallback `createdAt`) from take-on-charge
    - `Supplier order` is unit-level provenance (same as §2.1): `product.supplierOrderId` + `product.supplierOrderItemIndex` resolved to `displayNumber` (`SO-1`, or `SO-1-2` on multi-item orders). Missing / unmatched provenance shows `—`
@@ -313,18 +326,18 @@ Canonical UI for `Serials x/y` → `SerialBindModal` on **opened sale and repair
    - hover on the serial number shows a copy icon; only the icon copies the visible serial. Empty / whitespace serials have no icon. `Latest` / `Reserved` badges stay outside the copy target. Spec: [UI_DESIGN_SYSTEM.md — Hover copy icon](./UI_DESIGN_SYSTEM.md#hover-copy-icon)
    - hover on the supplier-order number shows a copy icon; only the icon copies the visible number. Spec: [UI_DESIGN_SYSTEM.md — Hover copy icon](./UI_DESIGN_SYSTEM.md#hover-copy-icon)
    - rows are sorted by receipt date descending, then serial number
-   - compact scrollable table (`max-height: 220px`, dense cell padding). The header row stays sticky at the top of that scroller (`border-collapse: separate` so the pin works). Below 720px the table keeps a 36rem minimum width and scrolls inside the same wrap, so the new column stays readable
+   - compact scrollable table (`max-height: 220px`, dense cell padding). The header row stays sticky at the top of that scroller (`border-collapse: separate` so the pin works). Below 720px the table `min-width` is 36rem and scrolls inside the same wrap, so the new column stays readable
    - the separate `Selected serial purchase` block is unchanged and does not show `Client order`
-   - header summary `Latest batch: <price> · <date>` uses the newest receipt batch among **remaining active rows**
-   - badge `Latest` marks every active row that belongs to that newest batch (same receipt date + purchase price)
+   - header summary `Latest batch: <price> · <date>` uses the newest receipt batch among **on-hand units** (`Free` + `In order`), including when `Sold`, `Issued repair`, or `All` also lists sold or issued-repair rows (and omits `Latest batch` when no on-hand unit remains; on a sale or repair card, issued units stay hidden so the header and rows match)
+   - badge `Latest` marks only on-hand rows that belong to that newest on-hand batch (same receipt date + purchase price); sold and issued-repair rows never get it, including when a sibling of the same date and price is still on hand
    - badge `Reserved` (red) marks an active row already bound on another sale/order
-   - `Reserved` uses the same stock-link rows: a non-issued binding whose sale id is not the opened card. Issued rows are absent, so they are not badged. In-memory `sales` is only a fallback when `POST /sales/stock-links` fails. `GET /sales/occupied-serials` remains the bind-modal source (§4.3.0), not this table
+   - `Reserved` uses the same stock-link rows: a non-issued binding whose sale id is not the opened card. Issued bindings are not badged `Reserved` (even when visible under `Sold`, `Issued repair`, or `All`). In-memory `sales` is only a fallback when `POST /sales/stock-links` fails. `GET /sales/occupied-serials` remains the bind-modal source (§4.3.0), not this table
    - from an opened repair/sale card, `excludeSaleId` is the opened card so serials bound only on **that** card are not `Reserved`
    - warehouse (no current sale) treats any occupancy hit as reserved
    - `Latest` and `Reserved` can appear on the same row; reserved row background wins over latest
    - print/select in this table stays enabled for reserved rows
-   - when a serialized unit is sold/issued, its row disappears from this table after products/sales data refresh
-   - when the last serial from a purchase batch is sold, that batch no longer appears in the table and `Latest batch` summary moves to the next newest active batch automatically
+   - when a serialized unit is sold/issued, its row disappears from this table under the default `Free` + `In order` chips (and on card/non-stock views) after products/sales data refresh; when opened from `Stock balances` with `Sold`, `Issued repair`, or `All` selected, units with `quantity > 0` remain listed
+   - when the last serial from a purchase batch is sold: under `Free` + `In order`, and on a sale or repair card, that batch leaves the table and `Latest` moves to the next on-hand batch; under `Sold`, `Issued repair`, or `All`, those rows stay listed, `Latest` still moves to the next on-hand batch (or disappears if no on-hand unit remains), and the sold rows have no badge
    - when modal is opened from a stock serial click, that serial's row is visually highlighted
    - model save never changes any `Product.price`
 6. total/free/reserved stock grouped by warehouse/location using configured warehouse metadata
@@ -357,14 +370,14 @@ An issued sale outside the loaded window left `Product.quantity` at 1. `Purchase
 
 - `POST /sales/stock-links` returns one row per product and sale: `productId`, `serialNumber`, `saleId`, `recordNumber`, `kind`, `status`. Contract: [API.md](./API.md). The read set matches `GET /sales`. `finance.view` alone is not enough.
 - Linkage is `sale.product` id, a product line `productId` when the product serial agrees, and product-line `serialNumbers`. Service lines are ignored. The repair device field `sale.serialNumber` is not a stock link.
-- The product-model table and `Stock balances` merge those links with the loaded sales. A sale already in memory stays that object. Issued status from either source hides the unit. `Product.quantity` is not rewritten.
+- The product-model table and `Stock balances` merge those links with the loaded sales. A sale already in memory stays that object. Issued status from either source hides the unit under the default `Free` + `In order` chips and on card/non-stock views; `Sold`, `Issued repair`, and `All` reveal matching units with `quantity > 0`. `Product.quantity` is not rewritten.
 - A `returned` sale that still carries the serial stays visible, shows its number, and is `Reserved` when that sale is not the opened card. `paid`, `reserved`, and `new` do not hide stock.
 - `Client order` on an active row lists every bound number, including the opened card, in record-number order. The label is `recordNumber`, otherwise the first 8 characters of the sale id. An empty cell is `—` and has no copy icon. Open and copy match [Client order links](#client-order-links-stock-balances). A binding only on the opened card is still not `Reserved`.
 - The `Purchase by serial` header stays pinned inside the 220px scroller (`border-collapse: separate`). Below 720px the table `min-width` is 36rem and that same wrap scrolls horizontally.
 - `Selected serial purchase` is unchanged and does not show `Client order`.
 - `GET /sales/occupied-serials` stays the bind-modal occupancy source ([§4.3.0](#430-bind-modal-occupancy-opened-repair-and-sale-cards)). The product-model table does not call it.
-- On `Stock balances`, `Client order` stays off until the operator enables it in the column menu. Issued units disappear either way. The stock-tab request runs only while that tab is open, and only for units with `quantity > 0`. Warehouse Information keeps the loaded sales list.
-- If the request fails, both surfaces fall back to the loaded sales list.
+- On `Stock balances`, `Client order` stays off until the operator enables it in the column menu. Issued units stay hidden under the default `Free` + `In order` chips either way. The `POST /sales/stock-links` request runs while `Stock balances` or `Transfers` is open, and only for units with `quantity > 0`. Warehouse Information keeps the loaded sales list.
+- If the request fails on first load, both surfaces fall back to the loaded sales list; on `Stock balances` / `Transfers` refetch failure, the last proven frame stays and unverified units stay out.
 
 ### 4.5) Serial Label Printing (Stock Balances)
 

@@ -4,6 +4,7 @@ import type { SupplierOrder } from '../../../entities/supplier-order';
 import type { WarehouseItem } from '../../../entities/warehouse-settings';
 import {
   buildSupplierOrdersByProductId,
+  defaultStockStatusFilters,
   type StockSaleLink,
 } from './stock-balance';
 import {
@@ -231,6 +232,130 @@ describe('product model aggregation', () => {
         clientOrders: [],
       },
     ]);
+  });
+
+  it('badges only on-hand rows of the latest on-hand batch when visible rows include sold units', () => {
+    const onHandLatest = {
+      ...baseProduct,
+      id: 'p-onhand-latest',
+      serialNumber: 'S101',
+      price: 1200,
+      purchaseDate: '2026-02-10',
+      createdAt: '2026-02-10T09:00:00.000Z',
+    };
+    const onHandSibling = {
+      ...baseProduct,
+      id: 'p-onhand-sibling',
+      serialNumber: 'S102',
+      price: 1200,
+      purchaseDate: '2026-02-10',
+      createdAt: '2026-02-10T10:00:00.000Z',
+    };
+    const soldSameBatchSibling = {
+      ...baseProduct,
+      id: 'p-sold-sibling',
+      serialNumber: 'S103',
+      price: 1200,
+      purchaseDate: '2026-02-10',
+      createdAt: '2026-02-10T11:00:00.000Z',
+    };
+    const soldNewer = {
+      ...baseProduct,
+      id: 'p-sold-newer',
+      serialNumber: 'S200',
+      price: 1500,
+      purchaseDate: '2026-04-01',
+      createdAt: '2026-04-01T09:00:00.000Z',
+    };
+    const allProducts = [
+      onHandLatest,
+      onHandSibling,
+      soldSameBatchSibling,
+      soldNewer,
+    ];
+    const emptyProduct = {
+      id: '',
+      article: '',
+      name: '',
+      serialNumber: '',
+    };
+    const sales: ProductModelSaleLink[] = [
+      {
+        id: 'sale-sold-sibling',
+        kind: 'sale',
+        status: 'issued',
+        product: emptyProduct,
+        lineItems: [
+          {
+            id: 'line-1',
+            kind: 'product',
+            productId: soldSameBatchSibling.id,
+            name: baseProduct.name,
+            price: 1200,
+            quantity: 1,
+            warrantyPeriod: 0,
+            serialNumbers: [soldSameBatchSibling.serialNumber],
+          },
+        ],
+      },
+      {
+        id: 'sale-sold-newer',
+        kind: 'sale',
+        status: 'issued',
+        product: emptyProduct,
+        lineItems: [
+          {
+            id: 'line-2',
+            kind: 'product',
+            productId: soldNewer.id,
+            name: baseProduct.name,
+            price: 1500,
+            quantity: 1,
+            warrantyPeriod: 0,
+            serialNumbers: [soldNewer.serialNumber],
+          },
+        ],
+      },
+    ];
+
+    const visibleRows = getActiveStockProductsByExactModelName(
+      allProducts,
+      sales,
+      baseProduct.name,
+      ['free', 'in_order', 'sold'],
+    );
+    const onHandSource = getActiveStockProductsByExactModelName(
+      allProducts,
+      sales,
+      baseProduct.name,
+      defaultStockStatusFilters,
+    );
+
+    expect(getLatestBatchProduct(onHandSource)?.id).toBe('p-onhand-sibling');
+    expect(
+      buildProductModelSerialPurchases(
+        visibleRows,
+        new Set(),
+        {},
+        sales,
+        onHandSource,
+      ).map((row) => ({
+        productId: row.productId,
+        isLatestBatch: row.isLatestBatch,
+      })),
+    ).toEqual([
+      { productId: 'p-sold-newer', isLatestBatch: false },
+      { productId: 'p-onhand-latest', isLatestBatch: true },
+      { productId: 'p-onhand-sibling', isLatestBatch: true },
+      { productId: 'p-sold-sibling', isLatestBatch: false },
+    ]);
+
+    expect(getLatestBatchProduct([])).toBeNull();
+    expect(
+      buildProductModelSerialPurchases([soldNewer], new Set(), {}, sales, []).map(
+        (row) => row.isLatestBatch,
+      ),
+    ).toEqual([false]);
   });
 
   it('marks units bound on other sales as reserved and skips the current sale', () => {

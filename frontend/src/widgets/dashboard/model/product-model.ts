@@ -2,10 +2,13 @@ import type { Product } from '../../../entities/product';
 import type { WarehouseItem } from '../../../entities/warehouse-settings';
 import { normalizeSerialNumber } from './order-line-serials';
 import {
+  buildStockSaleLinksByProductId,
   getIssuedSaleProductIds,
   getStockProductIdsLinkedToSale,
   isIssuedSaleStatus,
+  matchesStockStatusChips,
   type StockSaleLink,
+  type StockStatusFilter,
   type StockSupplierOrderLink,
 } from './stock-balance';
 
@@ -151,11 +154,15 @@ export const buildProductModelSerialPurchases = (
     StockSupplierOrderLink[]
   > = {},
   sales: ProductModelSaleLink[] = [],
+  latestSource: Product[] = products,
 ): ProductModelSerialPurchaseRow[] => {
-  const latestBatchProduct = getLatestBatchProduct(products);
+  const latestBatchProduct = getLatestBatchProduct(latestSource);
   const latestBatchKey = latestBatchProduct
     ? getBatchKey(latestBatchProduct)
     : '';
+  const latestSourceProductIds = new Set(
+    latestSource.map((product) => product.id),
+  );
   const clientOrdersByProductId = buildClientOrdersByProductId(products, sales);
 
   return [...products]
@@ -177,7 +184,10 @@ export const buildProductModelSerialPurchases = (
         serialNumber: product.serialNumber.trim(),
         price: product.price,
         purchaseDate: product.purchaseDate ?? product.createdAt ?? null,
-        isLatestBatch: getBatchKey(product) === latestBatchKey,
+        isLatestBatch:
+          latestBatchProduct !== null &&
+          latestSourceProductIds.has(product.id) &&
+          getBatchKey(product) === latestBatchKey,
         isReserved: reservedProductIds.has(product.id),
         supplierOrderNumber: link?.displayNumber ?? '',
         clientOrders: clientOrdersByProductId.get(product.id) ?? [],
@@ -225,10 +235,24 @@ export const getActiveStockProductsByExactModelName = (
   products: Product[],
   sales: StockSaleLink[],
   name: string,
+  stockStatuses?: readonly StockStatusFilter[],
 ) => {
+  const byModelName = getProductsByExactModelName(products, name);
+  if (stockStatuses !== undefined) {
+    const saleLinksByProductId = buildStockSaleLinksByProductId(products, sales);
+    return byModelName.filter(
+      (product) =>
+        product.quantity > 0 &&
+        matchesStockStatusChips(
+          saleLinksByProductId.get(product.id) ?? [],
+          stockStatuses,
+        ),
+    );
+  }
+
   const issuedProductIds = getIssuedSaleProductIds(products, sales);
 
-  return getProductsByExactModelName(products, name).filter((product) =>
+  return byModelName.filter((product) =>
     isProductActiveStockUnit(product, issuedProductIds),
   );
 };

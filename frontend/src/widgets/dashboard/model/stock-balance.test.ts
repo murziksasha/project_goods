@@ -3,18 +3,26 @@ import type { Product } from '../../../entities/product';
 import type { Sale } from '../../../entities/sale';
 import type { SupplierOrder } from '../../../entities/supplier-order';
 import {
+  allStockStatusFilters,
   buildSalesByProductId,
   buildSupplierOrdersByProductId,
   buildProductWarehouseMetaById,
+  defaultStockStatusFilters,
   filterStockProducts,
   getIssuedSaleProductIds,
   getStockSupplierLabel,
   groupStockProductsByModel,
+  isDefaultStockStatusFilter,
   isProductNameLikeStockQuery,
   isSaleLineItemLinkedToStockProduct,
   matchesStockSearchQuery,
+  matchesStockStatusChips,
   mergeSalesWithStockOrderLinks,
+  normalizeStockStatusFilters,
+  toggleAllStockStatusFilters,
+  toggleStockStatusFilter,
   type StockSearchMode,
+  type StockStatusFilter,
   type StockSupplierOrderLink,
 } from './stock-balance';
 
@@ -112,12 +120,14 @@ const filter = ({
   supplierOrdersByProductId = {},
   query = '',
   searchMode = 'serial',
+  stockStatuses = defaultStockStatusFilters,
 }: {
   products: Product[];
   sales?: Sale[];
   supplierOrdersByProductId?: Record<string, StockSupplierOrderLink[]>;
   query?: string;
   searchMode?: StockSearchMode;
+  stockStatuses?: readonly StockStatusFilter[];
 }) =>
   filterStockProducts({
     products,
@@ -133,6 +143,7 @@ const filter = ({
       buyer: '',
       location: '',
     },
+    stockStatuses,
     productWarehouseMetaById: buildProductWarehouseMetaById(products, []),
     supplierOrdersByProductId,
     buyersByProductName: {},
@@ -634,5 +645,266 @@ describe('mergeSalesWithStockOrderLinks', () => {
     expect(merged).toHaveLength(2);
     expect(merged[0]).toBe(loaded);
     expect(merged[1]?.id).toBe('sale-old');
+  });
+});
+
+describe('stock status chips', () => {
+  it('separates free, in_order, sold, issued_repair, and excluded repair statuses', () => {
+    const pFree = product({ id: 'p-free', serialNumber: 'S-FREE' });
+    const pSaleNew = product({ id: 'p-sale-new', serialNumber: 'S-NEW' });
+    const pSaleReturned = product({ id: 'p-returned', serialNumber: 'S-RET' });
+    const pSaleAway = product({ id: 'p-away', serialNumber: 'S-AWAY' });
+    const pRepairReady = product({ id: 'p-ready', serialNumber: 'S-READY' });
+    const pSold = product({ id: 'p-sold', serialNumber: 'S-SOLD' });
+    const pIssuedRepair = product({ id: 'p-rep-iss', serialNumber: 'S-REP-ISS' });
+    const pIssuedNoRep = product({ id: 'p-rep-nor', serialNumber: 'S-REP-NOR' });
+    const pRejected = product({ id: 'p-rejected', serialNumber: 'S-REJ' });
+    const pNotPicked = product({ id: 'p-not-picked', serialNumber: 'S-NPU' });
+    const pZeroSold = product({
+      id: 'p-zero',
+      serialNumber: 'S-ZERO',
+      quantity: 0,
+    });
+
+    const allProducts = [
+      pFree,
+      pSaleNew,
+      pSaleReturned,
+      pSaleAway,
+      pRepairReady,
+      pSold,
+      pIssuedRepair,
+      pIssuedNoRep,
+      pRejected,
+      pNotPicked,
+      pZeroSold,
+    ];
+    const salesList = [
+      sale({
+        id: 's-new',
+        kind: 'sale',
+        status: 'new',
+        product: { id: pSaleNew.id, article: '', name: '', serialNumber: '' },
+      }),
+      sale({
+        id: 's-ret',
+        kind: 'sale',
+        status: 'returned',
+        product: { id: pSaleReturned.id, article: '', name: '', serialNumber: '' },
+      }),
+      sale({
+        id: 's-away',
+        kind: 'sale',
+        status: 'away',
+        product: { id: pSaleAway.id, article: '', name: '', serialNumber: '' },
+      }),
+      sale({
+        id: 's-ready',
+        kind: 'repair',
+        status: 'ready',
+        product: { id: pRepairReady.id, article: '', name: '', serialNumber: '' },
+      }),
+      sale({
+        id: 's-sold',
+        kind: 'sale',
+        status: 'issued',
+        product: { id: pSold.id, article: '', name: '', serialNumber: '' },
+      }),
+      sale({
+        id: 's-rep-iss',
+        kind: 'repair',
+        status: 'issued',
+        product: { id: pIssuedRepair.id, article: '', name: '', serialNumber: '' },
+      }),
+      sale({
+        id: 's-rep-nor',
+        kind: 'repair',
+        status: 'issuedWithoutRepair',
+        product: { id: pIssuedNoRep.id, article: '', name: '', serialNumber: '' },
+      }),
+      sale({
+        id: 's-rej',
+        kind: 'repair',
+        status: 'clientRejected',
+        product: { id: pRejected.id, article: '', name: '', serialNumber: '' },
+      }),
+      sale({
+        id: 's-npu',
+        kind: 'repair',
+        status: 'notPickedUp',
+        product: { id: pNotPicked.id, article: '', name: '', serialNumber: '' },
+      }),
+      sale({
+        id: 's-zero',
+        kind: 'sale',
+        status: 'issued',
+        product: { id: pZeroSold.id, article: '', name: '', serialNumber: '' },
+      }),
+    ];
+
+    expect(
+      filter({ products: allProducts, sales: salesList }).map((p) => p.id),
+    ).toEqual(['p-free', 'p-sale-new', 'p-returned', 'p-away', 'p-ready']);
+
+    expect(
+      filter({
+        products: allProducts,
+        sales: salesList,
+        stockStatuses: ['free'],
+      }).map((p) => p.id),
+    ).toEqual(['p-free']);
+
+    expect(
+      filter({
+        products: allProducts,
+        sales: salesList,
+        stockStatuses: ['in_order'],
+      }).map((p) => p.id),
+    ).toEqual(['p-sale-new', 'p-returned', 'p-away', 'p-ready']);
+
+    expect(
+      filter({
+        products: allProducts,
+        sales: salesList,
+        stockStatuses: ['sold'],
+      }).map((p) => p.id),
+    ).toEqual(['p-sold']);
+
+    expect(
+      filter({
+        products: allProducts,
+        sales: salesList,
+        stockStatuses: ['issued_repair'],
+      }).map((p) => p.id),
+    ).toEqual(['p-rep-iss', 'p-rep-nor']);
+
+    // Selecting all 4 chips by hand excludes clientRejected and notPickedUp
+    expect(
+      filter({
+        products: allProducts,
+        sales: salesList,
+        stockStatuses: ['free', 'in_order', 'sold', 'issued_repair'],
+      }).map((p) => p.id),
+    ).toEqual([
+      'p-free',
+      'p-sale-new',
+      'p-returned',
+      'p-away',
+      'p-ready',
+      'p-sold',
+      'p-rep-iss',
+      'p-rep-nor',
+    ]);
+
+    // All includes every quantity > 0 unit including clientRejected and notPickedUp, never quantity 0
+    expect(
+      filter({
+        products: allProducts,
+        sales: salesList,
+        stockStatuses: allStockStatusFilters,
+      }).map((p) => p.id),
+    ).toEqual([
+      'p-free',
+      'p-sale-new',
+      'p-returned',
+      'p-away',
+      'p-ready',
+      'p-sold',
+      'p-rep-iss',
+      'p-rep-nor',
+      'p-rejected',
+      'p-not-picked',
+    ]);
+
+    expect(
+      filter({
+        products: allProducts,
+        sales: salesList,
+        stockStatuses: [],
+      }),
+    ).toEqual([]);
+  });
+
+  it('hides rows with handoff bindings even when another ordinary binding matches', () => {
+    expect(
+      matchesStockStatusChips(
+        [
+          { kind: 'sale', status: 'issued' },
+          { kind: 'repair', status: 'paid' },
+        ],
+        ['free', 'in_order'],
+      ),
+    ).toBe(false);
+    expect(
+      matchesStockStatusChips(
+        [
+          { kind: 'sale', status: 'issued' },
+          { kind: 'repair', status: 'paid' },
+        ],
+        ['sold'],
+      ),
+    ).toBe(true);
+    expect(
+      matchesStockStatusChips(
+        [
+          { kind: 'repair', status: 'issuedWithoutRepair' },
+          { kind: 'repair', status: 'ready' },
+        ],
+        ['in_order'],
+      ),
+    ).toBe(false);
+    expect(
+      matchesStockStatusChips(
+        [
+          { kind: 'repair', status: 'issuedWithoutRepair' },
+          { kind: 'repair', status: 'ready' },
+        ],
+        ['issued_repair'],
+      ),
+    ).toBe(true);
+    expect(
+      matchesStockStatusChips(
+        [
+          { kind: 'repair', status: 'clientRejected' },
+          { kind: 'repair', status: 'diagnostics' },
+        ],
+        ['in_order'],
+      ),
+    ).toBe(true);
+  });
+
+  it('toggles chips, All, normalization, and quiet badge check', () => {
+    expect(toggleAllStockStatusFilters(['free', 'in_order'])).toEqual([
+      'all',
+      'free',
+      'in_order',
+      'sold',
+      'issued_repair',
+    ]);
+    expect(toggleAllStockStatusFilters(allStockStatusFilters)).toEqual([]);
+    expect(toggleStockStatusFilter(allStockStatusFilters, 'sold')).toEqual([
+      'free',
+      'in_order',
+      'issued_repair',
+    ]);
+    const manualFour = toggleStockStatusFilter(
+      ['free', 'in_order', 'sold'],
+      'issued_repair',
+    );
+    expect(manualFour).toEqual(['free', 'in_order', 'sold', 'issued_repair']);
+    expect(manualFour).not.toContain('all');
+
+    expect(normalizeStockStatusFilters(undefined)).toEqual([
+      'free',
+      'in_order',
+    ]);
+    expect(normalizeStockStatusFilters([])).toEqual([]);
+    expect(normalizeStockStatusFilters(['all'])).toEqual(allStockStatusFilters);
+
+    expect(isDefaultStockStatusFilter(['free', 'in_order'])).toBe(true);
+    expect(isDefaultStockStatusFilter(['in_order', 'free'])).toBe(true);
+    expect(isDefaultStockStatusFilter([])).toBe(false);
+    expect(isDefaultStockStatusFilter(['free'])).toBe(false);
+    expect(isDefaultStockStatusFilter(allStockStatusFilters)).toBe(false);
   });
 });

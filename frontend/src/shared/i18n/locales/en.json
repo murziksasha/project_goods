@@ -3052,8 +3052,15 @@
       "stockRows": "{{count}} stock rows",
       "movableRows": "{{count}} movable rows",
       "receiptRows": "{{count}} receipt rows",
+      "checkingStock": "Checking stock...",
       "unitsModelsValue": "{{units}} units · {{models}} models · {{value}}",
       "linesOrdersUnpaid": "{{lines}} lines · {{orders}} orders · {{unpaid}} unpaid"
+    },
+    "stockStatus": {
+      "free": "Free",
+      "in_order": "In order",
+      "sold": "Sold",
+      "issued_repair": "Issued repair"
     },
     "view": {
       "units": "Units",

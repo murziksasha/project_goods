@@ -21,9 +21,11 @@ import type {
 } from '../../../entities/supplier-order';
 import type { Sale } from '../../../entities/sale';
 import type { PrintForm } from '../../../entities/settings';
-import type {
-  StockSupplierOrderLink,
-  StockWarehouseMeta,
+import {
+  defaultStockStatusFilters,
+  type StockStatusFilter,
+  type StockSupplierOrderLink,
+  type StockWarehouseMeta,
 } from './stock-balance';
 
 export type WarehouseTab =
@@ -104,6 +106,7 @@ export type WarehouseFilters = {
   buyer: string;
   location: string;
   statuses: ReceiptStatus[];
+  stockStatuses: StockStatusFilter[];
   favoritesOnly: boolean;
   statusSelectionExplicit?: boolean;
 };
@@ -355,6 +358,7 @@ export interface StoredWarehouseFilters {
   receiptStatus?: ReceiptStatus | 'all';
   receiptStatuses?: ReceiptStatus[];
   statuses?: ReceiptStatus[];
+  stockStatuses?: StockStatusFilter[];
   favoritesOnly?: boolean;
   statusSelectionExplicit?: boolean;
 }
@@ -483,6 +487,7 @@ export const initialWarehouseFilters: WarehouseFilters = {
   buyer: '',
   location: '',
   statuses: [...receiptStatusFilterOptions],
+  stockStatuses: [...defaultStockStatusFilters],
   favoritesOnly: false,
   statusSelectionExplicit: true,
 };

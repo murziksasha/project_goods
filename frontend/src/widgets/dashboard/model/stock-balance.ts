@@ -11,6 +11,31 @@ export type StockSearchMode =
   | 'warehouse'
   | 'supplier';
 
+export type StockStatusChip =
+  | 'free'
+  | 'in_order'
+  | 'sold'
+  | 'issued_repair';
+
+export type StockStatusFilter = 'all' | StockStatusChip;
+
+export const stockStatusChipOptions: readonly StockStatusChip[] = [
+  'free',
+  'in_order',
+  'sold',
+  'issued_repair',
+];
+
+export const allStockStatusFilters: readonly StockStatusFilter[] = [
+  'all',
+  ...stockStatusChipOptions,
+];
+
+export const defaultStockStatusFilters: readonly StockStatusFilter[] = [
+  'free',
+  'in_order',
+];
+
 export type StockFilters = {
   name: string;
   serial: string;
@@ -61,6 +86,129 @@ export const isIssuedSaleStatus = (value: string | null | undefined) => {
     normalized === 'issuedwithoutrepair' ||
     normalized === 'issuedwithoutrepairing'
   );
+};
+
+const isExcludedRepairChipStatus = (normalizedStatus: string) =>
+  normalizedStatus === 'clientrejected' || normalizedStatus === 'notpickedup';
+
+const isInOrderSaleStatus = (normalizedStatus: string) =>
+  normalizedStatus === 'new' ||
+  normalizedStatus === 'reserved' ||
+  normalizedStatus === 'paid' ||
+  normalizedStatus === 'returned' ||
+  normalizedStatus === 'away';
+
+export type StockOrderBindingFlags = {
+  hasSold: boolean;
+  hasIssuedRepair: boolean;
+  hasInOrder: boolean;
+};
+
+export const classifyStockOrderBindings = (
+  linkedSales: ReadonlyArray<Pick<StockSaleLink, 'kind' | 'status'>>,
+): StockOrderBindingFlags => {
+  let hasSold = false;
+  let hasIssuedRepair = false;
+  let hasInOrder = false;
+
+  linkedSales.forEach((sale) => {
+    const normalized = normalizeSaleStatus(sale.status);
+    if (!normalized) return;
+
+    if (sale.kind === 'sale') {
+      if (normalized === 'issued') {
+        hasSold = true;
+      } else if (isInOrderSaleStatus(normalized)) {
+        hasInOrder = true;
+      }
+      return;
+    }
+
+    if (isIssuedSaleStatus(normalized)) {
+      hasIssuedRepair = true;
+    } else if (!isExcludedRepairChipStatus(normalized)) {
+      hasInOrder = true;
+    }
+  });
+
+  return { hasSold, hasIssuedRepair, hasInOrder };
+};
+
+export const isStockStatusFilterOption = (
+  value: unknown,
+): value is StockStatusFilter =>
+  typeof value === 'string' &&
+  allStockStatusFilters.includes(value as StockStatusFilter);
+
+export const normalizeStockStatusFilters = (
+  value: unknown,
+  fallback: readonly StockStatusFilter[] = defaultStockStatusFilters,
+): StockStatusFilter[] => {
+  if (!Array.isArray(value)) {
+    return [...fallback];
+  }
+  const filtered = Array.from(new Set(value.filter(isStockStatusFilterOption)));
+  if (filtered.includes('all')) {
+    return [...allStockStatusFilters];
+  }
+  return filtered;
+};
+
+export const toggleStockStatusFilter = (
+  selected: readonly StockStatusFilter[],
+  chip: StockStatusChip,
+): StockStatusFilter[] => {
+  if (selected.includes(chip)) {
+    return selected.filter((item) => item !== chip && item !== 'all');
+  }
+  return [...selected.filter((item) => item !== 'all'), chip];
+};
+
+export const toggleAllStockStatusFilters = (
+  selected: readonly StockStatusFilter[],
+): StockStatusFilter[] => {
+  if (selected.includes('all')) {
+    return [];
+  }
+  return [...allStockStatusFilters];
+};
+
+export const isDefaultStockStatusFilter = (
+  selected: readonly StockStatusFilter[],
+): boolean => {
+  if (selected.includes('all')) return false;
+  const unique = Array.from(new Set(selected));
+  return (
+    unique.length === defaultStockStatusFilters.length &&
+    defaultStockStatusFilters.every((item) => unique.includes(item))
+  );
+};
+
+export const matchesStockStatusChips = (
+  linkedSales: ReadonlyArray<Pick<StockSaleLink, 'kind' | 'status'>>,
+  stockStatuses: readonly StockStatusFilter[] = defaultStockStatusFilters,
+): boolean => {
+  if (stockStatuses.includes('all')) {
+    return true;
+  }
+  if (stockStatuses.length === 0) {
+    return false;
+  }
+  if (linkedSales.length === 0) {
+    return stockStatuses.includes('free');
+  }
+
+  const { hasSold, hasIssuedRepair, hasInOrder } =
+    classifyStockOrderBindings(linkedSales);
+
+  if (hasSold || hasIssuedRepair) {
+    return (
+      (hasSold && stockStatuses.includes('sold')) ||
+      (hasIssuedRepair && stockStatuses.includes('issued_repair'))
+    );
+  }
+
+  return hasInOrder && stockStatuses.includes('in_order');
 };
 
 type SaleLineItemLink = Pick<
@@ -164,7 +312,9 @@ export const buildSalesByProductId = (
     return acc;
   }, {});
 
-export type StockSaleLink = Pick<Sale, 'status' | 'product' | 'lineItems'>;
+export type StockSaleLink = Pick<Sale, 'status' | 'product' | 'lineItems'> & {
+  kind?: Sale['kind'];
+};
 
 export const getIssuedSaleProductIds = (
   products: Product[],
@@ -181,6 +331,26 @@ export const getIssuedSaleProductIds = (
   });
 
   return issuedProductIds;
+};
+
+export const buildStockSaleLinksByProductId = (
+  products: Product[],
+  sales: StockSaleLink[],
+): Map<string, StockSaleLink[]> => {
+  const map = new Map<string, StockSaleLink[]>();
+
+  sales.forEach((sale) => {
+    getStockProductIdsLinkedToSale(sale, products).forEach((productId) => {
+      const current = map.get(productId);
+      if (current) {
+        current.push(sale);
+      } else {
+        map.set(productId, [sale]);
+      }
+    });
+  });
+
+  return map;
 };
 
 const stockOrderLinkKind = (kind: StockOrderLink['kind']): Sale['kind'] =>
@@ -409,6 +579,7 @@ export const filterStockProducts = ({
   query,
   searchMode,
   filters,
+  stockStatuses = defaultStockStatusFilters,
   productWarehouseMetaById,
   supplierOrdersByProductId,
   buyersByProductName,
@@ -418,16 +589,21 @@ export const filterStockProducts = ({
   query: string;
   searchMode: StockSearchMode;
   filters: StockFilters;
+  stockStatuses?: readonly StockStatusFilter[];
   productWarehouseMetaById: Record<string, StockWarehouseMeta>;
   supplierOrdersByProductId: Record<string, StockSupplierOrderLink[]>;
   buyersByProductName: Record<string, string[]>;
 }) => {
-  const issuedProductIds = getIssuedSaleProductIds(products, sales);
+  const saleLinksByProductId = buildStockSaleLinksByProductId(products, sales);
 
   return products
     .filter(
       (product) =>
-        product.quantity > 0 && !issuedProductIds.has(product.id),
+        product.quantity > 0 &&
+        matchesStockStatusChips(
+          saleLinksByProductId.get(product.id) ?? [],
+          stockStatuses,
+        ),
     )
     .filter((product) => {
       const productMeta = productWarehouseMetaById[product.id];

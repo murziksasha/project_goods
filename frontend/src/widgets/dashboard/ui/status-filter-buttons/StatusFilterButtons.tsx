@@ -10,6 +10,7 @@ export interface StatusFilterButtonsProps<T extends string = string> {
   selectedStatuses: readonly T[];
   options: readonly StatusFilterButtonItem<T>[];
   allLabel: string;
+  isAllSelected?: boolean;
   onToggleStatus: (status: T) => void;
   onToggleAll: () => void;
   className?: string;
@@ -19,12 +20,14 @@ export const StatusFilterButtons = <T extends string>({
   selectedStatuses,
   options,
   allLabel,
+  isAllSelected,
   onToggleStatus,
   onToggleAll,
   className,
 }: StatusFilterButtonsProps<T>): React.ReactElement => {
   const allOptionKeys = options.map((opt) => opt.key);
-  const isAll = isAllStatusesSelected(selectedStatuses, allOptionKeys);
+  const isAll =
+    isAllSelected ?? isAllStatusesSelected(selectedStatuses, allOptionKeys);
 
   return (
     <div

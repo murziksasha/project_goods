@@ -3,6 +3,7 @@ import { useMemo, type Dispatch, type SetStateAction } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Product } from '../../../../entities/product';
 import { formatDate } from '../../../../shared/lib/format';
+import { TableSkeleton } from '../../../../shared/ui/TableSkeleton';
 import type {
   ProductWarehouseMeta,
   TransferFormState,
@@ -35,6 +36,7 @@ export interface TransferWorkspaceProps {
   targetLocations: WarehouseLocation[];
   history: TransferHistoryRow[];
   isSaving: boolean;
+  isCheckingStock?: boolean;
   onFormChange: Dispatch<SetStateAction<TransferFormState>>;
   onSubmit: () => void;
   batchMode?: WarehouseBatchMode | null;
@@ -52,6 +54,7 @@ export const TransferWorkspace: React.FC<TransferWorkspaceProps> = ({
   targetLocations,
   history,
   isSaving,
+  isCheckingStock = false,
   onFormChange,
   onSubmit,
   batchMode,
@@ -182,7 +185,9 @@ export const TransferWorkspace: React.FC<TransferWorkspaceProps> = ({
           <span className='metric-label'>
             {t('warehouse.transfer.kpi.movable')}
           </span>
-          <strong>{selectableProducts.length}</strong>
+          <strong>
+            {isCheckingStock ? emptyMark : selectableProducts.length}
+          </strong>
         </article>
         <article className='analytics-summary-card'>
           <span className='metric-label'>
@@ -242,7 +247,7 @@ export const TransferWorkspace: React.FC<TransferWorkspaceProps> = ({
               <select
                 value={form.productId}
                 onChange={(event) => selectProduct(event.target.value)}
-                disabled={isSaving}
+                disabled={isSaving || isCheckingStock}
               >
                 <option value=''>
                   {t('warehouse.transfer.selectStockItem')}
@@ -474,6 +479,13 @@ export const TransferWorkspace: React.FC<TransferWorkspaceProps> = ({
                 </table>
               </div>
             )
+          ) : isCheckingStock ? (
+            <TableSkeleton
+              className='warehouse-transfer-empty'
+              rows={4}
+              columns={5}
+              label={t('warehouse.summary.checkingStock')}
+            />
           ) : products.length === 0 ? (
             <p className='empty-state warehouse-transfer-empty'>
               {t('warehouse.transfer.stockTable.empty')}

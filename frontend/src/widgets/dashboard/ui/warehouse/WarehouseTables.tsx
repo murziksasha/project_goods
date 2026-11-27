@@ -824,6 +824,7 @@ export const StockTable = ({
   isLoading,
   visibleColumns,
   selectedProductIds,
+  movableProductIds,
   warehouses,
   serviceCenters,
   salesByProductId,
@@ -848,6 +849,7 @@ export const StockTable = ({
   isLoading: boolean;
   visibleColumns: StockColumnKey[];
   selectedProductIds: string[];
+  movableProductIds?: ReadonlySet<string>;
   warehouses: WarehouseItem[];
   serviceCenters: ServiceCenter[];
   salesByProductId: Record<string, Sale[]>;
@@ -1263,6 +1265,11 @@ export const StockTable = ({
         selectedProductIds.includes(item.id),
       );
       if (checkedGroupProducts.length === 0) return null;
+      const movableCheckedGroupProducts = movableProductIds
+        ? checkedGroupProducts.filter((item) =>
+            movableProductIds.has(item.id),
+          )
+        : checkedGroupProducts;
       return (
         <StockRowActions
           product={checkedGroupProducts}
@@ -1272,22 +1279,25 @@ export const StockTable = ({
             else onDelete(list);
           }}
           onTransfer={
-            onTransfer || onTransferGroup
-              ? (items) => {
-                  const list = Array.isArray(items) ? items : [items];
-                  if (onTransferGroup) onTransferGroup(list);
-                  else onTransfer?.(list);
+            (onTransfer || onTransferGroup) &&
+            movableCheckedGroupProducts.length > 0
+              ? () => {
+                  if (onTransferGroup)
+                    onTransferGroup(movableCheckedGroupProducts);
+                  else onTransfer?.(movableCheckedGroupProducts);
                 }
               : undefined
           }
         />
       );
     }
+    const canTransferUnit =
+      !movableProductIds || movableProductIds.has(product.id);
     return (
       <StockRowActions
         product={product}
         onDelete={onDelete}
-        onTransfer={onTransfer}
+        onTransfer={canTransferUnit ? onTransfer : undefined}
       />
     );
   };
